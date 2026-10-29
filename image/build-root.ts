@@ -130,7 +130,8 @@ cp /repo/.cache/applets/*.pocket /usr/share/omarchy-pocket/applets/ 2>/dev/null 
 install -Dm644 /repo/.cache/daemon/omarchy-pocketd.js /usr/lib/omarchy-pocket/omarchy-pocketd.js
 install -Dm644 /repo/.cache/daemon/ghostty-vt.wasm /usr/lib/omarchy-pocket/ghostty-vt.wasm
 # Chinese input: PocketJS's Rime helper over librime, and its pinyin schema
-gcc -O2 /repo/.cache/daemon/ime/rime.c -lrime -o /usr/lib/omarchy-pocket/pocket-rime
+gcc -O2 /repo/.cache/daemon/ime/rime.c -lrime -o /tmp/pocket-rime
+install -Dm755 /tmp/pocket-rime /usr/lib/omarchy-pocket/pocket-rime
 install -Dm644 /repo/.cache/daemon/ime/pocket_pinyin.schema.yaml /usr/lib/omarchy-pocket/ime/pocket_pinyin.schema.yaml
 for name in hyprctl uwsm uwsm-app omarchy-pocket-term omasnap; do install -Dm755 /repo/.cache/daemon/shim.js /usr/local/bin/$name; done
 install -d -m 755 /usr/lib/mali
