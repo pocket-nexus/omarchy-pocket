@@ -19,6 +19,9 @@ export interface Point {
 }
 
 export interface Contact extends Point {
+  id: number;
+  /** frames since it landed */
+  frames: number;
   /** where it landed: a tap belongs to the band it began in */
   start: Point;
   /** movement since the last frame */
@@ -27,11 +30,7 @@ export interface Contact extends Point {
   moved: boolean;
 }
 
-interface Tracked extends Contact {
-  frames: number;
-}
-
-const live = new Map<number, Tracked>();
+const live = new Map<number, Contact>();
 
 /** The remote tap's id, outside the panel's 0..255 */
 const REMOTE = 1000;
@@ -66,9 +65,9 @@ export function trackTouches(): TouchFrame {
       t.y = p.y;
       t.frames++;
       t.moved ||= Math.abs(p.x - t.start.x) > SLOP || Math.abs(p.y - t.start.y) > SLOP;
-    } else live.set(id, { x: p.x, y: p.y, dx: 0, dy: 0, moved: false, frames: 1, start: { ...p } });
+    } else live.set(id, { id, x: p.x, y: p.y, dx: 0, dy: 0, moved: false, frames: 1, start: { ...p } });
   }
-  const down = [...live.values()].filter((t) => t.frames >= SETTLE).map(({ frames: _, ...c }) => c);
+  const down = [...live.values()].filter((t) => t.frames >= SETTLE).map((c) => ({ ...c }));
   return { raw: now.size, down, taps };
 }
 

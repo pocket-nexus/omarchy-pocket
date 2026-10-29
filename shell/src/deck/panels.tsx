@@ -1,9 +1,9 @@
 // The panels Omarchy opens from the bar's indicators (plugins/panels:
-// Bluetooth, Network, Audio, Power): tabs of the Omarchy deck after Go
-// (omarchy-deck.tsx), also opened by `omarchy-shell shell summon
+// Bluetooth, Network, Audio, Power) on the deck's body: a tap on the
+// indicator in the deck's strip, or `omarchy-shell shell summon
 // omarchy.network|...`; the bar marks the open one. Up/Down move between
-// rows, A acts, Left/Right adjust a slider, Y forgets a saved network, B goes
-// back to Go. The highlight follows a row, not a position: rows keep their
+// rows, A acts, Left/Right adjust a slider, Y forgets a saved network, B
+// closes the panel. The highlight follows a row, not a position: rows keep their
 // first order while the panel is open, though rescans re-sort them. A secured
 // network asks for its password on the touch keyboard. Data comes from
 // omarchy-pocketd (daemon/panels.ts), again every few seconds while a panel

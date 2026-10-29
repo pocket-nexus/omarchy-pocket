@@ -102,7 +102,7 @@ export interface KeySink {
   hint?: () => string;
 }
 
-const TERMINAL_HINT = "A Enter  B Bksp  X Esc  Y Tab  D-pad arrows  hold L1 for windows";
+const TERMINAL_HINT = "A Enter  B Bksp  X Tab  Y Space  START Esc  SELECT hides";
 
 const terminalSink: KeySink = {
   text: (text) => {

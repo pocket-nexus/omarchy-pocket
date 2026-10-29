@@ -1,41 +1,46 @@
 // Omarchy Pocket's shell: Omarchy's desktop on the RG DS Plus's two
-// 512x384-point panels. The top panel is the stage: the theme's wallpaper,
-// the current workspace's windows tiled the way Omarchy tiles Hyprland
-// (wm.ts), Omarchy's bar, the OSD and notices. The bottom panel is the deck,
-// a touch surface in three bands: the strip (workspaces, the focused window's
-// title, the L1/R1 pills, Go), the body (the focused window's touch controls,
-// the Omarchy menu on an empty workspace or when opened, or the chord map
-// while a layer is in force) and the dock. The gamepad is the window
-// manager's keyboard: chords.ts maps every button under each shoulder layer,
-// and the buttons with no shoulder go to the focused window. The lock screen
-// covers both panels and takes input first; the screensaver covers
-// everything.
+// 512x384-point panels, with Pocket Shell's 3DS interaction. The top panel is
+// the stage: the wallpaper, the current workspace's windows tiled the way
+// Omarchy tiles Hyprland (wm.ts) and moved on the core's animation tracks
+// (workspaces.ts), Omarchy's bar, the OSD, notices and the key sheet. The
+// bottom panel is the deck: the strip (L1/R1 pills, workspaces, layout, the
+// bar's indicators), the body (deck/body.ts: the live minimap unless a chord
+// card, a panel, the menu or the focused window's controls are asked for)
+// and the dock.
+//
+// The gamepad: L1, R1 and both together are the chord layers of chords.ts;
+// with no shoulder held the buttons belong to the focused window, SELECT
+// brings up its keyboard or controls on the deck, and L2/R2 step workspaces.
+// The lock screen covers both panels and takes input first; the screensaver
+// covers everything.
+//
 // The bottom panel has one AuxiliarySurface: each portal is a flex child of
 // the panel's root, so two would share its width. The portal inserts its
 // child once (framework renderPortalChild calls the accessor), so the deck's
-// Show chain sits inside a View.
+// switching sits inside a View.
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { AuxiliarySurface, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
 import { onFrame } from "@pocketjs/framework/lifecycle";
-import { perform } from "./actions.ts";
+import { perform, toggleControls } from "./actions.ts";
 import { appletOf, focusedApplet, type Applet } from "./applets/applet.ts";
-import "./applets/keys.tsx";
 import { request, type SystemState } from "./bridge.ts";
 import { chordFor, layerOf, MODIFIERS } from "./chords.ts";
-import { ChordMap, chordMapTouch } from "./deck/chord-map.tsx";
-import { setDeckOpen } from "./deck/deck-state.ts";
-import { Dock, dockTap, dockTouch } from "./deck/dock.tsx";
+import { body, setBody } from "./deck/body.ts";
+import { ChordCard, chordCardTouch, chordTarget } from "./deck/chord-card.tsx";
+import { Dock, dockTap, dockTarget } from "./deck/dock.tsx";
 import { BODY_H, BODY_TOP, DOCK_TOP, STRIP_H } from "./deck/geometry.ts";
 import { layer, releasePills, setHeld } from "./deck/layer.ts";
-import { BACK, OPEN } from "./deck/menu-deck.tsx";
-import { OmarchyDeck, omarchyDeckPress, omarchyDeckShown, omarchyDeckTap, toggleOmarchyDeck } from "./deck/omarchy-deck.tsx";
-import { openPanel, passwordEntry } from "./deck/panels.tsx";
+import { atRoot, BACK, deckPress, deckTap, MenuDeck, OPEN } from "./deck/menu-deck.tsx";
+import { Minimap, minimapTouch } from "./deck/minimap.tsx";
+import { closePanel, openPanel, panelPress, Panels, panelTap, passwordEntry } from "./deck/panels.tsx";
 import { Picker, pickerOpen, pickerPress, pickerTap } from "./deck/picker.tsx";
-import { Strip, stripTap } from "./deck/strip.tsx";
+import { pressAt } from "./deck/press.ts";
+import { Strip, stripTap, stripTarget } from "./deck/strip.tsx";
 import { remoteButtons } from "./remote-input.ts";
 import { Bar } from "./stage/bar.tsx";
+import { KeySheet } from "./stage/keysheet.tsx";
 import { lock, locked, LockStage } from "./stage/lock.tsx";
 import { Osd } from "./stage/osd.tsx";
 import { Screensaver, screensaverActive, ScreensaverDeck, startScreensaver, stopScreensaver } from "./stage/screensaver.tsx";
@@ -43,9 +48,10 @@ import { Toasts } from "./stage/toasts.tsx";
 import { Wallpaper } from "./stage/wallpaper.tsx";
 import { Windows } from "./stage/windows.tsx";
 import { state } from "./system.ts";
+import { color } from "./theme.ts";
 import { composing } from "./term/ime.ts";
 import { Keyboard, keyboardTouch, sendKey, setWindowKeys } from "./term/keyboard.tsx";
-import { band, trackTouches } from "./touch.ts";
+import { band, trackTouches, type TouchFrame } from "./touch.ts";
 import "./windows.ts";
 import { current, focused, visibleWindows } from "./workspaces.ts";
 
@@ -61,12 +67,16 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 
 const two = (n: number) => (n < 10 ? `0${n}` : String(n));
 
-/** The gamepad in a terminal with no shoulder held: the D-pad is the arrow
- *  keys, the face buttons the keys a shell and a TUI need most. */
+/** A terminal's keys with no shoulder held, as Pocket Shell's term takes
+ *  them: the D-pad is the arrows, A Enter, B Backspace, X Tab, Y Space, and
+ *  START Escape. */
 const TERM_KEYS: [number, string][] = [
   [BTN.UP, "Up"], [BTN.DOWN, "Down"], [BTN.LEFT, "Left"], [BTN.RIGHT, "Right"],
-  [OPEN, "Enter"], [BACK, "Backspace"], [BTN.TRIANGLE, "Escape"], [BTN.SQUARE, "Tab"],
+  [OPEN, "Enter"], [BACK, "Backspace"], [BTN.TRIANGLE, "Tab"], [BTN.SQUARE, " "], [BTN.START, "Escape"],
 ];
+
+/** What the body shows, by the rules in deck/body.ts. */
+type Shown = "chords" | "picker" | "panel" | "menu" | "controls" | "map";
 
 export default function Shell() {
   const [now, setNow] = createSignal(new Date());
@@ -79,9 +89,17 @@ export default function Shell() {
   const date = () => `${WEEKDAYS[now().getDay()]}, ${now().getDate()} ${MONTHS[now().getMonth()]}`;
 
   const terminal = () => focused()?.kind === "terminal";
+  const shown = (): Shown => {
+    if (layer() !== "plain") return "chords";
+    if (pickerOpen()) return "picker";
+    if (openPanel()) return "panel";
+    if (body() === "menu") return "menu";
+    if (body() === "controls" && focused()) return "controls";
+    return "map";
+  };
   setWindowKeys(() => focusedApplet()?.keys?.() ?? null);
-  // A window that gains focus takes the body back from the Omarchy menu.
-  createEffect(on([current, focused], () => setDeckOpen(false), { defer: true }));
+  // A window opened from the menu takes focus; the menu makes way for it.
+  createEffect(on([current, focused], () => body() === "menu" && setBody("map"), { defer: true }));
   // Applets hear when their window comes onto the current workspace and leaves it.
   let seen = new Set<Applet>();
   createEffect(() => {
@@ -130,11 +148,19 @@ export default function Shell() {
       releasePills();
       return perform(chord.action);
     }
-    if (pickerOpen()) return pickerPress(key);
-    if (key & BTN.START) return toggleOmarchyDeck();
     const chord = chordFor("plain", key);
     if (chord) return perform(chord.action);
-    if (omarchyDeckShown()) return omarchyDeckPress(key);
+    if (key & BTN.SELECT) return toggleControls();
+    switch (shown()) {
+      case "picker":
+        return pickerPress(key);
+      case "panel":
+        if (key & BACK) return closePanel();
+        return panelPress(key);
+      case "menu":
+        if (key & BACK && atRoot()) return setBody("map");
+        return deckPress(key);
+    }
     if (terminal()) return termPress(key);
     focusedApplet()?.press?.(key);
   };
@@ -148,6 +174,35 @@ export default function Shell() {
     // A picks the first candidate while a pinyin composition is open
     if (key & OPEN && composing()) return sendKey(" ");
     for (const [mask, name] of TERM_KEYS) if (key & mask) return sendKey(name);
+  };
+
+  const bodyTouch = (frame: TouchFrame) => {
+    switch (shown()) {
+      case "chords":
+        return chordCardTouch(frame);
+      case "picker":
+        for (const tap of frame.taps) if (!tap.moved) pickerTap(tap.y);
+        return;
+      case "panel":
+        for (const tap of frame.taps) if (!tap.moved) panelTap(tap.x, tap.y);
+        return;
+      case "menu":
+        for (const tap of frame.taps) {
+          if (tap.moved) continue;
+          if (tap.y < 26 && atRoot()) setBody("map");
+          else deckTap(tap.y);
+        }
+        return;
+      case "controls": {
+        if (terminal()) return keyboardTouch(frame, "body");
+        const applet = focusedApplet();
+        if (applet?.touches) return applet.touches(frame);
+        for (const tap of frame.taps) if (!tap.moved) applet?.tap?.(tap.x, tap.y);
+        return;
+      }
+      case "map":
+        return minimapTouch(frame);
+    }
   };
 
   let held = 0;
@@ -177,26 +232,22 @@ export default function Shell() {
     }
     if (locked() || passwordEntry()) return keyboardTouch(touch, "full");
 
-    const strip = band(touch, 0, STRIP_H);
-    for (const tap of strip.taps) stripTap(tap.start.x);
-    const dock = band(touch, DOCK_TOP, 384);
-    dockTouch(dock.down.map((c) => c.x));
-    for (const tap of dock.taps) if (!tap.moved) dockTap(tap.x);
-
-    const body = band(touch, BODY_TOP, DOCK_TOP);
-    if (layer() !== "plain") return chordMapTouch(body);
-    if (pickerOpen()) {
-      for (const tap of body.taps) pickerTap(tap.y);
-      return;
-    }
-    if (omarchyDeckShown()) {
-      for (const tap of body.taps) omarchyDeckTap(tap.x, tap.y);
-      return;
-    }
-    if (terminal()) return keyboardTouch(body, "body");
-    const applet = focusedApplet();
-    if (applet?.touches) applet.touches(body);
-    else for (const tap of body.taps) if (!tap.moved) applet?.tap?.(tap.x, tap.y);
+    // the pressed look follows the oldest finger
+    const first = touch.down[0];
+    pressAt(
+      !first
+        ? null
+        : first.start.y < STRIP_H
+          ? stripTarget(first.x)
+          : first.start.y >= DOCK_TOP
+            ? dockTarget(first.x)
+            : shown() === "chords"
+              ? chordTarget(first.x, first.y - BODY_TOP)
+              : null,
+    );
+    for (const tap of band(touch, 0, STRIP_H).taps) if (!tap.moved) stripTap(tap.start.x);
+    for (const tap of band(touch, DOCK_TOP, 384).taps) if (!tap.moved) dockTap(tap.x);
+    bodyTouch(band(touch, BODY_TOP, DOCK_TOP));
   });
 
   return (
@@ -204,28 +255,40 @@ export default function Shell() {
       <Wallpaper />
       <Windows />
       <Bar now={now} focused={openPanel} />
+      <KeySheet />
       <Osd />
       <Toasts />
       <LockStage clock={time} date={date} />
       <Screensaver />
       <AuxiliarySurface>
-        <View class="absolute left-0 top-0 w-[512] h-[384]">
+        <View class="absolute left-0 top-0 w-[512] h-[384]" style={{ bgColor: color("darker_background") }}>
           <Show when={!screensaverActive()} fallback={<ScreensaverDeck />}>
             <Show when={!(locked() || passwordEntry())} fallback={<Keyboard mode="full" />}>
-              <Strip />
               <View class="absolute left-0 w-[512] overflow-hidden" style={{ insetT: BODY_TOP, height: BODY_H }}>
-                <Show when={layer() === "plain"} fallback={<ChordMap />}>
-                  <Show when={!pickerOpen()} fallback={<Picker />}>
-                    <Show when={!omarchyDeckShown()} fallback={<OmarchyDeck />}>
-                      <Show when={!terminal()} fallback={<Keyboard mode="body" />}>
-                        <Show when={focusedApplet()} keyed>
-                          {(applet) => <applet.Deck />}
-                        </Show>
-                      </Show>
+                <Show when={shown() === "map"}>
+                  <Minimap />
+                </Show>
+                <Show when={shown() === "chords"}>
+                  <ChordCard />
+                </Show>
+                <Show when={shown() === "picker"}>
+                  <Picker />
+                </Show>
+                <Show when={shown() === "panel"}>
+                  <Panels />
+                </Show>
+                <Show when={shown() === "menu"}>
+                  <MenuDeck />
+                </Show>
+                <Show when={shown() === "controls"}>
+                  <Show when={!terminal()} fallback={<Keyboard mode="body" />}>
+                    <Show when={focusedApplet()} keyed>
+                      {(applet) => <applet.Deck />}
                     </Show>
                   </Show>
                 </Show>
               </View>
+              <Strip />
               <Dock />
             </Show>
           </Show>

@@ -1,5 +1,6 @@
-// The Omarchy menu on the deck, the Go tab of the Omarchy deck
-// (omarchy-deck.tsx). Opening a level asks
+// Omarchy's menu on the deck's body (L1 + A, the dock's first cell, or
+// `omarchy-shell shell summon omarchy.menu`): the D-pad moves, A opens, B
+// goes back and closes it at the root. Opening a level asks
 // omarchy-pocketd for every `when`, `checked` and `disabled` command of its
 // rows; a row with a `when` appears once its command exits 0. A row's action
 // runs through omarchy-pocketd as the Omarchy user; a failure shows as a
@@ -17,7 +18,7 @@ import { conditionsOf, pathTo, PROVIDERS, providerRows, ROOT_TITLE, row, scrollF
 import { serve } from "../system.ts";
 import { applets } from "../applets/applet.ts";
 import { openWindow } from "../windows.ts";
-import { setDeckOpen } from "./deck-state.ts";
+import { setBody } from "./body.ts";
 import { BODY_H } from "./geometry.ts";
 import { PANELS, showPanel, type PanelName } from "./panels.tsx";
 import { openThemePicker } from "./picker.tsx";
@@ -127,7 +128,7 @@ function activate(item: MenuItem) {
   if (item.open) {
     // the window takes the deck; the menu is at its root when it comes back
     if (openWindow(item.open)) {
-      setDeckOpen(false);
+      setBody("map");
       toRoot();
     }
     return;
@@ -175,11 +176,11 @@ function summonPlugin(id: string, payloadJson: string) {
       menu = JSON.parse(payloadJson || "{}").menu || "root";
     } catch {}
     summon(menu);
+    setBody("menu");
     return "ok";
   }
   const panelName = id.replace(/^omarchy\./, "") as PanelName;
   if (PANELS.includes(panelName)) {
-    setDeckOpen(true);
     showPanel(panelName);
     return "ok";
   }

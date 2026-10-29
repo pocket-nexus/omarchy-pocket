@@ -154,7 +154,7 @@ const sink: KeySink = {
   text: insert,
   key: (name) => key(name),
   close: closeNote,
-  hint: () => "A newline  B Bksp  D-pad cursor  X or \u{f0156} done",
+  hint: () => "A newline  B Bksp  Y space  X or \u{f0156} done",
 };
 
 // The window: wrapped lines in the 14 px mono face; a CJK character advances 14 points.
@@ -282,7 +282,7 @@ function select(index: number) {
 
 const EDIT_KEYS: [number, string][] = [
   [BTN.UP, "Up"], [BTN.DOWN, "Down"], [BTN.LEFT, "Left"], [BTN.RIGHT, "Right"],
-  [BTN.CIRCLE, "Enter"], [BTN.CROSS, "Backspace"],
+  [BTN.CIRCLE, "Enter"], [BTN.CROSS, "Backspace"], [BTN.SQUARE, " "],
 ];
 
 register({
