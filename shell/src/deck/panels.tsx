@@ -1,11 +1,13 @@
-// The panels Omarchy opens from the bar's indicators (plugins/panels: Bluetooth,
-// Network, Audio, Power), on the deck. R2 opens them at Network, or
-// `omarchy-shell shell summon omarchy.network|...` at that panel; L1/R1 move
-// between them in the bar's order and the bar marks the open one. Up/Down
-// move between rows, A acts, Left/Right adjust a slider, Y forgets a saved
-// network, B closes. A secured network asks for its password on the touch
-// keyboard. Data comes from omarchy-pocketd (daemon/panels.ts), again every
-// few seconds while a panel is open.
+// The panels Omarchy opens from the bar's indicators (plugins/panels:
+// Bluetooth, Network, Audio, Power): tabs of the Omarchy deck after Go
+// (omarchy-deck.tsx), also opened by `omarchy-shell shell summon
+// omarchy.network|...`; the bar marks the open one. Up/Down move between
+// rows, A acts, Left/Right adjust a slider, Y forgets a saved network, B goes
+// back to Go. The highlight follows a row, not a position: rows keep their
+// first order while the panel is open, though rescans re-sort them. A secured
+// network asks for its password on the touch keyboard. Data comes from
+// omarchy-pocketd (daemon/panels.ts), again every few seconds while a panel
+// is open.
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
@@ -21,6 +23,7 @@ import { toast } from "../stage/toasts.tsx";
 import { state } from "../system.ts";
 import { setKeySink } from "../term/keyboard.tsx";
 import { color } from "../theme.ts";
+import { BODY_H } from "./geometry.ts";
 
 export type PanelName = "bluetooth" | "network" | "audio" | "power";
 export const PANELS: PanelName[] = ["bluetooth", "network", "audio", "power"];
@@ -40,14 +43,18 @@ interface Row {
 
 const HEADER_H = 26;
 const ROW_H = 22;
-const ROWS = Math.floor((384 - HEADER_H - 20) / ROW_H);
+const ROWS = Math.floor((BODY_H - HEADER_H - 20) / ROW_H);
 const REFRESH_EVERY = 4;
 const ERROR = "\u{f015a}";
 const CHECK = "\u{f012c}";
 const LOCK = "\u{f033e}";
 
 const [panel, setPanel] = createSignal<PanelName | null>(null);
-const [index, setIndex] = createSignal(0);
+/** the highlighted row, by its label: rows come and go and reorder as the
+ *  daemon reports, and the highlight stays on the same row */
+const [selected, setSelected] = createSignal("");
+/** while a panel stays open, rows keep the order they first appeared in */
+let seen = new Map<string, number>();
 const [network, setNetwork] = createSignal<NetworkPanel | null>(null);
 const [audio, setAudio] = createSignal<AudioPanel | null>(null);
 const [power, setPower] = createSignal<PowerPanel | null>(null);
@@ -80,7 +87,8 @@ function poll(token: number) {
 
 export function showPanel(name: PanelName) {
   setPanel(name);
-  setIndex(0);
+  setSelected("");
+  seen = new Map();
   load(name, name === "network");
   poll(++refreshing);
 }
@@ -158,7 +166,7 @@ function deviceRows(kind: "sink" | "source", list: AudioDevice[], title: string,
   return rows;
 }
 
-const rows = createMemo((): Row[] => {
+const rawRows = createMemo((): Row[] => {
   switch (panel()) {
     case "bluetooth": {
       const b = bluetooth();
@@ -262,14 +270,23 @@ const rows = createMemo((): Row[] => {
   }
 });
 
-function move(delta: number) {
-  setIndex((i) => Math.max(0, Math.min(rows().length - 1, i + delta)));
+const rows = createMemo((): Row[] => {
+  const list = rawRows();
+  for (const row of list) if (!seen.has(row.label)) seen.set(row.label, seen.size);
+  return [...list].sort((a, b) => seen.get(a.label)! - seen.get(b.label)!);
+});
+
+const index = () => Math.max(0, rows().findIndex((row) => row.label === selected()));
+
+function setIndex(at: number) {
+  const row = rows()[Math.max(0, Math.min(rows().length - 1, at))];
+  if (row) setSelected(row.label);
 }
 
-function cycle(delta: number) {
-  const at = PANELS.indexOf(panel() ?? "network");
-  showPanel(PANELS[(at + delta + PANELS.length) % PANELS.length]!);
+function move(delta: number) {
+  setIndex(index() + delta);
 }
+
 
 export function panelPress(key: number) {
   const row = rows()[Math.min(index(), rows().length - 1)];
@@ -277,19 +294,13 @@ export function panelPress(key: number) {
   else if (key & BTN.DOWN) move(1);
   else if (key & BTN.LEFT) row?.adjust?.(-1);
   else if (key & BTN.RIGHT) row?.adjust?.(1);
-  else if (key & BTN.LTRIGGER) cycle(-1);
-  else if (key & BTN.RTRIGGER) cycle(1);
   else if (key & BTN.CIRCLE) row?.activate?.();
   else if (key & BTN.SQUARE) row?.forget?.();
-  else if (key & (BTN.CROSS | BTN.ZR)) closePanel();
+  else if (key & BTN.CROSS) closePanel();
 }
 
-export function panelTap(x: number, y: number) {
-  if (y < HEADER_H) {
-    const at = Math.floor(x / 128);
-    if (PANELS[at]) showPanel(PANELS[at]!);
-    return;
-  }
+export function panelTap(_x: number, y: number) {
+  if (y < HEADER_H) return closePanel();
   const at = scroll() + Math.floor((y - HEADER_H) / ROW_H);
   const row = rows()[at];
   if (!row) return;
@@ -304,13 +315,10 @@ export function Panels() {
   const visible = createMemo(() => rows().slice(scroll(), scroll() + ROWS).map((row, i) => ({ row, at: scroll() + i })));
   return (
     <View class={C.deck} style={{ bgColor: color("darker_background") }}>
-      <For each={PANELS}>
-        {(name, i) => (
-          <Text class="absolute top-[6] w-[128] text-center font-mono text-sm leading-[16]" style={{ insetL: i() * 128, textColor: color(name === panel() ? "accent" : "dark_foreground") }}>
-            {TITLES[name]}
-          </Text>
-        )}
-      </For>
+      <Text class={C.crumbs} style={{ textColor: color("accent") }}>{TITLES[panel() ?? "network"]}</Text>
+      <Text class="absolute right-[12] top-[6] font-mono text-xs leading-[16]" style={{ textColor: color(busy() ? "accent" : "dark_foreground") }}>
+        {busy() || "A select  \u{2190}\u{2192} adjust  Y forget"}
+      </Text>
       <View class={C.rule} style={{ bgColor: color("muted") }} />
       <For each={visible()}>
         {(item, i) => (
@@ -330,11 +338,6 @@ export function Panels() {
           </View>
         )}
       </For>
-      <View class={C.footer} style={{ bgColor: color("dark_background") }}>
-        <Text class={C.hint} style={{ textColor: color(busy() ? "accent" : "dark_foreground") }}>
-          {busy() || "A select   \u{2190}\u{2192} adjust   L1/R1 panel   Y forget   B close"}
-        </Text>
-      </View>
     </View>
   );
 }

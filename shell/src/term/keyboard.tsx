@@ -1,11 +1,15 @@
-// The deck while a terminal has the stage: session tabs along the top and a
-// US keyboard filling the panel, for thumbs (keys about 34 x 64 points).
-// Shift, Ctrl and Alt latch for the next key and show it. Characters go to
-// the PTY as text; named keys and modified characters go as key names, which
-// omarchy-pocketd encodes against the terminal's modes. A text field (a
-// Wi-Fi password) takes the keyboard over with setKeySink and shows its
-// value in place of the tabs. The 中 key turns on pinyin (ime.ts): while a
-// composition is open, the strip shows its preedit and candidates.
+// The deck's touch keyboard: a strip along the top and a US keyboard under
+// it, for thumbs. It fills the deck's body under the deck strip while a
+// terminal or Notes has focus, and the whole deck for the lock and a password
+// field. Shift, Ctrl and Alt latch for the next key and show it. Keys go to a
+// sink: the focused window's (a terminal, Notes), or a text field that takes
+// the keyboard over with setKeySink (a Wi-Fi password, the lock). For a
+// terminal, characters go to the PTY as text; named keys and modified
+// characters go as key names, which omarchy-pocketd encodes against the
+// terminal's modes. The strip shows the sink's gamepad line and its close
+// button, a text field's value, or, while a pinyin composition is open (the
+// 中 key, ime.ts), its preedit and candidates. Each finger is its own key
+// press (touch.ts).
 import { createSignal, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { request } from "../bridge.ts";
@@ -13,7 +17,9 @@ import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
 import { color } from "../theme.ts";
 import { chinese, composing, pick, route, snapshot, toggleChinese } from "./ime.ts";
-import { active, hide, sessions, show } from "./store.ts";
+import type { TouchFrame } from "../touch.ts";
+import { BODY_H } from "../deck/geometry.ts";
+import { active, closeTerminal } from "./store.ts";
 
 interface Key {
   label: string;
@@ -46,27 +52,37 @@ const ROWS: Key[][] = [
 const UNITS = 15;
 const UNIT = 512 / UNITS;
 const TABS_H = 26;
-const KEYS_TOP = 30;
-const KEY_H = 66;
-const HINT_TOP = 364;
+const KEYS_TOP = 28;
 
 interface Placed extends Key {
   x: number;
   y: number;
   w: number;
 }
-const PLACED: Placed[] = ROWS.flatMap((row, r) => {
-  let x = 0;
-  return row.map((key) => {
-    const w = (key.width ?? 1) * UNIT;
-    const placed = { ...key, x, y: KEYS_TOP + r * KEY_H, w };
-    x += w;
-    return placed;
+
+/** Where the keys sit: the whole deck (the lock, a password field), with the
+ *  gamepad line under the keys, or the deck's body under its strip. */
+export type KeyboardMode = "full" | "body";
+const HEIGHT: Record<KeyboardMode, number> = { full: 384, body: BODY_H };
+const HINT_H: Record<KeyboardMode, number> = { full: 20, body: 0 };
+const keyH = (mode: KeyboardMode) => (HEIGHT[mode] - KEYS_TOP - HINT_H[mode]) / ROWS.length;
+
+function placed(mode: KeyboardMode): Placed[] {
+  return ROWS.flatMap((row, r) => {
+    let x = 0;
+    return row.map((key) => {
+      const w = (key.width ?? 1) * UNIT;
+      const p = { ...key, x, y: KEYS_TOP + r * keyH(mode), w };
+      x += w;
+      return p;
+    });
   });
-});
+}
+const PLACED: Record<KeyboardMode, Placed[]> = { full: placed("full"), body: placed("body") };
 
 const [mods, setMods] = createSignal({ shift: false, ctrl: false, alt: false });
-const [pressed, setPressed] = createSignal<Placed | null>(null);
+/** keys under a settled finger */
+const [pressed, setPressed] = createSignal<Placed[]>([]);
 
 export const modifiers = mods;
 
@@ -78,9 +94,15 @@ export function latch(modifier: "shift" | "ctrl" | "alt") {
 export interface KeySink {
   text(ch: string): void;
   key(name: string, mods: { ctrl: boolean; alt: boolean; shift: boolean }): void;
-  /** shown in place of the session tabs */
+  /** a text field's value, shown on the strip */
   field?: () => string;
+  /** the strip's close button */
+  close?(): void;
+  /** the gamepad line under the keys */
+  hint?: () => string;
 }
+
+const TERMINAL_HINT = "A Enter  B Bksp  X Esc  Y Tab  D-pad arrows  hold L1 for windows";
 
 const terminalSink: KeySink = {
   text: (text) => {
@@ -91,14 +113,27 @@ const terminalSink: KeySink = {
     const sid = active();
     if (sid !== null) void request({ method: "termKey", sid, key, ctrl: m.ctrl, alt: m.alt, shift: m.shift });
   },
+  close: () => {
+    const sid = active();
+    if (sid !== null) closeTerminal(sid);
+  },
 };
-const [sink, setSink] = createSignal<KeySink>(terminalSink);
+const [override, setOverride] = createSignal<KeySink | null>(null);
+let windowSink: () => KeySink | null = () => null;
+const sink = (): KeySink => override() ?? windowSink() ?? terminalSink;
 
-/** Sends keys to `next` until called with null (back to the terminal). */
+/** Sends keys to `next` until called with null (back to the window's sink). */
 export function setKeySink(next: KeySink | null) {
-  setSink(() => next ?? terminalSink);
+  setOverride(() => next);
   setMods({ shift: false, ctrl: false, alt: false });
 }
+
+/** The focused window's sink, when it is not a terminal (Notes). */
+export function setWindowKeys(accessor: () => KeySink | null) {
+  windowSink = accessor;
+}
+
+
 
 /** Sends one key, with the latched modifiers; through pinyin composition in
  *  中 mode, except into a password field. */
@@ -118,45 +153,47 @@ export function sendKey(key: string, shifted?: string) {
 const PREEDIT_W = 132;
 const CANDIDATE_W = (512 - PREEDIT_W) / 5;
 
-const keyAt = (x: number, y: number) => PLACED.find((k) => x >= k.x && x < k.x + k.w && y >= k.y && y < k.y + KEY_H) ?? null;
+const keyAt = (mode: KeyboardMode, x: number, y: number) => PLACED[mode].find((k) => x >= k.x && x < k.x + k.w && y >= k.y && y < k.y + keyH(mode)) ?? null;
 
-/** The finger on the deck (null once lifted); a lift over a key presses it. */
-export function keyboardTouch(contact: { x: number; y: number } | null) {
-  if (contact) {
-    setPressed(keyAt(contact.x, contact.y));
-    return;
-  }
-  const key = pressed();
-  setPressed(null);
-  if (!key) return;
+function press(key: Placed) {
   if (key.modifier) latch(key.modifier);
   else if (key.ime) toggleChinese();
   else sendKey(key.key, key.shifted);
 }
 
-/** A tap on the tab strip: a candidate while composing; otherwise Menu, a
- *  session, or a new one. */
-export function tabsTap(x: number) {
+/** The keyboard's fingers this frame, in its own coordinates: the keys under
+ *  them light, and a finger lifted over a key presses it. A finger that landed
+ *  on the strip taps it. */
+export function keyboardTouch(frame: TouchFrame, mode: KeyboardMode) {
+  setPressed(frame.down.filter((p) => p.start.y >= TABS_H).map((p) => keyAt(mode, p.x, p.y)).filter((k) => k !== null));
+  for (const tap of frame.taps) {
+    if (tap.start.y < TABS_H) stripTap(tap.start.x);
+    else {
+      const key = keyAt(mode, tap.x, tap.y);
+      if (key) press(key);
+    }
+  }
+}
+
+const CLOSE_X = 512 - 34;
+
+/** A tap on the strip: a candidate while composing; otherwise Menu, or the
+ *  close button. A text field's strip takes no taps. */
+function stripTap(x: number) {
   if (composing()) {
     if (x >= PREEDIT_W) pick(Math.floor((x - PREEDIT_W) / CANDIDATE_W), (text) => sink().text(text));
     return;
   }
-  if (x < 56) return hide();
-  if (x >= 512 - 30) {
-    void request<number>({ method: "termOpen" }).then(show, () => {});
-    return;
-  }
-  const index = Math.floor((x - 56) / 108);
-  const target = sessions()[index];
-  if (target) show(target.sid);
+  if (sink().field) return;
+  if (x >= CLOSE_X) sink().close?.();
 }
 
-export const TABS_HEIGHT = TABS_H;
 
-export function Keyboard() {
+export function Keyboard(props: { mode: KeyboardMode }) {
   const latched = (k: Placed) => !!k.modifier && mods()[k.modifier];
+  const h = keyH(props.mode);
   return (
-    <View class="absolute left-0 top-0 w-[512] h-[384]" style={{ bgColor: color("darker_background") }}>
+    <View class="absolute left-0 top-0 w-[512]" style={{ height: HEIGHT[props.mode], bgColor: color("darker_background") }}>
       <Show when={sink().field}>
         {(field) => (
           <View class="absolute left-0 top-0 w-[512]" style={{ height: TABS_H, bgColor: color("dark_background") }}>
@@ -182,21 +219,16 @@ export function Keyboard() {
         </View>
       </Show>
       <Show when={!sink().field && !composing()}>
-      <View class="absolute left-0 top-0 w-[512]" style={{ height: TABS_H, bgColor: color("dark_background") }}>
-        <Text class="absolute left-[8] top-[5] font-mono text-sm leading-[16]" style={{ textColor: color("accent") }}>{"\u{f035c} Menu"}</Text>
-        <For each={sessions()}>
-          {(s, i) => (
-            <View class="absolute top-[3] h-[20] w-[104] overflow-hidden rounded-sm" style={{ insetL: 56 + i() * 108, bgColor: color(s.sid === active() ? "selection" : "dark_background") }}>
-              <Text class="absolute left-[6] top-[2] font-mono text-xs leading-[16]" style={{ textColor: color(s.sid === active() ? "bright_foreground" : "foreground") }}>
-                {s.title()}
-              </Text>
-            </View>
-          )}
-        </For>
-        <Text class="absolute right-[10] top-[5] font-mono text-sm leading-[16]" style={{ textColor: color("accent") }}>+</Text>
-      </View>
+        <View class="absolute left-0 top-0 w-[512]" style={{ height: TABS_H, bgColor: color("dark_background") }}>
+          <Text class="absolute left-[10] top-[6] w-[440] h-[14] overflow-hidden font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>
+            {sink().hint?.() ?? TERMINAL_HINT}
+          </Text>
+          <Show when={sink().close}>
+            <Text class="absolute right-[10] top-[5] font-mono text-sm leading-[16]" style={{ textColor: color("red") }}>{"\u{f0156}"}</Text>
+          </Show>
+        </View>
       </Show>
-      <For each={PLACED}>
+      <For each={PLACED[props.mode]}>
         {(k) => (
           <View
             class="absolute rounded-md"
@@ -204,15 +236,16 @@ export function Keyboard() {
               insetL: k.x + 2,
               insetT: k.y + 2,
               width: k.w - 4,
-              height: KEY_H - 4,
-              bgColor: color(pressed() === k ? "accent" : latched(k) ? "selection" : k.modifier || k.key.length > 1 ? "dark_background" : "background"),
+              height: h - 4,
+              bgColor: color(pressed().includes(k) ? "accent" : latched(k) ? "selection" : k.modifier || k.key.length > 1 ? "dark_background" : "background"),
             }}
           >
             <Text
-              class="absolute left-0 top-[24] text-center font-mono text-sm leading-[16]"
+              class="absolute left-0 text-center font-mono text-sm leading-[16]"
               style={{
                 width: k.w - 4,
-                textColor: color(pressed() === k ? "background" : latched(k) || (k.ime && chinese()) ? "accent" : "foreground"),
+                insetT: (h - 4) / 2 - 8,
+                textColor: color(pressed().includes(k) ? "background" : latched(k) || (k.ime && chinese()) ? "accent" : "foreground"),
                 ...(k.ime && chinese() ? cjk("中", CJK_SLOT_14) : {}),
               }}
             >
@@ -221,9 +254,11 @@ export function Keyboard() {
           </View>
         )}
       </For>
-      <Text class="absolute left-[10] font-mono text-xs leading-[14]" style={{ insetT: HINT_TOP + 3, textColor: color("dark_foreground") }}>
-        {sink().field ? "A Enter   B Backspace   X clear" : "A Enter  B Bksp  X Esc  Y Tab  L2 Ctrl  R2 Alt  Select next  Start back"}
-      </Text>
+      <Show when={HINT_H[props.mode] > 0}>
+        <Text class="absolute left-[10] font-mono text-xs leading-[14]" style={{ insetT: 384 - 17, textColor: color("dark_foreground") }}>
+          {sink().field ? "A Enter   B Backspace   X Cancel" : (sink().hint?.() ?? TERMINAL_HINT)}
+        </Text>
+      </Show>
     </View>
   );
 }

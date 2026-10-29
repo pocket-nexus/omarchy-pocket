@@ -20,6 +20,7 @@ import { previewWallpaper, restoreWallpaper } from "../stage/wallpaper.tsx";
 import { serve } from "../system.ts";
 import { toast } from "../stage/toasts.tsx";
 import { color } from "../theme.ts";
+import { BODY_H } from "./geometry.ts";
 
 interface Row {
   filePath: string;
@@ -29,7 +30,7 @@ type Mode = { kind: "themes" } | { kind: "select"; selectionFile: string; doneFi
 
 const HEADER_H = 26;
 const ROW_H = 22;
-const ROWS = Math.floor((384 - HEADER_H - 20) / ROW_H);
+const ROWS = Math.floor((BODY_H - HEADER_H - 20) / ROW_H);
 const PREVIEW_AFTER = 0.25;
 const ERROR = "\u{f015a}";
 

@@ -1,5 +1,5 @@
-// The Omarchy menu on the deck (the bottom panel; app.tsx places it in the
-// AuxiliarySurface). Opening a level asks
+// The Omarchy menu on the deck, the Go tab of the Omarchy deck
+// (omarchy-deck.tsx). Opening a level asks
 // omarchy-pocketd for every `when`, `checked` and `disabled` command of its
 // rows; a row with a `when` appears once its command exits 0. A row's action
 // runs through omarchy-pocketd as the Omarchy user; a failure shows as a
@@ -15,12 +15,16 @@ import { C } from "../classes.ts";
 import { MENU } from "../generated/menu.ts";
 import { conditionsOf, pathTo, PROVIDERS, providerRows, ROOT_TITLE, row, scrollFor, shown, type MenuItem, type MenuLevel, type Truth } from "../menu.ts";
 import { serve } from "../system.ts";
+import { applets } from "../applets/applet.ts";
+import { openWindow } from "../windows.ts";
+import { setDeckOpen } from "./deck-state.ts";
+import { BODY_H } from "./geometry.ts";
 import { PANELS, showPanel, type PanelName } from "./panels.tsx";
 import { openThemePicker } from "./picker.tsx";
 import { toast } from "../stage/toasts.tsx";
 import { color } from "../theme.ts";
 
-const H = 384;
+const H = BODY_H;
 const HEADER_H = 26;
 const FOOTER_H = 20;
 const ROW_H = 22;
@@ -34,6 +38,7 @@ const ERROR = "\u{f015a}";
 const INFO = "\u{f02fc}";
 const APP = "\u{f018d}";
 const APPLET = "\u{f0b8a}";
+const TERMINAL = "\u{f018d}";
 
 const levelFor = (title: string, items: MenuItem[]): MenuLevel => ({ title, items, selected: items[0]?.id ?? "", scroll: 0 });
 
@@ -72,6 +77,21 @@ function back() {
   if (stack().length > 1) setStack((s) => s.slice(0, -1));
 }
 
+/** Select: the root level with Apps open. */
+export function openAppsList() {
+  setStack([levelFor(ROOT_TITLE, MENU)]);
+  const apps = MENU.find((item) => item.id === "apps");
+  if (apps) openProvider(apps);
+}
+
+/** Whether the menu shows its root level. */
+export const atRoot = () => stack().length === 1;
+
+/** Back to the root level. */
+export function toRoot() {
+  setStack((s) => s.slice(0, 1));
+}
+
 function lastLine(text: string): string {
   const lines = text.trim().split("\n");
   return lines[lines.length - 1] ?? "";
@@ -86,9 +106,14 @@ function openProvider(item: MenuItem) {
   };
   const failed = (error: unknown) => toast({ icon: ERROR, title: item.label, body: String(error), tone: "error" });
   if (item.provider === "apps") {
+    // the shell's own windows first, then packages and terminal programs
+    const windows: MenuItem[] = [
+      { ...row("apps.terminal", TERMINAL, "Terminal", ""), open: "terminal" },
+      ...applets().map((a) => ({ ...row(`apps.${a.id}`, a.icon, a.title, ""), open: a.id })),
+    ];
     request<App[]>({ method: "apps" }).then(
-      (apps) => fill(apps.map((a) => ({ ...row(`apps.${a.id}`, a.applet ? APPLET : APP, a.name, a.command), applet: a.applet }))),
-      failed,
+      (apps) => fill([...windows, ...apps.map((a) => ({ ...row(`apps.${a.id}`, a.applet ? APPLET : APP, a.name, a.command), applet: a.applet }))]),
+      () => fill(windows),
     );
   } else if (PROVIDERS[item.provider]) {
     run(PROVIDERS[item.provider]!.script).then((result) => fill(providerRows(item.id, item.provider, result.stdout)), failed);
@@ -99,6 +124,14 @@ function activate(item: MenuItem) {
   if (item.children.length) return push(item);
   if (item.disabled && truth()[item.disabled]) return;
   if (item.provider) return openProvider(item);
+  if (item.open) {
+    // the window takes the deck; the menu is at its root when it comes back
+    if (openWindow(item.open)) {
+      setDeckOpen(false);
+      toRoot();
+    }
+    return;
+  }
   if (item.applet) {
     // the host runs the applet once this frame presents; Select + Start returns
     const bridge = (globalThis as { omarchyBridge?: { launch(path: string): boolean } }).omarchyBridge;
@@ -120,7 +153,7 @@ function activate(item: MenuItem) {
 }
 
 /** Opens the deck at the menu with `id` ("root" is the top). */
-function summon(id: string) {
+export function summon(id: string) {
   const path = id === "root" ? [] : pathTo(MENU, id);
   if (!path) return false;
   const levels = [levelFor(ROOT_TITLE, MENU)];
@@ -146,6 +179,7 @@ function summonPlugin(id: string, payloadJson: string) {
   }
   const panelName = id.replace(/^omarchy\./, "") as PanelName;
   if (PANELS.includes(panelName)) {
+    setDeckOpen(true);
     showPanel(panelName);
     return "ok";
   }
@@ -169,13 +203,12 @@ evaluate(MENU);
 export function deckPress(key: number) {
   if (key & BTN.UP) move(-1);
   else if (key & BTN.DOWN) move(1);
-  else if (key & BTN.LTRIGGER) move(-ROWS);
-  else if (key & BTN.RTRIGGER) move(ROWS);
+
   else if (key & (OPEN | BTN.RIGHT)) {
     const item = rows(level())[indexIn(level())];
     if (item) activate(item);
   } else if (key & (BACK | BTN.LEFT)) back();
-  else if (key & BTN.START) setStack((s) => s.slice(0, 1));
+
 }
 
 /** A tap on the deck selects the row under it; a tap on the selected row opens it. */
@@ -233,11 +266,6 @@ export function MenuDeck() {
       <Text class={C.crumbs} style={{ textColor: color("accent") }}>{crumbs()}</Text>
       <View class={C.rule} style={{ bgColor: color("muted") }} />
       <For each={visible()}>{(row) => <Row item={row.item} selected={() => level().selected === row.item.id} top={row.top} />}</For>
-      <View class={C.footer} style={{ bgColor: color("dark_background") }}>
-        <Text class={C.hint} style={{ textColor: color("dark_foreground") }}>
-          {"A open   B back   L1/R1 page   Start menu   Select terminal"}
-        </Text>
-      </View>
     </View>
   );
 }

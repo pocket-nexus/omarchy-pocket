@@ -20,6 +20,8 @@ export interface MenuItem {
   current?: boolean;
   /** a PocketJS applet package the host runs in place of the shell */
   applet?: string;
+  /** a window the shell opens: "terminal" or one of its applets (applets/) */
+  open?: string;
 }
 
 /** Omarchy's menu providers (plugins/menu/Menu.qml): a bash one-liner that
@@ -57,6 +59,10 @@ export function row(id: string, icon: string, label: string, action: string, cur
   return { id, icon, label, title: label, action, provider: "", when: "", checked: "", disabled: "", children: [], current };
 }
 
+/** Languages whose script no face on the device draws (Arabic, Bengali,
+ *  Hebrew, Devanagari, Sinhala, Tamil, Thai): left out of the list. */
+const UNDRAWN_LANGUAGES = new Set(["ar", "fa", "ur", "bn", "he", "hi", "si", "ta", "th"]);
+
 /** Rows from a provider's `label\tvalue\tcurrent` output. */
 export function providerRows(parent: string, provider: string, output: string): MenuItem[] {
   const spec = PROVIDERS[provider]!;
@@ -64,7 +70,7 @@ export function providerRows(parent: string, provider: string, output: string): 
   const taken = new Set<string>();
   for (const line of output.split("\n")) {
     const [label = "", value = label, current = ""] = line.trim().split("\t");
-    if (!label) continue;
+    if (!label || (provider === "languages" && UNDRAWN_LANGUAGES.has(value))) continue;
     let id = `${parent}.${value.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
     while (taken.has(id)) id += "-";
     taken.add(id);

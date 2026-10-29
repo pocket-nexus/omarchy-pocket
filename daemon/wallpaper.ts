@@ -14,10 +14,10 @@ const TILE = 512;
 /** backgrounds whose tiles stay in the runtime directory (tmpfs: RAM), for the picker's previews */
 const KEEP = 4;
 
-export async function wallpaper(runtime: string, home: string, requested?: string): Promise<WallTile[]> {
+export async function wallpaper(runtime: string, home: string, requested?: string, fit = false): Promise<WallTile[]> {
   const source = realpathSync(requested || join(home, ".local", "state", "omarchy", "current", "background"));
   const stat = statSync(source);
-  const key = new Bun.CryptoHasher("md5").update(`${source}\n${stat.mtimeMs}\n${stat.size}`).digest("hex").slice(0, 12);
+  const key = new Bun.CryptoHasher("md5").update(`${source}\n${stat.mtimeMs}\n${stat.size}\n${fit}`).digest("hex").slice(0, 12);
   const dir = join(runtime, "omarchy-pocket", "wall");
   mkdirSync(dir, { recursive: true });
   const tiles: WallTile[] = [];
@@ -33,8 +33,15 @@ export async function wallpaper(runtime: string, home: string, requested?: strin
   const scaled = join(dir, `${key}.v`);
   const raw = join(dir, `${key}.raw`);
   const env = { ...process.env, VIPS_CONCURRENCY: "1", VIPS_WARNING: "0" };
-  const thumb = Bun.spawn(["vipsthumbnail", source, "--size", `${W}x${H}`, "--smartcrop=centre", "-o", scaled], { env, stderr: "pipe" });
+  const crop = fit ? [] : ["--smartcrop=centre"];
+  const thumb = Bun.spawn(["vipsthumbnail", source, "--size", `${W}x${H}`, ...crop, "-o", fit ? `${scaled}.fit.v` : scaled], { env, stderr: "pipe" });
   if ((await thumb.exited) !== 0) throw new Error(`vipsthumbnail ${source}: ${(await new Response(thumb.stderr).text()).trim().split("\n").pop()}`);
+  if (fit) {
+    // the whole picture, centred on black
+    const embed = Bun.spawn(["vips", "gravity", `${scaled}.fit.v`, scaled, "centre", String(W), String(H), "--extend", "black"], { env, stderr: "pipe" });
+    if ((await embed.exited) !== 0) throw new Error(`vips gravity: ${(await new Response(embed.stderr).text()).trim().split("\n").pop()}`);
+    rmSync(`${scaled}.fit.v`, { force: true });
+  }
   const save = Bun.spawn(["vips", "rawsave", scaled, raw], { env, stderr: "pipe" });
   if ((await save.exited) !== 0) throw new Error(`vips rawsave: ${(await new Response(save.stderr).text()).trim().split("\n").pop()}`);
   const pixels = readFileSync(raw);

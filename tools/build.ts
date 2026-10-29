@@ -5,7 +5,7 @@
 //   bun tools/build.ts host              omarchy-pocket-host for aarch64 Linux (glibc 2.36)
 //   bun tools/build.ts shell             the shell package (run tools/omarchy-assets.ts first)
 //   bun tools/build.ts daemon            omarchy-pocketd as one Bun script
-//   bun tools/build.ts applets           every applets/<name>/pocket.json as .cache/applets/<name>.pocket
+//   bun tools/build.ts applets [names]   applets/<name>/pocket.json as .cache/applets/<name>.pocket
 //   bun tools/build.ts all               host, shell and daemon
 //   bun tools/build.ts shot --script "30:shot 40:DOWN 50:shot" [--out <dir>]
 //
@@ -39,7 +39,7 @@ export const OUTPUTS = {
   wasm: join(CACHE, "daemon", "ghostty-vt.wasm"),
 };
 /** The names daemon/shim.ts is installed under, in /usr/local/bin */
-export const SHIM_NAMES = ["hyprctl", "uwsm", "uwsm-app", "omarchy-pocket-term", "omasnap"];
+export const SHIM_NAMES = ["hyprctl", "uwsm", "uwsm-app", "omarchy-pocket-term", "omasnap", "omarchy-launch-screensaver"];
 const [W, H] = [1024, 768];
 
 const argv = process.argv.slice(2);
@@ -116,15 +116,24 @@ async function daemon() {
 }
 
 /** PocketJS applets: packages for this profile (applets/<name>/pocket.json,
- *  entries anywhere under the repository, the pocketjs apps included). */
-async function applets() {
+ *  entries anywhere under the repository, the pocketjs apps included), all
+ *  of them or the names given. One that fails to compile is reported and the
+ *  rest are built. */
+async function applets(names: string[]) {
   const dir = join(ROOT, "applets");
-  for (const name of readdirSync(dir)) {
+  const failed: string[] = [];
+  for (const name of names.length ? names : readdirSync(dir)) {
     const manifest = join(dir, name, "pocket.json");
     if (!existsSync(manifest)) continue;
-    await $`bun ${join(POCKETJS, "tools", "pocket.ts")} compile --manifest ${manifest} --project-root . --runtime-config ${CONFIG} --plan-dir ${join(CACHE, "applets", name, "plan")} --output ${join(CACHE, "applets", `${name}.pocket`)}`.cwd(ROOT).quiet();
-    console.log(`applet: ${join(CACHE, "applets", `${name}.pocket`)}`);
+    const result = await $`bun ${join(POCKETJS, "tools", "pocket.ts")} compile --manifest ${manifest} --project-root . --runtime-config ${CONFIG} --plan-dir ${join(CACHE, "applets", name, "plan")} --output ${join(CACHE, "applets", `${name}.pocket`)}`.cwd(ROOT).quiet().nothrow();
+    if (result.exitCode === 0) console.log(`applet: ${join(CACHE, "applets", `${name}.pocket`)}`);
+    else {
+      failed.push(name);
+      const lines = `${result.stdout}${result.stderr}`.trim().split("\n");
+      console.error(`applet ${name} failed:\n  ${lines.filter((l) => /error|Error/.test(l)).slice(0, 4).join("\n  ") || lines.slice(-4).join("\n  ")}`);
+    }
   }
+  if (failed.length) throw new Error(`applets that did not compile: ${failed.join(" ")}`);
 }
 
 async function shot() {
@@ -171,13 +180,13 @@ if (import.meta.main) {
       await daemon();
       break;
     case "applets":
-      await applets();
+      await applets(process.argv.slice(3));
       break;
     case "all":
       await host();
       await shell();
       await daemon();
-      await applets();
+      await applets([]);
       break;
     case "shot":
       await shot();

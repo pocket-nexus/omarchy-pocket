@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveCell, rowKey, rowRuns, type Cell } from "../vendor/pocket-term/host/grid.ts";
 import { encodeKey } from "../vendor/pocket-term/host/keys.ts";
-import { CJK_SLOT_12, needsRuntimeGlyph, TERM_COLS, TERM_ROWS, type Cursor, type TermRow } from "./protocol.ts";
+import { CJK_SLOT_12, EMOJI_ICONS, needsRuntimeGlyph, TERM_COLS, TERM_ROWS, type Cursor, type TermRow } from "./protocol.ts";
 
 const SCROLLBACK = 2000;
 const FLUSH_MS = 16;
@@ -51,11 +51,15 @@ export interface OpenOptions {
 /** A row's cells. A character the package has no glyph for (CJK, Cyrillic,
  *  ...) is drawn from the run-time atlas in slot 21; a wide one spans two
  *  cells and its continuation cell stays empty. */
-function cellsOf(core: GhosttyCore, y: number, want: (text: string) => void): Cell[] {
+function cellsOf(core: GhosttyCore, y: number, cols: number, want: (text: string) => void): Cell[] {
   const cells: Cell[] = [];
-  for (let x = 0; x < TERM_COLS; x++) {
+  for (let x = 0; x < cols; x++) {
     const cell = resolveCell(core.getCell(y, x));
-    const cp = cell.ch.codePointAt(0);
+    let cp = cell.ch.codePointAt(0);
+    if (cp !== undefined && EMOJI_ICONS[cp]) {
+      cp = EMOJI_ICONS[cp]!;
+      cell.ch = String.fromCodePoint(cp);
+    }
     if (cell.width === 2 || (cp !== undefined && needsRuntimeGlyph(cp))) {
       cell.slot = CJK_SLOT_12;
       want(cell.ch);
@@ -76,6 +80,9 @@ class Session {
   private cursorKey = "";
   private timer: ReturnType<typeof setTimeout> | null = null;
   private lastFlush = 0;
+  /** the grid, at most TERM_COLS x TERM_ROWS: the shell's window size */
+  cols = TERM_COLS;
+  rows = TERM_ROWS;
   closed = false;
 
   constructor(sid: number, options: OpenOptions, private readonly events: TermEvents) {
@@ -94,7 +101,7 @@ class Session {
     void GhosttyCore.load({ wasmPath: ghosttyWasm(), scrollbackLimit: SCROLLBACK }).then(
       (core) => {
         if (this.closed) return;
-        core.init(TERM_COLS, TERM_ROWS);
+        core.init(this.cols, this.rows);
         this.core = core;
         const waiting = this.backlog;
         this.backlog = [];
@@ -147,8 +154,8 @@ class Session {
     this.lastFlush = Date.now();
     if (full) this.sent = [];
     const rows: TermRow[] = [];
-    for (let y = 0; y < TERM_ROWS; y++) {
-      const runs = rowRuns(cellsOf(core, y, this.events.want));
+    for (let y = 0; y < this.rows; y++) {
+      const runs = rowRuns(cellsOf(core, y, this.cols, this.events.want));
       const key = rowKey(runs);
       if (this.sent[y] !== key) {
         this.sent[y] = key;
@@ -165,6 +172,19 @@ class Session {
 
   /** A full snapshot, for a shell that (re)connected. */
   attach() {
+    this.flush(true);
+  }
+
+  /** The window's grid: the core reflows, the program gets SIGWINCH, and the
+   *  shell a full snapshot (rows past the new height come back empty). */
+  resize(cols: number, rows: number) {
+    cols = Math.max(8, Math.min(TERM_COLS, Math.floor(cols)));
+    rows = Math.max(2, Math.min(TERM_ROWS, Math.floor(rows)));
+    if (cols === this.cols && rows === this.rows) return;
+    this.cols = cols;
+    this.rows = rows;
+    this.core?.resize(cols, rows);
+    this.proc.terminal?.resize(cols, rows);
     this.flush(true);
   }
 

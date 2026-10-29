@@ -7,7 +7,7 @@ export const C = {
   barCenter: "absolute left-0 top-[2] w-[512] text-center font-mono text-xs leading-[14]",
   barRight: "absolute right-[8] top-[2] font-mono text-xs leading-[14]",
 
-  deck: "absolute left-0 top-0 w-[512] h-[384]",
+  deck: "absolute left-0 top-0 w-[512] h-[318]",
   crumbs: "absolute left-[12] top-[6] font-mono text-sm leading-[16]",
   rule: "absolute left-[8] top-[25] w-[496] h-[1]",
   row: "absolute left-[8] w-[496] h-[22]",
@@ -15,7 +15,7 @@ export const C = {
   icon: "absolute left-[8] top-[4] w-[20] font-mono text-sm leading-[14]",
   label: "absolute left-[34] top-[4] font-mono text-sm leading-[14]",
   chevron: "absolute right-[8] top-[4] font-mono text-sm leading-[14]",
-  footer: "absolute left-0 top-[364] w-[512] h-[20]",
+  footer: "absolute left-0 top-[298] w-[512] h-[20]",
   hint: "absolute left-[12] top-[3] font-mono text-xs leading-[14]",
 
   osd: "absolute top-[288] h-[48] overflow-hidden rounded-md border-[1]",

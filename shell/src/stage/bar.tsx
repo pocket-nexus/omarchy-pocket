@@ -1,6 +1,8 @@
 // Omarchy's bar along the top of the stage, in the order of Omarchy's default
-// shell.json layout: menu logo and workspaces, clock, then the Bluetooth,
-// network, audio and power indicators from omarchy-pocketd's SystemState.
+// shell.json layout: menu logo and workspaces (workspaces.ts: the current one
+// in the accent, one holding a window in the foreground), clock, then the
+// Bluetooth, network, audio and power indicators from omarchy-pocketd's
+// SystemState.
 // The indicator whose panel is open on the deck is drawn in the accent. The
 // bar follows Omarchy's shell.json: the clock's format, hidden (bar-off),
 // at the top or bottom (left and right draw at the top: the panel is short),
@@ -12,8 +14,9 @@ import { C } from "../classes.ts";
 import { audioGlyph, batteryGlyph, bluetoothGlyph, networkGlyph } from "../indicators.ts";
 import { state } from "../system.ts";
 import { color } from "../theme.ts";
+import { current, occupied, WORKSPACES } from "../workspaces.ts";
 
-const WORKSPACES = [1, 2, 3, 4, 5];
+const NUMBERS = Array.from({ length: WORKSPACES }, (_, i) => i);
 
 /** The indicators from the right edge: Omarchy's order, Bluetooth leftmost. */
 const SLOT = 20;
@@ -21,7 +24,7 @@ const SLOT = 20;
 const H = 18;
 const ALPHA: Record<string, number> = { opaque: 1, glassy: 0.75, none: 0 };
 
-export function Bar(props: { now: () => Date; workspace: () => number; focused: () => string | null }) {
+export function Bar(props: { now: () => Date; focused: () => string | null }) {
   const settings = () => state()?.bar;
   const clock = () => formatClock(settings()?.clock ?? "dddd HH:mm", props.now());
   const top = () => (settings()?.position === "bottom" ? 384 - H : 0);
@@ -38,10 +41,10 @@ export function Bar(props: { now: () => Date; workspace: () => number; focused: 
     <Show when={!settings()?.hidden}>
     <View class={C.bar} style={{ insetT: top(), bgColor: color("background", ALPHA[settings()?.background ?? "opaque"] ?? 1) }}>
       <Text class={C.barText} style={{ insetL: 6, textColor: color("foreground") }}>{"\u{e900}"}</Text>
-      <For each={WORKSPACES}>
+      <For each={NUMBERS}>
         {(n) => (
-          <Text class={C.barText} style={{ insetL: 14 + n * 12, textColor: color(props.workspace() === n ? "accent" : "dark_foreground") }}>
-            {String(n)}
+          <Text class={C.barText} style={{ insetL: 26 + n * 12, textColor: color(current() === n ? "accent" : occupied(n) ? "foreground" : "dark_foreground") }}>
+            {String(n + 1)}
           </Text>
         )}
       </For>

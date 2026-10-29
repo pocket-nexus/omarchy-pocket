@@ -294,11 +294,12 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf, shell: Opti
         .set_package_source(Box::new(source))
         .map_err(error)?;
     let launch: guest::Launch = Default::default();
+    let repaint: guest::Repaint = Default::default();
     // the bridge is the shell's; an applet runs without one, and a --shot run
     // has no daemon to talk to
     let bridge = (options.shot.is_none() && shell.is_none()).then(|| options.bridge.clone().unwrap_or_else(default_bridge));
     runtime
-        .set_guest(Box::new(guest::BridgedGuest::new(bridge::Bridge::new(bridge), launch.clone(), shell)))
+        .set_guest(Box::new(guest::BridgedGuest::new(bridge::Bridge::new(bridge), launch.clone(), repaint.clone(), shell)))
         .map_err(error)?;
     runtime.boot().map_err(error)?;
     let mut clock = MonotonicClock::default();
@@ -316,8 +317,8 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf, shell: Opti
         let started = timing.as_ref().map(|_| std::time::Instant::now());
         runtime.advance().map_err(error)?;
         let advanced = timing.as_ref().map(|_| std::time::Instant::now());
-        // --shot frames and GPU readbacks need every panel presented
-        let forced = shot.is_some() || presented.readback_due();
+        // --shot frames, GPU readbacks and a new glyph atlas need every panel presented
+        let forced = shot.is_some() || presented.readback_due() || repaint.replace(false);
         let changed = presented.changed(&runtime)?;
         let drawn = timing.as_ref().map(|_| std::time::Instant::now());
         if changed || forced {

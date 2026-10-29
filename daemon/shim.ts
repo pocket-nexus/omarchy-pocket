@@ -14,6 +14,10 @@
 //   omarchy-pocket-term   the terminal xdg-terminal-exec runs (omarchy-pocket-term.desktop):
 //              `[--app-id=ID] [--title=T] [--dir=D] [-e cmd args...]` opens a
 //              Pocket Term session in the shell through omarchy-pocketd
+//   omarchy-launch-screensaver   Omarchy's launcher opens a terminal per
+//              monitor through Hyprland; this one starts the shell's
+//              screensaver, unless the screensaver-off toggle is on and the
+//              argument is not `force`
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { shellPath } from "./paths.ts";
@@ -176,7 +180,16 @@ async function omasnap(argv: string[]) {
   }
 }
 
+function launchScreensaver(argv: string[]): never {
+  const home = process.env.HOME ?? "/home/omarchy";
+  if (existsSync(join(home, ".local", "state", "omarchy", "toggles", "screensaver-off")) && argv[0] !== "force") process.exit(1);
+  const child = Bun.spawnSync(["omarchy-shell", "pocket.screensaver", "start"], { stdio: ["ignore", "ignore", "inherit"] });
+  process.exit(child.exitCode ?? 1);
+}
+
 switch (name) {
+  case "omarchy-launch-screensaver":
+    launchScreensaver(args);
   case "omasnap":
     await omasnap(args);
     break;

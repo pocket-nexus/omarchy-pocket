@@ -1,10 +1,12 @@
 // The shell's replica of omarchy-pocketd's terminals: per session, one signal
 // per grid row (Pocket Term runs) and the cursor. Rows arrive as `termRows`
-// events; a session some program started (`termOpened`) becomes the active
-// one and brings the terminal up on the stage.
+// events. Each session is a window on the stage (workspaces.ts); a session
+// some program started (`termOpened`) opens beside the focused window, and a
+// session that ends closes its window.
 import { createSignal, type Accessor, type Setter } from "solid-js";
 import { onEvent, request } from "../bridge.ts";
 import { TERM_ROWS, type Cursor, type Run } from "../../../daemon/protocol.ts";
+import { closeWindow, find, focused, focusWindow, open } from "../workspaces.ts";
 
 export interface TermSession {
   sid: number;
@@ -17,11 +19,14 @@ export interface TermSession {
 }
 
 const [sessions, setSessions] = createSignal<TermSession[]>([]);
-const [active, setActive] = createSignal<number | null>(null);
-/** True while the terminal has the stage and the deck. */
-const [shown, setShown] = createSignal(false);
 
-export { active, sessions, shown };
+export { sessions };
+
+/** The session in the focused window, when that window is a terminal. */
+export const active = (): number | null => {
+  const w = focused();
+  return w?.kind === "terminal" ? w.sid : null;
+};
 
 function session(sid: number, title: string): TermSession {
   const existing = sessions().find((s) => s.sid === sid);
@@ -42,38 +47,40 @@ function session(sid: number, title: string): TermSession {
 
 export const activeSession = () => sessions().find((s) => s.sid === active()) ?? null;
 
-export function show(sid: number) {
-  setActive(sid);
-  setShown(true);
+const isSession = (sid: number) => (w: { kind: string; sid?: number }) => w.kind === "terminal" && w.sid === sid;
+
+/** A session's window: focused when it exists, opened when it does not. */
+function windowFor(sid: number) {
+  const existing = find(isSession(sid));
+  if (existing) focusWindow(existing.id);
+  else open({ kind: "terminal", sid });
 }
 
-export function hide() {
-  setShown(false);
-}
+export const sessionById = (sid: number) => sessions().find((s) => s.sid === sid) ?? null;
 
-/** Opens a login shell, or shows the active session if there is one. */
+/** Opens a login shell in a new window. */
 export function openTerminal() {
-  const current = activeSession() ?? sessions()[0];
-  if (current) return show(current.sid);
   request<number>({ method: "termOpen" }).then((sid) => {
     session(sid, "bash");
-    show(sid);
+    windowFor(sid);
   }, () => {});
 }
 
-/** The next session after the active one, wrapping. */
-export function cycle() {
-  const list = sessions();
-  if (!list.length) return;
-  const at = list.findIndex((s) => s.sid === active());
-  setActive(list[(at + 1) % list.length]!.sid);
+/** Ends the session; its window closes when the daemon reports the exit. */
+export function closeTerminal(sid: number) {
+  void request({ method: "termClose", sid });
+}
+
+/** Sets the session's grid to the window's size (the PTY gets SIGWINCH). */
+export function resizeTerminal(sid: number, cols: number, rows: number) {
+  void request({ method: "termResize", sid, cols, rows });
 }
 
 onEvent((event) => {
   switch (event.event) {
     case "termOpened":
       session(event.sid, event.title);
-      show(event.sid);
+      windowFor(event.sid);
       break;
     case "termRows": {
       const s = session(event.sid, "");
@@ -85,28 +92,30 @@ onEvent((event) => {
       session(event.sid, event.title).setTitle(event.title);
       break;
     case "termExit": {
-      const rest = sessions().filter((s) => s.sid !== event.sid);
-      setSessions(rest);
-      if (active() === event.sid) {
-        setActive(rest[0]?.sid ?? null);
-        if (!rest.length) setShown(false);
-      }
+      setSessions(sessions().filter((s) => s.sid !== event.sid));
+      const existing = find(isSession(event.sid));
+      if (existing) closeWindow(existing.id);
       break;
     }
   }
 });
 
 /** The daemon's sessions: keeps those it still has (it re-sends their
- *  screens) and drops the rest, which ended with an earlier daemon. */
+ *  screens) and closes the windows of the rest, which ended with an earlier
+ *  daemon. */
 function reconcile() {
   request<{ sid: number; title: string }[]>({ method: "termList" }).then((list) => {
     const live = new Set(list.map((s) => s.sid));
-    const rest = sessions().filter((s) => live.has(s.sid));
-    setSessions(rest);
-    for (const s of list) session(s.sid, s.title).setTitle(s.title);
-    if (active() !== null && !live.has(active()!)) {
-      setActive(rest[0]?.sid ?? null);
-      if (!rest.length) setShown(false);
+    setSessions(sessions().filter((s) => live.has(s.sid)));
+    for (const s of list) {
+      session(s.sid, s.title).setTitle(s.title);
+      // a session that outlived a shell restart gets its window back
+      if (!find(isSession(s.sid))) open({ kind: "terminal", sid: s.sid });
+    }
+    for (;;) {
+      const dead = find((w) => w.kind === "terminal" && !live.has(w.sid));
+      if (!dead) break;
+      closeWindow(dead.id);
     }
   }, () => {});
 }

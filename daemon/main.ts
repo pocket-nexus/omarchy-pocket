@@ -28,6 +28,7 @@ import { Glyphs } from "./glyphs.ts";
 import { commonHanzi, Ime } from "./ime.ts";
 import { apps } from "./apps.ts";
 import { Bar } from "./bar.ts";
+import * as applets from "./applets.ts";
 import { RUNTIME } from "./paths.ts";
 
 if (process.argv[2] === "bake") {
@@ -155,6 +156,7 @@ async function systemState(): Promise<SystemState> {
     powerProfile: profile,
     theme: theme(),
     bar: bar.settings(),
+    idle: bar.idle(),
   };
 }
 
@@ -259,6 +261,10 @@ async function handle(socket: Socket<Peer>, request: Request) {
         terminals.get(request.sid).kill();
         result = null;
         break;
+      case "termResize":
+        terminals.get(request.sid).resize(request.cols, request.rows);
+        result = null;
+        break;
       case "termList":
         result = terminals.list();
         for (const { sid } of terminals.list()) terminals.get(sid).attach();
@@ -275,7 +281,30 @@ async function handle(socket: Socket<Peer>, request: Request) {
         result = notifications.list();
         break;
       case "wallpaper":
-        result = await wallpaper(RUNTIME, HOME, request.path);
+        result = await wallpaper(RUNTIME, HOME, request.path, request.fit);
+        break;
+      case "screensaver":
+        result = applets.screensaverText(HOME);
+        glyphs.want(result as string);
+        break;
+      case "systemStats":
+        result = applets.systemStats();
+        break;
+      case "processes":
+        result = await applets.processes(request.sort);
+        break;
+      case "pictures":
+        result = applets.pictures(HOME);
+        break;
+      case "notes":
+        result = applets.notes(HOME);
+        break;
+      case "noteRead":
+        result = applets.noteRead(HOME, request.name);
+        break;
+      case "noteWrite":
+        applets.noteWrite(HOME, request.name, request.text);
+        result = null;
         break;
       case "network":
         result = await panels.network(!!request.rescan);

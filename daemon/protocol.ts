@@ -45,6 +45,8 @@ export type Request =
   | { id: number; method: "termPaste"; sid: number; text: string }
   /** Ends a session (SIGHUP to its process). */
   | { id: number; method: "termClose"; sid: number }
+  /** the session's grid, at most TERM_COLS x TERM_ROWS */
+  | { id: number; method: "termResize"; sid: number; cols: number; rows: number }
   /** The open sessions; each also sends a full snapshot as `termRows`. */
   | { id: number; method: "termList" }
   /** Runs a notification's command (action -1) or one of its actions, and closes it. */
@@ -52,8 +54,17 @@ export type Request =
   | { id: number; method: "notifyDismiss"; notice: number }
   /** Recent notifications, newest first. */
   | { id: number; method: "notifyList" }
-  /** Omarchy's current background (or `path`) as wallpaper textures. */
-  | { id: number; method: "wallpaper"; path?: string }
+  /** Omarchy's current background (or `path`) as wallpaper textures; `fit`
+   *  letterboxes the whole image instead of cropping it to the panel. */
+  | { id: number; method: "wallpaper"; path?: string; fit?: boolean }
+  /** Omarchy's screensaver text (~/.config/omarchy/branding/screensaver.txt) */
+  | { id: number; method: "screensaver" }
+  | { id: number; method: "systemStats" }
+  | { id: number; method: "processes"; sort?: "cpu" | "mem" }
+  | { id: number; method: "pictures" }
+  | { id: number; method: "notes" }
+  | { id: number; method: "noteRead"; name: string }
+  | { id: number; method: "noteWrite"; name: string; text: string }
   | { id: number; method: "network"; rescan?: boolean }
   | { id: number; method: "wifiConnect"; ssid: string; password?: string }
   | { id: number; method: "wifiDisconnect" }
@@ -91,6 +102,47 @@ export interface RunResult {
 
 export type Reply = { id: number; ok: true; result: unknown } | { id: number; ok: false; error: string };
 
+/** Activity's figures (daemon/applets.ts). */
+export interface SystemStats {
+  /** percent of all cores, then each core */
+  cpu: number;
+  cores: number[];
+  mhz: number;
+  /** kB */
+  memTotal: number;
+  memUsed: number;
+  temps: { name: string; celsius: number }[];
+  /** bytes per second, all interfaces but lo */
+  rx: number;
+  tx: number;
+  uptime: number;
+  load: string;
+}
+
+export interface Process {
+  pid: number;
+  cpu: number;
+  rssKb: number;
+  name: string;
+}
+
+export interface Picture {
+  name: string;
+  path: string;
+  /** Pictures or Backgrounds */
+  group: string;
+}
+
+/** Omarchy's idle settings (shell.json `idle`, seconds) and its toggles. */
+export interface IdleSettings {
+  screensaver: number;
+  lock: number;
+  /** ~/.local/state/omarchy/toggles/screensaver-off */
+  screensaverOff: boolean;
+  /** the Stay Awake indicator: no idle actions */
+  stayAwake: boolean;
+}
+
 /** An application the Apps menu can start (daemon/apps.ts). */
 export interface App {
   id: string;
@@ -110,15 +162,32 @@ export interface AtlasFile {
 }
 
 /** Whether a code point needs a run-time glyph: it is outside every range the
- *  shell package bakes (ASCII, Latin-1, general punctuation, arrows, box
- *  drawing and blocks, Braille) and outside the private use areas, where the
- *  Nerd Font icons the package bakes live and a CJK face has nothing. */
+ *  shell package bakes for all text (ASCII, Latin-1, general punctuation,
+ *  arrows, box drawing and blocks, Braille). The Nerd Font icons in the
+ *  private use areas count too: the package bakes only the menu's. */
 export function needsRuntimeGlyph(cp: number): boolean {
   if (cp <= 0x7e || (cp >= 0xa0 && cp <= 0xff)) return false;
   if ((cp >= 0x2010 && cp <= 0x205e) || (cp >= 0x2190 && cp <= 0x21ff) || (cp >= 0x2500 && cp <= 0x259f) || (cp >= 0x2800 && cp <= 0x28ff)) return false;
-  if ((cp >= 0xe000 && cp <= 0xf8ff) || cp >= 0xf0000) return false;
   return cp >= 0x100;
 }
+
+/** Emoji command-line tools print, drawn as the Nerd Font icon for the same
+ *  thing: no face on the device has their outlines (Noto Color Emoji is
+ *  bitmaps). starship marks a read-only directory with 🔒. */
+export const EMOJI_ICONS: Record<number, number> = {
+  0x1f512: 0xf023, // 🔒 lock
+  0x1f513: 0xf09c, // 🔓 unlock
+  0x2705: 0xf00c, // ✅ check
+  0x274c: 0xf00d, // ❌ cross
+  0x26a0: 0xf071, // ⚠ warning
+  0x1f680: 0xf135, // 🚀 rocket
+  0x1f4c1: 0xf07b, // 📁 folder
+  0x1f4e6: 0xf487, // 📦 package
+  0x1f40d: 0xe73c, // 🐍 python
+  0x1f980: 0xe7a8, // 🦀 rust
+  0x23f1: 0xf017, // ⏱ clock
+  0x1f527: 0xf0ad, // 🔧 wrench
+};
 
 /** The run-time CJK slots: 12 px for terminal cells, 14 px for text-sm. */
 export const CJK_SLOT_12 = 21;
@@ -219,6 +288,7 @@ export interface SystemState {
   /** Omarchy's current theme: its name and colors.toml */
   theme: { name: string; colors: Record<string, string> } | null;
   bar: BarSettings;
+  idle: IdleSettings;
 }
 
 export type Event =

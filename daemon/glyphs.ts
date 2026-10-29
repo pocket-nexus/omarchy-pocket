@@ -1,5 +1,5 @@
-// Run-time glyphs for characters the shell package never baked: CJK, and the
-// other scripts the CJK face covers (Latin Extended, Greek, Cyrillic).
+// Run-time glyphs for characters the shell package never baked: CJK, Latin
+// Extended, Greek, Cyrillic, and the Nerd Font icons a shell prompt draws.
 // The package's atlases hold what the build saw (menu, models, ASCII, box
 // drawing, Braille); a terminal printing 你好, a Wi-Fi network's name or an IME
 // candidate needs more. This module keeps every such character it has been
@@ -13,8 +13,9 @@
 // parsed CJK face and a few thousand rasterized glyphs cost the daemon's event
 // loop seconds and over 100 MB, which the baker returns when it exits. Each
 // baked set is kept under ~/.cache/omarchy-pocket/glyphs by a hash of its
-// characters and face, so a restarted daemon publishes it without baking.
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+// characters and face, so a restarted daemon publishes it without baking; at
+// start the daemon publishes the newest set it kept.
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { needsRuntimeGlyph, type AtlasFile } from "./protocol.ts";
 
@@ -34,11 +35,16 @@ const BASE = (() => {
   for (const ch of "，。、；：？！“”‘’（）《》【】—…·") out.push(ch.codePointAt(0)!);
   return out;
 })();
-const FONTS = [
+/** The faces, in order: JetBrainsMono Nerd Font (the shell's own mono face:
+ *  Latin Extended, Greek, Cyrillic, symbols and the Nerd Font icons prompts
+ *  draw), then a CJK face for what it lacks. */
+const MONO = ["/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf"];
+const CJK = [
   process.env.OMARCHY_POCKET_CJK_FONT ?? "",
   "/usr/share/fonts/wenquanyi/wqy-microhei/wqy-microhei.ttc",
   "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
 ];
+const FONTS = [...MONO, ...CJK];
 
 /** opentype.js reads no TrueType collections; one member is a table copy with
  *  offsets rebased (as vendor/pocket-term host/glyphs.ts extractFromCollection). */
@@ -83,13 +89,33 @@ export class Glyphs {
     private readonly published: (atlases: AtlasFile[]) => void,
   ) {
     mkdirSync(dir, { recursive: true });
+    this.restore();
+  }
+
+  /** Publishes the newest cached set at start, so a restarted daemon draws a
+   *  prompt's icons at once instead of after a bake; its characters count as
+   *  baked, and a character it lacks starts a new bake as usual. */
+  private restore() {
+    try {
+      const files = ATLASES.map(({ slot }) => `slot${slot}.atlas`);
+      const newest = readdirSync(this.cache)
+        .map((name) => join(this.cache, name))
+        .filter((entry) => existsSync(join(entry, "chars.json")) && files.every((f) => existsSync(join(entry, f))))
+        .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
+      if (!newest) return;
+      const chars = (JSON.parse(readFileSync(join(newest, "chars.json"), "utf8")) as number[]).filter((cp) => Glyphs.needs(cp));
+      for (const f of files) copyFileSync(join(newest, f), join(this.dir, f));
+      for (const cp of chars) this.wanted.add(cp);
+      this.publish(new Set(chars), JSON.parse(readFileSync(join(newest, "counts.json"), "utf8")));
+    } catch (error) {
+      console.error(`omarchy-pocketd: restoring glyph atlases: ${error}`);
+    }
   }
 
   /** The cache entry for a character list: its hash with the face and the slots. */
   private entry(chars: number[]): string {
-    const face = FONTS.find((p) => p && existsSync(p)) ?? "";
-    const stamp = face ? statSync(face).mtimeMs : 0;
-    const key = new Bun.CryptoHasher("md5").update(JSON.stringify([chars, face, stamp, ATLASES, DENSITY])).digest("hex").slice(0, 16);
+    const faces = FONTS.filter((p) => p && existsSync(p)).map((p) => [p, statSync(p).mtimeMs]);
+    const key = new Bun.CryptoHasher("md5").update(JSON.stringify([chars, faces, ATLASES, DENSITY])).digest("hex").slice(0, 16);
     return join(this.cache, key);
   }
 
@@ -139,6 +165,11 @@ export class Glyphs {
     const files = ATLASES.map(({ slot }) => `slot${slot}.atlas`);
     if (files.every((f) => existsSync(join(entry, f))) && existsSync(join(entry, "counts.json"))) {
       for (const f of files) copyFileSync(join(entry, f), join(this.dir, f));
+      // the set in use is the one a restarted daemon restores
+      try {
+        writeFileSync(join(entry, "chars.json"), JSON.stringify(list));
+        utimesSync(entry, new Date(), new Date());
+      } catch {}
       this.baking = false;
       this.publish(chars, JSON.parse(readFileSync(join(entry, "counts.json"), "utf8")));
     } else {
@@ -151,7 +182,7 @@ export class Glyphs {
       this.baking = false;
       if (code === 0) {
         const counts = JSON.parse(out) as number[];
-        this.store(entry, files, counts);
+        this.store(entry, files, counts, list);
         this.publish(chars, counts);
       } else console.error(`omarchy-pocketd: glyph baker exited ${code}`);
     }
@@ -160,11 +191,12 @@ export class Glyphs {
   }
 
   /** Keeps a baked set, and the newest few besides it. */
-  private store(entry: string, files: string[], counts: number[]) {
+  private store(entry: string, files: string[], counts: number[], chars: number[]) {
     try {
       mkdirSync(entry, { recursive: true });
       for (const f of files) copyFileSync(join(this.dir, f), join(entry, f));
       writeFileSync(join(entry, "counts.json"), JSON.stringify(counts));
+      writeFileSync(join(entry, "chars.json"), JSON.stringify(chars));
       const entries = readdirSync(this.cache)
         .map((name) => ({ name, at: statSync(join(this.cache, name)).mtimeMs }))
         .sort((a, b) => b.at - a.at);
@@ -180,15 +212,19 @@ export class Glyphs {
 export async function bakeMain(dir: string) {
   const { default: opentype } = await import("opentype.js");
   const { bakeSlot } = await import("../vendor/pocketjs/framework/compiler/bake-font.ts");
-  const path = FONTS.find((p) => p && existsSync(p));
-  if (!path) {
-    console.error("omarchy-pocketd: no CJK font; install wqy-microhei");
+  const load = (paths: string[]) => {
+    const path = paths.find((p) => p && existsSync(p));
+    return path ? opentype.parse(firstFace(new Uint8Array(readFileSync(path))).buffer) : null;
+  };
+  const faces = [load(MONO), load(CJK)].filter((f) => f !== null);
+  if (!faces.length) {
+    console.error("omarchy-pocketd: no run-time font; install ttf-jetbrains-mono-nerd and wqy-microhei");
     process.exit(1);
   }
-  const font = opentype.parse(firstFace(new Uint8Array(readFileSync(path))).buffer);
+  const [font, ...fallbacks] = faces;
   const chars = JSON.parse(await new Response(Bun.stdin.stream()).text()) as number[];
   const counts = ATLASES.map(({ slot, px }) => {
-    const atlas = bakeSlot(font, slot, px, false, chars, DENSITY);
+    const atlas = bakeSlot(font!, slot, px, false, chars, DENSITY, fallbacks);
     const file = join(dir, `slot${slot}.atlas`);
     writeFileSync(`${file}.tmp`, atlas.bytes);
     renameSync(`${file}.tmp`, file);
