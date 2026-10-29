@@ -59,9 +59,10 @@ function windowFor(sid: number) {
 export const sessionById = (sid: number) => sessions().find((s) => s.sid === sid) ?? null;
 
 /** Opens a login shell in a new window. */
-export function openTerminal() {
-  request<number>({ method: "termOpen" }).then((sid) => {
-    session(sid, "bash");
+/** A new session in a window: a shell, or `argv` titled `title`. */
+export function openTerminal(argv?: string[], title = "bash") {
+  request<number>({ method: "termOpen", ...(argv ? { argv, title } : {}) }).then((sid) => {
+    session(sid, title);
     windowFor(sid);
   }, () => {});
 }

@@ -1,6 +1,8 @@
 // The deck's bottom band, the remote's launch bar: Omarchy's menu, the
 // shell's windows (a tap opens one beside the focused window, or focuses it
-// where it is; Terminal always opens a new session), then the applets (X,
+// where it is; Terminal always opens a new session; Agent opens one running
+// Omarchy's `omarchy-agent --pick`, the default coding agent, as Omarchy's
+// SUPER + SHIFT + CTRL + A does), then the applets (X,
 // Discord, YouTube, Hacker News: one window each, focused when it is open).
 // Every cell launches; the deck's modes are the strip's switch. Glyphs carry
 // no labels; the pressed cell fills with the accent and names itself above
@@ -31,7 +33,7 @@ interface Item {
   on?: () => boolean;
 }
 
-const CELL = 46;
+const CELL = 42;
 const stateOf = (isIt: (w: Win) => boolean) => (): "focused" | "open" | null => {
   revision();
   const f = focused();
@@ -59,16 +61,17 @@ const applet = (name: string, glyph: string, label: string, x: number): Item => 
 };
 
 const ITEMS: Item[] = [
-  { id: "menu", glyph: "\u{e900}", label: "menu", x: 18, tap: toggleMenu, on: menuOpen },
-  { id: "terminal", glyph: "\u{f018d}", label: "terminal", x: 18 + CELL + 8, tap: openTerminal, app: stateOf((w) => w.kind === "terminal") },
-  app("notes", "\u{f09ed}", "notes", 18 + CELL * 2 + 8),
-  app("activity", "\u{f04c5}", "activity", 18 + CELL * 3 + 8),
-  app("pictures", "\u{f02e9}", "pictures", 18 + CELL * 4 + 8),
-  app("clock", "\u{f0954}", "clock", 18 + CELL * 5 + 8),
-  applet("x", "\u{f0544}", "X", 18 + CELL * 6 + 16),
-  applet("discord", "\u{f066f}", "Discord", 18 + CELL * 7 + 16),
-  applet("youtube", "\u{f05c3}", "YouTube", 18 + CELL * 8 + 16),
-  applet("hn", "\u{f2e5}", "Hacker News", 18 + CELL * 9 + 16),
+  { id: "menu", glyph: "\u{e900}", label: "menu", x: 16, tap: toggleMenu, on: menuOpen },
+  { id: "terminal", glyph: "\u{f018d}", label: "terminal", x: 16 + CELL + 6, tap: () => openTerminal(), app: stateOf((w) => w.kind === "terminal") },
+  { id: "agent", glyph: "\u{f06a9}", label: "agent", x: 16 + CELL * 2 + 6, tap: () => openTerminal(["omarchy-agent", "--pick"], "Agent") },
+  app("notes", "\u{f09ed}", "notes", 16 + CELL * 3 + 6),
+  app("activity", "\u{f04c5}", "activity", 16 + CELL * 4 + 6),
+  app("pictures", "\u{f02e9}", "pictures", 16 + CELL * 5 + 6),
+  app("clock", "\u{f0954}", "clock", 16 + CELL * 6 + 6),
+  applet("x", "\u{f0544}", "X", 16 + CELL * 7 + 12),
+  applet("discord", "\u{f066f}", "Discord", 16 + CELL * 8 + 12),
+  applet("youtube", "\u{f05c3}", "YouTube", 16 + CELL * 9 + 12),
+  applet("hn", "\u{f2e5}", "Hacker News", 16 + CELL * 10 + 12),
 ];
 
 const itemAt = (x: number) => ITEMS.find((i) => x >= i.x && x < i.x + CELL) ?? null;
