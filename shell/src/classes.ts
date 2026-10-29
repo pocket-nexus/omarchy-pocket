@@ -31,9 +31,7 @@ export const C = {
   toastBody: "absolute left-[32] top-[28] w-[206] h-[16] overflow-hidden font-mono text-xs leading-[14]",
 
   cover: "absolute left-0 top-0 w-[512] h-[384]",
+  lockIcon: "absolute left-0 top-[118] w-[512] text-center text-2xl leading-[28]",
   lockClock: "absolute left-0 top-[160] w-[512] text-center text-2xl leading-[28]",
   lockDate: "absolute left-0 top-[202] w-[512] text-center font-mono text-sm leading-[16]",
-  lockIcon: "absolute left-0 top-[120] w-[512] text-center text-2xl leading-[28]",
-  lockHint: "absolute left-0 top-[200] w-[512] text-center font-mono text-sm leading-[16]",
-  lockMeter: "absolute left-[176] top-[230] h-[4]",
 } as const;

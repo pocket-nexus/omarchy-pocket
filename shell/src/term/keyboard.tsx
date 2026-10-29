@@ -178,7 +178,7 @@ export function Keyboard() {
         )}
       </For>
       <Text class="absolute left-[10] font-mono text-xs leading-[14]" style={{ insetT: HINT_TOP + 3, textColor: color("dark_foreground") }}>
-        {"A Enter  B Bksp  X Esc  Y Tab  L2 Ctrl  R2 Alt  Select next  Start back"}
+        {sink().field ? "A Enter   B Backspace   X clear" : "A Enter  B Bksp  X Esc  Y Tab  L2 Ctrl  R2 Alt  Select next  Start back"}
       </Text>
     </View>
   );

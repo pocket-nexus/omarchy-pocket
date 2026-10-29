@@ -61,7 +61,9 @@ export type Request =
   | { id: number; method: "audio" }
   | { id: number; method: "audioSet"; kind: "sink" | "source"; name: string; volume?: number; muted?: boolean; current?: boolean }
   | { id: number; method: "power" }
-  | { id: number; method: "powerSet"; profile?: string; brightness?: number };
+  | { id: number; method: "powerSet"; profile?: string; brightness?: number }
+  /** The Omarchy user's password, for the lock screen. */
+  | { id: number; method: "checkPassword"; password: string };
 
 /** A request without its id, as the shell's bridge.request() takes it. */
 export type RequestBody = Request extends infer R ? (R extends { id: number } ? Omit<R, "id"> : never) : never;
@@ -157,6 +159,8 @@ export type Event =
   | { event: "termRows"; sid: number; rows: TermRow[]; cursor: Cursor; full: boolean }
   | { event: "termTitle"; sid: number; title: string }
   | { event: "termExit"; sid: number; code: number | null }
+  /** logind is about to suspend: the shell locks first. */
+  | { event: "sleep" }
   | { event: "notify"; notice: Notice }
   /** reason: 1 expired, 2 dismissed, 3 closed by the program */
   | { event: "notifyClosed"; notice: number; reason: number };

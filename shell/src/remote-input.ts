@@ -1,12 +1,11 @@
 // `omarchy-shell pocket.input hold <BUTTON> [frames]` holds a gamepad button
 // for some frames (default 2) as if it were pressed on the device,
 // `omarchy-shell pocket.input tap <x> <y>` taps the deck and
-// `omarchy-shell pocket.input type <text>` types into the active terminal. They drive the shell
+// `omarchy-shell pocket.input type <text>` types on the touch keyboard. They drive the shell
 // over SSH for testing; the names are BTN's (UP, CIRCLE, START, ...).
 import { BTN } from "@pocketjs/framework/input";
-import { request } from "./bridge.ts";
 import { serve } from "./system.ts";
-import { active } from "./term/store.ts";
+import { sendKey } from "./term/keyboard.tsx";
 
 const held: { mask: number; frames: number }[] = [];
 /** queued taps: each is a contact for TAP_FRAMES frames, then a lift */
@@ -21,11 +20,9 @@ serve("pocket.input", {
     return "ok";
   },
   tap: (x, y) => (taps.push({ x: Number(x), y: Number(y), frames: TAP_FRAMES + 1 }), "ok"),
-  /** text into the active terminal, as if typed */
+  /** text typed on the touch keyboard: into the terminal, the lock or a password field */
   type: (text) => {
-    const sid = active();
-    if (sid === null) throw new Error("no terminal");
-    void request({ method: "termInput", sid, text: text ?? "" });
+    for (const ch of text ?? "") sendKey(ch);
     return "ok";
   },
 });

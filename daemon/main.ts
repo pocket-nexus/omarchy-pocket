@@ -23,6 +23,7 @@ import { CLOSED, Notifications } from "./notifications.ts";
 import { Terminals, type OpenOptions } from "./term.ts";
 import { wallpaper } from "./wallpaper.ts";
 import * as panels from "./panels.ts";
+import { checkPassword, watchSleep } from "./session.ts";
 import { RUNTIME } from "./paths.ts";
 
 const HOME = process.env.HOME ?? "/home/omarchy";
@@ -302,6 +303,9 @@ async function handle(socket: Socket<Peer>, request: Request) {
         void refresh();
         result = null;
         break;
+      case "checkPassword":
+        result = await checkPassword(request.password);
+        break;
       default:
         throw new Error(`unknown method ${(request as { method: string }).method}`);
     }
@@ -344,6 +348,7 @@ const notifications = new Notifications({
   closed: (notice, reason) => broadcast({ event: "notifyClosed", notice, reason }),
 });
 notifications.start().catch((error) => log("notifications:", error instanceof Error ? error.message : error));
+watchSleep(() => broadcast({ event: "sleep" })).catch((error) => log("logind:", error instanceof Error ? error.message : error));
 
 listen(bridgePath, {
   open(socket) {

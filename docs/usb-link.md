@@ -74,3 +74,5 @@ Reopening the port restarts the stream and drops the session. Polling the tty fr
 
 - configfs `UDC`: writing `""` from Python is a zero-byte write and leaves the gadget bound; write `"\n"` to unbind.
 - An ssh `ControlPath` longer than 104 bytes fails (`unix_listener: path … too long`); use a short relative path.
+
+**Reconnection.** `usb-mux.ts` supervises: it runs the link in a child process and starts a new one when the child exits, which it does when the device leaves the bus (suspend, reboot, cable). **Verified:** an RTC-timed suspend; the link was back about 3 s after resume.

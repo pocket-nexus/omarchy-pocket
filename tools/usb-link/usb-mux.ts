@@ -7,6 +7,10 @@
 // threads sit in blocking bulk transfers, the main thread frames and forwards.
 // A transfer whose length is a multiple of 512 gets one 0x00 byte so it ends in a
 // short packet; the parser skips bytes outside frames.
+//
+// The process started from the command line supervises: it runs the link in a
+// child and starts a new one whenever the child exits, which it does when the
+// device leaves the bus (suspend, reboot, cable).
 import net from "node:net";
 import { dlopen, ptr } from "bun:ffi";
 import { isMainThread, parentPort, Worker, workerData } from "node:worker_threads";
@@ -51,6 +55,16 @@ if (!isMainThread) {
       if (r !== 0) throw new Error(`bulk out: ${lib.libusb_error_name(r)}`);
       parentPort!.postMessage(chunk.length);
     });
+  }
+} else if (!process.env.USB_MUX_LINK) {
+  for (;;) {
+    const link = Bun.spawn([process.execPath, import.meta.path, ...process.argv.slice(2)], {
+      env: { ...process.env, USB_MUX_LINK: "1" },
+      stdio: ["ignore", "inherit", "inherit"],
+    });
+    const code = await link.exited;
+    console.error(`link ended (exit ${code}); reconnecting`);
+    await Bun.sleep(1000);
   }
 } else {
   const forwards = process.argv.slice(2).map((a) => a.split(":").map(Number) as [number, number]);

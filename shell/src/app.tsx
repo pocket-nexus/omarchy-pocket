@@ -18,7 +18,7 @@ import { openPanel, Panels, panelPress, panelTap, passwordEntry, showPanel } fro
 import { Picker, pickerOpen, pickerPress, pickerTap } from "./deck/picker.tsx";
 import { remoteButtons, remoteContact } from "./remote-input.ts";
 import { Bar } from "./stage/bar.tsx";
-import { LockDeck, lockFrame, LockStage } from "./stage/lock.tsx";
+import { locked, LockStage } from "./stage/lock.tsx";
 import { Osd } from "./stage/osd.tsx";
 import { actOnNewest, Toasts } from "./stage/toasts.tsx";
 import { Wallpaper } from "./stage/wallpaper.tsx";
@@ -51,8 +51,8 @@ export default function Shell() {
 
   const [workspace, setWorkspace] = createSignal(1);
   const press = (key: number) => {
+    if (locked() || passwordEntry()) return entryPress(key);
     if (pickerOpen()) return pickerPress(key);
-    if (passwordEntry()) return entryPress(key);
     if (openPanel()) return panelPress(key);
     if (termShown()) return termPress(key);
     if (key & BTN.ZR) showPanel("network");
@@ -89,11 +89,6 @@ export default function Shell() {
   onFrame((pressed: number) => {
     const buttons = pressed | remoteButtons();
     const contact = auxiliaryTouches()[0] ?? remoteContact();
-    if (lockFrame(buttons)) {
-      held = buttons;
-      touch = null;
-      return;
-    }
     const down = buttons & ~held;
     if (buttons & held & REPEATS) heldFor++;
     else heldFor = 0;
@@ -102,7 +97,7 @@ export default function Shell() {
       if (down & key) press(key);
       else if (key & REPEATS & buttons && heldFor > REPEAT_AFTER && (heldFor - REPEAT_AFTER) % REPEAT_EVERY === 0) press(key);
     }
-    if (pickerOpen()) {
+    if (pickerOpen() && !locked()) {
       if (contact) touch = { x: contact.x, y: contact.y };
       else if (touch) {
         pickerTap(touch.y);
@@ -110,7 +105,7 @@ export default function Shell() {
       }
       return;
     }
-    if (openPanel() && !passwordEntry()) {
+    if (openPanel() && !passwordEntry() && !locked()) {
       if (contact) touch = { x: contact.x, y: contact.y };
       else if (touch) {
         panelTap(touch.x, touch.y);
@@ -118,13 +113,13 @@ export default function Shell() {
       }
       return;
     }
-    if (termShown() || passwordEntry()) {
+    if (termShown() || passwordEntry() || locked()) {
       // the tab strip acts on release; the keyboard tracks the finger
       if (contact && (contact.y >= TABS_HEIGHT || touch)) keyboardTouch(contact);
       if (contact) touch = { x: contact.x, y: contact.y };
       else if (touch) {
         if (touch.y < TABS_HEIGHT) {
-          if (!passwordEntry()) tabsTap(touch.x);
+          if (!passwordEntry() && !locked()) tabsTap(touch.x);
         }
         else keyboardTouch(null);
         touch = null;
@@ -149,12 +144,11 @@ export default function Shell() {
       <Toasts />
       <LockStage clock={time} date={date} />
       <AuxiliarySurface>
-        <Show when={!pickerOpen()} fallback={<Picker />}>
-          <Show when={termShown() || passwordEntry()} fallback={<Show when={openPanel()} fallback={<MenuDeck />}><Panels /></Show>}>
+        <Show when={!pickerOpen() || locked()} fallback={<Picker />}>
+          <Show when={termShown() || passwordEntry() || locked()} fallback={<Show when={openPanel()} fallback={<MenuDeck />}><Panels /></Show>}>
             <Keyboard />
           </Show>
         </Show>
-        <LockDeck />
       </AuxiliarySurface>
     </View>
   );

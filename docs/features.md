@@ -5,7 +5,7 @@ Omarchy's desktop is Hyprland plus a Quickshell shell (`/usr/share/omarchy/shell
 | Omarchy part | Omarchy Pocket | State |
 |---|---|---|
 | Menu (`omarchy-menu.jsonc`, `omarchy.menu` plugin) | the deck: Omarchy's tree, `when`/`checked`/`disabled` from the daemon, actions through the daemon, `shell summon omarchy.menu {"menu":…}` | done 2026-10-29 |
-| System › Lock | `omarchy-system-lock` → `lock lock` → lock screen on both panels; hold A unlocks | done 2026-10-29; password unlock waits for the on-screen keyboard |
+| System › Lock | `omarchy-system-lock` → `lock lock` → clock on the stage, password on the touch keyboard (A Enter, B Backspace); omarchy-pocketd checks it with `unix_chkpwd`. The shell also locks on logind's `PrepareForSleep`, as hypridle's `before_sleep_cmd` does | done 2026-10-29 (wrong password refused, right one unlocks, locked after an RTC-timed suspend) |
 | System › Suspend | `systemctl suspend` from the user's session | done 2026-10-29 (deep suspend, RTC wake) |
 | System › Hibernate | hidden by its `when`: no swap to resume from | — |
 | System › Logout | `omarchy-system logout` → `uwsm stop` shim → new session | done 2026-10-29 |
