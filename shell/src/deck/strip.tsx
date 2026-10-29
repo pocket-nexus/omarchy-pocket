@@ -10,19 +10,22 @@
 //   Keys       the keyboard, for a window that takes keys
 //
 // The lit segment is the body that shows; its highlight glides between
-// segments. A pill latches its layer for one chord; both latched are the
-// workspace layer.
+// segments. A finger on a pill holds its layer while it stays, as the
+// shoulder does; a quick tap latches it for one chord (deck/layer.ts); both
+// are the workspace layer.
 import { createEffect, createRoot, For, on, untrack } from "solid-js";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { glide } from "../motion.ts";
 import { appletOf, focusedApplet } from "../applets/applet.ts";
+import { appletTyping } from "../packages.ts";
 import { windowTitle } from "../stage/windows.tsx";
 import { toast } from "../stage/toasts.tsx";
 import { color } from "../theme.ts";
 import { focused } from "../workspaces.ts";
 import { body, setBody, type Body } from "./body.ts";
 import { STRIP_H } from "./geometry.ts";
-import { layer, pills, togglePill } from "./layer.ts";
+import type { TouchFrame } from "../touch.ts";
+import { layer, pillLifted, pills, setTouched } from "./layer.ts";
 import { pressed } from "./press.ts";
 
 const PILL_W = 40;
@@ -31,8 +34,15 @@ const R_X = 512 - 4 - PILL_W;
 const SEG_W = 126;
 const SEG_X = (512 - 3 * SEG_W) / 2;
 
-/** Whether the focused window takes keys: a terminal, or an applet with a sink (Notes). */
-export const takesKeys = () => focused()?.kind === "terminal" || !!focusedApplet()?.keys?.();
+/** Whether the focused applet package is taking typed text (its keyboard is open). */
+const typing = () => {
+  const w = focused();
+  return w?.kind === "app" && !!w.appletSurface && appletTyping(w.app);
+};
+
+/** Whether the focused window takes keys: a terminal, a shell applet with a
+ *  sink (Notes), or an applet package while it takes typed text. */
+export const takesKeys = () => focused()?.kind === "terminal" || !!focusedApplet()?.keys?.() || typing();
 
 interface Segment {
   body: Body;
@@ -55,6 +65,9 @@ const SEGMENTS: Segment[] = [
   { body: "keys", glyph: () => "\u{f030c}", label: () => "Keys" },
 ];
 
+/** frames a pill tap may last and still latch */
+const QUICK = 18;
+
 const segmentAt = (x: number) => (x >= SEG_X && x < SEG_X + 3 * SEG_W ? Math.floor((x - SEG_X) / SEG_W) : -1);
 
 /** The strip's target under `x`, for the pressed look. */
@@ -65,12 +78,27 @@ export function stripTarget(x: number): string | null {
   return i >= 0 ? `strip:${SEGMENTS[i]!.body}` : null;
 }
 
-export function stripTap(x: number) {
+/** The strip's fingers this frame: the pills under a finger hold their
+ *  layer, and a tap on a segment switches the body. */
+export function stripTouch(frame: TouchFrame) {
+  const side = (x: number) => (stripTarget(x) === "strip:L" ? "l" : stripTarget(x) === "strip:R" ? "r" : null);
+  const on = { l: false, r: false };
+  for (const c of frame.down) {
+    const s = side(c.start.x);
+    if (s) on[s] = true;
+  }
+  setTouched(on);
+  for (const tap of frame.taps) {
+    const s = side(tap.start.x);
+    if (s) pillLifted(s, tap.frames, QUICK);
+    else if (!tap.moved) segmentTap(tap.start.x);
+  }
+}
+
+function segmentTap(x: number) {
   const target = stripTarget(x);
   if (!target) return;
   const what = target.slice(6);
-  if (what === "L") return togglePill("l");
-  if (what === "R") return togglePill("r");
   if (what === "controls" && !focused()) return toast({ icon: "\u{f02fc}", title: "No window here", body: "", tone: "info" }, 1.8);
   if (what === "keys" && !takesKeys()) return toast({ icon: "\u{f02fc}", title: "This window takes no keys", body: "", tone: "info" }, 1.8);
   setBody(what as Body);
@@ -88,6 +116,7 @@ function Pill(props: { x: number; label: string; on: () => boolean; target: stri
 
 /** The body the switch lights: a body that shows nothing of its own falls back to the map. */
 const lit = () => {
+  if (typing()) return 2;
   const b = body();
   if (b === "controls" && !focused()) return 0;
   if (b === "keys" && !takesKeys()) return 0;

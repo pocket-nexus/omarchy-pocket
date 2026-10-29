@@ -4,8 +4,8 @@
 // touch (deck/remote.tsx). Opening a level asks
 // omarchy-pocketd for every `when`, `checked` and `disabled` command of its
 // rows; a row with a `when` appears once its command exits 0. A row's action
-// runs through omarchy-pocketd as the Omarchy user; a failure shows as a
-// toast, and the level's conditions are read again afterwards (toggles).
+// closes the menu, as Omarchy's menu exits once a row is chosen, and runs
+// through omarchy-pocketd as the Omarchy user; a failure shows as a toast.
 import { createMemo, createSignal, onMount, Show } from "solid-js";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
@@ -189,13 +189,13 @@ function activate(item: MenuItem) {
     return;
   }
   if (item.action) {
-    const where = level();
+    // as Omarchy's menu exits once a row runs, so the card and its remote go
+    closeMenu();
     run(item.action).then(
       (result) => {
         if (result.code !== 0) {
           toast({ icon: ERROR, title: `${item.label} failed (${result.code ?? "signal"})`, body: lastLine(result.stderr) || lastLine(result.stdout), tone: "error" });
         }
-        if (level() === where || stack().includes(where)) evaluate(where.items);
       },
       (error) => toast({ icon: ERROR, title: item.label, body: String(error), tone: "error" }),
     );

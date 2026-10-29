@@ -18,6 +18,13 @@
 // The lock screen covers both panels and takes input first; the screensaver
 // covers everything.
 //
+// What the deck shows follows what asked for it, so nothing stays once its
+// asker is gone: a chord card lasts while a shoulder or a pill's finger is
+// down (or a pill's latch, which any other tap lets go), a card's remote
+// while the card is up (a menu row that runs closes the menu; locking closes
+// the card), an applet's keyboard while the applet takes typed text, and a
+// window's body while there is a focused window.
+//
 // The bottom panel has one AuxiliarySurface: each portal is a flex child of
 // the panel's root, so two would share its width. The portal inserts its
 // child once (framework renderPortalChild calls the accessor), so the deck's
@@ -35,17 +42,17 @@ import { body, setBody } from "./deck/body.ts";
 import { ChordCard, chordCardTouch, chordTarget } from "./deck/chord-card.tsx";
 import { Dock, dockTap, dockTarget } from "./deck/dock.tsx";
 import { BODY_H, BODY_TOP, DOCK_TOP, STRIP_H } from "./deck/geometry.ts";
-import { layer, releasePills, setHeld } from "./deck/layer.ts";
+import { latchedAny, layer, releasePills, setHeld } from "./deck/layer.ts";
 import { BACK, closeMenu, OPEN } from "./stage/menu.tsx";
 import { Minimap, minimapTouch } from "./deck/minimap.tsx";
 import { openPanel, passwordEntry } from "./stage/panels.tsx";
-import { Card, card, cardPress } from "./stage/card.tsx";
+import { Card, card, cardPress, closeCard } from "./stage/card.tsx";
 import { Remote, remoteTouch } from "./deck/remote.tsx";
 import { Touchpad, touchpadTouch } from "./deck/touchpad.tsx";
 import { TermRemote, termRemoteTouch } from "./deck/term-remote.tsx";
 import { Pointer, pointerContacts } from "./stage/pointer.tsx";
 import { pressAt } from "./deck/press.ts";
-import { Strip, stripTap, stripTarget, takesKeys } from "./deck/strip.tsx";
+import { Strip, stripTarget, stripTouch, takesKeys } from "./deck/strip.tsx";
 import { remoteButtons } from "./remote-input.ts";
 import { Bar } from "./stage/bar.tsx";
 import { KeySheet } from "./stage/keysheet.tsx";
@@ -62,7 +69,7 @@ import { Keyboard, keyboardTouch, sendKey, setWindowKeys } from "./term/keyboard
 import { band, trackTouches, type TouchFrame } from "./touch.ts";
 import "./windows.ts";
 import { current, focused, revision, visibleWindows, windowsOn, WORKSPACES } from "./workspaces.ts";
-import { appletRefused, feedPackage, showPackage } from "./packages.ts";
+import { appletKeys, appletRefused, appletTargets, appletTyping, feedPackage, nextAppletFrame, showPackage } from "./packages.ts";
 import { AppControls, appControlsTouch } from "./deck/app-controls.tsx";
 
 const REPEATS = BTN.UP | BTN.DOWN | BTN.LEFT | BTN.RIGHT;
@@ -103,18 +110,43 @@ export default function Shell() {
     const w = focused();
     return w?.kind === "app" ? w : null;
   };
+  /** the focused applet, while it takes typed text */
+  const typingApplet = () => {
+    const w = focusedPackage();
+    return w?.appletSurface && appletTyping(w.app) ? w.app : null;
+  };
   const shown = (): Shown => {
     if (layer() !== "plain") return "chords";
     if (card()) return "remote";
+    if (typingApplet() !== null) return "keys";
     if (body() === "keys" && takesKeys()) return "keys";
     // an applet is a touch app: its remote is the touchpad on the stage
     if (body() === "controls" && focusedPackage()?.appletSurface) return "touchpad";
     if (body() === "controls" && focused()) return "controls";
     return "map";
   };
-  setWindowKeys(() => focusedApplet()?.keys?.() ?? null);
+  setWindowKeys(() => {
+    const typing = typingApplet();
+    return typing !== null ? appletKeys(typing) : (focusedApplet()?.keys?.() ?? null);
+  });
   // A window opened from the menu takes focus; the menu makes way for it.
   createEffect(on([current, focused], () => closeMenu(), { defer: true }));
+  // With no focused window the body goes back to the map, so a window's body
+  // does not come back with the next window.
+  createEffect(on(focused, (w) => !w && setBody("map"), { defer: true }));
+  // A card takes the deck: a latched pill lets go. Locking puts the card away.
+  createEffect(on(card, (c) => c && releasePills(), { defer: true }));
+  createEffect(
+    on(
+      locked,
+      (l) => {
+        if (!l) return;
+        closeCard();
+        releasePills();
+      },
+      { defer: true },
+    ),
+  );
   // A package off the current workspace is paused.
   createEffect(() => {
     revision();
@@ -279,11 +311,20 @@ export default function Shell() {
               ? chordTarget(first.x, first.y - BODY_TOP)
               : null,
     );
-    for (const tap of band(touch, 0, STRIP_H).taps) if (!tap.moved) stripTap(tap.start.x);
+    stripTouch(band(touch, 0, STRIP_H));
     for (const tap of band(touch, DOCK_TOP, 384).taps) if (!tap.moved) dockTap(tap.x);
     const body = band(touch, BODY_TOP, DOCK_TOP);
+    // the focused applet's page, read while the deck drives it: its targets
+    // for the pointer, and whether it takes typed text
+    nextAppletFrame();
+    const view = shown();
+    const app = focusedPackage();
+    if (app?.appletSurface && (view === "touchpad" || view === "keys")) appletTargets(app.app);
     feed(buttons, body);
     bodyTouch(body);
+    // a latched pill lets go at any tap that is not on a pill
+    const onPill = (x: number) => stripTarget(x) === "strip:L" || stripTarget(x) === "strip:R";
+    if (latchedAny() && touch.taps.some((t) => !(t.start.y < STRIP_H && onPill(t.start.x)))) releasePills();
   });
 
   return (

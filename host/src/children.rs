@@ -17,13 +17,22 @@
 //! An app's realm has `globalThis.net` (net.rs): HTTP and the companion's
 //! services, which omarchy-pocketd performs.
 //!
+//! The shell's pointer reads what an applet's page can be pressed
+//! (`appTargets`): while it asks, the host calls the realm's
+//! `__omarchyTargets()` every other frame, before the app's turn, and keeps
+//! the flat list it returns: a flags word (bit 0: a text field is being
+//! typed into), then x, y, w, h, kind for each target on the touch surface
+//! (kind 0: a tap target, 1: a target a drag picks up). The deck's keyboard
+//! types into the app as a hardware keyboard does (`appText`): text events
+//! in the app's next input frame, which an open system keyboard takes.
+//!
 //! The shell sizes an app's touch surface to the tile its window has
 //! (`openApp(path, w, h)`, `resizeApp`): the host gives the surface's texture
 //! the new size, the Runtime takes it (`resize_auxiliary`), and the app's
 //! realm hears `__omarchyResized(w, h)` before its next frame, where an
 //! applet lays itself out again for the new size.
 use crate::net;
-use pocket_drivers::{Contact, InputClasses, InputFrameBuilder, InputSource};
+use pocket_drivers::{Contact, InputClasses, InputFrameBuilder, InputSource, TextEvent};
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_linux_hooks::FileSource;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, Profile, Runtime, RuntimeConfig, RuntimeError};
@@ -41,6 +50,8 @@ struct Feed {
     buttons: u32,
     /// contacts on the app's auxiliary surface: (id, x, y) in its logical points
     contacts: Vec<(u32, f32, f32)>,
+    /// typed since the last frame; each event goes in one frame
+    text: Vec<TextEvent>,
 }
 
 /// The input source an app's Runtime polls: whatever the shell fed it.
@@ -48,14 +59,15 @@ struct FedInput(Rc<RefCell<Feed>>);
 
 impl InputSource for FedInput {
     fn classes(&self) -> InputClasses {
-        InputClasses::BUTTONS | InputClasses::CONTACT
+        InputClasses::BUTTONS | InputClasses::CONTACT | InputClasses::TEXT
     }
     fn poll(&mut self, frame: &mut InputFrameBuilder) {
-        let feed = self.0.borrow();
+        let mut feed = self.0.borrow_mut();
         frame.buttons |= feed.buttons;
         for &(id, x, y) in &feed.contacts {
             frame.contacts.push(Contact { surface: 1, id, x, y, cancelled: false });
         }
+        frame.text.append(&mut feed.text);
     }
 }
 
@@ -73,7 +85,20 @@ struct App {
     #[cfg(target_os = "linux")]
     surface: crate::gpu::AppSize,
     resized: Rc<Cell<Option<[u32; 2]>>>,
+    targets: Rc<Targets>,
 }
+
+/// What the app's page can be pressed, for the shell's pointer.
+#[derive(Default)]
+struct Targets {
+    /// frames the shell's last ask keeps the host reading them
+    wanted: Cell<u32>,
+    /// the last list the realm returned
+    list: RefCell<Vec<f64>>,
+}
+
+/// frames an ask lasts: the pointer asks every frame it is over the app
+const TARGETS_WANTED: u32 = 30;
 
 enum Request {
     Open(u32, PathBuf, Option<[u32; 2]>),
@@ -88,6 +113,35 @@ struct AppGuest {
     app: u32,
     /// a new touch-surface size the realm has not heard of yet
     resized: Rc<Cell<Option<[u32; 2]>>>,
+    targets: Rc<Targets>,
+    frames: u32,
+}
+
+impl AppGuest {
+    /// Every other frame while the shell asks: the realm's `__omarchyTargets()`.
+    fn read_targets(&mut self) {
+        let wanted = self.targets.wanted.get();
+        if wanted == 0 {
+            return;
+        }
+        self.targets.wanted.set(wanted - 1);
+        self.frames = self.frames.wrapping_add(1);
+        if self.frames % 2 != 0 {
+            return;
+        }
+        let read = self.inner.with(|ctx| -> rquickjs::Result<Option<Vec<f64>>> {
+            let hook: Option<rquickjs::Function> = ctx.globals().get("__omarchyTargets")?;
+            match hook {
+                Some(hook) => hook.call(()),
+                None => Ok(None),
+            }
+        });
+        match read {
+            Some(Ok(list)) => *self.targets.list.borrow_mut() = list.unwrap_or_default(),
+            Some(Err(error)) => eprintln!("omarchy-pocket-host: app {} targets: {error}", self.app),
+            None => {}
+        }
+    }
 }
 
 impl Guest for AppGuest {
@@ -120,6 +174,7 @@ impl Guest for AppGuest {
                 eprintln!("omarchy-pocket-host: app {} resize: {error}", self.app);
             }
         }
+        self.read_targets();
         self.inner.frame(frame)
     }
     fn collect(&mut self) -> Result<(), RuntimeError> {
@@ -179,6 +234,20 @@ impl Children {
             let mut feed = app.feed.borrow_mut();
             feed.buttons = buttons;
             feed.contacts = contacts;
+        }
+    }
+
+    /// The app's last target list (see the module comment), asked for again.
+    pub fn targets(&mut self, id: u32) -> Vec<f64> {
+        let Some(app) = self.apps.iter().find(|a| a.id == id) else { return Vec::new() };
+        app.targets.wanted.set(TARGETS_WANTED);
+        app.targets.list.borrow().clone()
+    }
+
+    /// Text events for the app's next input frame.
+    pub fn text(&mut self, id: u32, events: Vec<TextEvent>) {
+        if let Some(app) = self.apps.iter().find(|a| a.id == id) {
+            app.feed.borrow_mut().text.extend(events);
         }
     }
 
@@ -257,7 +326,8 @@ impl Children {
         runtime.add_input_source(Box::new(FedInput(feed.clone()))).map_err(error)?;
         self.net.borrow_mut().add_app(id, path.display().to_string());
         let resized = Rc::new(Cell::new(None));
-        let guest = AppGuest { inner: RquickjsGuest::default(), net: self.net.clone(), app: id, resized: resized.clone() };
+        let targets = Rc::new(Targets::default());
+        let guest = AppGuest { inner: RquickjsGuest::default(), net: self.net.clone(), app: id, resized: resized.clone(), targets: targets.clone(), frames: 0 };
         runtime.set_guest(Box::new(guest)).map_err(error)?;
         if let Err(failure) = runtime.boot() {
             self.net.borrow_mut().remove_app(id);
@@ -277,7 +347,7 @@ impl Children {
         }
         let mut sizes = gpu.sizes;
         let surface = sizes.pop().ok_or("the app has no touch surface")?;
-        self.apps.push(App { id, runtime, feed, handles: handles.clone(), visible: true, primary: Vec::new(), auxiliary: Vec::new(), surface, resized });
+        self.apps.push(App { id, runtime, feed, handles: handles.clone(), visible: true, primary: Vec::new(), auxiliary: Vec::new(), surface, resized, targets });
         Ok(handles)
     }
 

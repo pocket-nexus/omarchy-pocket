@@ -14,11 +14,12 @@
 //!
 //! `omarchyBridge.openApp(path)` opens a PocketJS package in a window: it runs
 //! beside the shell in a Runtime of its own (children.rs) and draws into
-//! textures the shell's windows show; `closeApp`, `showApp` and `appInput`
-//! drive it. Its events arrive with the daemon's lines. A daemon line that
+//! textures the shell's windows show; `closeApp`, `showApp`, `appInput` and
+//! `appText` drive it, and `appTargets` reads what its page can be pressed. Its events arrive with the daemon's lines. A daemon line that
 //! answers an app's HTTP request (`@net ...`, net.rs) goes to that app.
 use crate::bridge::Bridge;
 use crate::{children, net};
+use pocket_drivers::TextEvent;
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, RuntimeError};
 use pocket_spec::op;
@@ -134,6 +135,24 @@ impl BridgedGuest {
                 Function::new(ctx.clone(), move |id: u32, buttons: u32, contacts: Vec<f64>| {
                     let contacts = contacts.chunks_exact(3).map(|c| (c[0] as u32, c[1] as f32, c[2] as f32)).collect();
                     apps.borrow_mut().input(id, buttons, contacts);
+                })?,
+            )?;
+            let apps = self.children.clone();
+            object.set("appTargets", Function::new(ctx.clone(), move |id: u32| apps.borrow_mut().targets(id))?)?;
+            let apps = self.children.clone();
+            object.set(
+                "appText",
+                // kind "text": typed characters; "key": an editing key (Enter, Backspace, ...)
+                Function::new(ctx.clone(), move |id: u32, kind: String, text: String| {
+                    let events = if kind == "key" {
+                        vec![
+                            TextEvent::Key { key: text.clone(), pressed: true, repeat: false },
+                            TextEvent::Key { key: text, pressed: false, repeat: false },
+                        ]
+                    } else {
+                        vec![TextEvent::Commit(text)]
+                    };
+                    apps.borrow_mut().text(id, events);
                 })?,
             )?;
             ctx.globals().set("omarchyBridge", object)

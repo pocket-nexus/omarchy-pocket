@@ -8,7 +8,7 @@
 // travelled more than SLOP from where it landed is a drag: its lift reports
 // `moved`, and lists scroll by its `dy` while it is down.
 import { auxiliaryTouches } from "@pocketjs/framework/input";
-import { remoteContact } from "./remote-input.ts";
+import { remoteContacts } from "./remote-input.ts";
 
 const SETTLE = 2;
 const SLOP = 10;
@@ -48,8 +48,7 @@ export interface TouchFrame {
 export function trackTouches(): TouchFrame {
   const now = new Map<number, Point>();
   for (const c of auxiliaryTouches()) now.set(c.id, { x: c.x, y: c.y });
-  const remote = remoteContact();
-  if (remote) now.set(REMOTE, remote);
+  remoteContacts().forEach((p, i) => now.set(REMOTE + i, p));
   const taps: Contact[] = [];
   for (const [id, t] of live) {
     if (now.has(id)) continue;
