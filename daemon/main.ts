@@ -24,6 +24,7 @@ import { Terminals, type OpenOptions } from "./term.ts";
 import { wallpaper } from "./wallpaper.ts";
 import * as panels from "./panels.ts";
 import { checkPassword, watchSleep } from "./session.ts";
+import { Glyphs } from "./glyphs.ts";
 import { RUNTIME } from "./paths.ts";
 
 const HOME = process.env.HOME ?? "/home/omarchy";
@@ -323,6 +324,12 @@ async function handle(socket: Socket<Peer>, request: Request) {
         await panels.bluetoothForget(request.mac);
         result = null;
         break;
+      case "glyphs":
+        result = glyphs.want(request.text);
+        break;
+      case "atlases":
+        result = glyphs.atlases();
+        break;
       case "checkPassword":
         result = await checkPassword(request.password);
         break;
@@ -346,9 +353,14 @@ function listen(path: string, handlers: Parameters<typeof Bun.listen<Peer>>[0]["
   return listener;
 }
 
+// ---- run-time glyphs ------------------------------------------------------
+
+const glyphs = new Glyphs(join(RUNTIME, "omarchy-pocket", "glyphs"), (atlases) => broadcast({ event: "atlas", atlases }));
+
 // ---- terminals ------------------------------------------------------------
 
 const terminals = new Terminals({
+  want: (text) => glyphs.want(text),
   rows: (sid, rows, cursor, full) => broadcast({ event: "termRows", sid, rows, cursor, full }),
   title: (sid, title) => broadcast({ event: "termTitle", sid, title }),
   exit: (sid, code) => broadcast({ event: "termExit", sid, code }),

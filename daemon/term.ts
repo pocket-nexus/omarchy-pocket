@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveCell, rowKey, rowRuns, type Cell } from "../vendor/pocket-term/host/grid.ts";
 import { encodeKey } from "../vendor/pocket-term/host/keys.ts";
-import { TERM_COLS, TERM_ROWS, type Cursor, type TermRow } from "./protocol.ts";
+import { CJK_SLOT_12, TERM_COLS, TERM_ROWS, type Cursor, type TermRow } from "./protocol.ts";
 
 const SCROLLBACK = 2000;
 const FLUSH_MS = 16;
@@ -34,6 +34,8 @@ function ghosttyWasm(): string {
 }
 
 export interface TermEvents {
+  /** characters a row draws from the run-time CJK atlas */
+  want(text: string): void;
   rows(sid: number, rows: TermRow[], cursor: Cursor, full: boolean): void;
   title(sid: number, title: string): void;
   exit(sid: number, code: number | null): void;
@@ -46,15 +48,15 @@ export interface OpenOptions {
   env?: Record<string, string>;
 }
 
-/** A row's cells. A wide character keeps its two columns as "??" until the
- *  shell has runtime glyphs for it: the baked mono face has none. */
-function cellsOf(core: GhosttyCore, y: number): Cell[] {
+/** A row's cells. A wide character (CJK) is drawn from the run-time atlas in
+ *  slot 21 and spans two cells; its continuation cell stays empty. */
+function cellsOf(core: GhosttyCore, y: number, want: (text: string) => void): Cell[] {
   const cells: Cell[] = [];
   for (let x = 0; x < TERM_COLS; x++) {
     const cell = resolveCell(core.getCell(y, x));
-    if (cell.width === 2 || cell.width === 0) {
-      cell.ch = "?";
-      cell.width = 1;
+    if (cell.width === 2) {
+      cell.slot = CJK_SLOT_12;
+      want(cell.ch);
     }
     cells.push(cell);
   }
@@ -144,7 +146,7 @@ class Session {
     if (full) this.sent = [];
     const rows: TermRow[] = [];
     for (let y = 0; y < TERM_ROWS; y++) {
-      const runs = rowRuns(cellsOf(core, y));
+      const runs = rowRuns(cellsOf(core, y, this.events.want));
       const key = rowKey(runs);
       if (this.sent[y] !== key) {
         this.sent[y] = key;

@@ -66,6 +66,8 @@ const PACKAGES = [
   "bluez-tools", "qrencode", "inotify-tools",
   // backgrounds: vipsthumbnail as in Omarchy's omarchy-menu-images; magick for omarchy-bar-text-color
   "libvips", "imagemagick",
+  // run-time CJK glyphs (daemon/glyphs.ts)
+  "wqy-microhei",
 ];
 
 const steps: Step[] = [

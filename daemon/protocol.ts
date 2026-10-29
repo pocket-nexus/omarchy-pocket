@@ -67,6 +67,11 @@ export type Request =
   | { id: number; method: "bluetoothConnect"; mac: string }
   | { id: number; method: "bluetoothDisconnect"; mac: string }
   | { id: number; method: "bluetoothForget"; mac: string }
+  /** Characters the shell is about to draw; true when they need a new atlas
+   *  (an `atlas` event follows). */
+  | { id: number; method: "glyphs"; text: string }
+  /** The run-time atlases as they are now. */
+  | { id: number; method: "atlases" }
   /** The Omarchy user's password, for the lock screen. */
   | { id: number; method: "checkPassword"; password: string };
 
@@ -80,6 +85,18 @@ export interface RunResult {
 }
 
 export type Reply = { id: number; ok: true; result: unknown } | { id: number; ok: false; error: string };
+
+/** A run-time font atlas omarchy-pocketd baked (daemon/glyphs.ts). */
+export interface AtlasFile {
+  slot: number;
+  path: string;
+  gen: number;
+  glyphs: number;
+}
+
+/** The run-time CJK slots: 12 px for terminal cells, 14 px for text-sm. */
+export const CJK_SLOT_12 = 21;
+export const CJK_SLOT_14 = 22;
 
 /** One wallpaper texture: a raw RGBA8888 file of w x h pixels at (x, y) on
  *  the top panel's 1024 x 768 pixels. */
@@ -178,6 +195,8 @@ export type Event =
   | { event: "termRows"; sid: number; rows: TermRow[]; cursor: Cursor; full: boolean }
   | { event: "termTitle"; sid: number; title: string }
   | { event: "termExit"; sid: number; code: number | null }
+  /** New run-time glyph atlases to load (omarchyBridge.loadFontAtlas). */
+  | { event: "atlas"; atlases: AtlasFile[] }
   /** logind is about to suspend: the shell locks first. */
   | { event: "sleep" }
   | { event: "notify"; notice: Notice }

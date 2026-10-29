@@ -7,7 +7,9 @@
 //!
 //! `omarchyBridge.loadTexture(path, w, h)` uploads a raw RGBA8888 file the
 //! daemon wrote (a wallpaper tile) as a texture and returns its handle, or
-//! -1: image bytes never cross the JSON bridge or the JS heap.
+//! -1; `omarchyBridge.loadFontAtlas(path)` loads a FONT ATLAS file the daemon
+//! baked (run-time CJK glyphs) into its slot. Image and atlas bytes never
+//! cross the JSON bridge or the JS heap.
 use crate::bridge::Bridge;
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, RuntimeError};
@@ -24,6 +26,19 @@ pub struct BridgedGuest {
 /// PSM_8888, the RGBA texture format of spec ops
 const PSM_8888: i64 = 3;
 const TEXTURE_MAX: usize = 512;
+
+/// Reads a FONT ATLAS file and loads it into the slot its header names.
+fn load_font_atlas(ops: &OpContext, path: &str) -> bool {
+    let Ok(bytes) = std::fs::read(path) else { return false };
+    match ops.dispatch(op::LOAD_FONT_ATLAS as u16, &[OpArg::Bytes(&bytes)]) {
+        Ok(OpResult::Integer(ok)) => ok != 0,
+        Ok(_) => true,
+        Err(error) => {
+            eprintln!("omarchy-pocket-host: loading {path}: {error:?}");
+            false
+        }
+    }
+}
 
 /// Reads `path` (w*h RGBA8888) and uploads it; -1 when the file or the size is wrong.
 fn load_texture(ops: &OpContext, path: &str, w: usize, h: usize) -> i64 {
@@ -65,10 +80,12 @@ impl BridgedGuest {
                     bridge.borrow_mut().send(&line);
                 })?,
             )?;
+            let texture_ops = ops.clone();
             object.set(
                 "loadTexture",
-                Function::new(ctx.clone(), move |path: String, w: u32, h: u32| load_texture(&ops, &path, w as usize, h as usize))?,
+                Function::new(ctx.clone(), move |path: String, w: u32, h: u32| load_texture(&texture_ops, &path, w as usize, h as usize))?,
             )?;
+            object.set("loadFontAtlas", Function::new(ctx.clone(), move |path: String| load_font_atlas(&ops, &path))?)?;
             ctx.globals().set("omarchyBridge", object)
         });
         match installed {

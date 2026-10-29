@@ -7,6 +7,7 @@ import { For, Index, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { runColumns, type Run } from "../../../vendor/pocket-term/shared/protocol.ts";
 import { TERM_COLS, TERM_ROWS } from "../../../daemon/protocol.ts";
+import "../glyphs.ts";
 import { color } from "../theme.ts";
 import { activeSession } from "./store.ts";
 
@@ -17,7 +18,34 @@ export const GRID_TOP = 18;
 
 const hex = (rgb: number) => "#" + rgb.toString(16).padStart(6, "0");
 
+/** A run from the run-time CJK atlas: one Text per character, each on its
+ *  own two columns, so the face's advance never drifts off the grid. */
+function WideRun(props: { run: Run }) {
+  const chars = () => [...props.run[1]];
+  return (
+    <>
+      <Show when={props.run[3] >= 0}>
+        <View
+          class="absolute top-0"
+          style={{ insetL: props.run[0] * CELL_W, width: runColumns(props.run) * CELL_W, height: CELL_H, bgColor: hex(props.run[3]) }}
+        />
+      </Show>
+      <For each={chars()}>
+        {(ch, i) => (
+          <Text
+            class="absolute top-0 font-mono text-xs"
+            style={{ insetL: (props.run[0] + i() * 2) * CELL_W, lineHeight: CELL_H, fontSlot: props.run[4], textColor: props.run[2] >= 0 ? hex(props.run[2]) : color("foreground") }}
+          >
+            {ch}
+          </Text>
+        )}
+      </For>
+    </>
+  );
+}
+
 function RunView(props: { run: Run }) {
+  if (props.run[4] !== undefined) return <WideRun run={props.run} />;
   return (
     <>
       <Show when={props.run[3] >= 0}>

@@ -85,8 +85,25 @@ async function daemon() {
   const wasm = join(ROOT, "daemon", "node_modules", "@wterm", "ghostty", "wasm", "ghostty-vt.wasm");
   if (!existsSync(wasm)) await $`bun install --frozen-lockfile`.cwd(join(ROOT, "daemon"));
   if (!existsSync(join(ROOT, "vendor", "pocket-term", "host", "grid.ts"))) throw new Error("no vendor/pocket-term; run: git submodule update --init vendor/pocket-term");
-  // dbus-next tries usocket (native) and x11 at run time and falls back without them
-  await $`bun build daemon/main.ts --target=bun --external usocket --external x11 --outfile ${OUTPUTS.daemon}`.cwd(ROOT).quiet();
+  const built = await Bun.build({
+    entrypoints: [join(ROOT, "daemon", "main.ts")],
+    target: "bun",
+    // dbus-next tries usocket (native) and x11 at run time and falls back without them
+    external: ["usocket", "x11"],
+    plugins: [
+      {
+        // opentype.js's ESM build has no default export; PocketJS's bake-font.ts
+        // imports the default, which its UMD build (package main) provides
+        name: "opentype-umd",
+        setup(build) {
+          build.onResolve({ filter: /^opentype\.js$/ }, () => ({ path: join(ROOT, "daemon", "node_modules", "opentype.js", "dist", "opentype.js") }));
+        },
+      },
+    ],
+  });
+  if (!built.success) throw new Error(built.logs.map(String).join("\n"));
+  mkdirSync(join(CACHE, "daemon"), { recursive: true });
+  writeFileSync(OUTPUTS.daemon, await built.outputs[0]!.text());
   await $`cp ${wasm} ${OUTPUTS.wasm}`;
   await $`bun build daemon/shim.ts --target=bun --outfile ${OUTPUTS.shim}`.cwd(ROOT).quiet();
   const shim = readFileSync(OUTPUTS.shim, "utf8");
