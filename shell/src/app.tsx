@@ -47,7 +47,6 @@ export default function Shell() {
   };
   after(1, tick);
   const time = () => `${two(now().getHours())}:${two(now().getMinutes())}`;
-  const clock = () => `${WEEKDAYS[now().getDay()]} ${time()}`;
   const date = () => `${WEEKDAYS[now().getDay()]}, ${now().getDate()} ${MONTHS[now().getMonth()]}`;
 
   const [workspace, setWorkspace] = createSignal(1);
@@ -142,7 +141,7 @@ export default function Shell() {
       <Show when={termShown()}>
         <TermGrid />
       </Show>
-      <Bar clock={clock} workspace={workspace} focused={openPanel} />
+      <Bar now={now} workspace={workspace} focused={openPanel} />
       <Osd />
       <Toasts />
       <LockStage clock={time} date={date} />

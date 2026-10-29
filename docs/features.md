@@ -14,7 +14,8 @@ Omarchy's desktop is Hyprland plus a Quickshell shell (`/usr/share/omarchy/shell
 | System › Screensaver | `omarchy-launch-screensaver` needs Hyprland to place its window | planned |
 | OSD (`omarchy-osd`, `osd` plugin) | stage overlay with Omarchy's `OsdModel.js` | done 2026-10-29 |
 | Bar: clock, indicators | clock; Bluetooth, network, audio, battery glyphs from SystemState via Omarchy's panel models | done 2026-10-29 (Bluetooth absent: the adapter is not attached yet) |
-| Bar: workspaces | five static workspaces, L2/R2 select | no windows to place on them |
+| Bar: workspaces | five static workspaces, L2 cycles | no windows to place on them |
+| Appearance › Menu Bar (`omarchy-bar`, `omarchy-toggle-bar`) | omarchy-pocketd reads and watches `~/.config/omarchy/shell.json`, writes `setBarWidget`, answers `omarchy.bar syncHidden`; the bar formats Omarchy's Qt clock formats, hides with bar-off, sits at the top or bottom, opaque, glassy or clear | done 2026-10-29 (clock `ddd d MMM h:mm AP`, bottom, glassy, hidden) |
 | Theme colours (`omarchy-theme-set` → `shell applyTheme`) | run-time palette | done 2026-10-29 (Catppuccin, Gruvbox, Tokyo Night) |
 | Theme backgrounds (`background` plugin, `omarchy-theme-bg-set`) | `background set|transition|themeTransition`: omarchy-pocketd scales Omarchy's current background with vipsthumbnail (shrink-on-load, about 1.1 s for an 8192 × 4608 WebP) into four RGBA tiles; the host uploads them as textures | done 2026-10-29 |
 | Appearance › Theme (`omarchy.image-picker`, source themes) | deck list of `omarchy-theme-switcher` rows with Omarchy's labels, the highlighted theme's preview as the wallpaper; A runs `omarchy-theme-set` | done 2026-10-29 (Lupine: light palette and background) |

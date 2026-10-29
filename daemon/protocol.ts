@@ -200,6 +200,16 @@ export interface Notice {
   actions: string[];
 }
 
+/** Omarchy's bar settings (shell.json and the bar-off toggle). */
+export interface BarSettings {
+  position: string;
+  /** opaque, glassy or none */
+  background: string;
+  /** the clock's Qt date format, e.g. "dddd HH:mm" */
+  clock: string;
+  hidden: boolean;
+}
+
 export interface SystemState {
   battery: { percent: number; charging: boolean } | null;
   network: { kind: "wifi" | "ethernet" | "none"; name: string; signal: number | null };
@@ -208,6 +218,7 @@ export interface SystemState {
   powerProfile: string | null;
   /** Omarchy's current theme: its name and colors.toml */
   theme: { name: string; colors: Record<string, string> } | null;
+  bar: BarSettings;
 }
 
 export type Event =

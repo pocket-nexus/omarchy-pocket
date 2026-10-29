@@ -27,6 +27,7 @@ import { checkPassword, watchSleep } from "./session.ts";
 import { Glyphs } from "./glyphs.ts";
 import { commonHanzi, Ime } from "./ime.ts";
 import { apps } from "./apps.ts";
+import { Bar } from "./bar.ts";
 import { RUNTIME } from "./paths.ts";
 
 if (process.argv[2] === "bake") {
@@ -153,8 +154,11 @@ async function systemState(): Promise<SystemState> {
     bluetooth: bt,
     powerProfile: profile,
     theme: theme(),
+    bar: bar.settings(),
   };
 }
+
+const bar = new Bar(HOME);
 
 /** omarchy-theme-set keeps the current theme in ~/.local/state/omarchy/current. */
 function theme(): SystemState["theme"] {
@@ -478,6 +482,22 @@ function answered(call: number, handled: boolean, text: string) {
 function shellCall(socket: Socket<Peer>, args: string[]) {
   const [target = "", method = "", ...rest] = args;
   if (target === "shell" && method === "ping") return reply(socket, "OK\x1fpong\x1e");
+  // the bar's settings live in shell.json, which the daemon reads and writes
+  if ((target === "omarchy.bar" && method === "syncHidden") || (target === "shell" && method === "reloadConfig")) {
+    void refresh();
+    return reply(socket, "OK\x1fok\x1e");
+  }
+  if (target === "shell" && method === "setBarWidget") {
+    let result: string;
+    try {
+      result = bar.set(rest[0] ?? "", rest[1] ?? "", rest[2] ?? "null");
+    } catch (error) {
+      result = String(error);
+    }
+    void refresh();
+    return reply(socket, `OK\x1f${result}\x1e`);
+  }
+  if (target === "shell" && (method === "putBarWidget" || method === "moveBarWidget")) return reply(socket, "OK\x1fok\x1e");
   if (target === "omarchy.indicators" && method === "refresh") {
     void refresh();
     return reply(socket, "OK\x1f\x1e");
@@ -518,4 +538,5 @@ listen(shellPath, {
 
 void refresh();
 setInterval(() => void refresh(), STATE_EVERY_MS);
+bar.watch(() => void refresh());
 log(`bridge ${bridgePath}, omarchy-shell ${shellPath}`);
