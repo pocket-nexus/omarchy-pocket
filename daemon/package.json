@@ -1,0 +1,9 @@
+{
+  "name": "omarchy-pocketd",
+  "private": true,
+  "type": "module",
+  "description": "omarchy-pocketd's dependencies; tools/build.ts bundles them into one script",
+  "dependencies": {
+    "@wterm/ghostty": "0.3.4"
+  }
+}

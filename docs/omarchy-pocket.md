@@ -93,6 +93,17 @@ The daemon pushes `state` events when the state changes (read every 15 s and on 
 
 `/usr/local/bin/hyprctl`, `uwsm` and `uwsm-app` are copies of `daemon/shim.ts`, which picks the command by the name it runs under. `hyprctl` answers queries with the two panels and no windows and runs `dispatch exec`; `uwsm stop` ends the session.
 
+## Pocket Term
+
+Terminals live in omarchy-pocketd (`daemon/term.ts`): each session is a PTY from `Bun.Terminal` and a libghostty VT core (`@wterm/ghostty`) as the authority, with Pocket Term's grid and key code (`vendor/pocket-term`, pocket-nexus/pocket-term `9b96712`). The daemon turns each screen row into runs of same-coloured text and sends the rows that changed, at most once per 16 ms; the shell (`shell/src/term/`) keeps one signal per row and draws the runs on the top panel below the bar.
+
+- **80 × 26 cells of 6.4 × 14 points** in the 12 px mono face: JetBrains Mono advances 7.2 points at 12 px, and tracking of −0.8 points brings each glyph to its cell. btop needs 80 × 24.
+- The bottom panel holds the session tabs and a US keyboard with keys about 34 × 64 points; Shift, Ctrl and Alt latch for one key. The gamepad sends arrows (D-pad), Enter (A), Backspace (B), Escape (X), Tab (Y), PageUp/PageDown (L1/R1) and latches Ctrl/Alt (L2/R2); Select cycles sessions, Start returns to the menu with the sessions running. From the menu, Select opens a terminal.
+- `/etc/xdg/xdg-terminals.list` names `omarchy-pocket-term.desktop`, whose command (`omarchy-pocket-term`, a copy of `daemon/shim.ts`) asks the daemon over the `omarchy-shell` socket (`pocket.term open`) to start the command after `-e` with the caller's environment; the shell shows the new session.
+- Glyphs come from the package's baked atlases: ASCII, Latin-1, punctuation, arrows, box drawing, block elements, Braille and the menu's icons. A wide character shows as `??` in its two columns.
+
+**Verified:** `omarchy-launch-floating-terminal-with-presentation` ran fastfetch in Pocket Term; typing by touch and by the gamepad; btop at 80 × 26 with Braille graphs; sessions survive a shell restart and come back with their screens.
+
 ## Input
 
 Measured on the device, and matching the stock firmware's SDL mapping (`gamecontrollerdb.txt`):

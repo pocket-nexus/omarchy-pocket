@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Pocket Term
+Comment=The terminal on Omarchy Pocket's top panel
+Exec=omarchy-pocket-term
+Icon=utilities-terminal
+Categories=System;TerminalEmulator;
+Terminal=false
+X-TerminalArgExec=-e
+X-TerminalArgAppId=--app-id=
+X-TerminalArgTitle=--title=
+X-TerminalArgDir=--dir=

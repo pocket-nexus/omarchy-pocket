@@ -190,7 +190,7 @@ export function MenuDeck() {
       <For each={visible()}>{(row) => <Row item={row.item} selected={() => level().selected === row.item.id} top={row.top} />}</For>
       <View class={C.footer} style={{ bgColor: color("dark_background") }}>
         <Text class={C.hint} style={{ textColor: color("dark_foreground") }}>
-          {"A open   B back   L1/R1 page   Start menu"}
+          {"A open   B back   L1/R1 page   Start menu   Select terminal"}
         </Text>
       </View>
     </View>

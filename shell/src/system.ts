@@ -22,6 +22,7 @@ onEvent((event) => {
     setState(event.state);
     return;
   }
+  if (event.event !== "shell") return;
   const method = targets.get(event.target)?.[event.method];
   if (!method) return answer(event.call, false);
   let output: string | void;

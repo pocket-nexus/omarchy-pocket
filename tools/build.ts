@@ -16,7 +16,7 @@
 // Outputs:
 //   .cache/host/cargo/aarch64-unknown-linux-gnu/release/omarchy-pocket-host
 //   .cache/shell/omarchy-pocket.pocket
-//   .cache/daemon/omarchy-pocketd.js, .cache/daemon/shim.js (hyprctl, uwsm, uwsm-app)
+//   .cache/daemon/omarchy-pocketd.js, ghostty-vt.wasm, shim.js (hyprctl, uwsm, uwsm-app, omarchy-pocket-term)
 import { $ } from "bun";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -34,7 +34,11 @@ export const OUTPUTS = {
   shell: join(CACHE, "shell", "omarchy-pocket.pocket"),
   daemon: join(CACHE, "daemon", "omarchy-pocketd.js"),
   shim: join(CACHE, "daemon", "shim.js"),
+  /** libghostty's VT core, which omarchy-pocketd loads from beside itself */
+  wasm: join(CACHE, "daemon", "ghostty-vt.wasm"),
 };
+/** The names daemon/shim.ts is installed under, in /usr/local/bin */
+export const SHIM_NAMES = ["hyprctl", "uwsm", "uwsm-app", "omarchy-pocket-term"];
 const [W, H] = [1024, 768];
 
 const argv = process.argv.slice(2);
@@ -78,7 +82,11 @@ async function shell() {
 
 async function daemon() {
   rmSync(join(CACHE, "daemon"), { recursive: true, force: true });
+  const wasm = join(ROOT, "daemon", "node_modules", "@wterm", "ghostty", "wasm", "ghostty-vt.wasm");
+  if (!existsSync(wasm)) await $`bun install --frozen-lockfile`.cwd(join(ROOT, "daemon"));
+  if (!existsSync(join(ROOT, "vendor", "pocket-term", "host", "grid.ts"))) throw new Error("no vendor/pocket-term; run: git submodule update --init vendor/pocket-term");
   await $`bun build daemon/main.ts --target=bun --outfile ${OUTPUTS.daemon}`.cwd(ROOT).quiet();
+  await $`cp ${wasm} ${OUTPUTS.wasm}`;
   await $`bun build daemon/shim.ts --target=bun --outfile ${OUTPUTS.shim}`.cwd(ROOT).quiet();
   const shim = readFileSync(OUTPUTS.shim, "utf8");
   if (!shim.startsWith("#!")) writeFileSync(OUTPUTS.shim, `#!/usr/bin/env bun\n${shim}`);

@@ -12,7 +12,7 @@ Omarchy's CLI, themes, config and Linux services on the Anbernic RG DS Plus (RK3
 |---|---|
 | `shell/` | the PocketJS shell (Solid) |
 | `host/` | omarchy-pocket-host, the device program (Rust) |
-| `daemon/` | omarchy-pocketd and the `hyprctl`/`uwsm` shims (Bun) |
+| `daemon/` | omarchy-pocketd (bridge, `omarchy-shell` socket, terminals) and the `hyprctl`/`uwsm`/`omarchy-pocket-term` shims (Bun) |
 | `tools/build.ts`, `tools/deploy.ts`, `tools/screenshot.ts` | build the three programs, put them on a device over SSH, read both panels back from the GPU |
 | `tools/omarchy-assets.ts` | Omarchy's menu, theme, wallpaper and fonts for the shell, from the pinned rc packages |
 | `image/build-root.ts`, `image/install.ts` | the system image and its installer |
@@ -22,6 +22,8 @@ Omarchy's CLI, themes, config and Linux services on the Anbernic RG DS Plus (RK3
 | `experiments/hyprland-libmali/` | the Hyprland spike and the patched Hyprland package |
 
 The PocketJS framework, compiler and Linux drivers come from pocketjs (branch `rg-ds-plus-usb-ssh-350b52c9` of pocket-nexus/pocketjs, commit `ee0f92a3`, which adds the RG DS Plus drivers). `vendor/pocketjs` (ignored) points at a checkout of that commit; the host crate, the shell and the tools import from it, and its tools need Bun 1.4.2.
+
+Pocket Term's grid and key code come from `vendor/pocket-term`, a submodule (`git submodule update --init vendor/pocket-term`, not recursive); `tools/build.ts daemon` installs the daemon's own dependencies (`daemon/package.json`: the libghostty VT core).
 
 ```sh
 bun tools/omarchy-assets.ts                    # Omarchy's menu, models, palette, wallpaper, fonts

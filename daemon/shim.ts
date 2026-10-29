@@ -8,7 +8,11 @@
 //   uwsm       `stop` ends the shell's session (systemd starts a new one);
 //              `check is-active` succeeds; `app -- cmd` runs cmd
 //   uwsm-app   runs the command after `--`
+//   omarchy-pocket-term   the terminal xdg-terminal-exec runs (omarchy-pocket-term.desktop):
+//              `[--app-id=ID] [--title=T] [--dir=D] [-e cmd args...]` opens a
+//              Pocket Term session in the shell through omarchy-pocketd
 import { basename } from "node:path";
+import { shellPath } from "./paths.ts";
 
 const name = basename(process.argv[1] ?? "");
 const args = process.argv.slice(2);
@@ -96,7 +100,44 @@ async function uwsm(argv: string[]) {
   }
 }
 
+/** Sends one omarchy-shell request to omarchy-pocketd and returns its output. */
+async function shellCall(args: string[]): Promise<string> {
+  let reply = "";
+  await new Promise<void>((resolve, reject) => {
+    Bun.connect({
+      unix: shellPath,
+      socket: {
+        open: (socket) => void socket.write(args.join("\x1f") + "\x1e"),
+        data: (_, chunk) => void (reply += chunk.toString()),
+        close: () => resolve(),
+        error: (_, error) => reject(error),
+      },
+    }).catch(reject);
+  });
+  if (!reply.startsWith("OK\x1f")) throw new Error("omarchy-pocketd did not open the terminal");
+  return reply.slice(3, reply.indexOf("\x1e"));
+}
+
+async function pocketTerm(argv: string[]) {
+  const options: { argv: string[]; title?: string; cwd?: string; env: Record<string, string> } = { argv: [], env: {} };
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]!;
+    if (arg === "-e") {
+      options.argv = argv.slice(i + 1);
+      break;
+    }
+    if (arg.startsWith("--title=")) options.title = arg.slice(8);
+    else if (arg.startsWith("--dir=")) options.cwd = arg.slice(6);
+  }
+  // the caller's environment, as a terminal it started would inherit it
+  for (const [key, value] of Object.entries(process.env)) if (value !== undefined) options.env[key] = value;
+  console.log(await shellCall(["pocket.term", "open", JSON.stringify(options)]));
+}
+
 switch (name) {
+  case "omarchy-pocket-term":
+    await pocketTerm(args);
+    break;
   case "hyprctl":
     await hyprctl(args);
     break;

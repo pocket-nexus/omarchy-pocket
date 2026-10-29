@@ -11,17 +11,17 @@ Omarchy's desktop is Hyprland plus a Quickshell shell (`/usr/share/omarchy/shell
 | System › Logout | `omarchy-system logout` → `uwsm stop` shim → new session | done 2026-10-29 |
 | System › Reboot | `omarchy-system reboot` | done 2026-10-29 |
 | System › Shutdown | `omarchy-system shutdown`; logind answers `CanPowerOff=yes` | not run (no remote power-on) |
-| System › Screensaver | needs a terminal (`xdg-terminal-exec`) | waits for Pocket Term |
+| System › Screensaver | `omarchy-launch-screensaver` needs Hyprland to place its window | planned |
 | OSD (`omarchy-osd`, `osd` plugin) | stage overlay with Omarchy's `OsdModel.js` | done 2026-10-29 |
 | Bar: clock, indicators | clock; Bluetooth, network, audio, battery glyphs from SystemState via Omarchy's panel models | done 2026-10-29; audio reads null until PipeWire runs for the user |
 | Bar: workspaces | five static workspaces, L2/R2 select | no windows to place on them |
 | Theme colours (`omarchy-theme-set` → `shell applyTheme`) | run-time palette | done 2026-10-29 (Catppuccin, Gruvbox, Tokyo Night) |
 | Theme backgrounds (`background` plugin) | wallpaper tiles baked into the package | run-time backgrounds planned |
 | Notifications (`notifications` plugin, D-Bus `org.freedesktop.Notifications`) | menu action failures show as notices | D-Bus server planned |
-| Terminal (Alacritty/foot/kitty under Hyprland) | — | Pocket Term planned |
+| Terminal (Alacritty/foot/kitty under Hyprland) | Pocket Term: PTYs in omarchy-pocketd (Bun.Terminal + libghostty), 80×26 grid on the top panel, touch keyboard and gamepad keys on the bottom; `xdg-terminal-exec` opens it, so the 147 menu actions that run `omarchy-launch-floating-terminal-with-presentation` land there | done 2026-10-29 (fastfetch, btop, Omarchy's bash); wide characters show as `??` until runtime glyphs |
 | Text input, IME (fcitx5) | — | on-screen keyboard and pinyin planned |
 | Setup (Wi-Fi, Bluetooth, audio, power, display, timezone panels) | — | planned |
-| Install / Remove / Update | terminal TUIs | wait for Pocket Term |
+| Install / Remove / Update | terminal TUIs in Pocket Term | not yet run on the device |
 | Apps (`dock` plugin, app launcher) | — | planned: PocketJS applets |
 | Trigger (screenshot, screen recording, share) | — | screenshot planned through the GPU readback |
 | Learn (web apps) | no browser without a compositor | not planned |

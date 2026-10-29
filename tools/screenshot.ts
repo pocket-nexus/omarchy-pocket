@@ -8,9 +8,9 @@
 // with glReadPixels of each panel's next frame in /tmp/pocket-shot-<panel>.rgba,
 // RGBA rows bottom first. SSH_OPTS adds options to ssh.
 import { $ } from "bun";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { encodePNG } from "../vendor/pocketjs/tools/png.ts";
 
 const [W, H] = [1024, 768];
@@ -31,5 +31,6 @@ for (const panel of [0, 1]) {
   }
 }
 for (let i = 3; i < rgba.length; i += 4) rgba[i] = 255;
+mkdirSync(dirname(resolve(out)), { recursive: true });
 writeFileSync(resolve(out), encodePNG(rgba, W, H * 2));
 console.log(resolve(out));

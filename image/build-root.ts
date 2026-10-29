@@ -60,6 +60,10 @@ const PACKAGES = [
   // omarchy-pocketd and its shims run on Bun; omarchy-shell needs socat for its
   // socket; powerprofilesctl imports gi
   "bun-bin", "socat", "python-gobject",
+  // PipeWire's ALSA, Pulse and BlueZ plugins (WirePlumber finds no sound card
+  // without pipewire-audio); the tools Omarchy's menus run
+  "pipewire-audio", "pipewire-alsa", "pipewire-pulse", "expac", "yay", "xdg-terminal-exec",
+  "bluez-tools", "qrencode", "inotify-tools",
 ];
 
 const steps: Step[] = [
@@ -118,13 +122,16 @@ install -Dm755 /repo/tools/usb-link/usbmux.py /usr/lib/pocket-rgds/usbmux.py
 install -Dm755 /repo/.cache/host/cargo/aarch64-unknown-linux-gnu/release/omarchy-pocket-host /usr/bin/omarchy-pocket-host
 install -Dm644 /repo/.cache/shell/omarchy-pocket.pocket /usr/share/pocketjs/omarchy-pocket.pocket
 install -Dm644 /repo/.cache/daemon/omarchy-pocketd.js /usr/lib/omarchy-pocket/omarchy-pocketd.js
-for name in hyprctl uwsm uwsm-app; do install -Dm755 /repo/.cache/daemon/shim.js /usr/local/bin/$name; done
+install -Dm644 /repo/.cache/daemon/ghostty-vt.wasm /usr/lib/omarchy-pocket/ghostty-vt.wasm
+for name in hyprctl uwsm uwsm-app omarchy-pocket-term; do install -Dm755 /repo/.cache/daemon/shim.js /usr/local/bin/$name; done
 install -d -m 755 /usr/lib/mali
 install -m 755 /repo/.cache/blobs/libmali.so.1.9.0 /repo/.cache/blobs/libmali-hook.so.1.9.0 /usr/lib/mali/
 ln -sf libmali.so.1.9.0 /usr/lib/mali/libmali.so.1
 ln -sf libmali-hook.so.1.9.0 /usr/lib/mali/libmali-hook.so.1
 ldconfig
 ldd /usr/bin/omarchy-pocket-host | grep -q 'libmali.so.1 => /usr/lib/mali/libmali.so.1'
+# Omarchy's own install step: Arch Linux ARM's tarball ships LANG=C
+bash /usr/share/omarchy/install/config/locale.sh
 timedatectl set-timezone Asia/Shanghai 2>/dev/null || ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 echo 'PARTLABEL=omarchy / ext4 rw,noatime 0 1' > /etc/fstab
 install -d -m 755 /mnt/stock

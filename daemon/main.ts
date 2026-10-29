@@ -8,17 +8,18 @@
 //   $XDG_RUNTIME_DIR/omarchy-shell-<id>.sock      the socket Omarchy's
 //       `omarchy-shell` CLI talks to, served in place of Quickshell's; each
 //       call goes to the shell as a `shell` event and the shell's answer
-//       goes back to the CLI
+//       goes back to the CLI, except the targets the daemon serves itself
+//       (`pocket.term`: the terminals, term.ts)
 //
 // Commands run as `bash -c` with this process's environment, which the unit
 // sets to Omarchy's (OMARCHY_PATH, PATH with $OMARCHY_PATH/bin).
 import type { Socket, UnixSocketListener } from "bun";
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { BRIDGE_DIRECTORY, BRIDGE_SOCKET, type DaemonMessage, type Request, type RunResult, type SystemState } from "./protocol.ts";
+import { bridgePath, shellPath } from "./paths.ts";
+import type { DaemonMessage, Request, RunResult, SystemState } from "./protocol.ts";
+import { Terminals, type OpenOptions } from "./term.ts";
 
-const RUNTIME = process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 0}`;
-const OMARCHY_PATH = process.env.OMARCHY_PATH ?? "/usr/share/omarchy";
 const HOME = process.env.HOME ?? "/home/omarchy";
 const OUTPUT_LIMIT = 64 * 1024;
 const LINE_LIMIT = 4 * 1024 * 1024;
@@ -221,6 +222,29 @@ async function handle(socket: Socket<Peer>, request: Request) {
         answered(request.call, request.handled, request.output ?? "");
         result = null;
         break;
+      case "termOpen":
+        result = openTerminal({ argv: request.argv?.length ? request.argv : ["bash", "-l"], title: request.title ?? "" }, false);
+        break;
+      case "termInput":
+        terminals.get(request.sid).input(request.text);
+        result = null;
+        break;
+      case "termKey":
+        terminals.get(request.sid).key(request.key, !!request.ctrl, !!request.alt, !!request.shift);
+        result = null;
+        break;
+      case "termPaste":
+        terminals.get(request.sid).paste(request.text);
+        result = null;
+        break;
+      case "termClose":
+        terminals.get(request.sid).kill();
+        result = null;
+        break;
+      case "termList":
+        result = terminals.list();
+        for (const { sid } of terminals.list()) terminals.get(sid).attach();
+        break;
       default:
         throw new Error(`unknown method ${(request as { method: string }).method}`);
     }
@@ -241,7 +265,21 @@ function listen(path: string, handlers: Parameters<typeof Bun.listen<Peer>>[0]["
   return listener;
 }
 
-const bridgePath = join(RUNTIME, BRIDGE_DIRECTORY, BRIDGE_SOCKET);
+// ---- terminals ------------------------------------------------------------
+
+const terminals = new Terminals({
+  rows: (sid, rows, cursor, full) => broadcast({ event: "termRows", sid, rows, cursor, full }),
+  title: (sid, title) => broadcast({ event: "termTitle", sid, title }),
+  exit: (sid, code) => broadcast({ event: "termExit", sid, code }),
+});
+
+/** A new session; one some program started is announced so the shell shows it. */
+function openTerminal(options: OpenOptions, announce: boolean): number {
+  const sid = terminals.open({ cwd: HOME, ...options });
+  if (announce) broadcast({ event: "termOpened", sid, title: terminals.get(sid).title });
+  return sid;
+}
+
 listen(bridgePath, {
   open(socket) {
     socket.data = { incoming: "", outgoing: [] };
@@ -284,10 +322,6 @@ listen(bridgePath, {
 
 // ---- omarchy-shell --------------------------------------------------------
 
-// omarchy-shell names the socket after md5("$OMARCHY_PATH/shell\n$WAYLAND_DISPLAY");
-// there is no Wayland display here.
-const shellId = new Bun.CryptoHasher("md5").update(`${OMARCHY_PATH}/shell\n${process.env.WAYLAND_DISPLAY ?? ""}`).digest("hex").slice(0, 16);
-const shellPath = join(RUNTIME, `omarchy-shell-${shellId}.sock`);
 
 interface Call {
   socket: Socket<Peer>;
@@ -317,6 +351,17 @@ function shellCall(socket: Socket<Peer>, args: string[]) {
   if (target === "omarchy.indicators" && method === "refresh") {
     void refresh();
     return reply(socket, "OK\x1f\x1e");
+  }
+  if (target === "pocket.term" && method === "open") {
+    // `omarchy-pocket-term` (shim.ts), which xdg-terminal-exec runs
+    try {
+      const options = JSON.parse(rest[0] ?? "{}") as OpenOptions;
+      if (!Array.isArray(options.argv) || !options.argv.length) options.argv = ["bash", "-l"];
+      return reply(socket, `OK\x1f${openTerminal(options, true)}\x1e`);
+    } catch (error) {
+      log("pocket.term open:", error);
+      return reply(socket, "SKIP\x1e");
+    }
   }
   const shell = peers.values().next().value;
   if (!shell) return reply(socket, "SKIP\x1e");

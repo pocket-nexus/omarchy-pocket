@@ -1,0 +1,17 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "omarchy-pocketd",
+      "dependencies": {
+        "@wterm/ghostty": "0.3.4",
+      },
+    },
+  },
+  "packages": {
+    "@wterm/core": ["@wterm/core@0.3.4", "", {}, "sha512-GZoAxybV6FY+o2L4VcZupipkcNKM4Dv4UGekRvuohDJ9oSAzwGgw4J8UGZlXllDLV0pKg3pmIGoukMat6EQ/pQ=="],
+
+    "@wterm/ghostty": ["@wterm/ghostty@0.3.4", "", { "dependencies": { "@wterm/core": "0.3.4" } }, "sha512-oa53vgUFuNfIt+p8vvEeKlr8M4NRciEmHqY8pIXBxV3NRH6OGjMb1TiSxKBi+hySP61uXKqVbbu9YdW+7fWNMg=="],
+  }
+}

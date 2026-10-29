@@ -205,8 +205,8 @@ async function main() {
     // Omarchy's own glyphs (U+E900 is its logo) before the Nerd Font, which maps a devicon there
     fallback: [relative(SHELL, logo), relative(SHELL, nerd)],
     characterFiles: ["generated/menu-chars.txt", "generated/shell-chars.txt", "glyphs.txt"],
-    // Latin-1, general punctuation (… – “ ”) and arrows for command output and Omarchy's messages
-    ranges: ["U+00A0-00FF", "U+2010-205E", "U+2190-21FF"],
+    // Latin-1, general punctuation (… – “ ”), arrows and Braille (TUI graphs) for terminals and Omarchy's messages
+    ranges: ["U+00A0-00FF", "U+2010-205E", "U+2190-21FF", "U+2800-28FF"],
   }, null, 2) + "\n");
   console.log(`omarchy-assets: ${theme}, ${tree.length} root menu items, ${chars.size} menu characters, wallpaper ${backgrounds[0]} in ${tiles.length} tiles`);
 }

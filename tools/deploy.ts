@@ -12,7 +12,7 @@
 import { $ } from "bun";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
-import { OUTPUTS } from "./build.ts";
+import { OUTPUTS, SHIM_NAMES } from "./build.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
 const ROOTFS = join(ROOT, "device", "rootfs");
@@ -39,7 +39,8 @@ if (parts.has("host")) uploads.push([OUTPUTS.host, "/usr/bin/omarchy-pocket-host
 if (parts.has("shell")) uploads.push([OUTPUTS.shell, "/usr/share/pocketjs/omarchy-pocket.pocket", "644"]);
 if (parts.has("daemon")) {
   uploads.push([OUTPUTS.daemon, "/usr/lib/omarchy-pocket/omarchy-pocketd.js", "644"]);
-  for (const name of ["hyprctl", "uwsm", "uwsm-app"]) uploads.push([OUTPUTS.shim, `/usr/local/bin/${name}`, "755"]);
+  uploads.push([OUTPUTS.wasm, "/usr/lib/omarchy-pocket/ghostty-vt.wasm", "644"]);
+  for (const name of SHIM_NAMES) uploads.push([OUTPUTS.shim, `/usr/local/bin/${name}`, "755"]);
 }
 for (const [local] of uploads) if (!existsSync(local)) throw new Error(`${local} is missing; run: bun tools/build.ts`);
 
