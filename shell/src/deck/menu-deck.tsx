@@ -33,6 +33,7 @@ const CHEVRON = "\u{f0142}";
 const ERROR = "\u{f015a}";
 const INFO = "\u{f02fc}";
 const APP = "\u{f018d}";
+const APPLET = "\u{f0b8a}";
 
 const levelFor = (title: string, items: MenuItem[]): MenuLevel => ({ title, items, selected: items[0]?.id ?? "", scroll: 0 });
 
@@ -85,7 +86,10 @@ function openProvider(item: MenuItem) {
   };
   const failed = (error: unknown) => toast({ icon: ERROR, title: item.label, body: String(error), tone: "error" });
   if (item.provider === "apps") {
-    request<App[]>({ method: "apps" }).then((apps) => fill(apps.map((a) => row(`apps.${a.id}`, APP, a.name, a.command))), failed);
+    request<App[]>({ method: "apps" }).then(
+      (apps) => fill(apps.map((a) => ({ ...row(`apps.${a.id}`, a.applet ? APPLET : APP, a.name, a.command), applet: a.applet }))),
+      failed,
+    );
   } else if (PROVIDERS[item.provider]) {
     run(PROVIDERS[item.provider]!.script).then((result) => fill(providerRows(item.id, item.provider, result.stdout)), failed);
   } else toast({ icon: INFO, title: item.label, body: `The ${item.provider} list is not in Omarchy Pocket`, tone: "info" });
@@ -95,6 +99,12 @@ function activate(item: MenuItem) {
   if (item.children.length) return push(item);
   if (item.disabled && truth()[item.disabled]) return;
   if (item.provider) return openProvider(item);
+  if (item.applet) {
+    // the host runs the applet once this frame presents; Select + Start returns
+    const bridge = (globalThis as { omarchyBridge?: { launch(path: string): boolean } }).omarchyBridge;
+    if (!bridge?.launch(item.applet)) toast({ icon: ERROR, title: item.label, body: "This host cannot run applets", tone: "error" });
+    return;
+  }
   if (item.action) {
     const where = level();
     run(item.action).then(

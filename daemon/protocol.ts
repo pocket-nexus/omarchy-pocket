@@ -95,7 +95,10 @@ export type Reply = { id: number; ok: true; result: unknown } | { id: number; ok
 export interface App {
   id: string;
   name: string;
+  /** a shell command (terminal applications) */
   command: string;
+  /** a PocketJS package the host program runs in place of the shell */
+  applet?: string;
 }
 
 /** A run-time font atlas omarchy-pocketd baked (daemon/glyphs.ts). */

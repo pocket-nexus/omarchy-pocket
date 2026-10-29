@@ -125,6 +125,8 @@ install -Dm755 /repo/tools/usb-link/usbmux.py /usr/lib/pocket-rgds/usbmux.py
 # the shell: tools/build.ts builds the host program, the package, omarchy-pocketd and its shims
 install -Dm755 /repo/.cache/host/cargo/aarch64-unknown-linux-gnu/release/omarchy-pocket-host /usr/bin/omarchy-pocket-host
 install -Dm644 /repo/.cache/shell/omarchy-pocket.pocket /usr/share/pocketjs/omarchy-pocket.pocket
+install -d /usr/share/omarchy-pocket/applets
+cp /repo/.cache/applets/*.pocket /usr/share/omarchy-pocket/applets/ 2>/dev/null || true
 install -Dm644 /repo/.cache/daemon/omarchy-pocketd.js /usr/lib/omarchy-pocket/omarchy-pocketd.js
 install -Dm644 /repo/.cache/daemon/ghostty-vt.wasm /usr/lib/omarchy-pocket/ghostty-vt.wasm
 # Chinese input: PocketJS's Rime helper over librime, and its pinyin schema

@@ -28,7 +28,7 @@ Omarchy's desktop is Hyprland plus a Quickshell shell (`/usr/share/omarchy/shell
 | Setup menu (Omarchy's rows: DNS, defaults, plugins, security, config, language) | Omarchy's rows run through the daemon; terminal ones open in Pocket Term | rows not run one by one yet |
 | Install / Remove / Update | terminal TUIs in Pocket Term | not yet run on the device |
 | Menu providers (Apps, Font, Language, Kernel, power profiles) | Omarchy's provider one-liners (`label\tvalue\tcurrent`, plugins/menu/Menu.qml) on the deck, the current value checked; Apps lists the desktop entries that run in a terminal (btop, Neovim, Vim) and starts them in Pocket Term | done 2026-10-29 (Apps, Language); kernel list empty on the stock kernel |
-| Apps (`dock` plugin, graphical apps) | graphical apps need a compositor | PocketJS applets planned |
+| Apps (`dock` plugin, graphical apps) | PocketJS applets: packages built for this profile (`applets/<name>/pocket.json`, e.g. PocketJS's Motion Lab at 512 × 384) listed first under Apps; the host runs one in place of the shell in a fresh Runtime and returns on Select + Start. Wayland apps need a compositor | applets done 2026-10-29 (Motion Lab, round trip in one host process) |
 | Trigger › Capture › Screenshot (`omarchy-capture-screenshot` → `omasnap`) | `omasnap` (daemon/shim.ts) reads both panels back from the GPU, writes a 1024 × 1536 PNG to `~/Pictures` with vips and sends Omarchy's notification | done 2026-10-29; no clipboard copy (no Wayland clipboard) |
 | Trigger › screen recording, text, QR, color picker | Wayland tools | not planned |
 | Learn (web apps) | no browser without a compositor | not planned |

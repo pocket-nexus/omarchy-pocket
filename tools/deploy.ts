@@ -2,9 +2,9 @@
 // Puts what tools/build.ts built, and device/rootfs/, on a running Omarchy
 // Pocket over SSH, then restarts what changed:
 //
-//   bun tools/deploy.ts <ssh-host> [host] [shell] [daemon] [files]
+//   bun tools/deploy.ts <ssh-host> [host] [shell] [daemon] [applets] [files]
 //
-// With no parts named, all four go. `files` copies every file under
+// With no parts named, all five go. `files` copies every file under
 // device/rootfs/ (not directories) to the same path on the device, reloads
 // systemd and enables omarchy-pocketd for every user. The device keeps its
 // own copies of the stock firmware's modules and its NetworkManager profiles;
@@ -16,7 +16,7 @@ import { OUTPUTS, SHIM_NAMES } from "./build.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
 const ROOTFS = join(ROOT, "device", "rootfs");
-const PARTS = ["host", "shell", "daemon", "files"] as const;
+const PARTS = ["host", "shell", "daemon", "applets", "files"] as const;
 type Part = (typeof PARTS)[number];
 
 const [target, ...named] = process.argv.slice(2);
@@ -41,6 +41,12 @@ if (parts.has("daemon")) {
   uploads.push([OUTPUTS.daemon, "/usr/lib/omarchy-pocket/omarchy-pocketd.js", "644"]);
   uploads.push([OUTPUTS.wasm, "/usr/lib/omarchy-pocket/ghostty-vt.wasm", "644"]);
   for (const name of SHIM_NAMES) uploads.push([OUTPUTS.shim, `/usr/local/bin/${name}`, "755"]);
+}
+if (parts.has("applets")) {
+  const built = join(ROOT, ".cache", "applets");
+  for (const file of existsSync(built) ? readdirSync(built).filter((f) => f.endsWith(".pocket")) : []) {
+    uploads.push([join(built, file), `/usr/share/omarchy-pocket/applets/${file}`, "644"]);
+  }
 }
 for (const [local] of uploads) if (!existsSync(local)) throw new Error(`${local} is missing; run: bun tools/build.ts`);
 

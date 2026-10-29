@@ -114,6 +114,12 @@ Terminals live in omarchy-pocketd (`daemon/term.ts`): each session is a PTY from
 
 **Verified:** `omarchy-launch-floating-terminal-with-presentation` ran fastfetch in Pocket Term; typing by touch and by the gamepad; btop at 80 × 26 with Braille graphs; sessions survive a shell restart and come back with their screens.
 
+## Applets
+
+An applet is a PocketJS package built for the `rg-ds-plus` profile: `applets/<name>/pocket.json` names an entry anywhere in the repository (Motion Lab's is PocketJS's `apps/motions`, with a 512 × 384 native viewport), and `tools/build.ts applets` compiles each to `.cache/applets/<name>.pocket`, installed to `/usr/share/omarchy-pocket/applets/`. PocketJS's 480 × 272 `integer-fit` apps are not admitted as they are: integer-fit needs an exact multiple of the panel.
+
+The Apps menu lists applets before terminal applications. Activating one calls the host's `omarchyBridge.launch(path)`; after that frame presents, the host shuts the Runtime down, opens the panels again and boots the applet in a fresh Runtime and realm, as PocketJS's launcher switches guests (docs/LAUNCHER.md). An applet runs without the Omarchy bridge. Select and Start held together, or `/tmp/pocket-return` (checked twice a second), switch back to the shell; an applet that fails to boot returns to it too. omarchy-pocketd and its terminal sessions keep running meanwhile, and the shell reconciles them when it reconnects.
+
 ## Chinese input
 
 The 中 key on the touch keyboard switches pinyin on (`shell/src/term/ime.ts`). Letters and punctuation build a key transcript in PocketJS's IME key codes (`contracts/spec/ime.ts`); `ime {keys}` evaluates the whole transcript in a fresh Rime session (`daemon/ime.ts` around PocketJS's `tools/ime/rime.ts`, with `rime.c` built against Arch's librime as `/usr/lib/omarchy-pocket/pocket-rime`) and returns preedit, five candidates and any committed text. A key that can commit (Space, a digit, Enter, punctuation) holds later keys until its answer is in, so committed text keeps its order. Password fields bypass composition.

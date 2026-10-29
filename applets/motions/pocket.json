@@ -1,0 +1,16 @@
+{
+  "$schema": "https://pocketjs.dev/schema/pocket-2.json",
+  "pocket": 2,
+  "id": "dev.pocket-nexus.omarchy-pocket.motions",
+  "name": "omarchy-pocket-motions",
+  "title": "Motion Lab",
+  "version": "0.6.0",
+  "engine": { "capabilities": { "requires": ["text.glyphs.baked", "input.buttons"] } },
+  "app": {
+    "entry": "vendor/pocketjs/apps/motions/main.tsx",
+    "output": "motions",
+    "framework": "solid",
+    "viewport": { "fixed": { "logical": [512, 384], "presentation": "native" } },
+    "theme": "../../vendor/pocketjs/apps/motions/theme.ts"
+  }
+}

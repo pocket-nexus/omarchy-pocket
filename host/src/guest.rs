@@ -10,18 +10,33 @@
 //! -1; `omarchyBridge.loadFontAtlas(path)` loads a FONT ATLAS file the daemon
 //! baked (run-time CJK glyphs) into its slot. Image and atlas bytes never
 //! cross the JSON bridge or the JS heap.
+//!
+//! `omarchyBridge.launch(path)` asks the program to run another package (an
+//! applet) once this frame presents. Inside an applet, Select and Start held
+//! together (or `/tmp/pocket-return`, for SSH) ask for the shell again.
 use crate::bridge::Bridge;
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, RuntimeError};
 use pocket_spec::op;
 use rquickjs::{Function, Object};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
+
+/// The package the program runs next, set by `launch` or the return chord.
+pub type Launch = Rc<RefCell<Option<PathBuf>>>;
 
 pub struct BridgedGuest {
     inner: RquickjsGuest,
     bridge: Rc<RefCell<Bridge>>,
     ops: Option<OpContext>,
+    launch: Launch,
+    /// the shell's package, when this guest is an applet
+    shell: Option<PathBuf>,
+    frames: u32,
 }
+
+/// Select and Start together: back to the shell from an applet.
+const RETURN_CHORD: u32 = pocket_spec::btn::SELECT | pocket_spec::btn::START;
+const RETURN_TRIGGER: &str = "/tmp/pocket-return";
 
 /// PSM_8888, the RGBA texture format of spec ops
 const PSM_8888: i64 = 3;
@@ -61,11 +76,14 @@ fn load_texture(ops: &OpContext, path: &str, w: usize, h: usize) -> i64 {
 }
 
 impl BridgedGuest {
-    pub fn new(bridge: Bridge) -> Self {
+    pub fn new(bridge: Bridge, launch: Launch, shell: Option<PathBuf>) -> Self {
         Self {
             inner: RquickjsGuest::default(),
             bridge: Rc::new(RefCell::new(bridge)),
             ops: None,
+            launch,
+            shell,
+            frames: 0,
         }
     }
 
@@ -86,6 +104,18 @@ impl BridgedGuest {
                 Function::new(ctx.clone(), move |path: String, w: u32, h: u32| load_texture(&texture_ops, &path, w as usize, h as usize))?,
             )?;
             object.set("loadFontAtlas", Function::new(ctx.clone(), move |path: String| load_font_atlas(&ops, &path))?)?;
+            let launch = self.launch.clone();
+            object.set(
+                "launch",
+                Function::new(ctx.clone(), move |path: String| {
+                    let path = PathBuf::from(path);
+                    let ok = path.extension().is_some_and(|e| e == "pocket") && path.is_file();
+                    if ok {
+                        *launch.borrow_mut() = Some(path);
+                    }
+                    ok
+                })?,
+            )?;
             ctx.globals().set("omarchyBridge", object)
         });
         match installed {
@@ -123,6 +153,14 @@ impl Guest for BridgedGuest {
         self.inner.evaluate(code)
     }
     fn frame(&mut self, frame: &GuestFrame<'_>) -> Result<(), RuntimeError> {
+        if let Some(shell) = &self.shell {
+            self.frames = self.frames.wrapping_add(1);
+            // `/tmp/pocket-return` does the same over SSH, checked twice a second
+            let requested = self.frames % 30 == 0 && std::fs::remove_file(RETURN_TRIGGER).is_ok();
+            if frame.buttons & RETURN_CHORD == RETURN_CHORD || requested {
+                *self.launch.borrow_mut() = Some(shell.clone());
+            }
+        }
         let lines = self.bridge.borrow_mut().poll();
         if !lines.is_empty() {
             self.deliver(lines);

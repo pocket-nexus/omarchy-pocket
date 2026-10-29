@@ -208,14 +208,12 @@ fn supported(profile: Profile) -> Result<Profile, Box<dyn Error>> {
 
 fn run(options: Options) -> Result<(), Box<dyn Error>> {
     let profile = supported(profile::profile().ok_or_else(|| error("missing exported profile"))?)?;
-    let top = profile.viewport;
-    let bottom = profile.auxiliary.unwrap();
-    let path = options
+    let shell = options
         .package
         .clone()
         .unwrap_or_else(|| DEFAULT_PACKAGE.into());
-    let mut source = FileSource::open(&path)?;
     if options.check {
+        let mut source = FileSource::open(&shell)?;
         LoadedPackage::load(
             &mut source,
             profile::ID,
@@ -224,9 +222,43 @@ fn run(options: Options) -> Result<(), Box<dyn Error>> {
             PACKAGE_LIMIT,
         )
         .map_err(error)?;
-        println!("package admitted: {} ({})", path.display(), profile.id);
+        println!("package admitted: {} ({})", shell.display(), profile.id);
         return Ok(());
     }
+    unsafe {
+        libc::signal(libc::SIGINT, stop as *const () as libc::sighandler_t);
+        libc::signal(libc::SIGTERM, stop as *const () as libc::sighandler_t);
+    }
+    // The shell, or an applet it launched; each in a fresh Runtime and realm
+    // on freshly opened panels. An applet that fails to boot returns to the shell.
+    let mut package = shell.clone();
+    loop {
+        let applet = package != shell;
+        let next = match run_package(&options, &profile, &package, applet.then(|| shell.clone())) {
+            Ok(next) => next,
+            Err(failure) if applet => {
+                eprintln!("omarchy-pocket-host: applet {}: {failure}", package.display());
+                Some(shell.clone())
+            }
+            Err(failure) => return Err(failure),
+        };
+        match next {
+            Some(path) => {
+                eprintln!("omarchy-pocket-host: switching to {}", path.display());
+                package = path;
+            }
+            None => return Ok(()),
+        }
+    }
+}
+
+/// Runs one package until the program stops (None) or a guest asks for
+/// another package (Some).
+fn run_package(options: &Options, profile: &Profile, path: &PathBuf, shell: Option<PathBuf>) -> Result<Option<PathBuf>, Box<dyn Error>> {
+    let profile = profile.clone();
+    let top = profile.viewport;
+    let bottom = profile.auxiliary.unwrap();
+    let source = FileSource::open(path)?;
     if pocket_drivers::PackageSource::length(&source).map_err(error)? > PACKAGE_LIMIT {
         return Err(error("package exceeds 64 MiB").into());
     }
@@ -254,24 +286,21 @@ fn run(options: Options) -> Result<(), Box<dyn Error>> {
             )?)
         }
         None => {
-            attach_devices(&mut runtime, &profile, &options)?;
+            attach_devices(&mut runtime, &profile, options)?;
             None
         }
     };
     runtime
         .set_package_source(Box::new(source))
         .map_err(error)?;
+    let launch: guest::Launch = Default::default();
+    // the bridge is the shell's; an applet runs without one, and a --shot run
+    // has no daemon to talk to
+    let bridge = (options.shot.is_none() && shell.is_none()).then(|| options.bridge.clone().unwrap_or_else(default_bridge));
     runtime
-        .set_guest(Box::new(guest::BridgedGuest::new(bridge::Bridge::new(
-            // a --shot run has no daemon to talk to
-            options.shot.is_none().then(|| options.bridge.clone().unwrap_or_else(default_bridge)),
-        ))))
+        .set_guest(Box::new(guest::BridgedGuest::new(bridge::Bridge::new(bridge), launch.clone(), shell)))
         .map_err(error)?;
     runtime.boot().map_err(error)?;
-    unsafe {
-        libc::signal(libc::SIGINT, stop as *const () as libc::sighandler_t);
-        libc::signal(libc::SIGTERM, stop as *const () as libc::sighandler_t);
-    }
     let mut clock = MonotonicClock::default();
     let mut schedule = TickSchedule::new(profile.tick_hz, clock.now(), 1).map_err(error)?;
     let mut presented = Presented::default();
@@ -302,9 +331,14 @@ fn run(options: Options) -> Result<(), Box<dyn Error>> {
         if let Some(shot) = shot.as_mut() {
             shot.after_tick()?;
         }
+        let next = launch.borrow_mut().take();
+        if next.is_some() && shot.is_none() {
+            runtime.shutdown().map_err(error)?;
+            return Ok(next);
+        }
     }
     runtime.shutdown().map_err(error)?;
-    Ok(())
+    Ok(None)
 }
 
 /// Both panels on the GPU and every evdev device. Linux only: on another

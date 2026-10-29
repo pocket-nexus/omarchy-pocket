@@ -5,6 +5,7 @@
 //   bun tools/build.ts host              omarchy-pocket-host for aarch64 Linux (glibc 2.36)
 //   bun tools/build.ts shell             the shell package (run tools/omarchy-assets.ts first)
 //   bun tools/build.ts daemon            omarchy-pocketd as one Bun script
+//   bun tools/build.ts applets           every applets/<name>/pocket.json as .cache/applets/<name>.pocket
 //   bun tools/build.ts all               host, shell and daemon
 //   bun tools/build.ts shot --script "30:shot 40:DOWN 50:shot" [--out <dir>]
 //
@@ -114,6 +115,18 @@ async function daemon() {
   console.log(`daemon: ${OUTPUTS.daemon} ${OUTPUTS.shim}`);
 }
 
+/** PocketJS applets: packages for this profile (applets/<name>/pocket.json,
+ *  entries anywhere under the repository, the pocketjs apps included). */
+async function applets() {
+  const dir = join(ROOT, "applets");
+  for (const name of readdirSync(dir)) {
+    const manifest = join(dir, name, "pocket.json");
+    if (!existsSync(manifest)) continue;
+    await $`bun ${join(POCKETJS, "tools", "pocket.ts")} compile --manifest ${manifest} --project-root . --runtime-config ${CONFIG} --plan-dir ${join(CACHE, "applets", name, "plan")} --output ${join(CACHE, "applets", `${name}.pocket`)}`.cwd(ROOT).quiet();
+    console.log(`applet: ${join(CACHE, "applets", `${name}.pocket`)}`);
+  }
+}
+
 async function shot() {
   const script = option("--script");
   if (!script) throw new Error("shot needs --script");
@@ -157,16 +170,20 @@ if (import.meta.main) {
     case "daemon":
       await daemon();
       break;
+    case "applets":
+      await applets();
+      break;
     case "all":
       await host();
       await shell();
       await daemon();
+      await applets();
       break;
     case "shot":
       await shot();
       break;
     default:
-      console.error("usage: bun tools/build.ts libs <ssh-host> | host | shell | daemon | all | shot --script <events> [--out <dir>]");
+      console.error("usage: bun tools/build.ts libs <ssh-host> | host | shell | daemon | applets | all | shot --script <events> [--out <dir>]");
       process.exit(2);
   }
 }

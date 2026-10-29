@@ -18,6 +18,8 @@ export interface MenuItem {
   children: MenuItem[];
   /** a provider row for the value currently set */
   current?: boolean;
+  /** a PocketJS applet package the host runs in place of the shell */
+  applet?: string;
 }
 
 /** Omarchy's menu providers (plugins/menu/Menu.qml): a bash one-liner that
