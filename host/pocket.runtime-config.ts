@@ -2,9 +2,10 @@ import { cargo, defineRuntimeConfig } from "../vendor/pocketjs/framework/src/run
 import profile from "./profile.ts";
 
 /** Services the host program composes: both panels on the GPU, evdev buttons
- * and touch on the lower panel, baked glyphs. */
+ * and touch on the lower panel, baked glyphs, and apps' HTTP through
+ * omarchy-pocketd. */
 export const HOST_CAPABILITIES: readonly string[] = [
-  "input.buttons", "input.touch.auxiliary", "display.auxiliary", "text.glyphs.baked",
+  "input.buttons", "input.touch.auxiliary", "display.auxiliary", "text.glyphs.baked", "net.http",
 ];
 
 const absent = profile.capabilities.filter((capability) => !HOST_CAPABILITIES.includes(capability));

@@ -39,8 +39,8 @@ const onMap = (x: number, y: number) => x >= MAP_X && x < MAP_X + MAP_W && y >= 
 /** a stage rect on the map, in body coordinates */
 const onDeck = (r: Box): Box => ({ x: MAP_X + r.x * MAP_SCALE, y: MAP_Y + r.y * MAP_SCALE, w: r.w * MAP_SCALE, h: r.h * MAP_SCALE });
 
-const icon = (w: Win) => (w.kind === "terminal" ? "\u{f018d}" : (appletOf(w)?.icon ?? ""));
-const title = (w: Win) => (w.kind === "terminal" ? "Terminal" : (appletOf(w)?.title ?? w.applet));
+const icon = (w: Win) => (w.kind === "terminal" ? "\u{f018d}" : w.kind === "app" ? "\u{f0b8a}" : (appletOf(w)?.icon ?? ""));
+const title = (w: Win) => (w.kind === "terminal" ? "Terminal" : w.kind === "app" ? w.title : (appletOf(w)?.title ?? w.applet));
 
 type Gesture =
   | { kind: "window"; id: number }

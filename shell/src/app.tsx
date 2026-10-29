@@ -11,6 +11,8 @@
 // The gamepad: L1, R1 and both together are the chord layers of chords.ts;
 // with no shoulder held the buttons belong to the focused window, SELECT
 // brings up its keyboard or controls on the deck, and L2/R2 step workspaces.
+// A PocketJS package runs in a window like any other (packages.ts): the
+// focused one gets the buttons the window manager does not take.
 // The lock screen covers both panels and takes input first; the screensaver
 // covers everything.
 //
@@ -53,7 +55,9 @@ import { composing } from "./term/ime.ts";
 import { Keyboard, keyboardTouch, sendKey, setWindowKeys } from "./term/keyboard.tsx";
 import { band, trackTouches, type TouchFrame } from "./touch.ts";
 import "./windows.ts";
-import { current, focused, visibleWindows } from "./workspaces.ts";
+import { current, focused, revision, visibleWindows, windowsOn, WORKSPACES } from "./workspaces.ts";
+import { feedPackage, showPackage } from "./packages.ts";
+import { AppControls, appControlsTouch } from "./deck/app-controls.tsx";
 
 const REPEATS = BTN.UP | BTN.DOWN | BTN.LEFT | BTN.RIGHT;
 const REPEAT_AFTER = 18;
@@ -89,6 +93,10 @@ export default function Shell() {
   const date = () => `${WEEKDAYS[now().getDay()]}, ${now().getDate()} ${MONTHS[now().getMonth()]}`;
 
   const terminal = () => focused()?.kind === "terminal";
+  const focusedPackage = () => {
+    const w = focused();
+    return w?.kind === "app" ? w : null;
+  };
   const shown = (): Shown => {
     if (layer() !== "plain") return "chords";
     if (pickerOpen()) return "picker";
@@ -100,6 +108,11 @@ export default function Shell() {
   setWindowKeys(() => focusedApplet()?.keys?.() ?? null);
   // A window opened from the menu takes focus; the menu makes way for it.
   createEffect(on([current, focused], () => body() === "menu" && setBody("map"), { defer: true }));
+  // A package off the current workspace is paused.
+  createEffect(() => {
+    revision();
+    for (let ws = 0; ws < WORKSPACES; ws++) for (const w of windowsOn(ws)) if (w.kind === "app") showPackage(w.app, ws === current());
+  });
   // Applets hear when their window comes onto the current workspace and leaves it.
   let seen = new Set<Applet>();
   createEffect(() => {
@@ -161,8 +174,30 @@ export default function Shell() {
         if (key & BACK && atRoot()) return setBody("map");
         return deckPress(key);
     }
+    // a package takes the buttons itself, each frame (feed)
+    if (focusedPackage()) return;
     if (terminal()) return termPress(key);
     focusedApplet()?.press?.(key);
+  };
+  /** the package fed last, released when it loses focus */
+  let fed: number | null = null;
+  const feed = (buttons: number, body: TouchFrame) => {
+    const w = focusedPackage();
+    if (fed !== null && fed !== w?.app) {
+      feedPackage(fed, 0, []);
+      fed = null;
+    }
+    if (!w) return;
+    const view = shown();
+    let mask = layer() === "plain" && (view === "map" || view === "controls") ? buttons & ~(MODIFIERS | BTN.SELECT | BTN.ZL | BTN.ZR) : 0;
+    let contacts: number[] = [];
+    if (view === "controls") {
+      const touched = appControlsTouch(body, w);
+      mask |= touched.buttons;
+      contacts = touched.contacts;
+    }
+    feedPackage(w.app, mask, contacts);
+    fed = w.app;
   };
   // The gamepad while the lock or a panel's password field has the keyboard.
   const entryPress = (key: number) => {
@@ -188,6 +223,7 @@ export default function Shell() {
         if (atRoot() && frame.taps.some((t) => !t.moved && t.y < 26)) return setBody("map");
         return menuTouch(frame);
       case "controls": {
+        if (focusedPackage()) return;
         if (terminal()) return keyboardTouch(frame, "body");
         const applet = focusedApplet();
         if (applet?.touches) return applet.touches(frame);
@@ -241,7 +277,9 @@ export default function Shell() {
     );
     for (const tap of band(touch, 0, STRIP_H).taps) if (!tap.moved) stripTap(tap.start.x);
     for (const tap of band(touch, DOCK_TOP, 384).taps) if (!tap.moved) dockTap(tap.x);
-    bodyTouch(band(touch, BODY_TOP, DOCK_TOP));
+    const body = band(touch, BODY_TOP, DOCK_TOP);
+    feed(buttons, body);
+    bodyTouch(body);
   });
 
   return (
@@ -277,8 +315,8 @@ export default function Shell() {
                 </Show>
                 <Show when={shown() === "controls"}>
                   <Show when={!terminal()} fallback={<Keyboard mode="body" />}>
-                    <Show when={focusedApplet()} keyed>
-                      {(applet) => <applet.Deck />}
+                    <Show when={focusedPackage()} keyed fallback={<Show when={focusedApplet()} keyed>{(applet) => <applet.Deck />}</Show>}>
+                      {(w) => <AppControls win={w} />}
                     </Show>
                   </Show>
                 </Show>

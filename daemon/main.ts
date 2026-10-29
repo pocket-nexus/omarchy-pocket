@@ -18,7 +18,8 @@ import type { Socket, UnixSocketListener } from "bun";
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { bridgePath, shellPath } from "./paths.ts";
-import type { DaemonMessage, Request, RunResult, SystemState } from "./protocol.ts";
+import type { AppNetLine, DaemonMessage, Request, RunResult, SystemState } from "./protocol.ts";
+import { AppNet } from "./companion.ts";
 import { CLOSED, Notifications } from "./notifications.ts";
 import { Terminals, type OpenOptions } from "./term.ts";
 import { wallpaper } from "./wallpaper.ts";
@@ -33,6 +34,10 @@ import { RUNTIME } from "./paths.ts";
 
 if (process.argv[2] === "bake") {
   await (await import("./glyphs.ts")).bakeMain(process.argv[3]!);
+  process.exit(0);
+}
+if (process.argv[2] === "atlas-baker") {
+  await (await import("./glyphs.ts")).atlasBakerMain();
   process.exit(0);
 }
 
@@ -161,6 +166,7 @@ async function systemState(): Promise<SystemState> {
 }
 
 const bar = new Bar(HOME);
+const appNet = new AppNet(HOME, RUNTIME, log);
 
 /** omarchy-theme-set keeps the current theme in ~/.local/state/omarchy/current. */
 function theme(): SystemState["theme"] {
@@ -218,6 +224,12 @@ function write(socket: Socket<Peer>) {
 
 function send(socket: Socket<Peer>, message: DaemonMessage) {
   socket.data.outgoing.push(Buffer.from(JSON.stringify(message) + "\n"));
+  write(socket);
+}
+
+/** A line that is not a DaemonMessage: an app's `@net` reply. */
+function sendLine(socket: Socket<Peer>, line: string) {
+  socket.data.outgoing.push(Buffer.from(line + "\n"));
   write(socket);
 }
 
@@ -463,14 +475,16 @@ listen(bridgePath, {
       const line = data.incoming.slice(0, end);
       data.incoming = data.incoming.slice(end + 1);
       if (!line) continue;
-      let request: Request;
+      let request: Request | AppNetLine;
       try {
         request = JSON.parse(line);
       } catch {
         log("bridge line is not JSON");
         continue;
       }
-      void handle(socket, request);
+      if (request.method === "appNet") void appNet.request(request, (reply) => sendLine(socket, reply));
+      else if (request.method === "appNetCancel") appNet.cancel(request.h);
+      else void handle(socket, request);
     }
   },
   drain: write,

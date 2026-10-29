@@ -22,6 +22,8 @@ pub struct Bridge {
     outgoing: VecDeque<u8>,
     incoming: Vec<u8>,
     connected_once: bool,
+    /// the connection closed since the last take_dropped()
+    dropped: bool,
 }
 
 impl Bridge {
@@ -34,6 +36,7 @@ impl Bridge {
             outgoing: VecDeque::new(),
             incoming: Vec::new(),
             connected_once: false,
+            dropped: false,
         }
     }
 
@@ -73,9 +76,16 @@ impl Bridge {
     fn drop_stream(&mut self, why: &str) {
         if self.stream.take().is_some() {
             eprintln!("omarchy-pocket-host: bridge closed ({why})");
+            self.dropped = true;
         }
         self.incoming.clear();
         self.next_attempt = Instant::now() + RETRY;
+    }
+
+    /// Whether the connection closed since the last call: the daemon lost
+    /// every request it had not answered.
+    pub fn take_dropped(&mut self) -> bool {
+        std::mem::take(&mut self.dropped)
     }
 
     /// Writes what is queued and returns the complete lines that arrived.

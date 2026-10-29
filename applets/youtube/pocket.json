@@ -1,0 +1,60 @@
+{
+  "$schema": "https://pocketjs.dev/schema/pocket-2.json",
+  "pocket": 2,
+  "id": "dev.pocket-nexus.youtube",
+  "name": "pocket-youtube",
+  "title": "YouTube",
+  "version": "0.1.0",
+  "applet": {
+    "version": 1,
+    "services": [
+      "youtube"
+    ]
+  },
+  "engine": {
+    "capabilities": {
+      "requires": [
+        "text.glyphs.baked",
+        "input.buttons",
+        "display.auxiliary",
+        "input.touch.auxiliary",
+        "net.http"
+      ],
+      "enhances": [
+        "input.analog.left",
+        "system.agent"
+      ]
+    }
+  },
+  "app": {
+    "entry": "applets/youtube/main.tsx",
+    "output": "youtube-main",
+    "framework": "solid",
+    "modality": {
+      "touch": "auxiliary"
+    },
+    "surfaces": {
+      "auxiliary": {
+        "adaptive": {
+          "min": [
+            320,
+            240
+          ],
+          "max": [
+            640,
+            720
+          ]
+        }
+      }
+    },
+    "viewport": {
+      "fixed": {
+        "logical": [
+          512,
+          384
+        ],
+        "presentation": "native"
+      }
+    }
+  }
+}

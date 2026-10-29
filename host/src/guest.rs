@@ -12,10 +12,13 @@
 //! cross the JSON bridge or the JS heap. A loaded atlas changes no draw list,
 //! so it asks for the next frame to be presented (`Repaint`).
 //!
-//! `omarchyBridge.launch(path)` asks the program to run another package (an
-//! applet) once this frame presents. Inside an applet, Select and Start held
-//! together (or `/tmp/pocket-return`, for SSH) ask for the shell again.
+//! `omarchyBridge.openApp(path)` opens a PocketJS package in a window: it runs
+//! beside the shell in a Runtime of its own (children.rs) and draws into
+//! textures the shell's windows show; `closeApp`, `showApp` and `appInput`
+//! drive it. Its events arrive with the daemon's lines. A daemon line that
+//! answers an app's HTTP request (`@net ...`, net.rs) goes to that app.
 use crate::bridge::Bridge;
+use crate::{children, net};
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, RuntimeError};
 use pocket_spec::op;
@@ -26,8 +29,6 @@ use std::{
     rc::Rc,
 };
 
-/// The package the program runs next, set by `launch` or the return chord.
-pub type Launch = Rc<RefCell<Option<PathBuf>>>;
 /// Set when the next frame must be presented though its draw lists are unchanged.
 pub type Repaint = Rc<Cell<bool>>;
 
@@ -35,16 +36,10 @@ pub struct BridgedGuest {
     inner: RquickjsGuest,
     bridge: Rc<RefCell<Bridge>>,
     ops: Option<OpContext>,
-    launch: Launch,
     repaint: Repaint,
-    /// the shell's package, when this guest is an applet
-    shell: Option<PathBuf>,
-    frames: u32,
+    children: children::Shared,
+    net: net::Shared,
 }
-
-/// Select and Start together: back to the shell from an applet.
-const RETURN_CHORD: u32 = pocket_spec::btn::SELECT | pocket_spec::btn::START;
-const RETURN_TRIGGER: &str = "/tmp/pocket-return";
 
 /// PSM_8888, the RGBA texture format of spec ops
 const PSM_8888: i64 = 3;
@@ -84,16 +79,8 @@ fn load_texture(ops: &OpContext, path: &str, w: usize, h: usize) -> i64 {
 }
 
 impl BridgedGuest {
-    pub fn new(bridge: Bridge, launch: Launch, repaint: Repaint, shell: Option<PathBuf>) -> Self {
-        Self {
-            inner: RquickjsGuest::default(),
-            bridge: Rc::new(RefCell::new(bridge)),
-            ops: None,
-            launch,
-            repaint,
-            shell,
-            frames: 0,
-        }
+    pub fn new(bridge: Rc<RefCell<Bridge>>, repaint: Repaint, children: children::Shared, net: net::Shared) -> Self {
+        Self { inner: RquickjsGuest::default(), bridge, ops: None, repaint, children, net }
     }
 
     fn install(&self) -> Result<(), RuntimeError> {
@@ -121,16 +108,29 @@ impl BridgedGuest {
                     ok
                 })?,
             )?;
-            let launch = self.launch.clone();
+            let apps = self.children.clone();
             object.set(
-                "launch",
-                Function::new(ctx.clone(), move |path: String| {
+                "openApp",
+                Function::new(ctx.clone(), move |path: String| -> i64 {
                     let path = PathBuf::from(path);
-                    let ok = path.extension().is_some_and(|e| e == "pocket") && path.is_file();
-                    if ok {
-                        *launch.borrow_mut() = Some(path);
+                    if path.extension().is_some_and(|e| e == "pocket") && path.is_file() {
+                        apps.borrow_mut().open(path) as i64
+                    } else {
+                        -1
                     }
-                    ok
+                })?,
+            )?;
+            let apps = self.children.clone();
+            object.set("closeApp", Function::new(ctx.clone(), move |id: u32| apps.borrow_mut().close(id))?)?;
+            let apps = self.children.clone();
+            object.set("showApp", Function::new(ctx.clone(), move |id: u32, visible: bool| apps.borrow_mut().show(id, visible))?)?;
+            let apps = self.children.clone();
+            object.set(
+                "appInput",
+                // contacts: flat [id, x, y, ...] on the app's touch surface
+                Function::new(ctx.clone(), move |id: u32, buttons: u32, contacts: Vec<f64>| {
+                    let contacts = contacts.chunks_exact(3).map(|c| (c[0] as u32, c[1] as f32, c[2] as f32)).collect();
+                    apps.borrow_mut().input(id, buttons, contacts);
                 })?,
             )?;
             ctx.globals().set("omarchyBridge", object)
@@ -170,15 +170,19 @@ impl Guest for BridgedGuest {
         self.inner.evaluate(code)
     }
     fn frame(&mut self, frame: &GuestFrame<'_>) -> Result<(), RuntimeError> {
-        if let Some(shell) = &self.shell {
-            self.frames = self.frames.wrapping_add(1);
-            // `/tmp/pocket-return` does the same over SSH, checked twice a second
-            let requested = self.frames % 30 == 0 && std::fs::remove_file(RETURN_TRIGGER).is_ok();
-            if frame.buttons & RETURN_CHORD == RETURN_CHORD || requested {
-                *self.launch.borrow_mut() = Some(shell.clone());
+        let (mut lines, dropped) = {
+            let mut bridge = self.bridge.borrow_mut();
+            let lines = bridge.poll();
+            (lines, bridge.take_dropped())
+        };
+        {
+            let mut net = self.net.borrow_mut();
+            if dropped {
+                net.fail_open();
             }
+            lines.retain(|line| !net.reply(line));
         }
-        let lines = self.bridge.borrow_mut().poll();
+        lines.extend(self.children.borrow_mut().take_events());
         if !lines.is_empty() {
             self.deliver(lines);
         }

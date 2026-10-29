@@ -21,9 +21,11 @@ use std::{
 };
 
 mod bridge;
+mod children;
 #[cfg(target_os = "linux")]
 mod gpu;
 mod guest;
+mod net;
 mod shot;
 
 #[allow(dead_code)] // The export defines every fact; the program reads some.
@@ -244,32 +246,12 @@ fn run(options: Options) -> Result<(), Box<dyn Error>> {
         libc::signal(libc::SIGINT, stop as *const () as libc::sighandler_t);
         libc::signal(libc::SIGTERM, stop as *const () as libc::sighandler_t);
     }
-    // The shell, or an applet it launched; each in a fresh Runtime and realm
-    // on freshly opened panels. An applet that fails to boot returns to the shell.
-    let mut package = shell.clone();
-    loop {
-        let applet = package != shell;
-        let next = match run_package(&options, &profile, &package, applet.then(|| shell.clone())) {
-            Ok(next) => next,
-            Err(failure) if applet => {
-                eprintln!("omarchy-pocket-host: applet {}: {failure}", package.display());
-                Some(shell.clone())
-            }
-            Err(failure) => return Err(failure),
-        };
-        match next {
-            Some(path) => {
-                eprintln!("omarchy-pocket-host: switching to {}", path.display());
-                package = path;
-            }
-            None => return Ok(()),
-        }
-    }
+    run_package(&options, &profile, &shell)
 }
 
-/// Runs one package until the program stops (None) or a guest asks for
-/// another package (Some).
-fn run_package(options: &Options, profile: &Profile, path: &PathBuf, shell: Option<PathBuf>) -> Result<Option<PathBuf>, Box<dyn Error>> {
+/// Runs the shell until the program stops. The pocket apps it opens run in
+/// its windows (children.rs), never in its place.
+fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(), Box<dyn Error>> {
     let profile = profile.clone();
     let top = profile.viewport;
     let bottom = profile.auxiliary.unwrap();
@@ -286,6 +268,8 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf, shell: Opti
         profile: profile.clone(),
     })
     .map_err(error)?;
+    #[cfg(target_os = "linux")]
+    let mut compositor: Option<gpu::Compositor> = None;
     let mut shot = match options.shot.clone() {
         Some(directory) => {
             let renderer = runtime
@@ -301,6 +285,11 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf, shell: Opti
             )?)
         }
         None => {
+            #[cfg(target_os = "linux")]
+            {
+                compositor = Some(attach_devices(&mut runtime, &profile, options)?);
+            }
+            #[cfg(not(target_os = "linux"))]
             attach_devices(&mut runtime, &profile, options)?;
             None
         }
@@ -308,13 +297,14 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf, shell: Opti
     runtime
         .set_package_source(Box::new(source))
         .map_err(error)?;
-    let launch: guest::Launch = Default::default();
     let repaint: guest::Repaint = Default::default();
-    // the bridge is the shell's; an applet runs without one, and a --shot run
-    // has no daemon to talk to
-    let bridge = (options.shot.is_none() && shell.is_none()).then(|| options.bridge.clone().unwrap_or_else(default_bridge));
+    // a --shot run has no daemon to talk to
+    let bridge = options.shot.is_none().then(|| options.bridge.clone().unwrap_or_else(default_bridge));
+    let bridge = std::rc::Rc::new(std::cell::RefCell::new(bridge::Bridge::new(bridge)));
+    let net = net::Hub::new(bridge.clone());
+    let children = children::Children::new(net.clone());
     runtime
-        .set_guest(Box::new(guest::BridgedGuest::new(bridge::Bridge::new(bridge), launch.clone(), repaint.clone(), shell)))
+        .set_guest(Box::new(guest::BridgedGuest::new(bridge, repaint.clone(), children.clone(), net)))
         .map_err(error)?;
     runtime.boot().map_err(error)?;
     let mut clock = MonotonicClock::default();
@@ -337,9 +327,15 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf, shell: Opti
         }
         let started = timing.as_ref().map(|_| std::time::Instant::now());
         runtime.advance().map_err(error)?;
+        // the apps in the shell's windows: opened, closed and advanced after the shell's turn
+        #[cfg(target_os = "linux")]
+        let app_frames = compositor.as_ref().is_some_and(|c| children.borrow_mut().tick(&mut runtime, &profile, c));
+        #[cfg(not(target_os = "linux"))]
+        let app_frames = false;
         let advanced = timing.as_ref().map(|_| std::time::Instant::now());
-        // --shot frames, GPU readbacks and a new glyph atlas need every panel presented
-        let forced = shot.is_some() || presented.readback_due() || repaint.replace(false);
+        // --shot frames, GPU readbacks, a new glyph atlas and an app's new
+        // frame need every panel presented
+        let forced = shot.is_some() || presented.readback_due() || repaint.replace(false) || app_frames;
         let (top, bottom) = presented.changed(&runtime)?;
         let changed = top || bottom;
         let drawn = timing.as_ref().map(|_| std::time::Instant::now());
@@ -361,14 +357,9 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf, shell: Opti
         if let Some(shot) = shot.as_mut() {
             shot.after_tick()?;
         }
-        let next = launch.borrow_mut().take();
-        if next.is_some() && shot.is_none() {
-            runtime.shutdown().map_err(error)?;
-            return Ok(next);
-        }
     }
     runtime.shutdown().map_err(error)?;
-    Ok(None)
+    Ok(())
 }
 
 /// Both panels on the GPU and every evdev device. Linux only: on another
@@ -378,10 +369,10 @@ fn attach_devices(
     runtime: &mut Runtime,
     profile: &Profile,
     options: &Options,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<gpu::Compositor, Box<dyn Error>> {
     use gpu::PanelSpec;
     use pocket_drivers::{DisplayRole, InputSource};
-    let (renderer, displays) = gpu::open(
+    let (renderer, displays, compositor) = gpu::open(
         &options.card,
         &[
             PanelSpec {
@@ -441,7 +432,7 @@ fn attach_devices(
         }
         runtime.add_input_source(Box::new(device)).map_err(error)?;
     }
-    Ok(())
+    Ok(compositor)
 }
 
 #[cfg(not(target_os = "linux"))]

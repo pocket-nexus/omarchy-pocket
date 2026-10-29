@@ -92,6 +92,11 @@ export type Request =
   | { id: number; method: "checkPassword"; password: string };
 
 /** A request without its id, as the shell's bridge.request() takes it. */
+/** An app's HTTP request and its cancellation, from the host program
+ *  (host/src/net.rs), not the shell; the reply is an `@net` line
+ *  (daemon/companion.ts), never a JSON message. */
+export type AppNetLine = { method: "appNet"; h: number; package: string; meta: string; body: string } | { method: "appNetCancel"; h: number };
+
 export type RequestBody = Request extends infer R ? (R extends { id: number } ? Omit<R, "id"> : never) : never;
 
 export interface RunResult {
@@ -149,8 +154,13 @@ export interface App {
   name: string;
   /** a shell command (terminal applications) */
   command: string;
-  /** a PocketJS package the host program runs in place of the shell */
+  /** a PocketJS package, run in a window of the shell (host/src/children.rs) */
   applet?: string;
+  /** the package draws a touch surface (app.surfaces.auxiliary), shown on the deck */
+  aux?: boolean;
+  /** a Pocket applet (manifest `applet`): its UI is its touch surface, which
+   *  its window shows too; its top display is the system's */
+  appletSurface?: boolean;
 }
 
 /** A run-time font atlas omarchy-pocketd baked (daemon/glyphs.ts). */
@@ -305,6 +315,11 @@ export type Event =
   | { event: "termRows"; sid: number; rows: TermRow[]; cursor: Cursor; full: boolean }
   | { event: "termTitle"; sid: number; title: string }
   | { event: "termExit"; sid: number; code: number | null }
+  /** from the host program, not the daemon: a package window's app booted
+   *  (its displays' texture handles, top then touch surface) or failed */
+  | { event: "app"; id: number; textures?: number[]; error?: string }
+  /** a package window's app stopped */
+  | { event: "appExit"; id: number; error: string }
   /** New run-time glyph atlases to load (omarchyBridge.loadFontAtlas). */
   | { event: "atlas"; atlases: AtlasFile[] }
   /** logind is about to suspend: the shell locks first. */

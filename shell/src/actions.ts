@@ -11,6 +11,7 @@ import { toRoot } from "./deck/menu-deck.tsx";
 import { toggleSheet } from "./stage/keysheet.tsx";
 import { toast } from "./stage/toasts.tsx";
 import { state } from "./system.ts";
+import { closePackage, openPackage } from "./packages.ts";
 import { closeTerminal, openTerminal } from "./term/store.ts";
 import type { WindowManager } from "./wm.ts";
 import { act, focused, takeClosed } from "./workspaces.ts";
@@ -38,6 +39,7 @@ export function closeFocused() {
   const w = focused();
   if (!w) return say("Nothing to close");
   if (w.kind === "terminal") closeTerminal(w.sid);
+  else if (w.kind === "app") closePackage(w.app);
   else act((m) => m.close(w.id));
 }
 
@@ -96,12 +98,14 @@ export function perform(action: Action) {
       const w = focused();
       if (!w) return openTerminal();
       if (w.kind === "terminal") return openTerminal();
+      if (w.kind === "app") return openPackage(w.path, w.title, w.aux, w.appletSurface);
       return say(`${appletById(w.applet)?.title ?? w.applet} has one window`);
     }
     case "reopen": {
       const last = takeClosed();
       if (!last) return say("Nothing closed yet");
       if (last.kind === "terminal") return openTerminal();
+      if (last.kind === "app") return openPackage(last.path, last.title, last.aux, last.appletSurface);
       return openApplet(last.applet);
     }
     case "wallpaper":

@@ -1,7 +1,6 @@
-// The Apps menu's rows: PocketJS applets (packages built for this device's
-// profile, in /usr/share/omarchy-pocket/applets or ~/.local/share/
-// omarchy-pocket/applets), which the host program runs in place of the
-// shell, and desktop entries that run in a terminal (Terminal=true, or an
+// The Apps menu's rows: PocketJS packages built for this device's profile
+// (in /usr/share/omarchy-pocket/applets or ~/.local/share/omarchy-pocket/
+// applets), which open in a window of the shell, and desktop entries that run in a terminal (Terminal=true, or an
 // Exec through xdg-terminal-exec), which xdg-terminal-exec opens in Pocket Term.
 import { closeSync, openSync, readdirSync, readFileSync, readSync } from "node:fs";
 import { join } from "node:path";
@@ -18,10 +17,9 @@ const fileTitle = (file: string) =>
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 
-/** The package's own title: its pocket.json sits after the 32-byte header
- *  (contracts/spec/pocket-package.ts), its length at byte 8. "PocketJS: "
- *  prefixes the pocketjs apps' titles and says nothing in this list. */
-function title(path: string, file: string): string {
+/** The package's pocket.json: it sits after the 32-byte header
+ *  (contracts/spec/pocket-package.ts), its length at byte 8. */
+export function manifest(path: string): { id?: string; title?: string; applet?: unknown; app?: { surfaces?: { auxiliary?: unknown } } } {
   try {
     const fd = openSync(path, "r");
     const head = Buffer.alloc(32);
@@ -30,10 +28,10 @@ function title(path: string, file: string): string {
     const manifest = Buffer.alloc(Math.min(size, 1 << 20));
     readSync(fd, manifest, 0, manifest.length, 32);
     closeSync(fd);
-    const name = (JSON.parse(manifest.toString("utf8")) as { title?: string }).title;
-    if (name) return name.replace(/^PocketJS:\s*/, "");
-  } catch {}
-  return fileTitle(file);
+    return JSON.parse(manifest.toString("utf8"));
+  } catch {
+    return {};
+  }
 }
 
 function applets(home: string): App[] {
@@ -47,7 +45,10 @@ function applets(home: string): App[] {
     }
     for (const file of files) {
       if (out.some((a) => a.id === file)) continue;
-      out.push({ id: file, name: title(join(dir, file), file), command: "", applet: join(dir, file) });
+      const m = manifest(join(dir, file));
+      // "PocketJS: " prefixes the pocketjs apps' titles and says nothing in this list
+      const name = m.title?.replace(/^PocketJS:\s*/, "") || fileTitle(file);
+      out.push({ id: file, name, command: "", applet: join(dir, file), aux: m.app?.surfaces?.auxiliary !== undefined, appletSurface: m.applet !== undefined });
     }
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));

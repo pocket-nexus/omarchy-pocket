@@ -34,7 +34,11 @@ const REOPEN_DEPTH = 8;
 
 export type Dir = "left" | "right" | "up" | "down";
 export type Layout = "dwindle" | "scrolling";
-export type Content = { kind: "terminal"; sid: number } | { kind: "applet"; applet: string };
+export type Content =
+  | { kind: "terminal"; sid: number }
+  | { kind: "applet"; applet: string }
+  /** a PocketJS package running beside the shell (host/src/children.rs) */
+  | { kind: "app"; app: number; path: string; title: string; aux: boolean; appletSurface: boolean };
 export type Win = Content & { id: number; ws: number };
 
 export interface Rect {

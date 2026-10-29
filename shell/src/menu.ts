@@ -18,8 +18,11 @@ export interface MenuItem {
   children: MenuItem[];
   /** a provider row for the value currently set */
   current?: boolean;
-  /** a PocketJS applet package the host runs in place of the shell */
+  /** a PocketJS package, opened in a window */
   applet?: string;
+  /** the package draws a touch surface, which the deck shows */
+  aux?: boolean;
+  appletSurface?: boolean;
   /** a window the shell opens: "terminal" or one of its applets (applets/) */
   open?: string;
 }

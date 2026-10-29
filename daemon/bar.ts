@@ -28,12 +28,16 @@ export class Bar {
     this.hiddenFlag = join(this.state, "toggles", "bar-off");
   }
 
-  /** Omarchy's idle settings (hypridle's timeouts on a desktop), in seconds. */
+  /** Omarchy's idle settings (hypridle's timeouts on a desktop), in seconds.
+   *  The idle lock is off unless shell.json sets `idle.lock`: the handheld's
+   *  user keeps the image's password, and a lock after 300 s of a game pad
+   *  at rest (Omarchy's desktop default) shuts its owner out. Omarchy's Lock
+   *  and the lock before suspend stay. */
   idle(): IdleSettings {
     const idle = this.config().idle ?? {};
     return {
       screensaver: idle.screensaver ?? 150,
-      lock: idle.lock ?? 300,
+      lock: idle.lock ?? 0,
       screensaverOff: existsSync(join(this.state, "toggles", "screensaver-off")),
       stayAwake: existsSync(join(this.state, "indicators", "stay-awake")),
     };

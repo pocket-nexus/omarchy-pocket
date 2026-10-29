@@ -232,3 +232,128 @@ export async function bakeMain(dir: string) {
   });
   console.log(JSON.stringify(counts));
 }
+
+/** The applets' faces, sans first: their text is prose, the shell's is a
+ *  terminal's. wqy-microhei carries Latin, CJK and kana; the Nerd Font
+ *  backs it with symbols. */
+const APPLET_FACES = [CJK, MONO];
+const BAKER_IDLE_MS = 60_000;
+
+interface AtlasJob {
+  px: number;
+  bold: boolean;
+  slot: number;
+  chars: number[];
+  resolve: (atlas: Uint8Array) => void;
+  reject: (error: Error) => void;
+}
+
+/** FONT ATLAS files for the applets' glyphs service (daemon/companion.ts),
+ *  at this device's raster density. One niced child (`omarchy-pocketd.js
+ *  atlas-baker`) parses the faces once and bakes the atlases asked for in
+ *  turn; it exits after BAKER_IDLE_MS without a job and returns its
+ *  hundred-odd MB. */
+export class AtlasBaker {
+  private child: ReturnType<typeof Bun.spawn<"pipe", "pipe", "inherit">> | null = null;
+  private queue: AtlasJob[] = [];
+  private busy: AtlasJob | null = null;
+  private idle: ReturnType<typeof setTimeout> | null = null;
+  private lines: AsyncIterator<string> | null = null;
+
+  constructor(private readonly dir: string) {
+    mkdirSync(dir, { recursive: true });
+  }
+
+  bake(px: number, bold: boolean, slot: number, chars: number[]): Promise<Uint8Array> {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ px, bold, slot, chars, resolve, reject });
+      void this.next();
+    });
+  }
+
+  private start() {
+    const child = Bun.spawn(["nice", "-n", "10", process.execPath, process.argv[1]!, "atlas-baker"], { stdin: "pipe", stdout: "pipe", stderr: "inherit" });
+    this.child = child;
+    this.lines = readLines(child.stdout);
+    void child.exited.then(() => {
+      if (this.child !== child) return;
+      this.child = null;
+      this.lines = null;
+      if (this.busy) {
+        this.busy.reject(new Error("the atlas baker exited"));
+        this.busy = null;
+        void this.next();
+      }
+    });
+  }
+
+  private async next() {
+    if (this.busy || !this.queue.length) return;
+    if (this.idle) clearTimeout(this.idle);
+    this.idle = null;
+    const job = (this.busy = this.queue.shift()!);
+    if (!this.child) this.start();
+    const out = join(this.dir, `atlas-${process.pid}-${job.slot}.atlas`);
+    const child = this.child!;
+    child.stdin.write(`${JSON.stringify({ px: job.px, bold: job.bold, slot: job.slot, chars: job.chars, out })}\n`);
+    child.stdin.flush();
+    const line = await this.lines!.next();
+    if (this.busy !== job) return; // the child exited meanwhile
+    this.busy = null;
+    try {
+      const reply = JSON.parse(line.value ?? "{}") as { error?: string };
+      if (line.done || reply.error) throw new Error(reply.error ?? "the atlas baker exited");
+      job.resolve(new Uint8Array(readFileSync(out)));
+    } catch (error) {
+      job.reject(error instanceof Error ? error : new Error(String(error)));
+    }
+    rmSync(out, { force: true });
+    if (this.queue.length) void this.next();
+    else
+      this.idle = setTimeout(() => {
+        this.child?.kill();
+        this.child = null;
+      }, BAKER_IDLE_MS);
+  }
+
+  close() {
+    this.child?.kill();
+    this.child = null;
+  }
+}
+
+async function* readLines(stream: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+  const decoder = new TextDecoder();
+  let buffered = "";
+  for await (const chunk of stream as unknown as AsyncIterable<Uint8Array>) {
+    buffered += decoder.decode(chunk, { stream: true });
+    let end: number;
+    while ((end = buffered.indexOf("\n")) >= 0) {
+      yield buffered.slice(0, end);
+      buffered = buffered.slice(end + 1);
+    }
+  }
+}
+
+/** The atlas baker process (AtlasBaker): a job per stdin line, the atlas
+ *  written to the job's `out`, `{"glyphs":N}` or `{"error":...}` per line. */
+export async function atlasBakerMain() {
+  const { default: opentype } = await import("opentype.js");
+  const { bakeSlot } = await import("../vendor/pocketjs/framework/compiler/bake-font.ts");
+  const faces = APPLET_FACES.map((paths) => {
+    const path = paths.find((p) => p && existsSync(p));
+    return path ? opentype.parse(firstFace(new Uint8Array(readFileSync(path))).buffer) : null;
+  }).filter((f) => f !== null);
+  for await (const line of readLines(Bun.stdin.stream())) {
+    try {
+      if (!faces.length) throw new Error("no run-time font; install wqy-microhei");
+      const job = JSON.parse(line) as { px: number; bold: boolean; slot: number; chars: number[]; out: string };
+      const [font, ...fallbacks] = faces;
+      const atlas = bakeSlot(font!, job.slot, job.px, job.bold, job.chars, DENSITY, fallbacks);
+      writeFileSync(job.out, atlas.bytes);
+      console.log(JSON.stringify({ glyphs: atlas.glyphCount }));
+    } catch (error) {
+      console.log(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
+    }
+  }
+}

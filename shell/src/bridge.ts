@@ -1,7 +1,8 @@
 // The shell's end of the Omarchy bridge (daemon/protocol.ts). The host program
 // installs globalThis.omarchyBridge.send(line) and, at the start of a tick,
 // calls globalThis.__omarchyBridgeReceive(lines) with what omarchy-pocketd
-// sent. Without a host bridge (the desktop simulator) requests reject.
+// sent and the host's own events (package windows). Without a host bridge
+// (the desktop simulator) requests reject.
 import type { DaemonMessage, Event, RequestBody, RunResult, SystemState } from "../../daemon/protocol.ts";
 
 export type { Event, RunResult, SystemState };
@@ -45,14 +46,15 @@ export function answer(call: number, handled: boolean, output = "") {
     } catch {
       continue;
     }
-    if ("id" in message) {
+    // an event first: the host's app events carry an `id` of their own
+    if ("event" in message) {
+      for (const listener of listeners) listener(message);
+    } else if ("id" in message) {
       const waiter = pending.get(message.id);
       if (!waiter) continue;
       pending.delete(message.id);
       if (message.ok) waiter.resolve(message.result);
       else waiter.reject(new Error(message.error));
-    } else {
-      for (const listener of listeners) listener(message);
     }
   }
 };

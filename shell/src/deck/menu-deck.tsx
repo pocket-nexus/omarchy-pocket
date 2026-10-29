@@ -18,6 +18,7 @@ import { conditionsOf, pathTo, PROVIDERS, providerRows, ROOT_TITLE, row, shown, 
 import { serve } from "../system.ts";
 import { applets } from "../applets/applet.ts";
 import { openWindow } from "../windows.ts";
+import { openPackage } from "../packages.ts";
 import { setBody } from "./body.ts";
 import { BODY_H } from "./geometry.ts";
 import { createList, List, type ListState } from "./list.tsx";
@@ -139,7 +140,7 @@ function openProvider(item: MenuItem) {
       ...applets().map((a) => ({ ...row(`apps.${a.id}`, a.icon, a.title, ""), open: a.id })),
     ];
     request<App[]>({ method: "apps" }).then(
-      (apps) => fill([...windows, ...apps.map((a) => ({ ...row(`apps.${a.id}`, a.applet ? APPLET : APP, a.name, a.command), applet: a.applet }))]),
+      (apps) => fill([...windows, ...apps.map((a) => ({ ...row(`apps.${a.id}`, a.applet ? APPLET : APP, a.name, a.command), applet: a.applet, aux: a.aux, appletSurface: a.appletSurface }))]),
       () => fill(windows),
     );
   } else if (PROVIDERS[item.provider]) {
@@ -160,9 +161,10 @@ function activate(item: MenuItem) {
     return;
   }
   if (item.applet) {
-    // the host runs the applet once this frame presents; Select + Start returns
-    const bridge = (globalThis as { omarchyBridge?: { launch(path: string): boolean } }).omarchyBridge;
-    if (!bridge?.launch(item.applet)) toast({ icon: ERROR, title: item.label, body: "This host cannot run applets", tone: "error" });
+    // a package opens in a window beside the focused one, as any window does
+    openPackage(item.applet, item.label, item.aux === true, item.appletSurface === true);
+    setBody("map");
+    toRoot();
     return;
   }
   if (item.action) {

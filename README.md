@@ -11,7 +11,7 @@ Omarchy's CLI, themes, config and Linux services on the Anbernic RG DS Plus (RK3
 | Path | Contents |
 |---|---|
 | `shell/` | the PocketJS shell (Solid) |
-| `applets/` | PocketJS packages the shell can run in its place (manifests) |
+| `applets/` | Pocket Shell's 3DS applets (X, Discord, YouTube, Hacker News, GPL-3.0-or-later), run in the shell's windows |
 | `host/` | omarchy-pocket-host, the device program (Rust) |
 | `daemon/` | omarchy-pocketd (bridge, `omarchy-shell` socket, terminals) and the `hyprctl`/`uwsm`/`omarchy-pocket-term` shims (Bun) |
 | `tools/build.ts`, `tools/deploy.ts`, `tools/screenshot.ts` | build the three programs, put them on a device over SSH, read both panels back from the GPU |

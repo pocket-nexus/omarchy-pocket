@@ -138,8 +138,32 @@ mod ffi {
             pixels: *mut c_void,
         );
     }
+    // offscreen targets for the apps in the shell's windows (Compositor)
+    #[link(name = "mali")]
+    unsafe extern "C" {
+        pub fn glGenFramebuffers(n: i32, framebuffers: *mut u32);
+        pub fn glDeleteFramebuffers(n: i32, framebuffers: *const u32);
+        pub fn glBindFramebuffer(target: u32, framebuffer: u32);
+        pub fn glFramebufferTexture2D(target: u32, attachment: u32, textarget: u32, texture: u32, level: i32);
+        pub fn glCheckFramebufferStatus(target: u32) -> u32;
+        pub fn glGenTextures(n: i32, textures: *mut u32);
+        pub fn glDeleteTextures(n: i32, textures: *const u32);
+        pub fn glBindTexture(target: u32, texture: u32);
+        pub fn glTexImage2D(target: u32, level: i32, internal: i32, width: i32, height: i32, border: i32, format: u32, kind: u32, pixels: *const c_void);
+        pub fn glTexParameteri(target: u32, name: u32, value: i32);
+    }
     pub const GL_RGBA: u32 = 0x1908;
     pub const GL_UNSIGNED_BYTE: u32 = 0x1401;
+    pub const GL_FRAMEBUFFER: u32 = 0x8d40;
+    pub const GL_COLOR_ATTACHMENT0: u32 = 0x8ce0;
+    pub const GL_FRAMEBUFFER_COMPLETE: u32 = 0x8cd5;
+    pub const GL_TEXTURE_2D: u32 = 0x0de1;
+    pub const GL_TEXTURE_MIN_FILTER: u32 = 0x2801;
+    pub const GL_TEXTURE_MAG_FILTER: u32 = 0x2800;
+    pub const GL_TEXTURE_WRAP_S: u32 = 0x2802;
+    pub const GL_TEXTURE_WRAP_T: u32 = 0x2803;
+    pub const GL_LINEAR: i32 = 0x2601;
+    pub const GL_CLAMP_TO_EDGE: i32 = 0x812f;
 }
 use ffi::*;
 
@@ -240,6 +264,8 @@ unsafe impl ContextAccess for Context {
     fn bind_target(&mut self, panel: &usize) -> Result<(), RenderError> {
         let surface = *self.surfaces.get(*panel).ok_or(RenderError::InvalidFrame)?;
         if unsafe { eglMakeCurrent(self.display, surface, surface, self.context) } == 1 {
+            // an app's renderer leaves its framebuffer bound on the shared context
+            unsafe { glBindFramebuffer(GL_FRAMEBUFFER, 0) };
             Ok(())
         } else {
             Err(RenderError::Failed)
@@ -312,6 +338,7 @@ impl Shared {
         if unsafe { eglMakeCurrent(display, surface, surface, self.context) } != 1 {
             return Err(egl_error("eglMakeCurrent before swap"));
         }
+        unsafe { glBindFramebuffer(GL_FRAMEBUFFER, 0) };
         capture(index, self.panels[index].size);
         let held = HELD.load(std::sync::atomic::Ordering::Relaxed) & (1 << index) != 0;
         if held && self.panels[index].front.is_some() {
@@ -629,7 +656,7 @@ pub struct PanelSpec<'a> {
 pub fn open(
     path: impl AsRef<Path>,
     specs: &[PanelSpec<'_>],
-) -> io::Result<(Renderer, Vec<Display>)> {
+) -> io::Result<(Renderer, Vec<Display>, Compositor)> {
     let card = Rc::new(Card {
         file: OpenOptions::new().read(true).write(true).open(path)?,
         completed: RefCell::new(Vec::new()),
@@ -819,11 +846,208 @@ pub fn open(
             sequence: 0,
         })
         .collect();
+    let compositor = Compositor {
+        shell: driver.clone(),
+        display,
+        context,
+        surface: surfaces[0],
+        _shared: shared.clone(),
+    };
     Ok((
         Renderer {
             driver,
             _shared: shared,
         },
         displays,
+        compositor,
     ))
 }
+
+// ---- apps in windows ---------------------------------------------------------
+
+/// The pocket apps in the shell's windows, on the GPU. Each app renders its
+/// displays into its own textures (a framebuffer each) with its own GLES
+/// renderer on the shell's EGL context; the shell's renderer draws a texture
+/// wherever the shell draws the core texture bound to it (`bind`), in the
+/// shell's paint order, with no copy.
+pub struct Compositor {
+    shell: Rc<RefCell<Driver>>,
+    display: EGLDisplay,
+    context: EGLContext,
+    /// any window surface, to make the context current between panel draws
+    surface: EGLSurface,
+    _shared: Rc<RefCell<Shared>>,
+}
+
+/// An app's GPU side: one texture and framebuffer per display, the renderer
+/// that draws into them, and the displays its Runtime presents to.
+pub struct AppGpu {
+    pub renderer: AppRenderer,
+    pub displays: Vec<AppDisplay>,
+    /// the GL texture of each display, in order; they live as long as the
+    /// renderer (the app's Runtime owns it)
+    pub textures: Vec<u32>,
+}
+
+struct AppTargets {
+    display: EGLDisplay,
+    context: EGLContext,
+    surface: EGLSurface,
+    framebuffers: Vec<u32>,
+    textures: Vec<u32>,
+}
+
+impl Drop for AppTargets {
+    fn drop(&mut self) {
+        unsafe {
+            eglMakeCurrent(self.display, self.surface, self.surface, self.context);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glDeleteFramebuffers(self.framebuffers.len() as i32, self.framebuffers.as_ptr());
+            glDeleteTextures(self.textures.len() as i32, self.textures.as_ptr());
+        }
+    }
+}
+
+/// The app renderer's view of EGL: the shared context, its framebuffers.
+pub struct AppContext {
+    targets: Rc<AppTargets>,
+}
+unsafe impl ContextAccess for AppContext {
+    type NativeTarget = usize;
+    fn ensure_current(&mut self) -> Result<(), RenderError> {
+        let t = &self.targets;
+        if unsafe { eglGetCurrentContext() } == t.context || unsafe { eglMakeCurrent(t.display, t.surface, t.surface, t.context) } == 1 {
+            Ok(())
+        } else {
+            Err(RenderError::Failed)
+        }
+    }
+    fn bind_target(&mut self, index: &usize) -> Result<(), RenderError> {
+        self.ensure_current()?;
+        let framebuffer = *self.targets.framebuffers.get(*index).ok_or(RenderError::InvalidFrame)?;
+        unsafe { glBindFramebuffer(GL_FRAMEBUFFER, framebuffer) };
+        Ok(())
+    }
+}
+
+type AppDriver = pocket_gles2::Renderer<AppContext>;
+
+/// An app's glyph and image caches: smaller than the shell's, an app is one window.
+const APP_CACHE: pocket_gles::CacheLimits = pocket_gles::CacheLimits::new(256, 24 * 1024 * 1024, 64, 12 * 1024 * 1024);
+
+pub struct AppRenderer {
+    driver: Rc<RefCell<AppDriver>>,
+    _targets: Rc<AppTargets>,
+}
+impl pocket_drivers::Renderer for AppRenderer {
+    type Submission = pocket_gles::Submission;
+    fn descriptor(&self) -> RendererDescriptor {
+        pocket_drivers::Renderer::descriptor(&*self.driver.borrow())
+    }
+    fn render(&mut self, frame: &mut FrameInput<'_>) -> Result<Self::Submission, RenderError> {
+        self.driver.borrow_mut().render(frame)
+    }
+    fn wait(&mut self, token: &Self::Submission) -> Result<(), RenderError> {
+        self.driver.borrow_mut().wait(token)
+    }
+    fn retire(&mut self, token: Self::Submission) {
+        self.driver.borrow_mut().retire(token);
+    }
+}
+
+/// A display of an app that lands in a texture: nothing to swap or flip.
+pub struct AppDisplay {
+    driver: Rc<RefCell<AppDriver>>,
+    role: DisplayRole,
+    size: [u32; 2],
+    target: u64,
+    sequence: u64,
+}
+
+impl DisplayOutput for AppDisplay {
+    type Token = u64;
+    fn descriptor(&self) -> DisplayDescriptor {
+        let mut d = DisplayDescriptor::new(self.role, self.size[0], self.size[1], PixelFormat::Rgba8888, self.size[0] as usize * 4, TargetOwnership::DeviceOwned);
+        d.vsync = VsyncSource::None;
+        d
+    }
+    fn acquire(&mut self, region: Rect) -> Result<Target<'_>, DisplayError> {
+        if region != Rect::new(0, 0, self.size[0], self.size[1]) {
+            return Err(DisplayError::InvalidTarget);
+        }
+        self.driver.borrow().target(self.target).map(Target::DeviceOwned).map_err(|_| DisplayError::Failed)
+    }
+    fn flush(&mut self, _: &[Rect]) -> Result<u64, DisplayError> {
+        self.sequence += 1;
+        Ok(self.sequence)
+    }
+    fn wait(&mut self, token: u64) -> Result<(), DisplayError> {
+        if token != self.sequence {
+            return Err(DisplayError::InvalidTarget);
+        }
+        Ok(())
+    }
+    fn vsync(&mut self) -> VsyncSource {
+        VsyncSource::None
+    }
+}
+
+impl Compositor {
+    /// Textures, framebuffers and a renderer for an app with displays of
+    /// `sizes` (physical pixels: logical size times density), in role order.
+    pub fn app(&self, sizes: &[(DisplayRole, [u32; 2])]) -> io::Result<AppGpu> {
+        unsafe {
+            if eglMakeCurrent(self.display, self.surface, self.surface, self.context) != 1 {
+                return Err(egl_error("eglMakeCurrent for an app"));
+            }
+        }
+        let mut textures = vec![0u32; sizes.len()];
+        let mut framebuffers = vec![0u32; sizes.len()];
+        unsafe {
+            glGenTextures(sizes.len() as i32, textures.as_mut_ptr());
+            glGenFramebuffers(sizes.len() as i32, framebuffers.as_mut_ptr());
+        }
+        let targets = Rc::new(AppTargets { display: self.display, context: self.context, surface: self.surface, framebuffers: framebuffers.clone(), textures: textures.clone() });
+        for (i, (_, size)) in sizes.iter().enumerate() {
+            unsafe {
+                glBindTexture(GL_TEXTURE_2D, textures[i]);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA as i32, size[0] as i32, size[1] as i32, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr::null());
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[i]);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textures[i], 0);
+                let status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                glBindTexture(GL_TEXTURE_2D, 0);
+                if status != GL_FRAMEBUFFER_COMPLETE {
+                    return Err(io::Error::other(format!("app framebuffer incomplete: {status:#x}")));
+                }
+            }
+        }
+        let mut driver = AppDriver::with_limits(AppContext { targets: targets.clone() }, APP_CACHE)
+            .map_err(|e| io::Error::other(format!("app renderer: {e:?}")))?;
+        let mut handles = Vec::new();
+        for (i, (_, size)) in sizes.iter().enumerate() {
+            handles.push(
+                driver
+                    .register_target(TargetConfig::new(i, *size, Viewport::new(0, 0, size[0], size[1]), PixelFormat::Rgba8888))
+                    .map_err(|e| io::Error::other(format!("app target: {e:?}")))?,
+            );
+        }
+        let driver = Rc::new(RefCell::new(driver));
+        let displays = sizes
+            .iter()
+            .zip(&handles)
+            .map(|((role, size), target)| AppDisplay { driver: driver.clone(), role: *role, size: *size, target: *target, sequence: 0 })
+            .collect();
+        Ok(AppGpu { renderer: AppRenderer { driver, _targets: targets }, displays, textures })
+    }
+
+    /// Draws GL texture `texture` wherever the shell draws core texture `handle`; None ends it.
+    pub fn bind(&self, handle: i32, texture: Option<u32>) {
+        self.shell.borrow_mut().set_external_texture(handle, texture);
+    }
+}
+
