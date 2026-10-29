@@ -40,7 +40,7 @@ The stock p7–p11 (ports, vendor, oem, userdata, ROMS) are gone; the rescue boo
 
 ## System image (`image/build-root.ts`)
 
-Built in an arm64 OrbStack container from `ArchLinuxARM-aarch64-latest.tar.gz`, exported as a 781 MiB `tar.zst`:
+Built in an arm64 OrbStack container from `ArchLinuxARM-aarch64-latest.tar.gz`, exported as an 897 MiB `tar.zst` (2026-10-29, with the daemon, Pocket Term, Rime, wqy-microhei, libvips and the applets):
 
 1. `pacman`: Omarchy's aarch64 template for the **rc** channel. rc carries omarchy 4.5.0rc2, the first release with the aarch64 platform tooling; stable carries 4.0.6. ALARM's kernel and `linux-firmware*` are removed.
 2. `headless`: builds `pkg/omarchy-pocket-headless`, which provides `hyprland`, `quickshell`, `uwsm`, `sddm` and `xdg-desktop-portal-hyprland`. `omarchy` depends on all five.
