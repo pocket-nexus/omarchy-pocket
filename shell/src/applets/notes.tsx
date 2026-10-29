@@ -17,7 +17,7 @@ import { color } from "../theme.ts";
 import { composing } from "../term/ime.ts";
 import { Keyboard, keyboardTouch, sendKey, type KeySink } from "../term/keyboard.tsx";
 import { BODY_H } from "../deck/geometry.ts";
-import { createScroll } from "../deck/scroll.ts";
+import { createList, List as Rows } from "../deck/list.tsx";
 import type { TouchFrame } from "../touch.ts";
 import { register } from "./applet.ts";
 
@@ -240,26 +240,22 @@ function Stage(props: { w: number; h: number }) {
 
 const ROW_H = 22;
 const LIST_TOP = 30;
-const scroller = createScroll(ROW_H, LIST_TOP, Math.floor((BODY_H - LIST_TOP - 4) / ROW_H));
+const scroller = createList(ROW_H, LIST_TOP, Math.floor((BODY_H - LIST_TOP - 4) / ROW_H));
 
 function List() {
-  const visible = () => rowsOf().slice(scroller.first(), scroller.first() + scroller.rows).map((label, i) => ({ label, at: scroller.first() + i }));
   return (
     <View class={C.deck} style={{ bgColor: color("darker_background") }}>
       <Text class={C.crumbs} style={{ textColor: color("accent") }}>Notes</Text>
       <Text class="absolute right-[12] top-[8] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>tap twice to open</Text>
       <View class={C.rule} style={{ bgColor: color("muted") }} />
-      <For each={visible()}>
-        {(item, i) => (
-          <View class={C.row} style={{ insetT: LIST_TOP + i() * ROW_H }}>
-            <Show when={item.at === selected()}>
-              <View class={C.rowOn} style={{ bgColor: color("selection") }} />
-            </Show>
-            <Text class={C.icon} style={{ textColor: color(item.at === selected() ? "accent" : "dark_foreground") }}>{item.at === 0 ? "\u{f0415}" : "\u{f09ed}"}</Text>
-            <Text class={C.label} style={{ textColor: color(item.at === selected() ? "bright_foreground" : "foreground"), ...cjk(item.label, CJK_SLOT_14) }}>{item.label}</Text>
-          </View>
+      <Rows state={scroller} items={rowsOf} top={LIST_TOP} rowH={ROW_H} selected={selected}>
+        {(label, at) => (
+          <>
+            <Text class={C.icon} style={{ textColor: color(at === selected() ? "accent" : "dark_foreground") }}>{at === 0 ? "\u{f0415}" : "\u{f09ed}"}</Text>
+            <Text class={C.label} style={{ textColor: color(at === selected() ? "bright_foreground" : "foreground"), ...cjk(label(), CJK_SLOT_14) }}>{label()}</Text>
+          </>
         )}
-      </For>
+      </Rows>
     </View>
   );
 }

@@ -18,7 +18,7 @@
 // the panel's root, so two would share its width. The portal inserts its
 // child once (framework renderPortalChild calls the accessor), so the deck's
 // switching sits inside a View.
-import { createEffect, createSignal, on, Show } from "solid-js";
+import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { AuxiliarySurface, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
@@ -26,16 +26,16 @@ import { onFrame } from "@pocketjs/framework/lifecycle";
 import { perform, toggleControls } from "./actions.ts";
 import { appletOf, focusedApplet, type Applet } from "./applets/applet.ts";
 import { request, type SystemState } from "./bridge.ts";
-import { chordFor, layerOf, MODIFIERS } from "./chords.ts";
+import { chordFor, HELD_LAYERS, layerOf, MODIFIERS } from "./chords.ts";
 import { body, setBody } from "./deck/body.ts";
 import { ChordCard, chordCardTouch, chordTarget } from "./deck/chord-card.tsx";
 import { Dock, dockTap, dockTarget } from "./deck/dock.tsx";
 import { BODY_H, BODY_TOP, DOCK_TOP, STRIP_H } from "./deck/geometry.ts";
 import { layer, releasePills, setHeld } from "./deck/layer.ts";
-import { atRoot, BACK, deckPress, deckTap, MenuDeck, OPEN } from "./deck/menu-deck.tsx";
+import { atRoot, BACK, deckPress, MenuDeck, menuTouch, OPEN } from "./deck/menu-deck.tsx";
 import { Minimap, minimapTouch } from "./deck/minimap.tsx";
-import { closePanel, openPanel, panelPress, Panels, panelTap, passwordEntry } from "./deck/panels.tsx";
-import { Picker, pickerOpen, pickerPress, pickerTap } from "./deck/picker.tsx";
+import { closePanel, openPanel, panelPress, Panels, panelTouch, passwordEntry } from "./deck/panels.tsx";
+import { Picker, pickerOpen, pickerPress, pickerTouch } from "./deck/picker.tsx";
 import { pressAt } from "./deck/press.ts";
 import { Strip, stripTap, stripTarget } from "./deck/strip.tsx";
 import { remoteButtons } from "./remote-input.ts";
@@ -181,18 +181,12 @@ export default function Shell() {
       case "chords":
         return chordCardTouch(frame);
       case "picker":
-        for (const tap of frame.taps) if (!tap.moved) pickerTap(tap.y);
-        return;
+        return pickerTouch(frame);
       case "panel":
-        for (const tap of frame.taps) if (!tap.moved) panelTap(tap.x, tap.y);
-        return;
+        return panelTouch(frame);
       case "menu":
-        for (const tap of frame.taps) {
-          if (tap.moved) continue;
-          if (tap.y < 26 && atRoot()) setBody("map");
-          else deckTap(tap.y);
-        }
-        return;
+        if (atRoot() && frame.taps.some((t) => !t.moved && t.y < 26)) return setBody("map");
+        return menuTouch(frame);
       case "controls": {
         if (terminal()) return keyboardTouch(frame, "body");
         const applet = focusedApplet();
@@ -264,21 +258,22 @@ export default function Shell() {
         <View class="absolute left-0 top-0 w-[512] h-[384]" style={{ bgColor: color("darker_background") }}>
           <Show when={!screensaverActive()} fallback={<ScreensaverDeck />}>
             <Show when={!(locked() || passwordEntry())} fallback={<Keyboard mode="full" />}>
-              <View class="absolute left-0 w-[512] overflow-hidden" style={{ insetT: BODY_TOP, height: BODY_H }}>
-                <Show when={shown() === "map"}>
+              <View class="absolute left-0 w-[512] overflow-hidden contain-strict" style={{ insetT: BODY_TOP, height: BODY_H }}>
+                {/* the map, the chord cards and the menu stay mounted and show by
+                    opacity, so a shoulder press or the menu repaints instead of
+                    building its body; the rest mount on demand */}
+                <View class="absolute left-0 top-0 w-[512] h-[318] contain-strict" style={{ opacity: shown() === "map" ? 1 : 0 }}>
                   <Minimap />
-                </Show>
-                <Show when={shown() === "chords"}>
-                  <ChordCard />
-                </Show>
+                </View>
+                <For each={HELD_LAYERS}>{(l) => <ChordCard layer={l} />}</For>
+                <View class="absolute left-0 top-0 w-[512] h-[318] contain-strict" style={{ opacity: shown() === "menu" ? 1 : 0 }}>
+                  <MenuDeck />
+                </View>
                 <Show when={shown() === "picker"}>
                   <Picker />
                 </Show>
                 <Show when={shown() === "panel"}>
                   <Panels />
-                </Show>
-                <Show when={shown() === "menu"}>
-                  <MenuDeck />
                 </Show>
                 <Show when={shown() === "controls"}>
                   <Show when={!terminal()} fallback={<Keyboard mode="body" />}>

@@ -8,8 +8,9 @@
 // (bar-off), at the top or bottom, and an opaque, glassy or clear background.
 // The layer titles are mounted together and shown by opacity, so a shoulder
 // press repaints the bar without a relayout.
-import { For, Show } from "solid-js";
-import { Text, View } from "@pocketjs/framework/components";
+import { createEffect, createRoot, For, on, Show, untrack } from "solid-js";
+import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
+import { glide } from "../motion.ts";
 import { HELD_LAYERS, LAYER_TITLE } from "../chords.ts";
 import { C } from "../classes.ts";
 import { formatClock } from "../clock-format.ts";
@@ -24,6 +25,10 @@ const NUMBERS = Array.from({ length: WORKSPACES }, (_, i) => i);
 const SLOT = 20;
 const H = 18;
 const ALPHA: Record<string, number> = { opaque: 1, glassy: 0.75, none: 0 };
+
+let marker: NodeMirror | undefined;
+// the current workspace's square glides to its number
+createRoot(() => createEffect(on(current, (ws) => glide(marker, "translateX", ws * 14, 160), { defer: true })));
 
 export function Bar(props: { now: () => Date; focused: () => string | null }) {
   const settings = () => state()?.bar;
@@ -45,18 +50,16 @@ export function Bar(props: { now: () => Date; focused: () => string | null }) {
         <Text class={C.barText} style={{ insetL: 6, textColor: color("foreground") }}>{"\u{e900}"}</Text>
         <For each={NUMBERS}>
           {(n) => (
-            <Show
-              when={current() === n}
-              fallback={
-                <Text class={C.barText} style={{ insetL: 26 + n * 14, textColor: color(occupied(n) ? "foreground" : "muted") }}>
-                  {String(n + 1)}
-                </Text>
-              }
-            >
-              <View class="absolute top-[5] h-[9] w-[9] rounded-sm" style={{ insetL: 25 + n * 14, bgColor: color("bright_foreground") }} />
-            </Show>
+            <Text class={C.barText} style={{ insetL: 26 + n * 14, opacity: current() === n ? 0 : 1, textColor: color(occupied(n) ? "foreground" : "muted") }}>
+              {String(n + 1)}
+            </Text>
           )}
         </For>
+        <View
+          class="absolute top-[5] h-[9] w-[9] rounded-sm"
+          style={{ insetL: 25, translateX: untrack(current) * 14, bgColor: color("bright_foreground") }}
+          ref={(n: NodeMirror) => (marker = n)}
+        />
         <Text class={C.barCenter} style={{ textColor: color("foreground") }}>{clock()}</Text>
         <Text class="absolute top-[2] text-right font-mono text-xs leading-[14]" style={{ insetL: statusRight() - 160, width: 160, opacity: layer() === "plain" ? 1 : 0, textColor: color("dark_foreground") }}>
           {layout()}

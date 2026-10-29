@@ -78,17 +78,28 @@ export function Dock() {
           </View>
         )}
       </Show>
-      <View class="absolute left-0 w-[512]" style={{ insetT: DOCK_TOP, height: DOCK_H, bgColor: color("background") }}>
+      <View class="absolute left-0 w-[512] contain-strict" style={{ insetT: DOCK_TOP, height: DOCK_H, bgColor: color("background") }}>
         <View class="absolute left-0 top-0 w-[512] h-[1]" style={{ bgColor: color("muted") }} />
         <For each={ITEMS}>
           {(item) => (
             <View class="absolute top-[3] rounded-md" style={{ insetL: item.x, width: CELL - 4, height: DOCK_H - 6, bgColor: color(pressed(`dock:${item.id}`) ? "accent" : "background") }}>
-              <Text
-                class="absolute left-0 top-[6] text-center font-mono text-base leading-[20]"
-                style={{ width: CELL - 4, textColor: color(pressed(`dock:${item.id}`) ? "background" : item.on?.() ? "accent" : "foreground") }}
+              <Show
+                when={item.id !== "menu"}
+                fallback={
+                  // Omarchy's logo (omarchy.ttf) stands taller on the baseline than the
+                  // Nerd Font icons: one size down and lower, it centres with them
+                  <Text class="absolute left-0 top-[8] text-center font-mono text-sm leading-[20]" style={{ width: CELL - 4, textColor: color(pressed("dock:menu") ? "background" : item.on?.() ? "accent" : "foreground") }}>
+                    {item.glyph}
+                  </Text>
+                }
               >
-                {item.glyph}
-              </Text>
+                <Text
+                  class="absolute left-0 top-[6] text-center font-mono text-base leading-[20]"
+                  style={{ width: CELL - 4, textColor: color(pressed(`dock:${item.id}`) ? "background" : item.on?.() ? "accent" : "foreground") }}
+                >
+                  {item.glyph}
+                </Text>
+              </Show>
               <Show when={item.app?.()}>
                 {(s) => <View class="absolute top-[30] h-[2] rounded-sm" style={{ insetL: (CELL - 4 - (s() === "focused" ? 14 : 5)) / 2, width: s() === "focused" ? 14 : 5, bgColor: color(s() === "focused" ? "accent" : "dark_foreground") }} />}
               </Show>

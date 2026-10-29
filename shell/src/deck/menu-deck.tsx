@@ -5,8 +5,8 @@
 // rows; a row with a `when` appears once its command exits 0. A row's action
 // runs through omarchy-pocketd as the Omarchy user; a failure shows as a
 // toast, and the level's conditions are read again afterwards (toggles).
-import { createMemo, createSignal, For, Show } from "solid-js";
-import { Text, View } from "@pocketjs/framework/components";
+import { createMemo, createSignal, onMount, Show } from "solid-js";
+import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
 import { conditions, request, run } from "../bridge.ts";
 import type { App } from "../../../daemon/protocol.ts";
@@ -14,12 +14,15 @@ import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
 import { C } from "../classes.ts";
 import { MENU } from "../generated/menu.ts";
-import { conditionsOf, pathTo, PROVIDERS, providerRows, ROOT_TITLE, row, scrollFor, shown, type MenuItem, type MenuLevel, type Truth } from "../menu.ts";
+import { conditionsOf, pathTo, PROVIDERS, providerRows, ROOT_TITLE, row, shown, type MenuItem, type MenuLevel, type Truth } from "../menu.ts";
 import { serve } from "../system.ts";
 import { applets } from "../applets/applet.ts";
 import { openWindow } from "../windows.ts";
 import { setBody } from "./body.ts";
 import { BODY_H } from "./geometry.ts";
+import { createList, List, type ListState } from "./list.tsx";
+import { glide, place } from "../motion.ts";
+import type { TouchFrame } from "../touch.ts";
 import { PANELS, showPanel, type PanelName } from "./panels.tsx";
 import { openThemePicker } from "./picker.tsx";
 import { toast } from "../stage/toasts.tsx";
@@ -27,9 +30,8 @@ import { color } from "../theme.ts";
 
 const H = BODY_H;
 const HEADER_H = 26;
-const FOOTER_H = 20;
 const ROW_H = 22;
-const ROWS = Math.floor((H - HEADER_H - FOOTER_H) / ROW_H);
+const ROWS = Math.floor((H - HEADER_H - 4) / ROW_H);
 // The device program maps the RG DS Plus's A to CIRCLE and B to CROSS.
 export const OPEN = BTN.CIRCLE;
 export const BACK = BTN.CROSS;
@@ -60,26 +62,48 @@ function evaluate(items: MenuItem[]) {
 
 const update = (change: (l: MenuLevel) => MenuLevel) => setStack((s) => [...s.slice(0, -1), change(s[s.length - 1]!)]);
 
+/** The shown level's list (a new one each time a level mounts). */
+let list: ListState | null = null;
+/** which way the next level slides in: +1 from the right (deeper), -1 from the left */
+let entering = 1;
+
+function select(index: number) {
+  const l = level();
+  const shownRows = rows(l);
+  const item = shownRows[index];
+  if (!item) return;
+  update((v) => ({ ...v, selected: item.id }));
+  list?.reveal(index, shownRows.length);
+}
+
 function move(delta: number) {
-  update((l) => {
-    const list = rows(l);
-    if (!list.length) return l;
-    const index = Math.max(0, Math.min(list.length - 1, indexIn(l) + delta));
-    return { ...l, selected: list[index]!.id, scroll: scrollFor(scrollOf(l, list), index, ROWS) };
-  });
+  const shownRows = rows(level());
+  if (!shownRows.length) return;
+  select(Math.max(0, Math.min(shownRows.length - 1, indexIn(level()) + delta)));
 }
 
 function push(item: MenuItem) {
+  remember();
+  entering = 1;
   setStack((s) => [...s, levelFor(item.title, item.children)]);
   evaluate(item.children);
 }
 
 function back() {
-  if (stack().length > 1) setStack((s) => s.slice(0, -1));
+  if (stack().length <= 1) return;
+  entering = -1;
+  setStack((s) => s.slice(0, -1));
 }
 
-/** Select: the root level with Apps open. */
+/** The level keeps where its list was, for when it shows again. */
+function remember() {
+  const first = list?.first() ?? 0;
+  update((v) => ({ ...v, scroll: first }));
+}
+
+/** The root level with Apps open. */
 export function openAppsList() {
+  entering = 1;
   setStack([levelFor(ROOT_TITLE, MENU)]);
   const apps = MENU.find((item) => item.id === "apps");
   if (apps) openProvider(apps);
@@ -103,6 +127,8 @@ function lastLine(text: string): string {
 function openProvider(item: MenuItem) {
   const fill = (rows: MenuItem[]) => {
     if (!rows.length) return toast({ icon: INFO, title: item.label, body: "Nothing to list", tone: "info" });
+    remember();
+    entering = 1;
     setStack((s) => [...s, levelFor(item.title, rows)]);
   };
   const failed = (error: unknown) => toast({ icon: ERROR, title: item.label, body: String(error), tone: "error" });
@@ -212,61 +238,72 @@ export function deckPress(key: number) {
 
 }
 
-/** A tap on the deck selects the row under it; a tap on the selected row opens it. */
-export function deckTap(y: number) {
-  if (y < HEADER_H) return back();
-  if (y >= H - FOOTER_H) return;
-  const l = level();
-  const list = rows(l);
-  const index = scrollOf(l, list) + Math.floor((y - HEADER_H) / ROW_H);
-  const item = list[index];
-  if (!item) return;
-  if (item.id === l.selected) activate(item);
-  else update((v) => ({ ...v, selected: item.id }));
+/** The menu's fingers (body coordinates): a tap on the header goes back, a
+ *  tap selects a row and a tap on the selected row opens it, a drag scrolls. */
+export function menuTouch(frame: TouchFrame) {
+  for (const tap of frame.taps) if (!tap.moved && tap.y < HEADER_H) back();
+  const shownRows = rows(level());
+  list?.touch(frame, shownRows.length, (index) => {
+    const item = shownRows[index];
+    if (!item) return;
+    if (item.id === level().selected) activate(item);
+    else select(index);
+  });
 }
 
-/** The level's scroll, kept inside the rows that are shown now. */
-function scrollOf(l: MenuLevel, list: MenuItem[]) {
-  return Math.max(0, Math.min(l.scroll, list.length - ROWS));
-}
-
-function Row(props: { item: MenuItem; selected: () => boolean; top: number }) {
-  const disabled = () => !!props.item.disabled && truth()[props.item.disabled] === true;
-  const checked = () => props.item.current === true || (!!props.item.checked && truth()[props.item.checked] === true);
+function Row(props: { item: () => MenuItem; selected: () => boolean }) {
+  const disabled = () => !!props.item().disabled && truth()[props.item().disabled] === true;
+  const checked = () => props.item().current === true || (!!props.item().checked && truth()[props.item().checked] === true);
   return (
-    <View class={C.row} style={{ insetT: props.top }}>
-      <Show when={props.selected()}>
-        <View class={C.rowOn} style={{ bgColor: color("selection") }} />
-      </Show>
-      <Text class={C.icon} style={{ textColor: color(props.selected() ? "accent" : "dark_foreground") }}>{props.item.icon}</Text>
+    <>
+      <Text class={C.icon} style={{ textColor: color(props.selected() ? "accent" : "dark_foreground") }}>{props.item().icon}</Text>
       <Text
         class={C.label}
-        style={{ textColor: color(disabled() ? "dark_foreground" : props.selected() ? "bright_foreground" : "foreground"), ...cjk(props.item.label, CJK_SLOT_14) }}
+        style={{ textColor: color(disabled() ? "dark_foreground" : props.selected() ? "bright_foreground" : "foreground"), ...cjk(props.item().label, CJK_SLOT_14) }}
       >
-        {props.item.label}
+        {props.item().label}
       </Text>
-      <Show when={props.item.children.length > 0 || checked()}>
+      <Show when={props.item().children.length > 0 || checked()}>
         <Text class={C.chevron} style={{ textColor: color(checked() ? "accent" : "dark_foreground") }}>
-          {props.item.children.length > 0 ? CHEVRON : CHECK}
+          {props.item().children.length > 0 ? CHEVRON : CHECK}
         </Text>
       </Show>
+    </>
+  );
+}
+
+/** One level: its own list, sliding in from the side it was reached from. */
+function Level() {
+  const l = level();
+  const state = createList(ROW_H, HEADER_H, ROWS, Math.max(0, Math.min(l.scroll, rows(l).length - ROWS)));
+  list = state;
+  let node: NodeMirror | undefined;
+  onMount(() => {
+    place(node, "translateX", entering * 48);
+    place(node, "opacity", 0);
+    glide(node, "translateX", 0, 160);
+    glide(node, "opacity", 1, 160);
+  });
+  return (
+    <View class={C.deck} ref={(n: NodeMirror) => (node = n)}>
+      <List state={state} items={() => rows(level())} top={HEADER_H} rowH={ROW_H} selected={() => indexIn(level())}>
+        {(item) => <Row item={item} selected={() => level().selected === item().id} />}
+      </List>
     </View>
   );
 }
 
 export function MenuDeck() {
-  const visible = createMemo(() => {
-    const l = level();
-    const list = rows(l);
-    const scroll = scrollOf(l, list);
-    return list.slice(scroll, scroll + ROWS).map((item, i) => ({ item, top: HEADER_H + i * ROW_H }));
-  });
   const crumbs = () => stack().map((l) => l.title).join(`  ${CHEVRON}  `);
+  // a level remounts when the stack changes depth or contents, not on a move
+  const levelItems = createMemo(() => level().items);
   return (
     <View class={C.deck} style={{ bgColor: color("darker_background") }}>
       <Text class={C.crumbs} style={{ textColor: color("accent") }}>{crumbs()}</Text>
       <View class={C.rule} style={{ bgColor: color("muted") }} />
-      <For each={visible()}>{(row) => <Row item={row.item} selected={() => level().selected === row.item.id} top={row.top} />}</For>
+      <Show when={levelItems()} keyed>
+        {(_items) => <Level />}
+      </Show>
     </View>
   );
 }

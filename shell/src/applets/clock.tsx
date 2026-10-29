@@ -3,7 +3,7 @@
 // The hours and minutes are seven-segment digits drawn from views, scaled to
 // the window: a baked face at that size would cost the package megabytes of
 // atlas.
-import { createSignal, For, Index, Show } from "solid-js";
+import { createMemo, createSignal, For, Index, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
@@ -17,6 +17,11 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 const two = (n: number) => (n < 10 ? `0${n}` : String(n));
 
 const [now, setNow] = createSignal(new Date());
+/** the civil time read once per tick: each Date getter converts the time zone */
+const civil = createMemo(() => {
+  const d = now();
+  return { hours: d.getHours(), minutes: d.getMinutes(), seconds: d.getSeconds(), day: d.getDay(), date: d.getDate(), month: d.getMonth(), year: d.getFullYear() };
+});
 /** milliseconds on the stopwatch before the current run, and when it started */
 const [banked, setBanked] = createSignal(0);
 const [since, setSince] = createSignal<number | null>(null);
@@ -105,6 +110,8 @@ function Digits(props: { text: () => string; x: number; y: number; s: number }) 
   );
 }
 
+const digits = createMemo(() => `${two(civil().hours)}${two(civil().minutes)}`);
+
 function Stage(props: { w: number; h: number }) {
   // the digits, seconds, date and stopwatch take about 270 points at scale 1
   const s = () => Math.min(1, (props.w - 24) / CLOCK_W, (props.h - 20) / 270);
@@ -113,10 +120,10 @@ function Stage(props: { w: number; h: number }) {
   const below = () => top() + DIGIT_H * s() + 10;
   return (
     <>
-      <Digits text={() => `${two(now().getHours())}${two(now().getMinutes())}`} x={digitsL()} y={top()} s={s()} />
-      <Text class="absolute left-0 text-center text-2xl leading-[28]" style={{ insetT: below(), width: props.w, textColor: color("accent") }}>{two(now().getSeconds())}</Text>
+      <Digits text={digits} x={digitsL()} y={top()} s={s()} />
+      <Text class="absolute left-0 text-center text-2xl leading-[28]" style={{ insetT: below(), width: props.w, textColor: color("accent") }}>{two(civil().seconds)}</Text>
       <Text class="absolute left-0 h-[20] overflow-hidden text-center text-base leading-[20]" style={{ insetT: below() + 36, width: props.w, textColor: color("foreground") }}>
-        {props.w >= 300 ? `${WEEKDAYS[now().getDay()]}, ${now().getDate()} ${MONTHS[now().getMonth()]} ${now().getFullYear()}` : `${now().getDate()} ${MONTHS[now().getMonth()]!.slice(0, 3)}`}
+        {props.w >= 300 ? `${WEEKDAYS[civil().day]}, ${civil().date} ${MONTHS[civil().month]} ${civil().year}` : `${civil().date} ${MONTHS[civil().month]!.slice(0, 3)}`}
       </Text>
       <Show when={props.h >= 230}>
         <Text class="absolute left-0 text-center text-2xl leading-[28]" style={{ insetT: below() + 72, width: props.w, textColor: color(since() === null ? "dark_foreground" : "green") }}>
@@ -165,7 +172,7 @@ function Button(props: { id: string; label: () => string; on?: () => boolean }) 
 
 function Deck() {
   const view = () => weeks(month());
-  const isToday = (day: number | null) => month() === 0 && day === now().getDate();
+  const isToday = (day: number | null) => month() === 0 && day === civil().date;
   return (
     <View class={C.deck} style={{ bgColor: color("darker_background") }}>
       <Button id="prev" label={() => "\u{f0141}"} />

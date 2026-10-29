@@ -193,7 +193,7 @@ export function Keyboard(props: { mode: KeyboardMode }) {
   const latched = (k: Placed) => !!k.modifier && mods()[k.modifier];
   const h = keyH(props.mode);
   return (
-    <View class="absolute left-0 top-0 w-[512]" style={{ height: HEIGHT[props.mode], bgColor: color("darker_background") }}>
+    <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: HEIGHT[props.mode], bgColor: color("darker_background") }}>
       <Show when={sink().field}>
         {(field) => (
           <View class="absolute left-0 top-0 w-[512]" style={{ height: TABS_H, bgColor: color("dark_background") }}>

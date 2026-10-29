@@ -28,7 +28,7 @@ function Frame(props: { win: Win }) {
   const applet = appletOf(props.win);
   return (
     <View
-      class="absolute overflow-hidden"
+      class="absolute overflow-hidden contain-strict"
       style={{ insetL: rect().x, insetT: rect().y, width: rect().w, height: rect().h, bgColor: color(isFocused() ? "accent" : "muted"), ...WINDOW_ORIGIN }}
       ref={(node: NodeMirror) => onCleanup(bindWindow(props.win.id, node))}
     >
@@ -41,7 +41,7 @@ function Frame(props: { win: Win }) {
             {windowTitle(props.win)}
           </Text>
         </View>
-        <View class="absolute left-0 overflow-hidden" style={{ insetT: HEADER_H, width: contentW(), height: contentH() }}>
+        <View class="absolute left-0 overflow-hidden contain-strict" style={{ insetT: HEADER_H, width: contentW(), height: contentH() }}>
           {props.win.kind === "terminal" ? (
             <TermGrid sid={props.win.sid} w={contentW()} h={contentH()} />
           ) : applet ? (

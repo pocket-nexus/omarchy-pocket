@@ -19,8 +19,9 @@
 // An interrupted transition starts again from where the core has the window
 // drawn: the store replays the `out` curve (1 - (1 - t)^3) to find it.
 import { createSignal } from "solid-js";
-import { animate, jump } from "@pocketjs/framework/animation";
+import { animate } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
+import { flip, setSlowMotion, slowed, TOP_LEFT } from "./motion.ts";
 import type { NodeMirror } from "@pocketjs/framework/components";
 import { WindowManager, WORKSPACES, sameRect, type Content, type Dir, type Layout, type Placement, type Rect, type Win } from "./wm.ts";
 
@@ -29,15 +30,12 @@ export type { Content, Dir, Layout, Placement, Rect, Win };
 
 const MOTION_MS = 200;
 const GHOST_MS = 170;
-/** stretches every duration, to watch or film a transition (`pocket.window slow`) */
-let slow = 1;
-export const setSlowMotion = (factor: number) => (slow = Math.max(1, factor));
 const POP = 0.87;
 const SLIDE = 48;
 
-/** A window's transform origin: its top-left corner, so a translate lands the
- *  corner and a scale grows the window from there. */
-export const WINDOW_ORIGIN = { originX: -0.5, originY: -0.5 } as const;
+export { setSlowMotion };
+/** A window's transform origin: its top-left corner. */
+export const WINDOW_ORIGIN = TOP_LEFT;
 
 const wm = new WindowManager();
 const [rev, setRev] = createSignal(0);
@@ -65,7 +63,7 @@ const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 
 function drawnAt(m: Motion, now: number) {
-  const e = easeOut(Math.min(1, Math.max(0, (now - m.start) / (MOTION_MS * slow))));
+  const e = easeOut(Math.min(1, Math.max(0, (now - m.start) / slowed(MOTION_MS))));
   return {
     rect: { x: mix(m.from.x, m.to.x, e), y: mix(m.from.y, m.to.y, e), w: mix(m.from.w, m.to.w, e), h: mix(m.from.h, m.to.h, e) },
     alpha: mix(m.fromAlpha, m.toAlpha, e),
@@ -74,18 +72,7 @@ function drawnAt(m: Motion, now: number) {
 
 /** Puts `node` (laid out at `m.to`) where `m` starts, then lets the core carry it home. */
 function play(node: NodeMirror, m: Motion) {
-  const { from, to } = m;
-  jump(node, "translateX", from.x - to.x);
-  jump(node, "translateY", from.y - to.y);
-  jump(node, "scaleX", to.w > 0 ? from.w / to.w : 1);
-  jump(node, "scaleY", to.h > 0 ? from.h / to.h : 1);
-  jump(node, "opacity", m.fromAlpha);
-  const opts = { dur: MOTION_MS * slow, easing: "out" } as const;
-  animate(node, "translateX", 0, opts);
-  animate(node, "translateY", 0, opts);
-  animate(node, "scaleX", 1, opts);
-  animate(node, "scaleY", 1, opts);
-  animate(node, "opacity", m.toAlpha, opts);
+  flip(node, m.from, m.to, m.fromAlpha, m.toAlpha, MOTION_MS);
 }
 
 function startMotion(id: number, m: Motion) {
@@ -119,7 +106,7 @@ export function bindWindow(id: number, node: NodeMirror): () => void {
 
 /** A closed window's outline shrinks and fades where it was drawn. */
 export function bindGhost(node: NodeMirror) {
-  const opts = { dur: GHOST_MS * slow, easing: "linear" } as const;
+  const opts = { dur: slowed(GHOST_MS), easing: "linear" } as const;
   animate(node, "scaleX", POP, opts);
   animate(node, "scaleY", POP, opts);
   animate(node, "opacity", 0, opts);
@@ -156,7 +143,7 @@ export function act<T>(change: (manager: WindowManager) => T): T {
     for (const [id, was] of before) if (!live.has(id) && was.alpha > 0.05) gone.push({ key: ++ghostKey, rect: was.rect });
     if (gone.length) {
       setGhosts((g) => [...g, ...gone]);
-      after((GHOST_MS * slow) / 1000 + 0.05, () => setGhosts((g) => g.filter((x) => !gone.includes(x))));
+      after(slowed(GHOST_MS) / 1000 + 0.05, () => setGhosts((g) => g.filter((x) => !gone.includes(x))));
     }
   }
   for (const id of [...motions.keys()]) if (!wm.windows.has(id)) motions.delete(id);

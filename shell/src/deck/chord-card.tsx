@@ -7,7 +7,7 @@ import { For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
 import { perform } from "../actions.ts";
-import { BUTTON_NAME, chordFor, dpadLabel, FACE_ORDER, LAYER_TITLE, labelFor, triggerLabel } from "../chords.ts";
+import { BUTTON_NAME, chordFor, dpadLabel, FACE_ORDER, LAYER_TITLE, labelFor, triggerLabel, type Layer } from "../chords.ts";
 import { C } from "../classes.ts";
 import { color } from "../theme.ts";
 import type { TouchFrame } from "../touch.ts";
@@ -74,8 +74,8 @@ export function chordCardTouch(frame: TouchFrame) {
   }
 }
 
-function CapView(props: { cap: Cap }) {
-  const chord = () => chordFor(layer(), props.cap.button);
+function CapView(props: { cap: Cap; layer: Layer }) {
+  const chord = () => chordFor(props.layer, props.cap.button);
   const lit = () => pressed(`chord:${props.cap.id}`);
   return (
     <View class="absolute rounded-md" style={{ insetL: props.cap.x, insetT: props.cap.y, width: props.cap.w, height: props.cap.h, bgColor: color(lit() ? "accent" : chord() ? "selection" : "dark_background") }}>
@@ -95,21 +95,23 @@ function Label(props: { x: number; row: number; text: () => string; dim: () => b
   );
 }
 
-export function ChordCard() {
-  const face = (i: number) => chordFor(layer(), FACE_ORDER[i]!);
-  const side = (b: number) => chordFor(layer(), b);
+/** One layer's card. All three stay mounted and the held one shows (by
+ *  opacity): a shoulder press repaints, it does not build a card. */
+export function ChordCard(props: { layer: Layer }) {
+  const face = (i: number) => chordFor(props.layer, FACE_ORDER[i]!);
+  const side = (b: number) => chordFor(props.layer, b);
   return (
-    <View class={C.deck} style={{ bgColor: color("darker_background") }}>
-      <Text class={C.crumbs} style={{ textColor: color("accent") }}>{LAYER_TITLE[layer()]}</Text>
+    <View class={C.deck} style={{ bgColor: color("darker_background"), opacity: layer() === props.layer ? 1 : 0 }}>
+      <Text class={C.crumbs} style={{ textColor: color("accent") }}>{LAYER_TITLE[props.layer]}</Text>
       <Text class="absolute right-[12] top-[8] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>press a button, or tap it here</Text>
       <View class={C.rule} style={{ bgColor: color("muted") }} />
-      <For each={CAPS}>{(cap) => <CapView cap={cap} />}</For>
-      <Label x={COL_L + 96} row={0} text={() => dpadLabel(layer())} dim={() => false} />
-      <Label x={COL_L + 96} row={1} text={() => triggerLabel(layer(), layout())} dim={() => triggerLabel(layer(), layout()) === "—"} />
+      <For each={CAPS}>{(cap) => <CapView cap={cap} layer={props.layer} />}</For>
+      <Label x={COL_L + 96} row={0} text={() => dpadLabel(props.layer)} dim={() => false} />
+      <Label x={COL_L + 96} row={1} text={() => triggerLabel(props.layer, layout())} dim={() => triggerLabel(props.layer, layout()) === "—"} />
       <Label x={COL_L + 96} row={2} text={() => (side(BTN.START) ? labelFor(side(BTN.START)!.action, layout()) : "—")} dim={() => !side(BTN.START)} />
       <Label x={COL_L + 96} row={3} text={() => (side(BTN.SELECT) ? labelFor(side(BTN.SELECT)!.action, layout()) : "—")} dim={() => !side(BTN.SELECT)} />
       <For each={[0, 1, 2, 3]}>{(i) => <Label x={COL_R + 50} row={i} text={() => (face(i) ? labelFor(face(i)!.action, layout()) : "—")} dim={() => !face(i)} />}</For>
-      <Show when={layer() === "workspace"}>
+      <Show when={props.layer === "workspace"}>
         <Text class="absolute left-[12] font-mono text-xs leading-[14]" style={{ insetT: ROW_Y + ROW_H * 4 + 6, textColor: color("dark_foreground") }}>
           the strip's tabs switch workspaces too; drag a window onto one to move it
         </Text>

@@ -24,6 +24,8 @@ import { state } from "../system.ts";
 import { setKeySink } from "../term/keyboard.tsx";
 import { color } from "../theme.ts";
 import { BODY_H } from "./geometry.ts";
+import { createList, List } from "./list.tsx";
+import type { TouchFrame } from "../touch.ts";
 
 export type PanelName = "bluetooth" | "network" | "audio" | "power";
 export const PANELS: PanelName[] = ["bluetooth", "network", "audio", "power"];
@@ -43,7 +45,7 @@ interface Row {
 
 const HEADER_H = 26;
 const ROW_H = 22;
-const ROWS = Math.floor((BODY_H - HEADER_H - 20) / ROW_H);
+const ROWS = Math.floor((BODY_H - HEADER_H - 4) / ROW_H);
 const REFRESH_EVERY = 4;
 const ERROR = "\u{f015a}";
 const CHECK = "\u{f012c}";
@@ -89,6 +91,7 @@ export function showPanel(name: PanelName) {
   setPanel(name);
   setSelected("");
   seen = new Map();
+  list.reset();
   load(name, name === "network");
   poll(++refreshing);
 }
@@ -278,15 +281,20 @@ const rows = createMemo((): Row[] => {
 
 const index = () => Math.max(0, rows().findIndex((row) => row.label === selected()));
 
+const list = createList(ROW_H, HEADER_H, ROWS);
+
 function setIndex(at: number) {
-  const row = rows()[Math.max(0, Math.min(rows().length - 1, at))];
-  if (row) setSelected(row.label);
+  const all = rows();
+  const i = Math.max(0, Math.min(all.length - 1, at));
+  const row = all[i];
+  if (!row) return;
+  setSelected(row.label);
+  list.reveal(i, all.length);
 }
 
 function move(delta: number) {
   setIndex(index() + delta);
 }
-
 
 export function panelPress(key: number) {
   const row = rows()[Math.min(index(), rows().length - 1)];
@@ -299,45 +307,39 @@ export function panelPress(key: number) {
   else if (key & BTN.CROSS) closePanel();
 }
 
-export function panelTap(_x: number, y: number) {
-  if (y < HEADER_H) return closePanel();
-  const at = scroll() + Math.floor((y - HEADER_H) / ROW_H);
-  const row = rows()[at];
-  if (!row) return;
-  if (at === index()) row.activate?.();
-  else setIndex(at);
+/** The panel's fingers (body coordinates): a tap on the header closes it, a
+ *  tap selects a row and a tap on the selected row acts, a drag scrolls. */
+export function panelTouch(frame: TouchFrame) {
+  for (const tap of frame.taps) if (!tap.moved && tap.y < HEADER_H) return closePanel();
+  list.touch(frame, rows().length, (at) => {
+    if (at === index()) rows()[at]?.activate?.();
+    else setIndex(at);
+  });
 }
 
-/** the first visible row: enough to keep the highlighted one on the deck */
-const scroll = () => Math.max(0, index() - ROWS + 1);
-
 export function Panels() {
-  const visible = createMemo(() => rows().slice(scroll(), scroll() + ROWS).map((row, i) => ({ row, at: scroll() + i })));
   return (
     <View class={C.deck} style={{ bgColor: color("darker_background") }}>
       <Text class={C.crumbs} style={{ textColor: color("accent") }}>{TITLES[panel() ?? "network"]}</Text>
       <Text class="absolute right-[12] top-[6] font-mono text-xs leading-[16]" style={{ textColor: color(busy() ? "accent" : "dark_foreground") }}>
-        {busy() || "A select  \u{2190}\u{2192} adjust  Y forget"}
+        {busy() || "A select  \u{2190}\u{2192} adjust  Y forget  B close"}
       </Text>
       <View class={C.rule} style={{ bgColor: color("muted") }} />
-      <For each={visible()}>
-        {(item, i) => (
-          <View class={C.row} style={{ insetT: HEADER_H + i() * ROW_H }}>
-            <Show when={item.at === index()}>
-              <View class={C.rowOn} style={{ bgColor: color("selection") }} />
-            </Show>
-            <Text class={C.icon} style={{ textColor: color(item.at === index() ? "accent" : "dark_foreground") }}>{item.row.icon}</Text>
-            <Text class={C.label} style={{ textColor: color(item.row.info ? "dark_foreground" : item.at === index() ? "bright_foreground" : "foreground") }}>
-              {item.row.label}
+      <List state={list} items={rows} top={HEADER_H} rowH={ROW_H} selected={index}>
+        {(row, at) => (
+          <>
+            <Text class={C.icon} style={{ textColor: color(at === index() ? "accent" : "dark_foreground") }}>{row().icon}</Text>
+            <Text class={C.label} style={{ textColor: color(row().info ? "dark_foreground" : at === index() ? "bright_foreground" : "foreground") }}>
+              {row().label}
             </Text>
-            <Show when={item.row.value !== undefined || item.row.checked}>
-              <Text class={C.chevron} style={{ textColor: color(item.row.checked ? "accent" : "foreground") }}>
-                {item.row.checked && item.row.value === undefined ? CHECK : (item.row.value ?? "")}
+            <Show when={row().value !== undefined || row().checked}>
+              <Text class={C.chevron} style={{ textColor: color(row().checked ? "accent" : "foreground") }}>
+                {row().checked && row().value === undefined ? CHECK : (row().value ?? "")}
               </Text>
             </Show>
-          </View>
+          </>
         )}
-      </For>
+      </List>
     </View>
   );
 }

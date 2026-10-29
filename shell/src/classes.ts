@@ -1,13 +1,15 @@
 // Layout and type for every element the shell draws. Colours are not here:
 // each element takes them from the palette at run time (theme.ts) through its
-// style, so a theme switch repaints without a new package.
+// style, so a theme switch repaints without a new package. Fixed-size panes
+// carry `contain-strict`: each is its own layout region, so a change inside
+// one (a clock's seconds, a terminal row) re-solves that pane, not the tree.
 export const C = {
-  bar: "absolute left-0 top-0 w-[512] h-[18]",
+  bar: "absolute left-0 top-0 w-[512] h-[18] contain-strict",
   barText: "absolute top-[2] font-mono text-xs leading-[14]",
   barCenter: "absolute left-0 top-[2] w-[512] text-center font-mono text-xs leading-[14]",
   barRight: "absolute right-[8] top-[2] font-mono text-xs leading-[14]",
 
-  deck: "absolute left-0 top-0 w-[512] h-[318]",
+  deck: "absolute left-0 top-0 w-[512] h-[318] contain-strict",
   crumbs: "absolute left-[12] top-[6] font-mono text-sm leading-[16]",
   rule: "absolute left-[8] top-[25] w-[496] h-[1]",
   row: "absolute left-[8] w-[496] h-[22]",

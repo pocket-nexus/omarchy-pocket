@@ -4,8 +4,9 @@
 // Omarchy's bar indicators (tap one for its panel in the body), and the R1
 // pill. A pill latches its layer for one chord; both latched are the
 // workspace layer.
-import { For, Show } from "solid-js";
-import { Text, View } from "@pocketjs/framework/components";
+import { createEffect, createRoot, For, on, untrack } from "solid-js";
+import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
+import { glide } from "../motion.ts";
 import { perform } from "../actions.ts";
 import { audioGlyph, batteryGlyph, bluetoothGlyph, networkGlyph } from "../indicators.ts";
 import { state } from "../system.ts";
@@ -70,6 +71,10 @@ function Pill(props: { x: number; label: string; on: () => boolean; target: stri
   );
 }
 
+let marker: NodeMirror | undefined;
+// the current workspace's square glides to its tab
+createRoot(() => createEffect(on(current, (ws) => glide(marker, "translateX", ws * TAB_W, 160), { defer: true })));
+
 export function Strip() {
   const glyph = (p: PanelName) => {
     const s = state();
@@ -78,24 +83,22 @@ export function Strip() {
   const lOn = () => pills().l || layer() === "window" || layer() === "workspace";
   const rOn = () => pills().r || layer() === "move" || layer() === "workspace";
   return (
-    <View class="absolute left-0 top-0 w-[512]" style={{ height: STRIP_H, bgColor: color("background") }}>
+    <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: STRIP_H, bgColor: color("background") }}>
       <Pill x={L_X} label="L1" on={lOn} target="strip:L" />
       <For each={NUMBERS}>
         {(n) => (
           <View class="absolute top-[3] h-[20] rounded-sm" style={{ insetL: TABS_X + n * TAB_W, width: TAB_W - 4, bgColor: color(dropWorkspace() === n ? "accent" : pressed(`strip:ws${n}`) ? "selection" : "background") }}>
-            <Show
-              when={current() === n}
-              fallback={
-                <Text class="absolute left-0 top-[3] text-center font-mono text-xs leading-[14]" style={{ width: TAB_W - 4, textColor: color(occupied(n) ? "foreground" : "muted") }}>
-                  {String(n + 1)}
-                </Text>
-              }
-            >
-              <View class="absolute top-[5] h-[10] w-[10] rounded-sm" style={{ insetL: (TAB_W - 4 - 10) / 2, bgColor: color("bright_foreground") }} />
-            </Show>
+            <Text class="absolute left-0 top-[3] text-center font-mono text-xs leading-[14]" style={{ width: TAB_W - 4, opacity: current() === n ? 0 : 1, textColor: color(occupied(n) ? "foreground" : "muted") }}>
+              {String(n + 1)}
+            </Text>
           </View>
         )}
       </For>
+      <View
+        class="absolute top-[8] h-[10] w-[10] rounded-sm"
+        style={{ insetL: TABS_X + (TAB_W - 4 - 10) / 2, translateX: untrack(current) * TAB_W, bgColor: color("bright_foreground") }}
+        ref={(n: NodeMirror) => (marker = n)}
+      />
       <View class="absolute top-[3] h-[20] rounded-sm" style={{ insetL: LAYOUT_X, width: LAYOUT_W, bgColor: color(pressed("strip:layout") ? "selection" : "dark_background") }}>
         <Text class="absolute left-0 top-[3] text-center font-mono text-xs leading-[14]" style={{ width: LAYOUT_W, textColor: color("dark_foreground") }}>{layout()}</Text>
       </View>

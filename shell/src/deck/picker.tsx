@@ -21,6 +21,8 @@ import { serve } from "../system.ts";
 import { toast } from "../stage/toasts.tsx";
 import { color } from "../theme.ts";
 import { BODY_H } from "./geometry.ts";
+import { createList, List } from "./list.tsx";
+import type { TouchFrame } from "../touch.ts";
 
 interface Row {
   filePath: string;
@@ -30,14 +32,14 @@ type Mode = { kind: "themes" } | { kind: "select"; selectionFile: string; doneFi
 
 const HEADER_H = 26;
 const ROW_H = 22;
-const ROWS = Math.floor((BODY_H - HEADER_H - 20) / ROW_H);
+const ROWS = Math.floor((BODY_H - HEADER_H - 4) / ROW_H);
 const PREVIEW_AFTER = 0.25;
 const ERROR = "\u{f015a}";
 
 const [mode, setMode] = createSignal<Mode | null>(null);
 const [rows, setRows] = createSignal<Row[]>([]);
 const [index, setIndex] = createSignal(0);
-const [scroll, setScroll] = createSignal(0);
+const picker = createList(ROW_H, HEADER_H, ROWS);
 let previewToken = 0;
 
 export const pickerOpen = () => mode() !== null;
@@ -54,6 +56,7 @@ function show(next: Mode, rowsText: string, selected: string) {
   const at = Math.max(0, list.findIndex((r) => r.filePath === selected || r.thumbnailPath === selected));
   setRows(list);
   setMode(next);
+  picker.reset();
   select(at);
 }
 
@@ -61,8 +64,7 @@ function select(at: number) {
   const list = rows();
   const i = Math.max(0, Math.min(list.length - 1, at));
   setIndex(i);
-  if (i < scroll()) setScroll(i);
-  else if (i >= scroll() + ROWS) setScroll(i - ROWS + 1);
+  picker.reveal(i, list.length);
   const token = ++previewToken;
   after(PREVIEW_AFTER, () => token === previewToken && previewWallpaper(list[i]!.thumbnailPath));
 }
@@ -136,46 +138,36 @@ function decode(b64: string): string {
 export function pickerPress(key: number) {
   if (key & BTN.UP) select(index() - 1);
   else if (key & BTN.DOWN) select(index() + 1);
-  else if (key & BTN.LTRIGGER) select(index() - ROWS);
-  else if (key & BTN.RTRIGGER) select(index() + ROWS);
+  else if (key & BTN.ZL) select(index() - ROWS);
+  else if (key & BTN.ZR) select(index() + ROWS);
   else if (key & BTN.CIRCLE) close(true);
   else if (key & BTN.CROSS) close(false);
 }
 
-export function pickerTap(y: number) {
-  if (y < HEADER_H) return close(false);
-  const at = scroll() + Math.floor((y - HEADER_H) / ROW_H);
-  if (at >= rows().length) return;
-  if (at === index()) close(true);
-  else select(at);
+/** The picker's fingers (body coordinates): a tap on the header cancels, a
+ *  tap previews a row and a tap on the previewed row applies it, a drag scrolls. */
+export function pickerTouch(frame: TouchFrame) {
+  for (const tap of frame.taps) if (!tap.moved && tap.y < HEADER_H) return close(false);
+  picker.touch(frame, rows().length, (at) => (at === index() ? close(true) : select(at)));
 }
 
 export function Picker() {
-  const visible = createMemo(() => rows().slice(scroll(), scroll() + ROWS).map((row, i) => ({ row, at: scroll() + i })));
   return (
     <View class={C.deck} style={{ bgColor: color("darker_background") }}>
       <Text class={C.crumbs} style={{ textColor: color("accent") }}>
         {mode()?.kind === "themes" ? "Theme" : "Image"}
       </Text>
       <Text class="absolute right-[12] top-[6] font-mono text-xs leading-[16]" style={{ textColor: color("dark_foreground") }}>
-        {`${index() + 1}/${rows().length}`}
+        {`${index() + 1}/${rows().length}   A apply   B cancel`}
       </Text>
       <View class={C.rule} style={{ bgColor: color("muted") }} />
-      <For each={visible()}>
-        {(item, i) => (
-          <View class={C.row} style={{ insetT: HEADER_H + i() * ROW_H }}>
-            <Show when={item.at === index()}>
-              <View class={C.rowOn} style={{ bgColor: color("selection") }} />
-            </Show>
-            <Text class={C.label} style={{ insetL: 12, textColor: color(item.at === index() ? "bright_foreground" : "foreground") }}>
-              {labelForPath(item.row.filePath)}
-            </Text>
-          </View>
+      <List state={picker} items={rows} top={HEADER_H} rowH={ROW_H} selected={index}>
+        {(row, at) => (
+          <Text class={C.label} style={{ insetL: 12, textColor: color(at === index() ? "bright_foreground" : "foreground") }}>
+            {labelForPath(row().filePath)}
+          </Text>
         )}
-      </For>
-      <View class={C.footer} style={{ bgColor: color("dark_background") }}>
-        <Text class={C.hint} style={{ textColor: color("dark_foreground") }}>{"A apply   B cancel   L1/R1 page"}</Text>
-      </View>
+      </List>
     </View>
   );
 }

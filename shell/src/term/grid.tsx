@@ -6,6 +6,7 @@
 // applies to the PTY. Default colours are the theme's foreground and
 // background; a run's own colours are 0xRRGGBB.
 import { createEffect, For, Index, on, Show } from "solid-js";
+import { after } from "@pocketjs/framework/clock";
 import { Text, View } from "@pocketjs/framework/components";
 import { runColumns, type Run } from "../../../vendor/pocket-term/shared/protocol.ts";
 import { TERM_COLS, TERM_ROWS } from "../../../daemon/protocol.ts";
@@ -48,30 +49,39 @@ function WideRun(props: { run: Run }) {
   );
 }
 
-function RunView(props: { run: Run }) {
-  if (props.run[4] !== undefined) return <WideRun run={props.run} />;
+/** A row's run in its place: runs are positional, so new output updates the
+ *  nodes already there instead of building them again. */
+function RunView(props: { run: () => Run }) {
   return (
-    <>
-      <Show when={props.run[3] >= 0}>
+    <Show when={props.run()[4] === undefined} fallback={<WideRun run={props.run()} />}>
+      <Show when={props.run()[3] >= 0}>
         <View
           class="absolute top-0"
-          style={{ insetL: props.run[0] * CELL_W, width: runColumns(props.run) * CELL_W, height: CELL_H, bgColor: hex(props.run[3]) }}
+          style={{ insetL: props.run()[0] * CELL_W, width: runColumns(props.run()) * CELL_W, height: CELL_H, bgColor: hex(props.run()[3]) }}
         />
       </Show>
       <Text
         class="absolute top-0 font-mono text-xs"
-        style={{ insetL: props.run[0] * CELL_W, lineHeight: CELL_H, tracking: TRACK, textColor: props.run[2] >= 0 ? hex(props.run[2]) : color("foreground") }}
+        style={{ insetL: props.run()[0] * CELL_W, lineHeight: CELL_H, tracking: TRACK, textColor: props.run()[2] >= 0 ? hex(props.run()[2]) : color("foreground") }}
       >
-        {props.run[1]}
+        {props.run()[1]}
       </Text>
-    </>
+    </Show>
   );
 }
 
 export function TermGrid(props: { sid: number; w: number; h: number }) {
   const cols = () => Math.max(8, Math.min(TERM_COLS, Math.floor((props.w - 2 * PAD) / CELL_W)));
   const rows = () => Math.max(2, Math.min(TERM_ROWS, Math.floor((props.h - 2 * PAD) / CELL_H)));
-  createEffect(on([cols, rows], ([c, r]) => resizeTerminal(props.sid, c, r)));
+  // the PTY follows once the window has kept its size for a moment: a resize
+  // repaints the whole grid, which would land in the middle of the window's move
+  let settle = 0;
+  createEffect(
+    on([cols, rows], ([c, r]) => {
+      const mine = ++settle;
+      after(0.25, () => mine === settle && resizeTerminal(props.sid, c, r));
+    }),
+  );
   return (
     <Show when={sessionById(props.sid)} keyed>
       {(s) => (
@@ -85,7 +95,7 @@ export function TermGrid(props: { sid: number; w: number; h: number }) {
           <Index each={s.rows.slice(0, rows())}>
             {(row, y) => (
               <View class="absolute left-0" style={{ insetT: y * CELL_H, width: cols() * CELL_W, height: CELL_H }}>
-                <For each={row()()}>{(run) => <RunView run={run} />}</For>
+                <Index each={row()()}>{(run) => <RunView run={run} />}</Index>
               </View>
             )}
           </Index>
