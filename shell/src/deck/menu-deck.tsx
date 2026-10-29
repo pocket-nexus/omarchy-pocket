@@ -12,6 +12,7 @@ import { C } from "../classes.ts";
 import { MENU } from "../generated/menu.ts";
 import { conditionsOf, pathTo, ROOT_TITLE, scrollFor, shown, type MenuItem, type MenuLevel, type Truth } from "../menu.ts";
 import { serve } from "../system.ts";
+import { PANELS, showPanel, type PanelName } from "./panels.tsx";
 import { openThemePicker } from "./picker.tsx";
 import { toast } from "../stage/toasts.tsx";
 import { color } from "../theme.ts";
@@ -113,6 +114,11 @@ function summonPlugin(id: string, payloadJson: string) {
       menu = JSON.parse(payloadJson || "{}").menu || "root";
     } catch {}
     summon(menu);
+    return "ok";
+  }
+  const panelName = id.replace(/^omarchy\./, "") as PanelName;
+  if (PANELS.includes(panelName)) {
+    showPanel(panelName);
     return "ok";
   }
   if (id === "omarchy.image-picker") {

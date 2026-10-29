@@ -22,7 +22,9 @@ Omarchy's desktop is Hyprland plus a Quickshell shell (`/usr/share/omarchy/shell
 | Notifications (`notifications` plugin, D-Bus `org.freedesktop.Notifications`) | omarchy-pocketd owns the name on the user's bus (dbus-next); notices in the stage's top-right corner with Omarchy's glyph hint, critical in red; Y runs `omarchy-exec-argv` or the first action, X dismisses; 5 s default expiry, critical stays | done 2026-10-29; no notification history view yet |
 | Terminal (Alacritty/foot/kitty under Hyprland) | Pocket Term: PTYs in omarchy-pocketd (Bun.Terminal + libghostty), 80×26 grid on the top panel, touch keyboard and gamepad keys on the bottom; `xdg-terminal-exec` opens it, so the 147 menu actions that run `omarchy-launch-floating-terminal-with-presentation` land there | done 2026-10-29 (fastfetch, btop, Omarchy's bash); wide characters show as `??` until runtime glyphs |
 | Text input, IME (fcitx5) | — | on-screen keyboard and pinyin planned |
-| Setup (Wi-Fi, Bluetooth, audio, power, display, timezone panels) | — | planned |
+| Bar indicator panels (`panels/network`, `audio`, `power`, `bluetooth`) | the deck: R2 or `shell summon omarchy.network|audio|power|bluetooth`; L1/R1 move between them, the bar marks the open one. Network: Wi-Fi on/off, scan, connect (password on the touch keyboard), disconnect, forget. Audio: output and input volume and mute, default device (Speakers, Headphones, Microphone). Power: battery, brightness of both panels, power profile | done 2026-10-29 (volume, brightness, network list; connecting to another network not run: it would cut the device's link) |
+| Bluetooth | panel shows no adapter: the RTL8821CS's UART Bluetooth needs `hci_uart` and `rtk_hciattach` | planned |
+| Setup menu (Omarchy's rows: DNS, defaults, plugins, security, config, language) | Omarchy's rows run through the daemon; terminal ones open in Pocket Term | rows not run one by one yet |
 | Install / Remove / Update | terminal TUIs in Pocket Term | not yet run on the device |
 | Apps (`dock` plugin, app launcher) | — | planned: PocketJS applets |
 | Trigger (screenshot, screen recording, share) | — | screenshot planned through the GPU readback |

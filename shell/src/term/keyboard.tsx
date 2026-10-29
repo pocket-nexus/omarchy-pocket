@@ -2,8 +2,10 @@
 // US keyboard filling the panel, for thumbs (keys about 34 x 64 points).
 // Shift, Ctrl and Alt latch for the next key and show it. Characters go to
 // the PTY as text; named keys and modified characters go as key names, which
-// omarchy-pocketd encodes against the terminal's modes.
-import { createSignal, For } from "solid-js";
+// omarchy-pocketd encodes against the terminal's modes. A text field (a
+// Wi-Fi password) takes the keyboard over with setKeySink and shows its
+// value in place of the tabs.
+import { createSignal, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { request } from "../bridge.ts";
 import { color } from "../theme.ts";
@@ -65,17 +67,38 @@ export function latch(modifier: "shift" | "ctrl" | "alt") {
   setMods((m) => ({ ...m, [modifier]: !m[modifier] }));
 }
 
-/** Sends one key to the active session, with the latched modifiers. */
+/** Where keys go: a character (shift applied) or a key name with modifiers. */
+export interface KeySink {
+  text(ch: string): void;
+  key(name: string, mods: { ctrl: boolean; alt: boolean; shift: boolean }): void;
+  /** shown in place of the session tabs */
+  field?: () => string;
+}
+
+const terminalSink: KeySink = {
+  text: (text) => {
+    const sid = active();
+    if (sid !== null) void request({ method: "termInput", sid, text });
+  },
+  key: (key, m) => {
+    const sid = active();
+    if (sid !== null) void request({ method: "termKey", sid, key, ctrl: m.ctrl, alt: m.alt, shift: m.shift });
+  },
+};
+const [sink, setSink] = createSignal<KeySink>(terminalSink);
+
+/** Sends keys to `next` until called with null (back to the terminal). */
+export function setKeySink(next: KeySink | null) {
+  setSink(() => next ?? terminalSink);
+  setMods({ shift: false, ctrl: false, alt: false });
+}
+
+/** Sends one key, with the latched modifiers. */
 export function sendKey(key: string, shifted?: string) {
-  const sid = active();
-  if (sid === null) return;
   const m = mods();
   setMods({ shift: false, ctrl: false, alt: false });
-  if ([...key].length === 1 && !m.ctrl && !m.alt) {
-    void request({ method: "termInput", sid, text: m.shift && shifted ? shifted : key });
-  } else {
-    void request({ method: "termKey", sid, key: m.shift && shifted ? shifted : key, ctrl: m.ctrl, alt: m.alt, shift: m.shift && !shifted });
-  }
+  if ([...key].length === 1 && !m.ctrl && !m.alt) sink().text(m.shift && shifted ? shifted : key);
+  else sink().key(m.shift && shifted ? shifted : key, { ctrl: m.ctrl, alt: m.alt, shift: m.shift && !shifted });
 }
 
 const keyAt = (x: number, y: number) => PLACED.find((k) => x >= k.x && x < k.x + k.w && y >= k.y && y < k.y + KEY_H) ?? null;
@@ -111,6 +134,14 @@ export function Keyboard() {
   const latched = (k: Placed) => !!k.modifier && mods()[k.modifier];
   return (
     <View class="absolute left-0 top-0 w-[512] h-[384]" style={{ bgColor: color("darker_background") }}>
+      <Show when={sink().field}>
+        {(field) => (
+          <View class="absolute left-0 top-0 w-[512]" style={{ height: TABS_H, bgColor: color("dark_background") }}>
+            <Text class="absolute left-[10] top-[5] font-mono text-sm leading-[16]" style={{ textColor: color("bright_foreground") }}>{field()()}</Text>
+          </View>
+        )}
+      </Show>
+      <Show when={!sink().field}>
       <View class="absolute left-0 top-0 w-[512]" style={{ height: TABS_H, bgColor: color("dark_background") }}>
         <Text class="absolute left-[8] top-[5] font-mono text-sm leading-[16]" style={{ textColor: color("accent") }}>{"\u{f035c} Menu"}</Text>
         <For each={sessions()}>
@@ -124,6 +155,7 @@ export function Keyboard() {
         </For>
         <Text class="absolute right-[10] top-[5] font-mono text-sm leading-[16]" style={{ textColor: color("accent") }}>+</Text>
       </View>
+      </Show>
       <For each={PLACED}>
         {(k) => (
           <View

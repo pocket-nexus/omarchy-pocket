@@ -3,8 +3,9 @@
 // under Omarchy's bar, the OSD and notices. The bottom panel is the deck: the
 // Omarchy menu, read from Omarchy's own omarchy-menu.jsonc, driven by the
 // gamepad and by touch. Select brings up Pocket Term: the terminal on the
-// stage and a keyboard on the deck (term/). The lock screen covers both and
-// takes input first.
+// stage and a keyboard on the deck (term/). R2 opens the bar indicators'
+// panels on the deck (Network, Audio, Power, Bluetooth). The lock screen
+// covers both and takes input first.
 // The bottom panel has one AuxiliarySurface: each portal is a flex child of
 // the panel's root, so two would share its width.
 import { createSignal, Show } from "solid-js";
@@ -13,6 +14,7 @@ import { after } from "@pocketjs/framework/clock";
 import { auxiliaryTouches, BTN } from "@pocketjs/framework/input";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { BACK, deckPress, deckTap, MenuDeck, OPEN } from "./deck/menu-deck.tsx";
+import { openPanel, Panels, panelPress, panelTap, passwordEntry, showPanel } from "./deck/panels.tsx";
 import { Picker, pickerOpen, pickerPress, pickerTap } from "./deck/picker.tsx";
 import { remoteButtons, remoteContact } from "./remote-input.ts";
 import { Bar } from "./stage/bar.tsx";
@@ -50,13 +52,21 @@ export default function Shell() {
   const [workspace, setWorkspace] = createSignal(1);
   const press = (key: number) => {
     if (pickerOpen()) return pickerPress(key);
+    if (passwordEntry()) return entryPress(key);
+    if (openPanel()) return panelPress(key);
     if (termShown()) return termPress(key);
-    if (key & BTN.SELECT) openTerminal();
+    if (key & BTN.ZR) showPanel("network");
+    else if (key & BTN.SELECT) openTerminal();
     else if (key & BTN.SQUARE) actOnNewest(true);
     else if (key & BTN.TRIANGLE) actOnNewest(false);
-    else if (key & BTN.ZL) setWorkspace((w) => (w > 1 ? w - 1 : 5));
-    else if (key & BTN.ZR) setWorkspace((w) => (w < 5 ? w + 1 : 1));
+    else if (key & BTN.ZL) setWorkspace((w) => (w < 5 ? w + 1 : 1));
     else deckPress(key);
+  };
+  // The gamepad while a panel's password field has the keyboard.
+  const entryPress = (key: number) => {
+    if (key & OPEN) sendKey("Enter");
+    else if (key & BACK) sendKey("Backspace");
+    else if (key & (BTN.TRIANGLE | BTN.START)) sendKey("Escape");
   };
   // The gamepad in a terminal: the D-pad is the arrow keys, the face buttons
   // the keys a shell and a TUI need most, L2/R2 latch Ctrl/Alt.
@@ -100,12 +110,22 @@ export default function Shell() {
       }
       return;
     }
-    if (termShown()) {
+    if (openPanel() && !passwordEntry()) {
+      if (contact) touch = { x: contact.x, y: contact.y };
+      else if (touch) {
+        panelTap(touch.x, touch.y);
+        touch = null;
+      }
+      return;
+    }
+    if (termShown() || passwordEntry()) {
       // the tab strip acts on release; the keyboard tracks the finger
       if (contact && (contact.y >= TABS_HEIGHT || touch)) keyboardTouch(contact);
       if (contact) touch = { x: contact.x, y: contact.y };
       else if (touch) {
-        if (touch.y < TABS_HEIGHT) tabsTap(touch.x);
+        if (touch.y < TABS_HEIGHT) {
+          if (!passwordEntry()) tabsTap(touch.x);
+        }
         else keyboardTouch(null);
         touch = null;
       }
@@ -124,13 +144,13 @@ export default function Shell() {
       <Show when={termShown()}>
         <TermGrid />
       </Show>
-      <Bar clock={clock} workspace={workspace} />
+      <Bar clock={clock} workspace={workspace} focused={openPanel} />
       <Osd />
       <Toasts />
       <LockStage clock={time} date={date} />
       <AuxiliarySurface>
         <Show when={!pickerOpen()} fallback={<Picker />}>
-          <Show when={termShown()} fallback={<MenuDeck />}>
+          <Show when={termShown() || passwordEntry()} fallback={<Show when={openPanel()} fallback={<MenuDeck />}><Panels /></Show>}>
             <Keyboard />
           </Show>
         </Show>

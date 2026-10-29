@@ -52,7 +52,16 @@ export type Request =
   /** Recent notifications, newest first. */
   | { id: number; method: "notifyList" }
   /** Omarchy's current background (or `path`) as wallpaper textures. */
-  | { id: number; method: "wallpaper"; path?: string };
+  | { id: number; method: "wallpaper"; path?: string }
+  | { id: number; method: "network"; rescan?: boolean }
+  | { id: number; method: "wifiConnect"; ssid: string; password?: string }
+  | { id: number; method: "wifiDisconnect" }
+  | { id: number; method: "wifiForget"; ssid: string }
+  | { id: number; method: "wifiPower"; on: boolean }
+  | { id: number; method: "audio" }
+  | { id: number; method: "audioSet"; kind: "sink" | "source"; name: string; volume?: number; muted?: boolean; current?: boolean }
+  | { id: number; method: "power" }
+  | { id: number; method: "powerSet"; profile?: string; brightness?: number };
 
 /** A request without its id, as the shell's bridge.request() takes it. */
 export type RequestBody = Request extends infer R ? (R extends { id: number } ? Omit<R, "id"> : never) : never;
@@ -73,6 +82,43 @@ export interface WallTile {
   y: number;
   w: number;
   h: number;
+}
+
+export interface WifiNetwork {
+  ssid: string;
+  signal: number;
+  secure: boolean;
+  active: boolean;
+  /** NetworkManager has a saved connection for it */
+  known: boolean;
+}
+
+export interface NetworkPanel {
+  enabled: boolean;
+  /** the connected one first, then by signal */
+  networks: WifiNetwork[];
+  address: string;
+}
+
+export interface AudioDevice {
+  name: string;
+  label: string;
+  volume: number;
+  muted: boolean;
+  /** the default sink or source */
+  current: boolean;
+}
+
+export interface AudioPanel {
+  outputs: AudioDevice[];
+  inputs: AudioDevice[];
+}
+
+export interface PowerPanel {
+  profiles: string[];
+  profile: string;
+  /** percent of both panels' backlights */
+  brightness: number | null;
 }
 
 /** A desktop notification (org.freedesktop.Notifications Notify). */

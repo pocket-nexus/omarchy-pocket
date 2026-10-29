@@ -22,6 +22,7 @@ import type { DaemonMessage, Request, RunResult, SystemState } from "./protocol.
 import { CLOSED, Notifications } from "./notifications.ts";
 import { Terminals, type OpenOptions } from "./term.ts";
 import { wallpaper } from "./wallpaper.ts";
+import * as panels from "./panels.ts";
 import { RUNTIME } from "./paths.ts";
 
 const HOME = process.env.HOME ?? "/home/omarchy";
@@ -262,6 +263,44 @@ async function handle(socket: Socket<Peer>, request: Request) {
         break;
       case "wallpaper":
         result = await wallpaper(RUNTIME, HOME, request.path);
+        break;
+      case "network":
+        result = await panels.network(!!request.rescan);
+        break;
+      case "wifiConnect":
+        await panels.wifiConnect(request.ssid, request.password);
+        void refresh();
+        result = null;
+        break;
+      case "wifiDisconnect":
+        await panels.wifiDisconnect();
+        void refresh();
+        result = null;
+        break;
+      case "wifiForget":
+        await panels.wifiForget(request.ssid);
+        result = null;
+        break;
+      case "wifiPower":
+        await panels.wifiPower(request.on);
+        void refresh();
+        result = null;
+        break;
+      case "audio":
+        result = await panels.audio();
+        break;
+      case "audioSet":
+        await panels.audioSet(request.kind, request.name, request);
+        void refresh();
+        result = null;
+        break;
+      case "power":
+        result = await panels.power();
+        break;
+      case "powerSet":
+        await panels.powerSet(request);
+        void refresh();
+        result = null;
         break;
       default:
         throw new Error(`unknown method ${(request as { method: string }).method}`);
