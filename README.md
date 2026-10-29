@@ -17,4 +17,4 @@ Omarchy's CLI, themes, config and Linux services on the Anbernic RG DS Plus (RK3
 | `tools/usb-link/` | `usbmux.py` (device) and `usb-mux.ts` (Mac, Bun + libusb) |
 | `experiments/hyprland-libmali/` | the Hyprland spike and the patched Hyprland package |
 
-The device program lives in pocketjs (`programs/rg-ds-plus`); `vendor/pocketjs` points at a pocketjs checkout.
+The device program lives in pocketjs (`programs/rg-ds-plus`, branch `rg-ds-plus-usb-ssh-350b52c9` of pocket-nexus/pocketjs, commit `ee0f92a3`). `vendor/pocketjs` (ignored) points at a checkout of that commit; the shell and `tools/omarchy-assets.ts` import from it, and its tools need Bun 1.4.2.
