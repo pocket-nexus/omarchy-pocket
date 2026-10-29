@@ -24,6 +24,7 @@ import { actOnNewest, Toasts } from "./stage/toasts.tsx";
 import { Wallpaper } from "./stage/wallpaper.tsx";
 import { TermGrid } from "./term/grid.tsx";
 import { Keyboard, keyboardTouch, latch, sendKey, TABS_HEIGHT, tabsTap } from "./term/keyboard.tsx";
+import { composing } from "./term/ime.ts";
 import { cycle, hide, openTerminal, shown as termShown } from "./term/store.ts";
 
 const REPEATS = BTN.UP | BTN.DOWN | BTN.LEFT | BTN.RIGHT;
@@ -80,6 +81,8 @@ export default function Shell() {
     if (key & BTN.SELECT) return cycle();
     if (key & BTN.ZL) return latch("ctrl");
     if (key & BTN.ZR) return latch("alt");
+    // A picks the first candidate while a pinyin composition is open
+    if (key & OPEN && composing()) return sendKey(" ");
     for (const [mask, name] of TERM_KEYS) if (key & mask) return sendKey(name);
   };
 

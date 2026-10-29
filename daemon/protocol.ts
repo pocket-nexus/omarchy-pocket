@@ -5,8 +5,9 @@
 // request (matched by id) and events whenever it has them.
 
 import type { Run } from "../vendor/pocket-term/shared/protocol.ts";
+import type { ImeSnapshot } from "../vendor/pocketjs/contracts/spec/ime.ts";
 
-export type { Run };
+export type { ImeSnapshot, Run };
 
 export const BRIDGE_DIRECTORY = "omarchy-pocket";
 export const BRIDGE_SOCKET = "bridge.sock";
@@ -72,6 +73,8 @@ export type Request =
   | { id: number; method: "glyphs"; text: string }
   /** The run-time atlases as they are now. */
   | { id: number; method: "atlases" }
+  /** Evaluates a pinyin key transcript (PocketJS IME key codes). */
+  | { id: number; method: "ime"; keys: number[] }
   /** The Omarchy user's password, for the lock screen. */
   | { id: number; method: "checkPassword"; password: string };
 
@@ -185,6 +188,9 @@ export interface SystemState {
 }
 
 export type Event =
+  /** Sent first on every bridge connection: what the shell knew of an
+   *  earlier daemon (terminals, atlases) may be gone. */
+  | { event: "hello" }
   | { event: "state"; state: SystemState }
   /** An `omarchy-shell <target> <method> [args...]` call from Omarchy's CLI.
    *  The shell answers it with an `answer` request carrying `call`. */

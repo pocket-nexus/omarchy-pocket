@@ -114,6 +114,14 @@ Terminals live in omarchy-pocketd (`daemon/term.ts`): each session is a PTY from
 
 **Verified:** `omarchy-launch-floating-terminal-with-presentation` ran fastfetch in Pocket Term; typing by touch and by the gamepad; btop at 80 × 26 with Braille graphs; sessions survive a shell restart and come back with their screens.
 
+## Chinese input
+
+The 中 key on the touch keyboard switches pinyin on (`shell/src/term/ime.ts`). Letters and punctuation build a key transcript in PocketJS's IME key codes (`contracts/spec/ime.ts`); `ime {keys}` evaluates the whole transcript in a fresh Rime session (`daemon/ime.ts` around PocketJS's `tools/ime/rime.ts`, with `rime.c` built against Arch's librime as `/usr/lib/omarchy-pocket/pocket-rime`) and returns preedit, five candidates and any committed text. A key that can commit (Space, a digit, Enter, punctuation) holds later keys until its answer is in, so committed text keeps its order. Password fields bypass composition.
+
+- The pinyin data directory `~/.local/share/omarchy-pocket/ime` gets Luna Pinyin, the essay and PocketJS's `pocket_pinyin` schema, built with `rime_deployer` when the daemon starts the first time (14 s on the RK3568). A transcript answers in about 90 ms.
+- The daemon bakes GB2312 level 1 (3,755 characters, from `TextDecoder("gbk")`) into the run-time atlases at start, in a `nice`d baker process (about 40 s once; the daemon stays near 37 MB). Each baked set is cached under `~/.cache/omarchy-pocket/glyphs`; a restarted daemon publishes it in seconds. Characters outside the set are added by small bakes as they appear.
+- The host raises the GLES glyph cache to 32 MB (64 pages of 512 × 512): a line of candidates pins pages from a 3,871-glyph atlas, and the default 4 MB (eight pages) made the frame fail.
+
 ## Input
 
 Measured on the device, and matching the stock firmware's SDL mapping (`gamecontrollerdb.txt`):

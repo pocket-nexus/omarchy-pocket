@@ -4,11 +4,15 @@
 // the PTY as text; named keys and modified characters go as key names, which
 // omarchy-pocketd encodes against the terminal's modes. A text field (a
 // Wi-Fi password) takes the keyboard over with setKeySink and shows its
-// value in place of the tabs.
+// value in place of the tabs. The 中 key turns on pinyin (ime.ts): while a
+// composition is open, the strip shows its preedit and candidates.
 import { createSignal, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { request } from "../bridge.ts";
+import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
+import { cjk } from "../glyphs.ts";
 import { color } from "../theme.ts";
+import { chinese, composing, pick, route, snapshot, toggleChinese } from "./ime.ts";
 import { active, hide, sessions, show } from "./store.ts";
 
 interface Key {
@@ -18,6 +22,8 @@ interface Key {
   shifted?: string;
   width?: number;
   modifier?: "shift" | "ctrl" | "alt";
+  /** the 中/EN switch */
+  ime?: boolean;
 }
 
 const c = (chars: string, shifted: string): Key[] => [...chars].map((ch, i) => ({ label: ch, key: ch, shifted: shifted[i] }));
@@ -28,8 +34,9 @@ const ROWS: Key[][] = [
   [{ label: "\u{f0636}", key: "", width: 2.25, modifier: "shift" }, ...c("zxcvbnm,./", "ZXCVBNM<>?"), { label: "\u{2191}", key: "Up" }, { label: "Del", key: "Delete", width: 1.75 }],
   [
     { label: "Alt", key: "", width: 1.5, modifier: "alt" },
+    { label: "EN", key: "", ime: true },
     { label: "`", key: "`", shifted: "~" },
-    { label: "", key: " ", width: 8 },
+    { label: "", key: " ", width: 7 },
     { label: "\u{2190}", key: "Left" },
     { label: "\u{2193}", key: "Down" },
     { label: "\u{2192}", key: "Right" },
@@ -93,13 +100,23 @@ export function setKeySink(next: KeySink | null) {
   setMods({ shift: false, ctrl: false, alt: false });
 }
 
-/** Sends one key, with the latched modifiers. */
+/** Sends one key, with the latched modifiers; through pinyin composition in
+ *  中 mode, except into a password field. */
 export function sendKey(key: string, shifted?: string) {
   const m = mods();
   setMods({ shift: false, ctrl: false, alt: false });
-  if ([...key].length === 1 && !m.ctrl && !m.alt) sink().text(m.shift && shifted ? shifted : key);
-  else sink().key(m.shift && shifted ? shifted : key, { ctrl: m.ctrl, alt: m.alt, shift: m.shift && !shifted });
+  const name = m.shift && shifted ? shifted : key;
+  const direct = () => {
+    if ([...key].length === 1 && !m.ctrl && !m.alt) sink().text(name);
+    else sink().key(name, { ctrl: m.ctrl, alt: m.alt, shift: m.shift && !shifted });
+  };
+  if (m.ctrl || m.alt || sink().field) return direct();
+  route(name, (text) => sink().text(text), direct);
 }
+
+/** The composition strip's candidate boxes, after the preedit. */
+const PREEDIT_W = 132;
+const CANDIDATE_W = (512 - PREEDIT_W) / 5;
 
 const keyAt = (x: number, y: number) => PLACED.find((k) => x >= k.x && x < k.x + k.w && y >= k.y && y < k.y + KEY_H) ?? null;
 
@@ -113,11 +130,17 @@ export function keyboardTouch(contact: { x: number; y: number } | null) {
   setPressed(null);
   if (!key) return;
   if (key.modifier) latch(key.modifier);
+  else if (key.ime) toggleChinese();
   else sendKey(key.key, key.shifted);
 }
 
-/** A tap on the tab strip: Menu, a session, or a new one. */
+/** A tap on the tab strip: a candidate while composing; otherwise Menu, a
+ *  session, or a new one. */
 export function tabsTap(x: number) {
+  if (composing()) {
+    if (x >= PREEDIT_W) pick(Math.floor((x - PREEDIT_W) / CANDIDATE_W), (text) => sink().text(text));
+    return;
+  }
   if (x < 56) return hide();
   if (x >= 512 - 30) {
     void request<number>({ method: "termOpen" }).then(show, () => {});
@@ -141,7 +164,24 @@ export function Keyboard() {
           </View>
         )}
       </Show>
-      <Show when={!sink().field}>
+      <Show when={composing()}>
+        <View class="absolute left-0 top-0 w-[512]" style={{ height: TABS_H, bgColor: color("dark_background") }}>
+          <Text class="absolute left-[8] top-[4] h-[18] overflow-hidden font-mono text-sm leading-[18]" style={{ width: PREEDIT_W - 12, textColor: color("accent"), ...cjk(snapshot()?.preedit ?? "", CJK_SLOT_14) }}>
+            {snapshot()?.preedit ?? ""}
+          </Text>
+          <For each={snapshot()?.candidates ?? []}>
+            {(candidate, i) => (
+              <Text
+                class="absolute top-[4] h-[18] overflow-hidden font-mono text-sm leading-[18]"
+                style={{ insetL: PREEDIT_W + i() * CANDIDATE_W, width: CANDIDATE_W - 4, textColor: color(i() === 0 ? "bright_foreground" : "foreground"), ...cjk(`${i() + 1}${candidate}`, CJK_SLOT_14) }}
+              >
+                {`${i() + 1}${candidate}`}
+              </Text>
+            )}
+          </For>
+        </View>
+      </Show>
+      <Show when={!sink().field && !composing()}>
       <View class="absolute left-0 top-0 w-[512]" style={{ height: TABS_H, bgColor: color("dark_background") }}>
         <Text class="absolute left-[8] top-[5] font-mono text-sm leading-[16]" style={{ textColor: color("accent") }}>{"\u{f035c} Menu"}</Text>
         <For each={sessions()}>
@@ -170,9 +210,13 @@ export function Keyboard() {
           >
             <Text
               class="absolute left-0 top-[24] text-center font-mono text-sm leading-[16]"
-              style={{ width: k.w - 4, textColor: color(pressed() === k ? "background" : latched(k) ? "accent" : "foreground") }}
+              style={{
+                width: k.w - 4,
+                textColor: color(pressed() === k ? "background" : latched(k) || (k.ime && chinese()) ? "accent" : "foreground"),
+                ...(k.ime && chinese() ? cjk("中", CJK_SLOT_14) : {}),
+              }}
             >
-              {k.shifted && mods().shift ? k.shifted : k.label}
+              {k.ime ? (chinese() ? "中" : "EN") : k.shifted && mods().shift ? k.shifted : k.label}
             </Text>
           </View>
         )}

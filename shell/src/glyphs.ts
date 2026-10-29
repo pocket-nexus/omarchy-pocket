@@ -45,6 +45,9 @@ export function cjk(text: string, slot: number): { fontSlot?: number } {
 
 onEvent((event) => {
   if (event.event === "atlas") load(event.atlases);
+  // a new daemon: its atlases, and every string asked for again
+  else if (event.event === "hello") {
+    asked.clear();
+    request<AtlasFile[]>({ method: "atlases" }).then(load, () => {});
+  }
 });
-
-request<AtlasFile[]>({ method: "atlases" }).then(load, () => {});

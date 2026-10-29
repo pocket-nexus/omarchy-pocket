@@ -22,6 +22,10 @@ onEvent((event) => {
     setState(event.state);
     return;
   }
+  if (event.event === "hello") {
+    request<SystemState>({ method: "state" }).then(setState, () => {});
+    return;
+  }
   if (event.event !== "shell") return;
   const method = targets.get(event.target)?.[event.method];
   if (!method) return answer(event.call, false);
@@ -35,4 +39,3 @@ onEvent((event) => {
   answer(event.call, true, output ?? "");
 });
 
-request<SystemState>({ method: "state" }).then(setState, () => {});

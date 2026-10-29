@@ -96,8 +96,21 @@ onEvent((event) => {
   }
 });
 
-// sessions that outlived a shell restart; the daemon re-sends their screens
-request<{ sid: number; title: string }[]>({ method: "termList" }).then(
-  (list) => list.forEach((s) => session(s.sid, s.title).setTitle(s.title)),
-  () => {},
-);
+/** The daemon's sessions: keeps those it still has (it re-sends their
+ *  screens) and drops the rest, which ended with an earlier daemon. */
+function reconcile() {
+  request<{ sid: number; title: string }[]>({ method: "termList" }).then((list) => {
+    const live = new Set(list.map((s) => s.sid));
+    const rest = sessions().filter((s) => live.has(s.sid));
+    setSessions(rest);
+    for (const s of list) session(s.sid, s.title).setTitle(s.title);
+    if (active() !== null && !live.has(active()!)) {
+      setActive(rest[0]?.sid ?? null);
+      if (!rest.length) setShown(false);
+    }
+  }, () => {});
+}
+
+onEvent((event) => {
+  if (event.event === "hello") reconcile();
+});

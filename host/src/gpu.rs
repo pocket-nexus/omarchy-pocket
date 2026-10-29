@@ -236,6 +236,12 @@ unsafe impl ContextAccess for Context {
 
 type Driver = pocket_gles2::Renderer<Context>;
 
+/// Glyph pages are 512 x 512 luminance-alpha textures (512 KB). The default
+/// 4 MB holds eight, and a frame pins every page it draws from: a line of
+/// pinyin candidates from the run-time CJK atlases (about 4,000 glyphs per
+/// slot, 10 to 13 pages) needs more, or the frame fails. 32 MB is 64 pages.
+const GLYPH_CACHE: pocket_gles::CacheLimits = pocket_gles::CacheLimits::new(512, 64 * 1024 * 1024, 128, 32 * 1024 * 1024);
+
 /// Every holder declares `driver` before `shared`: fields drop in order, so
 /// the GLES objects go while the EGL context and surfaces still exist.
 pub struct Renderer {
@@ -666,11 +672,14 @@ pub fn open(
         return Err(egl_error("eglMakeCurrent"));
     }
     unsafe { eglSwapInterval(display, 0) };
-    let mut driver = Driver::new(Context {
-        display,
-        context,
-        surfaces: surfaces.clone(),
-    })
+    let mut driver = Driver::with_limits(
+        Context {
+            display,
+            context,
+            surfaces: surfaces.clone(),
+        },
+        GLYPH_CACHE,
+    )
     .map_err(|e| io::Error::other(format!("GLES renderer: {e:?}")))?;
     for (index, panel) in shared.panels.iter_mut().enumerate() {
         let window = panel.size;

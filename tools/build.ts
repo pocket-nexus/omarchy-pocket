@@ -105,6 +105,9 @@ async function daemon() {
   mkdirSync(join(CACHE, "daemon"), { recursive: true });
   writeFileSync(OUTPUTS.daemon, await built.outputs[0]!.text());
   await $`cp ${wasm} ${OUTPUTS.wasm}`;
+  // PocketJS's Rime helper and schema, which the image compiles and installs
+  mkdirSync(join(CACHE, "daemon", "ime"), { recursive: true });
+  for (const f of ["rime.c", "pocket_pinyin.schema.yaml"]) await $`cp ${join(POCKETJS, "tools", "ime", f)} ${join(CACHE, "daemon", "ime", f)}`;
   await $`bun build daemon/shim.ts --target=bun --outfile ${OUTPUTS.shim}`.cwd(ROOT).quiet();
   const shim = readFileSync(OUTPUTS.shim, "utf8");
   if (!shim.startsWith("#!")) writeFileSync(OUTPUTS.shim, `#!/usr/bin/env bun\n${shim}`);

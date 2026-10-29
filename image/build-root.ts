@@ -66,8 +66,8 @@ const PACKAGES = [
   "bluez-tools", "qrencode", "inotify-tools",
   // backgrounds: vipsthumbnail as in Omarchy's omarchy-menu-images; magick for omarchy-bar-text-color
   "libvips", "imagemagick",
-  // run-time CJK glyphs (daemon/glyphs.ts)
-  "wqy-microhei",
+  // run-time CJK glyphs (daemon/glyphs.ts) and Chinese input (daemon/ime.ts)
+  "wqy-microhei", "librime", "rime-luna-pinyin", "rime-prelude", "rime-essay", "gcc",
 ];
 
 const steps: Step[] = [
@@ -127,6 +127,9 @@ install -Dm755 /repo/.cache/host/cargo/aarch64-unknown-linux-gnu/release/omarchy
 install -Dm644 /repo/.cache/shell/omarchy-pocket.pocket /usr/share/pocketjs/omarchy-pocket.pocket
 install -Dm644 /repo/.cache/daemon/omarchy-pocketd.js /usr/lib/omarchy-pocket/omarchy-pocketd.js
 install -Dm644 /repo/.cache/daemon/ghostty-vt.wasm /usr/lib/omarchy-pocket/ghostty-vt.wasm
+# Chinese input: PocketJS's Rime helper over librime, and its pinyin schema
+gcc -O2 /repo/.cache/daemon/ime/rime.c -lrime -o /usr/lib/omarchy-pocket/pocket-rime
+install -Dm644 /repo/.cache/daemon/ime/pocket_pinyin.schema.yaml /usr/lib/omarchy-pocket/ime/pocket_pinyin.schema.yaml
 for name in hyprctl uwsm uwsm-app omarchy-pocket-term omasnap; do install -Dm755 /repo/.cache/daemon/shim.js /usr/local/bin/$name; done
 install -d -m 755 /usr/lib/mali
 install -m 755 /repo/.cache/blobs/libmali.so.1.9.0 /repo/.cache/blobs/libmali-hook.so.1.9.0 /usr/lib/mali/

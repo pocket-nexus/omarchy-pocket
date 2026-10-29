@@ -25,7 +25,13 @@ import { wallpaper } from "./wallpaper.ts";
 import * as panels from "./panels.ts";
 import { checkPassword, watchSleep } from "./session.ts";
 import { Glyphs } from "./glyphs.ts";
+import { commonHanzi, Ime } from "./ime.ts";
 import { RUNTIME } from "./paths.ts";
+
+if (process.argv[2] === "bake") {
+  await (await import("./glyphs.ts")).bakeMain(process.argv[3]!);
+  process.exit(0);
+}
 
 const HOME = process.env.HOME ?? "/home/omarchy";
 const OUTPUT_LIMIT = 64 * 1024;
@@ -330,6 +336,12 @@ async function handle(socket: Socket<Peer>, request: Request) {
       case "atlases":
         result = glyphs.atlases();
         break;
+      case "ime": {
+        const snapshot = await ime.compose(request.keys);
+        glyphs.want(snapshot.preedit + snapshot.candidates.join("") + snapshot.commit);
+        result = snapshot;
+        break;
+      }
       case "checkPassword":
         result = await checkPassword(request.password);
         break;
@@ -355,7 +367,18 @@ function listen(path: string, handlers: Parameters<typeof Bun.listen<Peer>>[0]["
 
 // ---- run-time glyphs ------------------------------------------------------
 
-const glyphs = new Glyphs(join(RUNTIME, "omarchy-pocket", "glyphs"), (atlases) => broadcast({ event: "atlas", atlases }));
+const glyphs = new Glyphs(join(RUNTIME, "omarchy-pocket", "glyphs"), join(HOME, ".cache", "omarchy-pocket", "glyphs"), (atlases) =>
+  broadcast({ event: "atlas", atlases }),
+);
+// the 3,755 common characters, once at start, so pinyin candidates and most
+// Chinese text never wait for a bake
+glyphs.want(commonHanzi());
+
+// ---- Chinese input --------------------------------------------------------
+
+const ime = new Ime(join(HOME, ".local", "share", "omarchy-pocket", "ime"));
+// build the dictionary now, not on the first keystroke
+ime.prepare().catch((error) => log("ime:", error instanceof Error ? error.message : error));
 
 // ---- terminals ------------------------------------------------------------
 
@@ -387,6 +410,7 @@ listen(bridgePath, {
     socket.data = { incoming: "", outgoing: [] };
     peers.add(socket);
     log("shell connected");
+    send(socket, { event: "hello" });
     if (state) send(socket, { event: "state", state });
   },
   data(socket, chunk) {
