@@ -138,7 +138,9 @@ A confirms because the framework's focus press is CIRCLE. The Goodix GT1x touch 
 
 ## Network
 
-The Wi-Fi driver (`RTL8821CS.ko`, vermagic 6.1.141) and the UART Bluetooth glue (`hci_uart.ko`, `rtk_btusb.ko`) are modules of the stock kernel in the stock rootfs's flat `/lib/modules`. `configure` copies them to `/usr/lib/modules/6.1.141/extra`, runs `depmod` and loads `RTL8821CS` from `modules-load.d`. NetworkManager uses `wpa_supplicant`. Bluetooth needs `hci_uart` plus the stock `rtk_hciattach … rtk_h5` on the DT's UART; not wired yet.
+The Wi-Fi driver (`RTL8821CS.ko`, vermagic 6.1.141) and the UART Bluetooth glue (`hci_uart.ko`, `rtk_btusb.ko`) are modules of the stock kernel in the stock rootfs's flat `/lib/modules`. `configure` copies them to `/usr/lib/modules/6.1.141/extra`, runs `depmod` and loads `RTL8821CS` from `modules-load.d`. NetworkManager uses `wpa_supplicant`.
+
+Bluetooth sits on UART1 (`/dev/ttyS1`, DT pinctrl `wireless-bluetooth/uart1-gpios`). `rgds-bluetooth.service` repeats the stock `wifibt-init.sh`: rfkill and `/proc/bluetooth/sleep/btwrite` off and on, `modprobe hci_uart`, then the stock root's statically linked `rtk_hciattach -n -s 115200 /dev/ttyS1 rtk_h5` (copied by `configure`), which loads `rtlbt/rtl8821c_fw`. **Verified:** controller `B4:65:DC:CE:C4:73`, powered, scanning.
 
 ## Shell (`shell/`)
 

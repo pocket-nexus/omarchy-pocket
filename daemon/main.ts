@@ -303,6 +303,26 @@ async function handle(socket: Socket<Peer>, request: Request) {
         void refresh();
         result = null;
         break;
+      case "bluetooth":
+        result = await panels.bluetooth(!!request.scan);
+        break;
+      case "bluetoothPower":
+        await panels.bluetoothPower(request.on);
+        void refresh();
+        result = null;
+        break;
+      case "bluetoothConnect":
+        await panels.bluetoothConnect(request.mac);
+        result = null;
+        break;
+      case "bluetoothDisconnect":
+        await panels.bluetoothDisconnect(request.mac);
+        result = null;
+        break;
+      case "bluetoothForget":
+        await panels.bluetoothForget(request.mac);
+        result = null;
+        break;
       case "checkPassword":
         result = await checkPassword(request.password);
         break;

@@ -62,6 +62,11 @@ export type Request =
   | { id: number; method: "audioSet"; kind: "sink" | "source"; name: string; volume?: number; muted?: boolean; current?: boolean }
   | { id: number; method: "power" }
   | { id: number; method: "powerSet"; profile?: string; brightness?: number }
+  | { id: number; method: "bluetooth"; scan?: boolean }
+  | { id: number; method: "bluetoothPower"; on: boolean }
+  | { id: number; method: "bluetoothConnect"; mac: string }
+  | { id: number; method: "bluetoothDisconnect"; mac: string }
+  | { id: number; method: "bluetoothForget"; mac: string }
   /** The Omarchy user's password, for the lock screen. */
   | { id: number; method: "checkPassword"; password: string };
 
@@ -114,6 +119,20 @@ export interface AudioDevice {
 export interface AudioPanel {
   outputs: AudioDevice[];
   inputs: AudioDevice[];
+}
+
+export interface BluetoothDevice {
+  mac: string;
+  name: string;
+  paired: boolean;
+  connected: boolean;
+}
+
+export interface BluetoothPanel {
+  /** a controller is attached (rgds-bluetooth.service) */
+  adapter: boolean;
+  powered: boolean;
+  devices: BluetoothDevice[];
 }
 
 export interface PowerPanel {

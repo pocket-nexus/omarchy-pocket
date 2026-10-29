@@ -2,7 +2,7 @@
 // the CLIs Omarchy's own panels use underneath: nmcli, pactl/wpctl,
 // powerprofilesctl and brightnessctl. Arguments go to the programs as argv,
 // never through a shell, so an SSID or a password is only ever data.
-import type { AudioDevice, AudioPanel, NetworkPanel, PowerPanel, WifiNetwork } from "./protocol.ts";
+import type { AudioDevice, AudioPanel, BluetoothDevice, BluetoothPanel, NetworkPanel, PowerPanel, WifiNetwork } from "./protocol.ts";
 
 async function exec(argv: string[], input?: string): Promise<{ code: number; stdout: string; stderr: string }> {
   const child = Bun.spawn(argv, { stdin: input === undefined ? "ignore" : new TextEncoder().encode(input), stdout: "pipe", stderr: "pipe" });
@@ -148,4 +148,48 @@ export async function powerSet(change: { profile?: string; brightness?: number }
     const value = `${Math.max(5, Math.min(100, Math.round(change.brightness)))}%`;
     await Promise.all(BACKLIGHTS.map((device) => must(["brightnessctl", "-q", "-d", device, "set", value])));
   }
+}
+
+/** `bluetoothctl devices [filter]`: "Device <mac> <name>" lines. */
+async function btDevices(filter?: string): Promise<Map<string, string>> {
+  const out = (await exec(["bluetoothctl", "devices", ...(filter ? [filter] : [])])).stdout;
+  const map = new Map<string, string>();
+  for (const line of out.split("\n")) {
+    const m = /^Device ([0-9A-F:]{17}) (.*)$/.exec(line.trim());
+    if (m) map.set(m[1]!, m[2]!);
+  }
+  return map;
+}
+
+export async function bluetooth(scan: boolean): Promise<BluetoothPanel> {
+  const show = await exec(["bluetoothctl", "show"]);
+  if (show.code !== 0 || !/Controller/.test(show.stdout)) return { adapter: false, powered: false, devices: [] };
+  const powered = /Powered: yes/.test(show.stdout);
+  if (scan && powered) await exec(["bluetoothctl", "--timeout", "8", "scan", "on"]);
+  const [all, paired, connected] = await Promise.all([btDevices(), btDevices("Paired"), btDevices("Connected")]);
+  const devices: BluetoothDevice[] = [...all].map(([mac, name]) => ({ mac, name, paired: paired.has(mac), connected: connected.has(mac) }));
+  devices.sort((a, b) => Number(b.connected) - Number(a.connected) || Number(b.paired) - Number(a.paired) || a.name.localeCompare(b.name));
+  return { adapter: true, powered, devices };
+}
+
+export async function bluetoothPower(on: boolean) {
+  await must(["bluetoothctl", "power", on ? "on" : "off"]);
+}
+
+/** Pairs (Just Works: no PIN on either side), trusts and connects. */
+export async function bluetoothConnect(mac: string) {
+  const paired = await btDevices("Paired");
+  if (!paired.has(mac)) {
+    await must(["bluetoothctl", "--agent", "NoInputNoOutput", "--timeout", "20", "pair", mac]);
+    await must(["bluetoothctl", "trust", mac]);
+  }
+  await must(["bluetoothctl", "--timeout", "15", "connect", mac]);
+}
+
+export async function bluetoothDisconnect(mac: string) {
+  await must(["bluetoothctl", "disconnect", mac]);
+}
+
+export async function bluetoothForget(mac: string) {
+  await must(["bluetoothctl", "remove", mac]);
 }

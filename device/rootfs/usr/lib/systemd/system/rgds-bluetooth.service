@@ -1,0 +1,19 @@
+# The RTL8821CS's Bluetooth sits on UART1 (/dev/ttyS1, DT pinctrl
+# wireless-bluetooth/uart1-gpios). As the stock firmware's wifibt-init.sh
+# does: power-cycle it through rfkill and the vendor sleep switch, load
+# hci_uart, then Realtek's rtk_hciattach (from the stock root, statically
+# linked) loads rtlbt/rtl8821c_fw and keeps the H5 line discipline open.
+[Unit]
+Description=RG DS Plus Bluetooth (RTL8821CS on UART1)
+Before=bluetooth.service
+Wants=bluetooth.service
+
+[Service]
+ExecStartPre=/usr/bin/sh -c 'for r in /sys/class/rfkill/rfkill*; do [ "$(cat $r/type)" = bluetooth ] && echo 0 > $r/state; done; echo 0 > /proc/bluetooth/sleep/btwrite; sleep 0.5; for r in /sys/class/rfkill/rfkill*; do [ "$(cat $r/type)" = bluetooth ] && echo 1 > $r/state; done; echo 1 > /proc/bluetooth/sleep/btwrite; sleep 0.5'
+ExecStartPre=/usr/bin/modprobe hci_uart
+ExecStart=/usr/lib/pocket-rgds/rtk_hciattach -n -s 115200 /dev/ttyS1 rtk_h5
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

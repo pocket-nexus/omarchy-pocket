@@ -137,7 +137,7 @@ bash /usr/share/omarchy/install/config/locale.sh
 timedatectl set-timezone Asia/Shanghai 2>/dev/null || ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 echo 'PARTLABEL=omarchy / ext4 rw,noatime 0 1' > /etc/fstab
 install -d -m 755 /mnt/stock
-systemctl enable omarchy-pocket.service rgds-lid.service usbmux.service rgds-boot-ok.service sshd.service NetworkManager.service \\
+systemctl enable omarchy-pocket.service rgds-lid.service rgds-bluetooth.service usbmux.service rgds-boot-ok.service sshd.service NetworkManager.service \\
   bluetooth.service avahi-daemon.service systemd-resolved.service power-profiles-daemon.service
 systemctl --global enable omarchy-pocketd.service
 # the user manager (and omarchy-pocketd) starts at boot, before the shell's session

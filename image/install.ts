@@ -108,6 +108,8 @@ install -d $T/usr/lib/modules/6.1.141/extra
 cp /lib/modules/*.ko $T/usr/lib/modules/6.1.141/extra/
 chroot $T depmod 6.1.141 2>/dev/null || true
 printf '%s\n' '# Realtek RTL8821CS SDIO Wi-Fi, a module of the stock kernel' RTL8821CS > $T/etc/modules-load.d/rgds-wifi.conf
+# Realtek's UART Bluetooth loader (static aarch64), which rgds-bluetooth.service runs
+install -Dm755 /usr/bin/rtk_hciattach $T/usr/lib/pocket-rgds/rtk_hciattach
 if [ -n ${shellQuote(pub)} ]; then
   for r in / $T/; do install -d -m 700 \${r}root/.ssh; grep -qxF ${shellQuote(pub)} \${r}root/.ssh/authorized_keys 2>/dev/null || echo ${shellQuote(pub)} >> \${r}root/.ssh/authorized_keys; done
 fi

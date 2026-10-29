@@ -11,8 +11,9 @@ import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
 import { request } from "../bridge.ts";
-import type { AudioDevice, AudioPanel, NetworkPanel, PowerPanel } from "../../../daemon/protocol.ts";
+import type { AudioDevice, AudioPanel, BluetoothPanel, NetworkPanel, PowerPanel } from "../../../daemon/protocol.ts";
 import { C } from "../classes.ts";
+import { isAddressLike } from "../generated/bluetooth-model.js";
 import { wifiIconFor } from "../generated/network-model.js";
 import { profileIcon } from "../generated/power-model.js";
 import { batteryGlyph } from "../indicators.ts";
@@ -50,6 +51,7 @@ const [index, setIndex] = createSignal(0);
 const [network, setNetwork] = createSignal<NetworkPanel | null>(null);
 const [audio, setAudio] = createSignal<AudioPanel | null>(null);
 const [power, setPower] = createSignal<PowerPanel | null>(null);
+const [bluetooth, setBluetooth] = createSignal<BluetoothPanel | null>(null);
 /** the SSID whose password the keyboard is taking */
 const [entry, setEntry] = createSignal<{ ssid: string; text: string } | null>(null);
 const [busy, setBusy] = createSignal("");
@@ -61,7 +63,8 @@ export const passwordEntry = () => entry() !== null;
 const fail = (title: string) => (error: unknown) => toast({ icon: ERROR, title, body: String(error).replace(/^Error: /, ""), tone: "error" });
 
 function load(name: PanelName, rescan = false) {
-  if (name === "network") request<NetworkPanel>({ method: "network", rescan }).then(setNetwork, fail("Network"));
+  if (name === "bluetooth") request<BluetoothPanel>({ method: "bluetooth" }).then(setBluetooth, fail("Bluetooth"));
+  else if (name === "network") request<NetworkPanel>({ method: "network", rescan }).then(setNetwork, fail("Network"));
   else if (name === "audio") request<AudioPanel>({ method: "audio" }).then(setAudio, fail("Audio"));
   else if (name === "power") request<PowerPanel>({ method: "power" }).then(setPower, fail("Power"));
 }
@@ -157,8 +160,39 @@ function deviceRows(kind: "sink" | "source", list: AudioDevice[], title: string,
 
 const rows = createMemo((): Row[] => {
   switch (panel()) {
-    case "bluetooth":
-      return [{ icon: "\u{f00b2}", label: state()?.bluetooth ? "Adapter found" : "No Bluetooth adapter", info: true }];
+    case "bluetooth": {
+      const b = bluetooth();
+      if (!b) return [{ icon: "", label: "Reading Bluetooth...", info: true }];
+      if (!b.adapter) return [{ icon: "\u{f00b2}", label: "No Bluetooth adapter", info: true }];
+      const list: Row[] = [
+        {
+          icon: b.powered ? "\u{f00af}" : "\u{f00b2}",
+          label: "Bluetooth",
+          value: b.powered ? "On" : "Off",
+          activate: () => change("", request({ method: "bluetoothPower", on: !b.powered }), "Bluetooth"),
+        },
+      ];
+      if (!b.powered) return list;
+      list.push({
+        icon: "\u{f0450}",
+        label: "Scan",
+        activate: () => change("Scanning for 8 s", request<BluetoothPanel>({ method: "bluetooth", scan: true }).then(setBluetooth), "Bluetooth"),
+      });
+      // as Omarchy's panel does: a device that only reports its address is noise unless it is paired
+      for (const d of b.devices.filter((d) => d.paired || d.connected || !isAddressLike(d.name))) {
+        list.push({
+          icon: d.connected ? "\u{f00b1}" : "\u{f00af}",
+          label: d.name,
+          value: d.connected ? "Connected" : d.paired ? "Paired" : "",
+          activate: () =>
+            d.connected
+              ? change("", request({ method: "bluetoothDisconnect", mac: d.mac }), d.name)
+              : change(`Connecting to ${d.name}`, request({ method: "bluetoothConnect", mac: d.mac }), d.name),
+          forget: d.paired ? () => change("", request({ method: "bluetoothForget", mac: d.mac }), d.name) : undefined,
+        });
+      }
+      return list;
+    }
     case "network": {
       const n = network();
       if (!n) return [{ icon: "", label: "Reading networks...", info: true }];
