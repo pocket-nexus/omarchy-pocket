@@ -1,0 +1,7 @@
+# The stock firmware grants these to its own video group; under Arch the
+# nodes would stay root-only. libmali's GBM allocates from dma_heap.
+KERNEL=="mali0", GROUP="video", MODE="0660"
+SUBSYSTEM=="dma_heap", KERNEL=="system", GROUP="video", MODE="0660"
+SUBSYSTEM=="dma_heap", KERNEL=="system-uncached", GROUP="video", MODE="0660"
+KERNEL=="rga", GROUP="video", MODE="0660"
+KERNEL=="mpp_service", GROUP="video", MODE="0660"

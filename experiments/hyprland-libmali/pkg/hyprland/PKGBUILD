@@ -1,0 +1,40 @@
+# Hyprland 0.56.2 built from pocket-nexus/Hyprland branch pocket/0.56.2:
+# Omarchy's 0.56.2-7 plus the renderer fix that lets it start on Rockchip
+# libmali (no EGL_KHR_debug, no EGL device enumeration). Dependencies follow
+# the .PKGINFO of Omarchy's hyprland-0.56.2-7-aarch64.pkg.tar.zst.
+pkgname=hyprland
+pkgver=0.56.2
+pkgrel=7.1
+pkgdesc="a highly customizable dynamic tiling Wayland compositor (pocket-nexus libmali fixes)"
+arch=(aarch64)
+url="https://github.com/pocket-nexus/Hyprland"
+license=(BSD-3-Clause)
+depends=(cairo aquamarine libgcc libstdc++ glibc glib2 glslang hyprcursor hyprgraphics hyprland-guiutils
+  hyprlang hyprutils hyprwire lcms2 libdrm libglvnd libinput libx11 libxcb libxcomposite libxcursor
+  libxfixes libxkbcommon libxrender lua mesa muparser opengl-driver pango pixman re2 tomlplusplus
+  util-linux-libs wayland wayland-protocols xcb-proto xcb-util xcb-util-errors xcb-util-image
+  xcb-util-keysyms xcb-util-renderutil xcb-util-wm xorg-xwayland)
+makedepends=(cmake ninja git glaze hyprland-protocols hyprwayland-scanner meson pugixml)
+provides=(wayland-compositor)
+options=(!debug !lto)
+_commit=7513462e5f9ba007fab06218d7aa433521c5e8ff
+source=("Hyprland::git+https://github.com/pocket-nexus/Hyprland.git#commit=$_commit")
+sha256sums=(SKIP)
+
+prepare() {
+  cd Hyprland
+  git submodule update --init --recursive
+}
+
+build() {
+  cmake -S Hyprland -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DNO_TESTS=TRUE
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  install -Dm644 Hyprland/LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+}

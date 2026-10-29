@@ -1,0 +1,12 @@
+[Unit]
+Description=Omarchy Pocket shell (PocketJS on both panels, Mali-G52)
+After=systemd-udev-settle.service systemd-user-sessions.service
+Wants=systemd-udev-settle.service
+
+[Service]
+ExecStart=/usr/bin/pocket-rg-ds-plus --package /usr/share/pocketjs/omarchy-pocket.pocket
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

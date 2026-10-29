@@ -1,0 +1,71 @@
+#!/bin/sh
+# RG DS Plus boot chooser. Installed on the stock root (mmcblk1p6, which the
+# kernel mounts from root=PARTUUID=614e0000-0000) as /sbin/init, so it runs as
+# PID 1 before anything else.
+#
+# It starts Omarchy with systemd from the partition named "omarchy", unless
+#   - /boot-stock-once exists (deleted here, so it lasts one boot),
+#   - two Omarchy boots in a row ended before rgds-boot-ok.service deleted
+#     /.rgds-boot-tries, or
+#   - the omarchy partition is missing, does not mount, or has no systemd.
+# In those cases it hands PID 1 to the stock busybox init. PID 1 must never
+# exit, so every failure path ends in an exec.
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+TRIES=/.rgds-boot-tries
+
+log() { echo "rgds-init: $*" > /dev/kmsg; }
+
+stock() {
+  log "stock firmware: $*"
+  umount /omarchy 2>/dev/null
+  umount /sys 2>/dev/null
+  umount /proc 2>/dev/null
+  exec /bin/busybox init
+}
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+
+if [ -e /boot-stock-once ]; then
+  rm -f /boot-stock-once
+  sync
+  stock "boot-stock-once"
+fi
+
+tries=$(cat "$TRIES" 2>/dev/null)
+case "$tries" in '' | *[!0-9]*) tries=0 ;; esac
+if [ "$tries" -ge 2 ]; then
+  rm -f "$TRIES"
+  sync
+  stock "$tries Omarchy boots in a row were not confirmed"
+fi
+
+dev=
+for u in /sys/class/block/*/uevent; do
+  if grep -qx 'PARTNAME=omarchy' "$u"; then
+    dev=/dev/$(sed -n 's/^DEVNAME=//p' "$u")
+  fi
+done
+[ -n "$dev" ] && [ -b "$dev" ] || stock "no partition named omarchy"
+
+mkdir -p /omarchy
+mount -t ext4 -o rw,noatime "$dev" /omarchy || stock "mounting $dev failed"
+[ -x /omarchy/usr/lib/systemd/systemd ] || stock "$dev has no /usr/lib/systemd/systemd"
+[ -d /omarchy/mnt/stock ] || stock "$dev has no /mnt/stock"
+
+echo $((tries + 1)) > "$TRIES"
+sync
+log "Omarchy from $dev, attempt $((tries + 1))"
+
+# the kernel mounted devtmpfs on /dev; systemd mounts /proc and /sys itself
+mount --move /dev /omarchy/dev || stock "moving /dev failed"
+umount /sys
+umount /proc
+cd /omarchy || stock "cd /omarchy failed"
+# pivot_root(2) also moves this process's root and cwd to the new root. A
+# failed exec ends a non-interactive ash, so systemd was checked before this.
+if pivot_root . mnt/stock; then
+  exec /usr/lib/systemd/systemd
+fi
+mount --move /omarchy/dev /dev
+stock "pivot_root failed"

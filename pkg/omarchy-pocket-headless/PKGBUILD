@@ -1,0 +1,13 @@
+# Omarchy Pocket draws its own UI with PocketJS. The omarchy package depends
+# on Omarchy's desktop session (Hyprland, Quickshell, uwsm, SDDM, the Hyprland
+# portal); this package provides those names so the CLI, themes, config and
+# services install without the desktop session.
+pkgname=omarchy-pocket-headless
+pkgver=1
+pkgrel=1
+pkgdesc="Omarchy Pocket: provides Omarchy's desktop-session dependencies, which the PocketJS shell replaces"
+arch=(any)
+url="https://github.com/pocket-nexus/omarchy-pocket"
+license=(MIT)
+provides=(hyprland quickshell uwsm sddm xdg-desktop-portal-hyprland)
+conflicts=(hyprland quickshell uwsm sddm xdg-desktop-portal-hyprland)

@@ -1,0 +1,12 @@
+[Unit]
+Description=RG DS Plus USB debug link (FunctionFS gadget on the OTG port)
+After=sys-kernel-config.mount
+Wants=sys-kernel-config.mount
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/lib/pocket-rgds/usbmux.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

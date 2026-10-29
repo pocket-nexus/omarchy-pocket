@@ -1,0 +1,12 @@
+# makepkg output
+**/pkg/*/src/
+**/pkg/*/pkg/
+**/*.pkg.tar.*
+**/makepkg.log
+.cache/
+dist/
+vendor/
+node_modules/
+shell/src/generated/
+shell/src/fonts.json
+shell/src/wall-*.png

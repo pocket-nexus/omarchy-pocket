@@ -1,0 +1,11 @@
+[Unit]
+Description=Mark this Omarchy boot good for the RG DS Plus boot chooser
+After=multi-user.target usbmux.service
+ConditionPathExists=/mnt/stock/.rgds-boot-tries
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/rm -f /mnt/stock/.rgds-boot-tries
+
+[Install]
+WantedBy=multi-user.target
