@@ -118,6 +118,73 @@ fn options() -> Result<Option<Options>, Box<dyn Error>> {
     Ok(Some(output))
 }
 
+/// Demand presentation. The GBM displays report no buffer identity, so the
+/// presenter cannot know their pixels are retained and redraws both panels
+/// on every present. A tick whose draw lists equal the last presented ones
+/// skips rendering and the page flip; the panels keep showing that frame.
+#[derive(Default)]
+struct Presented {
+    primary: Vec<u32>,
+    auxiliary: Vec<u32>,
+    ticks: u32,
+}
+
+impl Presented {
+    /// Draws both lists and reports whether either differs from the last
+    /// presented frame, remembering the new ones.
+    fn changed(&mut self, runtime: &Runtime) -> Result<bool, Box<dyn Error>> {
+        let ops = runtime.op_context();
+        let mut state = ops.core_mut().map_err(error)?;
+        let primary = &state.ui.draw().words;
+        let mut changed = *primary != self.primary;
+        if changed {
+            self.primary.clone_from(primary);
+        }
+        if let Some(auxiliary) = state.ui.draw_auxiliary() {
+            if auxiliary.words != self.auxiliary {
+                self.auxiliary.clone_from(&auxiliary.words);
+                changed = true;
+            }
+        }
+        Ok(changed)
+    }
+
+    /// Whether `/tmp/pocket-shot` waits for a frame, checked twice a second.
+    fn readback_due(&mut self) -> bool {
+        self.ticks = self.ticks.wrapping_add(1);
+        self.ticks % 30 == 0 && std::path::Path::new("/tmp/pocket-shot").exists()
+    }
+}
+
+#[derive(Default)]
+struct Timing {
+    ticks: u32,
+    presents: u32,
+    advance: std::time::Duration,
+    draw: std::time::Duration,
+    present: std::time::Duration,
+}
+
+impl Timing {
+    fn record(&mut self, started: std::time::Instant, advanced: std::time::Instant, drawn: std::time::Instant, presented: bool) {
+        self.ticks += 1;
+        self.advance += advanced - started;
+        self.draw += drawn - advanced;
+        if presented {
+            self.presents += 1;
+            self.present += drawn.elapsed();
+        }
+        if self.ticks == 300 {
+            let per = |d: std::time::Duration, n: u32| d.as_micros() as f64 / n.max(1) as f64;
+            eprintln!(
+                "omarchy-pocket-host: {} ticks: guest+core {:.0} us, draw+compare {:.0} us; {} presents {:.0} us",
+                self.ticks, per(self.advance, self.ticks), per(self.draw, self.ticks), self.presents, per(self.present, self.presents)
+            );
+            *self = Timing::default();
+        }
+    }
+}
+
 /// omarchy-pocketd runs in the same user's systemd manager and listens in its
 /// runtime directory.
 fn default_bridge() -> PathBuf {
@@ -207,6 +274,9 @@ fn run(options: Options) -> Result<(), Box<dyn Error>> {
     }
     let mut clock = MonotonicClock::default();
     let mut schedule = TickSchedule::new(profile.tick_hz, clock.now(), 1).map_err(error)?;
+    let mut presented = Presented::default();
+    // OMARCHY_POCKET_TIMING=1: mean costs of each tick's phases every 5 s
+    let mut timing = std::env::var_os("OMARCHY_POCKET_TIMING").map(|_| Timing::default());
     while !STOP.load(Ordering::Relaxed) {
         schedule.wait_next(&mut clock).map_err(error)?;
         if let Some(shot) = shot.as_mut() {
@@ -214,7 +284,21 @@ fn run(options: Options) -> Result<(), Box<dyn Error>> {
                 break;
             }
         }
-        runtime.tick().map_err(error)?;
+        let started = timing.as_ref().map(|_| std::time::Instant::now());
+        runtime.advance().map_err(error)?;
+        let advanced = timing.as_ref().map(|_| std::time::Instant::now());
+        // --shot frames and GPU readbacks need every panel presented
+        let forced = shot.is_some() || presented.readback_due();
+        let changed = presented.changed(&runtime)?;
+        let drawn = timing.as_ref().map(|_| std::time::Instant::now());
+        if changed || forced {
+            runtime.present().map_err(error)?;
+        } else {
+            runtime.skip_presentation().map_err(error)?;
+        }
+        if let (Some(t), Some(started), Some(advanced), Some(drawn)) = (timing.as_mut(), started, advanced, drawn) {
+            t.record(started, advanced, drawn, changed || forced);
+        }
         if let Some(shot) = shot.as_mut() {
             shot.after_tick()?;
         }

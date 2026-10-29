@@ -57,6 +57,10 @@ Built in an arm64 OrbStack container from `ArchLinuxARM-aarch64-latest.tar.gz`, 
 - `--shot DIR --script …` runs the package on a Mac with the CPU raster renderer, for layout work only.
 - `touch /tmp/pocket-shot` on the device reads both panels back with `glReadPixels` into `/tmp/pocket-shot-<panel>.rgba`.
 
+**Demand presentation.** The GBM displays report no buffer identity, so PocketJS's presenter cannot keep damage history for them and redraws both panels on every present. The host draws both lists after each guest turn and presents only when either differs from the last presented frame; otherwise it skips rendering and the page flip. `/tmp/pocket-shot` forces a present (checked twice a second). `OMARCHY_POCKET_TIMING=1` logs mean tick costs every 300 ticks.
+
+**Verified** (idle menu, 2026-10-29): 25 % of a core with a present every tick, 7.2 % with demand presentation and Mali's threads idle. Per tick: guest turn and core tick about 650 µs, draw and compare about 480 µs.
+
 **Verified:** `display: GBM/EGL 1.5, GLES 2 renderer on 2 panels`. With the shell running: process RSS 73 MB (anon 30 MB), the Mali driver's context for the process 2326 pages (9 MB), system `MemAvailable` 759 MB of 953 MB. For comparison, Hyprland 0.56 alone held 305 MB of GPU memory on the same device ([hyprland-on-libmali.md](hyprland-on-libmali.md)).
 
 ## Session
