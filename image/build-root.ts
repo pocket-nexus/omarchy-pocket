@@ -57,6 +57,9 @@ const PACKAGES = [
   "openssh", "sudo", "python", "less", "man-db", "bash-completion", "bat", "btop", "eza",
   "fd", "fzf", "ripgrep", "starship", "tmux", "zoxide", "tldr", "unzip", "whois",
   "inetutils", "fastfetch", "plocate", "neovim",
+  // omarchy-pocketd and its shims run on Bun; omarchy-shell needs socat for its
+  // socket; powerprofilesctl imports gi
+  "bun-bin", "socat", "python-gobject",
 ];
 
 const steps: Step[] = [
@@ -109,21 +112,27 @@ chmod 440 /etc/sudoers.d/10-wheel`,
     name: "device",
     script: ({ user }) => `
 cp -a /repo/device/rootfs/. /
+sed -i 's/^User=omarchy$/User=${user}/' /usr/lib/systemd/system/omarchy-pocket.service
 install -Dm755 /repo/tools/usb-link/usbmux.py /usr/lib/pocket-rgds/usbmux.py
-# the shell: pocketjs programs/rg-ds-plus and the package tools/shell.ts compiles
-install -Dm755 /repo/.cache/bin/pocket-rg-ds-plus /usr/bin/pocket-rg-ds-plus
+# the shell: tools/build.ts builds the host program, the package, omarchy-pocketd and its shims
+install -Dm755 /repo/.cache/host/cargo/aarch64-unknown-linux-gnu/release/omarchy-pocket-host /usr/bin/omarchy-pocket-host
 install -Dm644 /repo/.cache/shell/omarchy-pocket.pocket /usr/share/pocketjs/omarchy-pocket.pocket
+install -Dm644 /repo/.cache/daemon/omarchy-pocketd.js /usr/lib/omarchy-pocket/omarchy-pocketd.js
+for name in hyprctl uwsm uwsm-app; do install -Dm755 /repo/.cache/daemon/shim.js /usr/local/bin/$name; done
 install -d -m 755 /usr/lib/mali
 install -m 755 /repo/.cache/blobs/libmali.so.1.9.0 /repo/.cache/blobs/libmali-hook.so.1.9.0 /usr/lib/mali/
 ln -sf libmali.so.1.9.0 /usr/lib/mali/libmali.so.1
 ln -sf libmali-hook.so.1.9.0 /usr/lib/mali/libmali-hook.so.1
 ldconfig
-ldd /usr/bin/pocket-rg-ds-plus | grep -q 'libmali.so.1 => /usr/lib/mali/libmali.so.1'
+ldd /usr/bin/omarchy-pocket-host | grep -q 'libmali.so.1 => /usr/lib/mali/libmali.so.1'
 timedatectl set-timezone Asia/Shanghai 2>/dev/null || ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 echo 'PARTLABEL=omarchy / ext4 rw,noatime 0 1' > /etc/fstab
 install -d -m 755 /mnt/stock
 systemctl enable omarchy-pocket.service rgds-lid.service usbmux.service rgds-boot-ok.service sshd.service NetworkManager.service \\
   bluetooth.service avahi-daemon.service systemd-resolved.service power-profiles-daemon.service
+systemctl --global enable omarchy-pocketd.service
+# the user manager (and omarchy-pocketd) starts at boot, before the shell's session
+install -d /var/lib/systemd/linger && touch /var/lib/systemd/linger/${user}
 systemctl mask NetworkManager-wait-online.service
 systemctl set-default multi-user.target
 id ${user}`,

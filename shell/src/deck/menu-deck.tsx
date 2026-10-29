@@ -1,0 +1,198 @@
+// The Omarchy menu on the deck (the bottom panel; app.tsx places it in the
+// AuxiliarySurface). Opening a level asks
+// omarchy-pocketd for every `when`, `checked` and `disabled` command of its
+// rows; a row with a `when` appears once its command exits 0. A row's action
+// runs through omarchy-pocketd as the Omarchy user; a failure shows as a
+// toast, and the level's conditions are read again afterwards (toggles).
+import { createMemo, createSignal, For, Show } from "solid-js";
+import { Text, View } from "@pocketjs/framework/components";
+import { BTN } from "@pocketjs/framework/input";
+import { conditions, run } from "../bridge.ts";
+import { C } from "../classes.ts";
+import { MENU } from "../generated/menu.ts";
+import { conditionsOf, pathTo, ROOT_TITLE, scrollFor, shown, type MenuItem, type MenuLevel, type Truth } from "../menu.ts";
+import { serve } from "../system.ts";
+import { toast } from "../stage/toasts.tsx";
+import { color } from "../theme.ts";
+
+const H = 384;
+const HEADER_H = 26;
+const FOOTER_H = 20;
+const ROW_H = 22;
+const ROWS = Math.floor((H - HEADER_H - FOOTER_H) / ROW_H);
+// The device program maps the RG DS Plus's A to CIRCLE and B to CROSS.
+export const OPEN = BTN.CIRCLE;
+export const BACK = BTN.CROSS;
+const CHECK = "\u{f012c}";
+const CHEVRON = "\u{f0142}";
+const ERROR = "\u{f015a}";
+const INFO = "\u{f02fc}";
+
+const levelFor = (title: string, items: MenuItem[]): MenuLevel => ({ title, items, selected: items[0]?.id ?? "", scroll: 0 });
+
+const [stack, setStack] = createSignal<MenuLevel[]>([levelFor(ROOT_TITLE, MENU)]);
+const [truth, setTruth] = createSignal<Truth>({});
+const level = () => stack()[stack().length - 1]!;
+const rows = (l: MenuLevel) => shown(l.items, truth());
+const indexIn = (l: MenuLevel) => Math.max(0, rows(l).findIndex((item) => item.id === l.selected));
+
+function evaluate(items: MenuItem[]) {
+  const commands = conditionsOf(items);
+  if (!commands.length) return;
+  conditions(commands).then(
+    (results) => setTruth((t) => ({ ...t, ...Object.fromEntries(commands.map((c, i) => [c, results[i]!])) })),
+    () => {},
+  );
+}
+
+const update = (change: (l: MenuLevel) => MenuLevel) => setStack((s) => [...s.slice(0, -1), change(s[s.length - 1]!)]);
+
+function move(delta: number) {
+  update((l) => {
+    const list = rows(l);
+    if (!list.length) return l;
+    const index = Math.max(0, Math.min(list.length - 1, indexIn(l) + delta));
+    return { ...l, selected: list[index]!.id, scroll: scrollFor(scrollOf(l, list), index, ROWS) };
+  });
+}
+
+function push(item: MenuItem) {
+  setStack((s) => [...s, levelFor(item.title, item.children)]);
+  evaluate(item.children);
+}
+
+function back() {
+  if (stack().length > 1) setStack((s) => s.slice(0, -1));
+}
+
+function lastLine(text: string): string {
+  const lines = text.trim().split("\n");
+  return lines[lines.length - 1] ?? "";
+}
+
+function activate(item: MenuItem) {
+  if (item.children.length) return push(item);
+  if (item.disabled && truth()[item.disabled]) return;
+  if (item.action) {
+    const where = level();
+    run(item.action).then(
+      (result) => {
+        if (result.code !== 0) {
+          toast({ icon: ERROR, title: `${item.label} failed (${result.code ?? "signal"})`, body: lastLine(result.stderr) || lastLine(result.stdout), tone: "error" });
+        }
+        if (level() === where || stack().includes(where)) evaluate(where.items);
+      },
+      (error) => toast({ icon: ERROR, title: item.label, body: String(error), tone: "error" }),
+    );
+  } else if (item.provider) {
+    toast({ icon: INFO, title: item.label, body: `The ${item.provider} list is not in Omarchy Pocket yet`, tone: "info" });
+  }
+}
+
+/** Opens the deck at the menu with `id` ("root" is the top). */
+function summon(id: string) {
+  const path = id === "root" ? [] : pathTo(MENU, id);
+  if (!path) return false;
+  const levels = [levelFor(ROOT_TITLE, MENU)];
+  for (const item of path) {
+    levels[levels.length - 1]!.selected = item.id;
+    if (item.children.length) levels.push(levelFor(item.title, item.children));
+  }
+  setStack(levels);
+  for (const l of levels) evaluate(l.items);
+  return true;
+}
+
+// `omarchy-shell shell summon|toggle omarchy.menu '{"menu":"system"}'` and Omarchy's
+// menu aliases land here; other plugins are not in Omarchy Pocket yet.
+function summonPlugin(id: string, payloadJson: string) {
+  if (id === "omarchy.menu") {
+    let menu = "root";
+    try {
+      menu = JSON.parse(payloadJson || "{}").menu || "root";
+    } catch {}
+    summon(menu);
+    return "ok";
+  }
+  toast({ icon: INFO, title: id, body: "This Omarchy panel is not in Omarchy Pocket yet", tone: "info" });
+  return "missing";
+}
+serve("shell", { summon: summonPlugin, toggle: summonPlugin });
+
+evaluate(MENU);
+
+export function deckPress(key: number) {
+  if (key & BTN.UP) move(-1);
+  else if (key & BTN.DOWN) move(1);
+  else if (key & BTN.LTRIGGER) move(-ROWS);
+  else if (key & BTN.RTRIGGER) move(ROWS);
+  else if (key & (OPEN | BTN.RIGHT)) {
+    const item = rows(level())[indexIn(level())];
+    if (item) activate(item);
+  } else if (key & (BACK | BTN.LEFT)) back();
+  else if (key & BTN.START) setStack((s) => s.slice(0, 1));
+}
+
+/** A tap on the deck selects the row under it; a tap on the selected row opens it. */
+export function deckTap(y: number) {
+  if (y < HEADER_H) return back();
+  if (y >= H - FOOTER_H) return;
+  const l = level();
+  const list = rows(l);
+  const index = scrollOf(l, list) + Math.floor((y - HEADER_H) / ROW_H);
+  const item = list[index];
+  if (!item) return;
+  if (item.id === l.selected) activate(item);
+  else update((v) => ({ ...v, selected: item.id }));
+}
+
+/** The level's scroll, kept inside the rows that are shown now. */
+function scrollOf(l: MenuLevel, list: MenuItem[]) {
+  return Math.max(0, Math.min(l.scroll, list.length - ROWS));
+}
+
+function Row(props: { item: MenuItem; selected: () => boolean; top: number }) {
+  const disabled = () => !!props.item.disabled && truth()[props.item.disabled] === true;
+  const checked = () => !!props.item.checked && truth()[props.item.checked] === true;
+  return (
+    <View class={C.row} style={{ insetT: props.top }}>
+      <Show when={props.selected()}>
+        <View class={C.rowOn} style={{ bgColor: color("selection") }} />
+      </Show>
+      <Text class={C.icon} style={{ textColor: color(props.selected() ? "accent" : "dark_foreground") }}>{props.item.icon}</Text>
+      <Text
+        class={C.label}
+        style={{ textColor: color(disabled() ? "dark_foreground" : props.selected() ? "bright_foreground" : "foreground") }}
+      >
+        {props.item.label}
+      </Text>
+      <Show when={props.item.children.length > 0 || checked()}>
+        <Text class={C.chevron} style={{ textColor: color(checked() ? "accent" : "dark_foreground") }}>
+          {props.item.children.length > 0 ? CHEVRON : CHECK}
+        </Text>
+      </Show>
+    </View>
+  );
+}
+
+export function MenuDeck() {
+  const visible = createMemo(() => {
+    const l = level();
+    const list = rows(l);
+    const scroll = scrollOf(l, list);
+    return list.slice(scroll, scroll + ROWS).map((item, i) => ({ item, top: HEADER_H + i * ROW_H }));
+  });
+  const crumbs = () => stack().map((l) => l.title).join(`  ${CHEVRON}  `);
+  return (
+    <View class={C.deck} style={{ bgColor: color("darker_background") }}>
+      <Text class={C.crumbs} style={{ textColor: color("accent") }}>{crumbs()}</Text>
+      <View class={C.rule} style={{ bgColor: color("muted") }} />
+      <For each={visible()}>{(row) => <Row item={row.item} selected={() => level().selected === row.item.id} top={row.top} />}</For>
+      <View class={C.footer} style={{ bgColor: color("dark_background") }}>
+        <Text class={C.hint} style={{ textColor: color("dark_foreground") }}>
+          {"A open   B back   L1/R1 page   Start menu"}
+        </Text>
+      </View>
+    </View>
+  );
+}

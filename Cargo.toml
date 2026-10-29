@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = ["host"]
+# vendored pocketjs crates resolve against their own workspace
+exclude = ["vendor"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.93"
+license = "MIT"
+repository = "https://github.com/pocket-nexus/omarchy-pocket"
+
+# The PocketJS engine and Linux drivers come from the vendored pocketjs checkout.
+[workspace.dependencies]
+pocket-runtime = { path = "vendor/pocketjs/engine/runtime" }
+pocket-drivers = { path = "vendor/pocketjs/engine/drivers" }
+pocket-raster = { path = "vendor/pocketjs/engine/raster" }
+pocket-package = { path = "vendor/pocketjs/engine/package" }
+pocket-spec = { path = "vendor/pocketjs/engine/spec" }
+pocket-guest-rquickjs = { path = "vendor/pocketjs/engine/guest-rquickjs" }
+pocket-profile-build = { path = "vendor/pocketjs/engine/profile-build" }
+pocket-linux-hooks = { path = "vendor/pocketjs/platforms/linux/hooks" }
+pocket-linux-drm = { path = "vendor/pocketjs/platforms/linux/drm" }
+pocket-linux-evdev = { path = "vendor/pocketjs/platforms/linux/evdev" }
+pocket-gles = { path = "vendor/pocketjs/devices/gles/pocket-gles" }
+pocket-gles2 = { path = "vendor/pocketjs/devices/gles/pocket-gles2" }
+rquickjs = { version = "0.12" }

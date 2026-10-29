@@ -1,0 +1,17 @@
+# omarchy-pocketd: the shell's bridge into Omarchy (its CLI, menu conditions,
+# system state) and the socket Omarchy's `omarchy-shell` CLI talks to. A
+# login shell starts it so it has Omarchy's environment (/etc/profile.d/omarchy.sh).
+# KillMode=process keeps what a menu action started running across restarts.
+[Unit]
+Description=Omarchy Pocket daemon
+# people's accounts only: not root's or a system user's manager
+ConditionUser=!@system
+
+[Service]
+ExecStart=/usr/bin/bash -lc 'exec /usr/bin/bun /usr/lib/omarchy-pocket/omarchy-pocketd.js'
+KillMode=process
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=default.target

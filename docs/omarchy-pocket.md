@@ -8,7 +8,8 @@ Omarchy Pocket runs Omarchy's CLI, themes, config and Linux services on Arch Lin
 |---|---|---|
 | Boot chain | `device/stock/rgds-init` on the stock rootfs (p6) | busybox PID 1: mounts p7 `omarchy`, pivots the stock root to `/mnt/stock`, execs systemd |
 | System | `image/build-root.ts`, `device/rootfs/` | Arch Linux ARM + Omarchy rc packages (CLI, themes, config, services), libmali, the USB link, power and lid handling |
-| Device program | pocketjs `programs/rg-ds-plus` | GBM/EGL/GLES on both DSI panels through libmali, evdev input, one QuickJS realm |
+| Device program | `host/` (omarchy-pocket-host) | GBM/EGL/GLES on both DSI panels through libmali, evdev input, one QuickJS realm, the bridge client |
+| Daemon | `daemon/` (omarchy-pocketd) | Bun, in the Omarchy user's systemd manager: runs Omarchy's CLI for the shell, serves Omarchy's `omarchy-shell` socket, reports system state |
 | Shell | `shell/` | Solid app: stage on the top panel, deck on the bottom panel |
 
 ## Boot chain
@@ -45,11 +46,11 @@ Built in an arm64 OrbStack container from `ArchLinuxARM-aarch64-latest.tar.gz`, 
 2. `headless`: builds `pkg/omarchy-pocket-headless`, which provides `hyprland`, `quickshell`, `uwsm`, `sddm` and `xdg-desktop-portal-hyprland`. `omarchy` depends on all five.
 3. `packages`: `omarchy`, `omarchy-settings` and the CLI tools and services Omarchy's install enables, without printing, Docker or the display manager. 390 packages, 2.4 GB.
 4. `user`: `omarchy` / `omarchy` (wheel, video, input, audio), root / `root`.
-5. `device`: `device/rootfs/`, libmali in `/usr/lib/mali`, `pocket-rg-ds-plus` and the shell package, timezone Asia/Shanghai, enabled units.
+5. `device`: `device/rootfs/`, libmali in `/usr/lib/mali`, `omarchy-pocket-host`, the shell package, omarchy-pocketd and its shims, timezone Asia/Shanghai, enabled units, lingering for the Omarchy user.
 
 `image/install.ts` drives the stock firmware over SSH: `check`, `partition` (refuses without the backup), `extract` (bsdtar from the ALARM chroot with `--xattrs --acls --no-fflags`), `configure` (hostname, empty machine-id, the stock SSH host keys, NetworkManager profiles, firmware, the stock kernel's Wi-Fi and Bluetooth modules), `chooser`, `reboot`.
 
-## Device program (pocketjs `programs/rg-ds-plus`)
+## Device program (`host/`)
 
 - **GPU only.** libmali's GBM device on `/dev/dri/card0`, one EGL context, one GBM surface and EGL window surface per panel, `pocket-gles2` rendering. A flush makes the panel's surface current (presentation renders every panel before flushing any), swaps, adds the GBM front buffer to KMS once and page-flips; a wait takes the flip event for that CRTC and returns the previous buffer to GBM.
 - The program links `libmali.so.1` directly: libmali's `libEGL`/`libGLESv2`/`libgbm` are 5.7 KB wrappers that export none of those symbols.
@@ -57,6 +58,40 @@ Built in an arm64 OrbStack container from `ArchLinuxARM-aarch64-latest.tar.gz`, 
 - `touch /tmp/pocket-shot` on the device reads both panels back with `glReadPixels` into `/tmp/pocket-shot-<panel>.rgba`.
 
 **Verified:** `display: GBM/EGL 1.5, GLES 2 renderer on 2 panels`. With the shell running: process RSS 73 MB (anon 30 MB), the Mali driver's context for the process 2326 pages (9 MB), system `MemAvailable` 759 MB of 953 MB. For comparison, Hyprland 0.56 alone held 305 MB of GPU memory on the same device ([hyprland-on-libmali.md](hyprland-on-libmali.md)).
+
+## Session
+
+`omarchy-pocket.service` runs `omarchy-pocket-host` as the Omarchy user with `PAMName=omarchy-pocket` on `/dev/tty1`. pam_systemd registers it as a `tty` session of class `user` on seat0, and logind makes it the user's display session. That is the position Hyprland holds under Omarchy: processes in the user's systemd manager get the active session's polkit rights.
+
+- The user is in `video` (`/dev/dri/card0`, `/dev/mali0`) and `input` (`/dev/input/event*`); the first open of `card0` makes the program DRM master.
+- `omarchy-pocketd.service` is a user unit, enabled for every account that is not a system account (`ConditionUser=!@system`). Lingering starts the user manager, and with it the daemon, at boot. It starts through `bash -lc`, so it has the environment Omarchy's `/etc/profile.d/omarchy.sh` sets.
+- `uwsm stop` (Omarchy's logout) ends the shell's session; `Restart=always` starts a new one.
+
+**Verified:** session `tty1` on seat0, `Active=yes`, `Display=` the shell's session. From the daemon's context logind's `CanSuspend`, `CanReboot` and `CanPowerOff` answer `yes`. The Omarchy menu's Lock, Suspend, Logout and Reboot ran on the device from the deck.
+
+## Bridge and daemon
+
+The shell reaches the system only through omarchy-pocketd (`daemon/protocol.ts`, one JSON object per line over `$XDG_RUNTIME_DIR/omarchy-pocket/bridge.sock`):
+
+| Request | Reply |
+|---|---|
+| `run {command}` | `bash -c command` as the Omarchy user: exit code, last 64 KiB of stdout and stderr |
+| `conditions {commands}` | one boolean per command, true where it exits 0, four at a time |
+| `state` | `SystemState`: battery (the CW2015 gauge), network (nmcli), audio (wpctl), Bluetooth (bluez over D-Bus), power profile, theme name and colors |
+| `answer {call, handled, output}` | the shell's answer to an `omarchy-shell` call |
+
+The daemon pushes `state` events when the state changes (read every 15 s and on `omarchy-shell omarchy.indicators refresh`) and `shell` events for each `omarchy-shell` call.
+
+**`omarchy-shell` works unchanged.** The CLI talks to `$XDG_RUNTIME_DIR/omarchy-shell-<md5("$OMARCHY_PATH/shell\n$WAYLAND_DISPLAY")[:16]>.sock`: arguments joined by U+001F, the request ended by U+001E, the reply `OK␟<output>␞` or `SKIP␞`. omarchy-pocketd listens there, answers `shell ping` itself, and passes every other call to the shell, where modules register targets with `serve(target, methods)` the way Quickshell plugins declare `ShellIpc` targets. An unregistered target or a shell that does not answer within 1.5 s gets `SKIP`, and the CLI reports the target missing. socat shuts its write side after the request, so the listener keeps half-open sockets (Bun needs `allowHalfOpen` and an `end` handler for that).
+
+| Target | Methods | Shell module |
+|---|---|---|
+| `shell` | `summon`, `toggle` (`omarchy.menu` opens the deck at a menu id), `applyTheme` | `deck/menu-deck.tsx`, `theme.ts` |
+| `osd` | `show`, `close`, `state`, `ping` | `stage/osd.tsx`, with Omarchy's `OsdModel.js` |
+| `lock` | `lock`, `isLocked`, `status` | `stage/lock.tsx` |
+| `pocket.input` | `hold <BUTTON> [frames]`, `tap <x> <y>` | `remote-input.ts`: drives the shell over SSH for testing |
+
+`/usr/local/bin/hyprctl`, `uwsm` and `uwsm-app` are copies of `daemon/shim.ts`, which picks the command by the name it runs under. `hyprctl` answers queries with the two panels and no windows and runs `dispatch exec`; `uwsm stop` ends the session.
 
 ## Input
 
@@ -90,9 +125,12 @@ The Wi-Fi driver (`RTL8821CS.ko`, vermagic 6.1.141) and the UART Bluetooth glue 
 
 `tools/omarchy-assets.ts` takes everything Omarchy-specific from the pinned rc packages (`omarchy`, `omarchy-settings`, `ttf-jetbrains-mono-nerd-basic`, by name and sha256):
 
-- the menu tree from `default/omarchy/omarchy-menu.jsonc` (11 root entries, 211 rows);
-- the theme's colours from `colors.toml`, substituted into `classes.template.ts`, because PocketJS keys its style table by whole class strings;
+- the menu tree from `default/omarchy/omarchy-menu.jsonc` (11 root entries, 211 rows) with each row's `when`, `checked` and `disabled` commands;
+- Omarchy's Quickshell models, the plain-JS halves of its plugins (`osd/OsdModel.js`, `panels/{power,network,audio,bluetooth}/Model.js`), as ES modules with untyped declarations: the shell picks glyphs and parses payloads with Omarchy's own code;
+- the build theme's `colors.toml` as the starting palette;
 - the theme's first background, cropped to 4:3 and cut into 256-point tiles, because a package image is a power of two of at most 512 texels;
-- `fonts.json` with Omarchy's glyph font before the JetBrainsMono Nerd Font (the Nerd Font maps a devicon at U+E900, Omarchy's logo).
+- `fonts.json` with Omarchy's glyph font before the JetBrainsMono Nerd Font (the Nerd Font maps a devicon at U+E900, Omarchy's logo), the characters of the menu and the models, Latin-1, general punctuation and arrows.
 
-The stage shows the wallpaper under Omarchy's bar (logo, workspaces 1–5, clock, Bluetooth/network/audio/power indicators, in the order of Omarchy's default `shell.json`). The deck lists the Omarchy menu: D-pad or touch moves, A opens, B goes back, L1/R1 page, L2/R2 switch workspace, Start returns to the root. Rows with a `when` condition stay hidden and actions show their command, until the Omarchy bridge evaluates conditions and runs actions.
+**Colours are run-time values.** Classes carry layout and type (`classes.ts`); each element takes its colours from the palette through its style (`bgColor`, `textColor`, `borderColor`). The palette follows the theme omarchy-pocketd reports and `omarchy-shell shell applyTheme`, which `omarchy-theme-set` calls.
+
+The stage shows the wallpaper under Omarchy's bar (logo, workspaces 1–5, clock, Bluetooth/network/audio/power indicators from SystemState, in the order of Omarchy's default `shell.json`), the OSD near its bottom edge and notices in its top-right corner. The deck lists the Omarchy menu: D-pad or touch moves, A opens, B goes back, L1/R1 page, Start returns to the root, L2/R2 switch workspace. Opening a level asks the daemon for its rows' conditions: a row with a `when` appears once its command exits 0, a `checked` row shows a check mark, a `disabled` row dims. A row's action runs through the daemon; a nonzero exit shows a notice with the command's last line of output, and the level's conditions are read again. The bottom panel holds one `AuxiliarySurface`: each portal is a flex child of the panel's root, so two portals share its width.

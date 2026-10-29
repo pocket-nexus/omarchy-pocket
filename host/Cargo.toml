@@ -1,0 +1,34 @@
+[package]
+name = "omarchy-pocket-host"
+edition.workspace = true
+description = "Omarchy Pocket's device program on the Anbernic RG DS Plus: both DSI panels through libmali GBM/EGL/GLES on KMS, the gamepad and touch through evdev, the Omarchy bridge"
+version.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "omarchy-pocket-host"
+path = "src/main.rs"
+
+[dependencies]
+pocket-runtime.workspace = true
+pocket-drivers.workspace = true
+pocket-raster.workspace = true
+pocket-package.workspace = true
+pocket-spec.workspace = true
+pocket-guest-rquickjs.workspace = true
+pocket-linux-hooks.workspace = true
+pocket-linux-drm.workspace = true
+pocket-linux-evdev.workspace = true
+rquickjs.workspace = true
+libc = "0.2.191"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+pocket-gles.workspace = true
+pocket-gles2.workspace = true
+drm = { version = "0.14.1", default-features = false }
+
+[build-dependencies]
+pocket-profile-build.workspace = true

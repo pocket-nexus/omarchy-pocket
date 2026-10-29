@@ -1,10 +1,24 @@
+# The shell is the Omarchy user's session on seat0, the way Hyprland is under
+# Omarchy: logind registers it as an active local session on tty1, so the
+# user's own `systemctl suspend|reboot|poweroff`, NetworkManager and the
+# other polkit-guarded calls Omarchy's scripts make work without a password.
 [Unit]
 Description=Omarchy Pocket shell (PocketJS on both panels, Mali-G52)
-After=systemd-udev-settle.service systemd-user-sessions.service
+After=systemd-user-sessions.service systemd-udev-settle.service getty@tty1.service
 Wants=systemd-udev-settle.service
+Conflicts=getty@tty1.service
 
 [Service]
-ExecStart=/usr/bin/pocket-rg-ds-plus --package /usr/share/pocketjs/omarchy-pocket.pocket
+User=omarchy
+PAMName=omarchy-pocket
+TTYPath=/dev/tty1
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+Environment=XDG_SESSION_TYPE=tty XDG_SESSION_CLASS=user XDG_SESSION_DESKTOP=omarchy-pocket XDG_CURRENT_DESKTOP=omarchy-pocket
+ExecStart=/usr/bin/omarchy-pocket-host
 Restart=always
 RestartSec=1
 

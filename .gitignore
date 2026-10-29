@@ -10,3 +10,5 @@ node_modules/
 shell/src/generated/
 shell/src/fonts.json
 shell/src/wall-*.png
+target/
+.pocket-build/

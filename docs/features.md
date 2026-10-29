@@ -1,0 +1,28 @@
+# Omarchy features in Omarchy Pocket
+
+Omarchy's desktop is Hyprland plus a Quickshell shell (`/usr/share/omarchy/shell`: the bar, the menu and about 30 plugins). Omarchy Pocket keeps Omarchy's CLI, config, themes and services and replaces the desktop with its PocketJS shell. This table lists each part of Omarchy's desktop and its state on the RG DS Plus. **Done** means it ran on the device; the date is the last check.
+
+| Omarchy part | Omarchy Pocket | State |
+|---|---|---|
+| Menu (`omarchy-menu.jsonc`, `omarchy.menu` plugin) | the deck: Omarchy's tree, `when`/`checked`/`disabled` from the daemon, actions through the daemon, `shell summon omarchy.menu {"menu":…}` | done 2026-10-29 |
+| System › Lock | `omarchy-system-lock` → `lock lock` → lock screen on both panels; hold A unlocks | done 2026-10-29; password unlock waits for the on-screen keyboard |
+| System › Suspend | `systemctl suspend` from the user's session | done 2026-10-29 (deep suspend, RTC wake) |
+| System › Hibernate | hidden by its `when`: no swap to resume from | — |
+| System › Logout | `omarchy-system logout` → `uwsm stop` shim → new session | done 2026-10-29 |
+| System › Reboot | `omarchy-system reboot` | done 2026-10-29 |
+| System › Shutdown | `omarchy-system shutdown`; logind answers `CanPowerOff=yes` | not run (no remote power-on) |
+| System › Screensaver | needs a terminal (`xdg-terminal-exec`) | waits for Pocket Term |
+| OSD (`omarchy-osd`, `osd` plugin) | stage overlay with Omarchy's `OsdModel.js` | done 2026-10-29 |
+| Bar: clock, indicators | clock; Bluetooth, network, audio, battery glyphs from SystemState via Omarchy's panel models | done 2026-10-29; audio reads null until PipeWire runs for the user |
+| Bar: workspaces | five static workspaces, L2/R2 select | no windows to place on them |
+| Theme colours (`omarchy-theme-set` → `shell applyTheme`) | run-time palette | done 2026-10-29 (Catppuccin, Gruvbox, Tokyo Night) |
+| Theme backgrounds (`background` plugin) | wallpaper tiles baked into the package | run-time backgrounds planned |
+| Notifications (`notifications` plugin, D-Bus `org.freedesktop.Notifications`) | menu action failures show as notices | D-Bus server planned |
+| Terminal (Alacritty/foot/kitty under Hyprland) | — | Pocket Term planned |
+| Text input, IME (fcitx5) | — | on-screen keyboard and pinyin planned |
+| Setup (Wi-Fi, Bluetooth, audio, power, display, timezone panels) | — | planned |
+| Install / Remove / Update | terminal TUIs | wait for Pocket Term |
+| Apps (`dock` plugin, app launcher) | — | planned: PocketJS applets |
+| Trigger (screenshot, screen recording, share) | — | screenshot planned through the GPU readback |
+| Learn (web apps) | no browser without a compositor | not planned |
+| Clipboard, emojis, reminders, agents, image picker | — | planned after the keyboard |
