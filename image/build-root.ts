@@ -64,6 +64,8 @@ const PACKAGES = [
   // without pipewire-audio); the tools Omarchy's menus run
   "pipewire-audio", "pipewire-alsa", "pipewire-pulse", "expac", "yay", "xdg-terminal-exec",
   "bluez-tools", "qrencode", "inotify-tools",
+  // backgrounds: vipsthumbnail as in Omarchy's omarchy-menu-images; magick for omarchy-bar-text-color
+  "libvips", "imagemagick",
 ];
 
 const steps: Step[] = [

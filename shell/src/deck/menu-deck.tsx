@@ -12,6 +12,7 @@ import { C } from "../classes.ts";
 import { MENU } from "../generated/menu.ts";
 import { conditionsOf, pathTo, ROOT_TITLE, scrollFor, shown, type MenuItem, type MenuLevel, type Truth } from "../menu.ts";
 import { serve } from "../system.ts";
+import { openThemePicker } from "./picker.tsx";
 import { toast } from "../stage/toasts.tsx";
 import { color } from "../theme.ts";
 
@@ -113,6 +114,16 @@ function summonPlugin(id: string, payloadJson: string) {
     } catch {}
     summon(menu);
     return "ok";
+  }
+  if (id === "omarchy.image-picker") {
+    let source = "";
+    try {
+      source = JSON.parse(payloadJson || "{}").source || "";
+    } catch {}
+    if (source === "themes") {
+      openThemePicker();
+      return "ok";
+    }
   }
   toast({ icon: INFO, title: id, body: "This Omarchy panel is not in Omarchy Pocket yet", tone: "info" });
   return "missing";

@@ -21,6 +21,8 @@ import { bridgePath, shellPath } from "./paths.ts";
 import type { DaemonMessage, Request, RunResult, SystemState } from "./protocol.ts";
 import { CLOSED, Notifications } from "./notifications.ts";
 import { Terminals, type OpenOptions } from "./term.ts";
+import { wallpaper } from "./wallpaper.ts";
+import { RUNTIME } from "./paths.ts";
 
 const HOME = process.env.HOME ?? "/home/omarchy";
 const OUTPUT_LIMIT = 64 * 1024;
@@ -257,6 +259,9 @@ async function handle(socket: Socket<Peer>, request: Request) {
         break;
       case "notifyList":
         result = notifications.list();
+        break;
+      case "wallpaper":
+        result = await wallpaper(RUNTIME, HOME, request.path);
         break;
       default:
         throw new Error(`unknown method ${(request as { method: string }).method}`);

@@ -50,7 +50,9 @@ export type Request =
   | { id: number; method: "notifyInvoke"; notice: number; action: number }
   | { id: number; method: "notifyDismiss"; notice: number }
   /** Recent notifications, newest first. */
-  | { id: number; method: "notifyList" };
+  | { id: number; method: "notifyList" }
+  /** Omarchy's current background (or `path`) as wallpaper textures. */
+  | { id: number; method: "wallpaper"; path?: string };
 
 /** A request without its id, as the shell's bridge.request() takes it. */
 export type RequestBody = Request extends infer R ? (R extends { id: number } ? Omit<R, "id"> : never) : never;
@@ -62,6 +64,16 @@ export interface RunResult {
 }
 
 export type Reply = { id: number; ok: true; result: unknown } | { id: number; ok: false; error: string };
+
+/** One wallpaper texture: a raw RGBA8888 file of w x h pixels at (x, y) on
+ *  the top panel's 1024 x 768 pixels. */
+export interface WallTile {
+  file: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 /** A desktop notification (org.freedesktop.Notifications Notify). */
 export interface Notice {

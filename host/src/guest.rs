@@ -4,15 +4,45 @@
 //! the start of each guest turn it hands the lines the daemon sent to
 //! `globalThis.__omarchyBridgeReceive(lines)`. The realm never waits on the
 //! daemon, and every reply lands at a tick boundary.
+//!
+//! `omarchyBridge.loadTexture(path, w, h)` uploads a raw RGBA8888 file the
+//! daemon wrote (a wallpaper tile) as a texture and returns its handle, or
+//! -1: image bytes never cross the JSON bridge or the JS heap.
 use crate::bridge::Bridge;
 use pocket_guest_rquickjs::RquickjsGuest;
-use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpContext, RuntimeError};
+use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, RuntimeError};
+use pocket_spec::op;
 use rquickjs::{Function, Object};
 use std::{cell::RefCell, rc::Rc};
 
 pub struct BridgedGuest {
     inner: RquickjsGuest,
     bridge: Rc<RefCell<Bridge>>,
+    ops: Option<OpContext>,
+}
+
+/// PSM_8888, the RGBA texture format of spec ops
+const PSM_8888: i64 = 3;
+const TEXTURE_MAX: usize = 512;
+
+/// Reads `path` (w*h RGBA8888) and uploads it; -1 when the file or the size is wrong.
+fn load_texture(ops: &OpContext, path: &str, w: usize, h: usize) -> i64 {
+    if !(w.is_power_of_two() && h.is_power_of_two() && w <= TEXTURE_MAX && h <= TEXTURE_MAX) {
+        return -1;
+    }
+    let Ok(bytes) = std::fs::read(path) else { return -1 };
+    if bytes.len() != w * h * 4 {
+        return -1;
+    }
+    let args = [OpArg::Bytes(&bytes), OpArg::Integer(w as i64), OpArg::Integer(h as i64), OpArg::Integer(PSM_8888)];
+    match ops.dispatch(op::UPLOAD_TEXTURE as u16, &args) {
+        Ok(OpResult::Integer(handle)) => handle,
+        Ok(_) => -1,
+        Err(error) => {
+            eprintln!("omarchy-pocket-host: uploading {path}: {error:?}");
+            -1
+        }
+    }
 }
 
 impl BridgedGuest {
@@ -20,11 +50,13 @@ impl BridgedGuest {
         Self {
             inner: RquickjsGuest::default(),
             bridge: Rc::new(RefCell::new(bridge)),
+            ops: None,
         }
     }
 
     fn install(&self) -> Result<(), RuntimeError> {
         let bridge = self.bridge.clone();
+        let ops = self.ops.clone().ok_or(RuntimeError::Guest)?;
         let installed = self.inner.with(|ctx| -> rquickjs::Result<()> {
             let object = Object::new(ctx.clone())?;
             object.set(
@@ -32,6 +64,10 @@ impl BridgedGuest {
                 Function::new(ctx.clone(), move |line: String| {
                     bridge.borrow_mut().send(&line);
                 })?,
+            )?;
+            object.set(
+                "loadTexture",
+                Function::new(ctx.clone(), move |path: String, w: u32, h: u32| load_texture(&ops, &path, w as usize, h as usize))?,
             )?;
             ctx.globals().set("omarchyBridge", object)
         });
@@ -62,6 +98,7 @@ impl BridgedGuest {
 
 impl Guest for BridgedGuest {
     fn initialize(&mut self, ops: OpContext, environment: &GuestEnvironment<'_>) -> Result<(), RuntimeError> {
+        self.ops = Some(ops.clone());
         self.inner.initialize(ops, environment)?;
         self.install()
     }

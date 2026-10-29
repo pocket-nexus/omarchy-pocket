@@ -43,6 +43,7 @@ const MODELS = {
   "network-model": "panels/network/Model.js",
   "audio-model": "panels/audio/Model.js",
   "bluetooth-model": "panels/bluetooth/Model.js",
+  "image-picker-model": "image-picker/ImagePickerModel.js",
 };
 // QML whose glyphs the shell draws through its own code (the bar indicators)
 const GLYPH_SOURCES = ["panels/audio/Panel.qml", "panels/bluetooth/Panel.qml"];

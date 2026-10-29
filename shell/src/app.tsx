@@ -8,16 +8,18 @@
 // The bottom panel has one AuxiliarySurface: each portal is a flex child of
 // the panel's root, so two would share its width.
 import { createSignal, Show } from "solid-js";
-import { AuxiliarySurface, Image, View } from "@pocketjs/framework/components";
+import { AuxiliarySurface, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { auxiliaryTouches, BTN } from "@pocketjs/framework/input";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { BACK, deckPress, deckTap, MenuDeck, OPEN } from "./deck/menu-deck.tsx";
+import { Picker, pickerOpen, pickerPress, pickerTap } from "./deck/picker.tsx";
 import { remoteButtons, remoteContact } from "./remote-input.ts";
 import { Bar } from "./stage/bar.tsx";
 import { LockDeck, lockFrame, LockStage } from "./stage/lock.tsx";
 import { Osd } from "./stage/osd.tsx";
 import { actOnNewest, Toasts } from "./stage/toasts.tsx";
+import { Wallpaper } from "./stage/wallpaper.tsx";
 import { TermGrid } from "./term/grid.tsx";
 import { Keyboard, keyboardTouch, latch, sendKey, TABS_HEIGHT, tabsTap } from "./term/keyboard.tsx";
 import { cycle, hide, openTerminal, shown as termShown } from "./term/store.ts";
@@ -47,6 +49,7 @@ export default function Shell() {
 
   const [workspace, setWorkspace] = createSignal(1);
   const press = (key: number) => {
+    if (pickerOpen()) return pickerPress(key);
     if (termShown()) return termPress(key);
     if (key & BTN.SELECT) openTerminal();
     else if (key & BTN.SQUARE) actOnNewest(true);
@@ -89,6 +92,14 @@ export default function Shell() {
       if (down & key) press(key);
       else if (key & REPEATS & buttons && heldFor > REPEAT_AFTER && (heldFor - REPEAT_AFTER) % REPEAT_EVERY === 0) press(key);
     }
+    if (pickerOpen()) {
+      if (contact) touch = { x: contact.x, y: contact.y };
+      else if (touch) {
+        pickerTap(touch.y);
+        touch = null;
+      }
+      return;
+    }
     if (termShown()) {
       // the tab strip acts on release; the keyboard tracks the finger
       if (contact && (contact.y >= TABS_HEIGHT || touch)) keyboardTouch(contact);
@@ -109,10 +120,7 @@ export default function Shell() {
 
   return (
     <View class="absolute left-0 top-0 w-[512] h-[384]">
-      <Image class="absolute left-0 top-0 w-[256] h-[256]" src="wall-0-0.png" />
-      <Image class="absolute left-[256] top-0 w-[256] h-[256]" src="wall-1-0.png" />
-      <Image class="absolute left-0 top-[256] w-[256] h-[128]" src="wall-0-1.png" />
-      <Image class="absolute left-[256] top-[256] w-[256] h-[128]" src="wall-1-1.png" />
+      <Wallpaper />
       <Show when={termShown()}>
         <TermGrid />
       </Show>
@@ -121,8 +129,10 @@ export default function Shell() {
       <Toasts />
       <LockStage clock={time} date={date} />
       <AuxiliarySurface>
-        <Show when={termShown()} fallback={<MenuDeck />}>
-          <Keyboard />
+        <Show when={!pickerOpen()} fallback={<Picker />}>
+          <Show when={termShown()} fallback={<MenuDeck />}>
+            <Keyboard />
+          </Show>
         </Show>
         <LockDeck />
       </AuxiliarySurface>
