@@ -1,0 +1,17 @@
+# The swap on the zram device systemd-zram-setup@zram0 formats
+# (zram-generator.conf). zram-generator 1.2.1 sets the device up on this
+# image but writes no swap unit for it, and systemd here refuses .swap units
+# ("unit type not supported"), so swapon runs from this unit.
+[Unit]
+Description=Compressed swap on /dev/zram0
+Requires=systemd-zram-setup@zram0.service
+After=systemd-zram-setup@zram0.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/swapon --priority 100 --discard /dev/zram0
+ExecStop=/usr/bin/swapoff /dev/zram0
+
+[Install]
+WantedBy=multi-user.target

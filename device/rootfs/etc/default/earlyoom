@@ -1,0 +1,5 @@
+# earlyoom acts before the kernel thrashes (this kernel has no PSI, so
+# systemd-oomd cannot): under 6 % of RAM and 10 % of swap left it ends the
+# largest process, a coding agent first, never the shell, its daemon, the
+# proxy or sshd.
+EARLYOOM_ARGS="-m 6 -s 10 -r 0 --prefer '^(codex|claude|node|opencode|python3?)$' --avoid '^(omarchy-pocket-h|bun|mihomo|sshd|systemd|NetworkManager)$'"

@@ -1,8 +1,9 @@
 // The deck's bottom band, the remote's launch bar: Omarchy's menu, the
 // shell's windows (a tap opens one beside the focused window, or focuses it
 // where it is; Terminal always opens a new session; Agent opens one running
-// Omarchy's `omarchy-agent --pick`, the default coding agent, as Omarchy's
-// SUPER + SHIFT + CTRL + A does), then the applets (X,
+// Omarchy's default coding agent, as Omarchy's SUPER + SHIFT + CTRL + A does,
+// in that window: `omarchy-agent --inline --pick`, since the launcher's own
+// terminal hand-off opens nothing from inside a session), then the applets (X,
 // Discord, YouTube, Hacker News: one window each, focused when it is open).
 // Every cell launches; the deck's modes are the strip's switch. Glyphs carry
 // no labels; the pressed cell fills with the accent and names itself above
@@ -63,7 +64,7 @@ const applet = (name: string, glyph: string, label: string, x: number): Item => 
 const ITEMS: Item[] = [
   { id: "menu", glyph: "\u{e900}", label: "menu", x: 16, tap: toggleMenu, on: menuOpen },
   { id: "terminal", glyph: "\u{f018d}", label: "terminal", x: 16 + CELL + 6, tap: () => openTerminal(), app: stateOf((w) => w.kind === "terminal") },
-  { id: "agent", glyph: "\u{f06a9}", label: "agent", x: 16 + CELL * 2 + 6, tap: () => openTerminal(["omarchy-agent", "--pick"], "Agent") },
+  { id: "agent", glyph: "\u{f06a9}", label: "agent", x: 16 + CELL * 2 + 6, tap: () => openTerminal(["omarchy-agent", "--inline", "--pick"], "Agent") },
   app("notes", "\u{f09ed}", "notes", 16 + CELL * 3 + 6),
   app("activity", "\u{f04c5}", "activity", 16 + CELL * 4 + 6),
   app("pictures", "\u{f02e9}", "pictures", 16 + CELL * 5 + 6),

@@ -53,7 +53,7 @@ Include = /etc/pacman.d/mirrorlist
 const PACKAGES = [
   "omarchy", "omarchy-settings",
   "bluez", "bluez-utils", "alsa-utils", "brightnessctl", "pamixer", "avahi", "nss-mdns",
-  "omarchy-power-profiles-daemon", "zram-generator", "rtkit", "tzupdate", "wireless-regdb",
+  "omarchy-power-profiles-daemon", "zram-generator", "earlyoom", "rtkit", "tzupdate", "wireless-regdb",
   "openssh", "sudo", "python", "less", "man-db", "bash-completion", "bat", "btop", "eza",
   "fd", "fzf", "ripgrep", "starship", "tmux", "zoxide", "tldr", "unzip", "whois",
   "inetutils", "fastfetch", "plocate", "neovim",
@@ -146,7 +146,7 @@ timedatectl set-timezone Asia/Shanghai 2>/dev/null || ln -sf /usr/share/zoneinfo
 echo 'PARTLABEL=omarchy / ext4 rw,noatime 0 1' > /etc/fstab
 install -d -m 755 /mnt/stock
 systemctl enable omarchy-pocket.service rgds-lid.service rgds-bluetooth.service usbmux.service rgds-boot-ok.service sshd.service NetworkManager.service \\
-  bluetooth.service avahi-daemon.service systemd-resolved.service power-profiles-daemon.service
+  bluetooth.service avahi-daemon.service systemd-resolved.service power-profiles-daemon.service earlyoom.service omarchy-pocket-zram.service
 systemctl --global enable omarchy-pocketd.service
 # the user manager (and omarchy-pocketd) starts at boot, before the shell's session
 install -d /var/lib/systemd/linger && touch /var/lib/systemd/linger/${user}
