@@ -24,6 +24,7 @@ import { CLOSED, Notifications } from "./notifications.ts";
 import { Terminals, type OpenOptions } from "./term.ts";
 import { wallpaper } from "./wallpaper.ts";
 import * as panels from "./panels.ts";
+import * as proxy from "./proxy.ts";
 import { checkPassword, watchSleep } from "./session.ts";
 import { Glyphs } from "./glyphs.ts";
 import { commonHanzi, Ime } from "./ime.ts";
@@ -151,14 +152,20 @@ async function bluetooth(): Promise<SystemState["bluetooth"]> {
   return text ? { powered: text === "b true" } : null;
 }
 
+async function proxyState(): Promise<SystemState["proxy"]> {
+  if (!proxy.installed()) return null;
+  return { running: (await output(["systemctl", "is-active", "mihomo.service"])) === "active" };
+}
+
 async function systemState(): Promise<SystemState> {
-  const [net, sound, bt, profile] = await Promise.all([network(), audio(), bluetooth(), output(["powerprofilesctl", "get"])]);
+  const [net, sound, bt, profile, proxied] = await Promise.all([network(), audio(), bluetooth(), output(["powerprofilesctl", "get"]), proxyState()]);
   return {
     battery: battery(),
     network: net,
     audio: sound,
     bluetooth: bt,
     powerProfile: profile,
+    proxy: proxied,
     theme: theme(),
     bar: bar.settings(),
     idle: bar.idle(),
@@ -350,6 +357,18 @@ async function handle(socket: Socket<Peer>, request: Request) {
         break;
       case "power":
         result = await panels.power();
+        break;
+      case "proxy": {
+        const panel = await proxy.proxy();
+        // node names are CJK: their glyphs are baked as the panel asks
+        glyphs.want(panel.groups.map((g) => `${g.name}${g.now}`).join(""));
+        result = panel;
+        break;
+      }
+      case "proxySet":
+        await proxy.proxySet(request);
+        void refresh();
+        result = null;
         break;
       case "powerSet":
         await panels.powerSet(request);

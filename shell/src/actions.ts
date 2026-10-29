@@ -7,7 +7,7 @@ import { run } from "./bridge.ts";
 import type { Action } from "./chords.ts";
 import { appletById, openApplet } from "./applets/applet.ts";
 import { body, setBody } from "./deck/body.ts";
-import { toRoot } from "./deck/menu-deck.tsx";
+import { toggleMenu } from "./stage/menu.tsx";
 import { toggleSheet } from "./stage/keysheet.tsx";
 import { toast } from "./stage/toasts.tsx";
 import { state } from "./system.ts";
@@ -23,11 +23,7 @@ const fail = (title: string) => (result: { code: number | null; stderr: string }
   if (result.code !== 0) toast({ icon: "\u{f015a}", title, body: result.stderr.trim().split("\n").pop() ?? "", tone: "error" });
 };
 
-/** Omarchy's menu on the deck (L1 + A, the dock's menu cell), from its root. */
-export function toggleMenu() {
-  if (body() !== "menu") toRoot();
-  setBody(body() === "menu" ? "map" : "menu");
-}
+export { toggleMenu };
 
 /** The focused window's keyboard or controls on the deck (SELECT). */
 export function toggleControls() {

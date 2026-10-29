@@ -16,13 +16,24 @@
 //!
 //! An app's realm has `globalThis.net` (net.rs): HTTP and the companion's
 //! services, which omarchy-pocketd performs.
+//!
+//! The shell sizes an app's touch surface to the tile its window has
+//! (`openApp(path, w, h)`, `resizeApp`): the host gives the surface's texture
+//! the new size, the Runtime takes it (`resize_auxiliary`), and the app's
+//! realm hears `__omarchyResized(w, h)` before its next frame, where an
+//! applet lays itself out again for the new size.
 use crate::net;
 use pocket_drivers::{Contact, InputClasses, InputFrameBuilder, InputSource};
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_linux_hooks::FileSource;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, Profile, Runtime, RuntimeConfig, RuntimeError};
 use pocket_spec::op;
-use std::{cell::RefCell, error::Error, path::PathBuf, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    error::Error,
+    path::PathBuf,
+    rc::Rc,
+};
 
 /// What the shell feeds an app each frame.
 #[derive(Default)]
@@ -58,10 +69,15 @@ struct App {
     /// the draw lists last rendered, to render only what changed
     primary: Vec<u32>,
     auxiliary: Vec<u32>,
+    /// resizes the touch surface's texture
+    #[cfg(target_os = "linux")]
+    surface: crate::gpu::AppSize,
+    resized: Rc<Cell<Option<[u32; 2]>>>,
 }
 
 enum Request {
-    Open(u32, PathBuf),
+    Open(u32, PathBuf, Option<[u32; 2]>),
+    Resize(u32, [u32; 2]),
     Close(u32),
 }
 
@@ -70,12 +86,16 @@ struct AppGuest {
     inner: RquickjsGuest,
     net: net::Shared,
     app: u32,
+    /// a new touch-surface size the realm has not heard of yet
+    resized: Rc<Cell<Option<[u32; 2]>>>,
 }
 
 impl Guest for AppGuest {
     fn initialize(&mut self, ops: OpContext, environment: &GuestEnvironment<'_>) -> Result<(), RuntimeError> {
         self.inner.initialize(ops, environment)?;
-        match self.inner.with(|ctx| net::install(&ctx, &self.net, self.app)) {
+        // `__omarchyWindow`: the shell sizes this app's touch surface before it lays out
+        let installed = self.inner.with(|ctx| net::install(&ctx, &self.net, self.app).and_then(|()| ctx.globals().set("__omarchyWindow", true)));
+        match installed {
             Some(Ok(())) => Ok(()),
             Some(Err(error)) => {
                 eprintln!("omarchy-pocket-host: installing net in app {}: {error}", self.app);
@@ -88,6 +108,18 @@ impl Guest for AppGuest {
         self.inner.evaluate(code)
     }
     fn frame(&mut self, frame: &GuestFrame<'_>) -> Result<(), RuntimeError> {
+        if let Some([w, h]) = self.resized.take() {
+            let told = self.inner.with(|ctx| -> rquickjs::Result<()> {
+                let hook: Option<rquickjs::Function> = ctx.globals().get("__omarchyResized")?;
+                match hook {
+                    Some(hook) => hook.call::<_, ()>((w, h)),
+                    None => Ok(()),
+                }
+            });
+            if let Some(Err(error)) = told {
+                eprintln!("omarchy-pocket-host: app {} resize: {error}", self.app);
+            }
+        }
         self.inner.frame(frame)
     }
     fn collect(&mut self) -> Result<(), RuntimeError> {
@@ -118,12 +150,18 @@ impl Children {
         Rc::new(RefCell::new(Self { next: 0, apps: Vec::new(), requests: Vec::new(), events: Vec::new(), net }))
     }
 
-    /// Queues an app to open; its id now, its textures with the `app` event.
-    pub fn open(&mut self, path: PathBuf) -> u32 {
+    /// Queues an app to open, its touch surface `size` logical points when
+    /// given; its id now, its textures with the `app` event.
+    pub fn open(&mut self, path: PathBuf, size: Option<[u32; 2]>) -> u32 {
         self.next += 1;
         let id = self.next;
-        self.requests.push(Request::Open(id, path));
+        self.requests.push(Request::Open(id, path, size));
         id
+    }
+
+    /// Queues a new size for an app's touch surface, in logical points.
+    pub fn resize(&mut self, id: u32, size: [u32; 2]) {
+        self.requests.push(Request::Resize(id, size));
     }
 
     pub fn close(&mut self, id: u32) {
@@ -160,16 +198,20 @@ impl Children {
     pub fn tick(&mut self, shell: &mut Runtime, profile: &Profile, compositor: &crate::gpu::Compositor) -> bool {
         for request in std::mem::take(&mut self.requests) {
             match request {
-                Request::Open(id, path) => match self.boot(id, &path, shell, profile, compositor) {
+                Request::Open(id, path, size) => match self.boot(id, &path, shell, profile, compositor) {
                     Ok(handles) => {
                         let list = handles.iter().map(|h| h.to_string()).collect::<Vec<_>>().join(",");
                         self.event(id, "textures", format!("[{list}]"));
+                        if let Some(size) = size {
+                            self.resize_now(id, size, profile.density);
+                        }
                     }
                     Err(failure) => {
                         eprintln!("omarchy-pocket-host: app {}: {failure}", path.display());
                         self.event(id, "error", net::json_string(&failure.to_string()));
                     }
                 },
+                Request::Resize(id, size) => self.resize_now(id, size, profile.density),
                 Request::Close(id) => self.end(id, shell, compositor),
             }
         }
@@ -205,6 +247,8 @@ impl Children {
         })
         .map_err(error)?;
         runtime.set_package_source(Box::new(FileSource::open(path)?)).map_err(error)?;
+        // the shell resizes the touch surface to its window's tile
+        runtime.allow_embedded_viewport_changes().map_err(error)?;
         let renderer = runtime.add_renderer(gpu.renderer).map_err(error)?;
         for display in gpu.displays {
             runtime.add_display(display, renderer).map_err(error)?;
@@ -212,7 +256,8 @@ impl Children {
         let feed = Rc::new(RefCell::new(Feed::default()));
         runtime.add_input_source(Box::new(FedInput(feed.clone()))).map_err(error)?;
         self.net.borrow_mut().add_app(id, path.display().to_string());
-        let guest = AppGuest { inner: RquickjsGuest::default(), net: self.net.clone(), app: id };
+        let resized = Rc::new(Cell::new(None));
+        let guest = AppGuest { inner: RquickjsGuest::default(), net: self.net.clone(), app: id, resized: resized.clone() };
         runtime.set_guest(Box::new(guest)).map_err(error)?;
         if let Err(failure) = runtime.boot() {
             self.net.borrow_mut().remove_app(id);
@@ -230,8 +275,34 @@ impl Children {
             compositor.bind(handle, Some(*texture));
             handles.push(handle);
         }
-        self.apps.push(App { id, runtime, feed, handles: handles.clone(), visible: true, primary: Vec::new(), auxiliary: Vec::new() });
+        let mut sizes = gpu.sizes;
+        let surface = sizes.pop().ok_or("the app has no touch surface")?;
+        self.apps.push(App { id, runtime, feed, handles: handles.clone(), visible: true, primary: Vec::new(), auxiliary: Vec::new(), surface, resized });
         Ok(handles)
+    }
+
+    /// Gives the app's touch surface `size` logical points: the texture, the
+    /// Runtime, then the realm before its next frame. A size the Runtime
+    /// refuses leaves the old one in place.
+    #[cfg(target_os = "linux")]
+    fn resize_now(&mut self, id: u32, size: [u32; 2], density: u32) {
+        let Some(app) = self.apps.iter_mut().find(|a| a.id == id) else { return };
+        let physical = [size[0] * density, size[1] * density];
+        let old = app.surface.get();
+        if old == physical {
+            return;
+        }
+        if let Err(failure) = app.surface.set(physical) {
+            eprintln!("omarchy-pocket-host: app {id} resize: {failure}");
+            return;
+        }
+        if let Err(failure) = app.runtime.resize_auxiliary(size, physical) {
+            eprintln!("omarchy-pocket-host: app {id} resize to {size:?}: {failure:?}");
+            let _ = app.surface.set(old);
+            return;
+        }
+        app.resized.set(Some(size));
+        app.auxiliary.clear();
     }
 
     #[cfg(target_os = "linux")]

@@ -73,6 +73,9 @@ export type Request =
   | { id: number; method: "audio" }
   | { id: number; method: "audioSet"; kind: "sink" | "source"; name: string; volume?: number; muted?: boolean; current?: boolean }
   | { id: number; method: "power" }
+  /** mihomo's unit, mode and groups (daemon/proxy.ts) */
+  | { id: number; method: "proxy" }
+  | { id: number; method: "proxySet"; running?: boolean; mode?: string; group?: string; node?: string; test?: string }
   | { id: number; method: "powerSet"; profile?: string; brightness?: number }
   | { id: number; method: "bluetooth"; scan?: boolean }
   | { id: number; method: "bluetoothPower"; on: boolean }
@@ -257,6 +260,15 @@ export interface BluetoothPanel {
   devices: BluetoothDevice[];
 }
 
+/** mihomo, the proxy (daemon/proxy.ts): its unit, its mode and its selector groups. */
+export interface ProxyPanel {
+  installed: boolean;
+  running: boolean;
+  /** rule, global or direct */
+  mode: string;
+  groups: { name: string; now: string; all: string[]; delay: number | null }[];
+}
+
 export interface PowerPanel {
   profiles: string[];
   profile: string;
@@ -295,6 +307,8 @@ export interface SystemState {
   audio: { volume: number; muted: boolean } | null;
   bluetooth: { powered: boolean } | null;
   powerProfile: string | null;
+  /** mihomo, when it is installed */
+  proxy: { running: boolean } | null;
   /** Omarchy's current theme: its name and colors.toml */
   theme: { name: string; colors: Record<string, string> } | null;
   bar: BarSettings;

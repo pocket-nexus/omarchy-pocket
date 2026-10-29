@@ -1,12 +1,14 @@
 // Omarchy Pocket's shell: Omarchy's desktop on the RG DS Plus's two
 // 512x384-point panels, with Pocket Shell's 3DS interaction. The top panel is
-// the stage: the wallpaper, the current workspace's windows tiled the way
-// Omarchy tiles Hyprland (wm.ts) and moved on the core's animation tracks
-// (workspaces.ts), Omarchy's bar, the OSD, notices and the key sheet. The
-// bottom panel is the deck: the strip (L1/R1 pills, workspaces, layout, the
-// bar's indicators), the body (deck/body.ts: the live minimap unless a chord
-// card, a panel, the menu or the focused window's controls are asked for)
-// and the dock.
+// the stage, a screen on the wall that takes no touch: the wallpaper, the
+// current workspace's windows tiled the way Omarchy tiles Hyprland (wm.ts)
+// and moved on the core's animation tracks (workspaces.ts), Omarchy's bar,
+// the card (Omarchy's menu, the bar's panels, the theme picker), the OSD,
+// notices and the key sheet. The bottom panel is the deck, the stage's
+// remote: the strip (L1/R1 pills, workspaces, layout, the bar's
+// indicators), the body (deck/body.ts: the live minimap unless a chord card,
+// the card's remote or the focused window's controls are asked for) and the
+// dock.
 //
 // The gamepad: L1, R1 and both together are the chord layers of chords.ts;
 // with no shoulder held the buttons belong to the focused window, SELECT
@@ -34,12 +36,15 @@ import { ChordCard, chordCardTouch, chordTarget } from "./deck/chord-card.tsx";
 import { Dock, dockTap, dockTarget } from "./deck/dock.tsx";
 import { BODY_H, BODY_TOP, DOCK_TOP, STRIP_H } from "./deck/geometry.ts";
 import { layer, releasePills, setHeld } from "./deck/layer.ts";
-import { atRoot, BACK, deckPress, MenuDeck, menuTouch, OPEN } from "./deck/menu-deck.tsx";
+import { BACK, closeMenu, OPEN } from "./stage/menu.tsx";
 import { Minimap, minimapTouch } from "./deck/minimap.tsx";
-import { closePanel, openPanel, panelPress, Panels, panelTouch, passwordEntry } from "./deck/panels.tsx";
-import { Picker, pickerOpen, pickerPress, pickerTouch } from "./deck/picker.tsx";
+import { openPanel, passwordEntry } from "./stage/panels.tsx";
+import { Card, card, cardPress } from "./stage/card.tsx";
+import { Remote, remoteTouch } from "./deck/remote.tsx";
+import { Touchpad, touchpadTouch } from "./deck/touchpad.tsx";
+import { Pointer, pointerContacts } from "./stage/pointer.tsx";
 import { pressAt } from "./deck/press.ts";
-import { Strip, stripTap, stripTarget } from "./deck/strip.tsx";
+import { Strip, stripTap, stripTarget, takesKeys } from "./deck/strip.tsx";
 import { remoteButtons } from "./remote-input.ts";
 import { Bar } from "./stage/bar.tsx";
 import { KeySheet } from "./stage/keysheet.tsx";
@@ -56,7 +61,7 @@ import { Keyboard, keyboardTouch, sendKey, setWindowKeys } from "./term/keyboard
 import { band, trackTouches, type TouchFrame } from "./touch.ts";
 import "./windows.ts";
 import { current, focused, revision, visibleWindows, windowsOn, WORKSPACES } from "./workspaces.ts";
-import { feedPackage, showPackage } from "./packages.ts";
+import { appletRefused, feedPackage, showPackage } from "./packages.ts";
 import { AppControls, appControlsTouch } from "./deck/app-controls.tsx";
 
 const REPEATS = BTN.UP | BTN.DOWN | BTN.LEFT | BTN.RIGHT;
@@ -80,7 +85,7 @@ const TERM_KEYS: [number, string][] = [
 ];
 
 /** What the body shows, by the rules in deck/body.ts. */
-type Shown = "chords" | "picker" | "panel" | "menu" | "controls" | "map";
+type Shown = "chords" | "remote" | "keys" | "touchpad" | "controls" | "map";
 
 export default function Shell() {
   const [now, setNow] = createSignal(new Date());
@@ -99,19 +104,20 @@ export default function Shell() {
   };
   const shown = (): Shown => {
     if (layer() !== "plain") return "chords";
-    if (pickerOpen()) return "picker";
-    if (openPanel()) return "panel";
-    if (body() === "menu") return "menu";
+    if (card()) return "remote";
+    if (body() === "keys" && takesKeys()) return "keys";
+    // an applet is a touch app: its remote is the touchpad on the stage
+    if (body() === "controls" && focusedPackage()?.appletSurface) return "touchpad";
     if (body() === "controls" && focused()) return "controls";
     return "map";
   };
   setWindowKeys(() => focusedApplet()?.keys?.() ?? null);
   // A window opened from the menu takes focus; the menu makes way for it.
-  createEffect(on([current, focused], () => body() === "menu" && setBody("map"), { defer: true }));
+  createEffect(on([current, focused], () => closeMenu(), { defer: true }));
   // A package off the current workspace is paused.
   createEffect(() => {
     revision();
-    for (let ws = 0; ws < WORKSPACES; ws++) for (const w of windowsOn(ws)) if (w.kind === "app") showPackage(w.app, ws === current());
+    for (let ws = 0; ws < WORKSPACES; ws++) for (const w of windowsOn(ws)) if (w.kind === "app") showPackage(w.app, ws === current() && !appletRefused(w.app));
   });
   // Applets hear when their window comes onto the current workspace and leaves it.
   let seen = new Set<Applet>();
@@ -163,17 +169,9 @@ export default function Shell() {
     }
     const chord = chordFor("plain", key);
     if (chord) return perform(chord.action);
+    // a card on the stage has the D-pad and the face buttons while it is up
+    if (card()) return cardPress(key);
     if (key & BTN.SELECT) return toggleControls();
-    switch (shown()) {
-      case "picker":
-        return pickerPress(key);
-      case "panel":
-        if (key & BACK) return closePanel();
-        return panelPress(key);
-      case "menu":
-        if (key & BACK && atRoot()) return setBody("map");
-        return deckPress(key);
-    }
     // a package takes the buttons itself, each frame (feed)
     if (focusedPackage()) return;
     if (terminal()) return termPress(key);
@@ -189,6 +187,12 @@ export default function Shell() {
     }
     if (!w) return;
     const view = shown();
+    // an applet answers touch only (the pointer's); the buttons are the shell's
+    if (w.appletSurface) {
+      feedPackage(w.app, 0, pointerContacts(w.app));
+      fed = w.app;
+      return;
+    }
     let mask = layer() === "plain" && (view === "map" || view === "controls") ? buttons & ~(MODIFIERS | BTN.SELECT | BTN.ZL | BTN.ZR) : 0;
     let contacts: number[] = [];
     if (view === "controls") {
@@ -215,13 +219,12 @@ export default function Shell() {
     switch (shown()) {
       case "chords":
         return chordCardTouch(frame);
-      case "picker":
-        return pickerTouch(frame);
-      case "panel":
-        return panelTouch(frame);
-      case "menu":
-        if (atRoot() && frame.taps.some((t) => !t.moved && t.y < 26)) return setBody("map");
-        return menuTouch(frame);
+      case "remote":
+        return remoteTouch(frame);
+      case "touchpad":
+        return touchpadTouch(frame);
+      case "keys":
+        return keyboardTouch(frame, "body");
       case "controls": {
         if (focusedPackage()) return;
         if (terminal()) return keyboardTouch(frame, "body");
@@ -287,9 +290,11 @@ export default function Shell() {
       <Wallpaper />
       <Windows />
       <Bar now={now} focused={openPanel} />
+      <Card />
       <KeySheet />
       <Osd />
       <Toasts />
+      <Pointer shown={() => shown() === "touchpad"} />
       <LockStage clock={time} date={date} />
       <Screensaver />
       <AuxiliarySurface>
@@ -297,21 +302,21 @@ export default function Shell() {
           <Show when={!screensaverActive()} fallback={<ScreensaverDeck />}>
             <Show when={!(locked() || passwordEntry())} fallback={<Keyboard mode="full" />}>
               <View class="absolute left-0 w-[512] overflow-hidden contain-strict" style={{ insetT: BODY_TOP, height: BODY_H }}>
-                {/* the map, the chord cards and the menu stay mounted and show by
-                    opacity, so a shoulder press or the menu repaints instead of
-                    building its body; the rest mount on demand */}
+                {/* the map and the chord cards stay mounted and show by opacity,
+                    so a shoulder press repaints instead of building its body;
+                    the rest mount on demand */}
                 <View class="absolute left-0 top-0 w-[512] h-[318] contain-strict" style={{ opacity: shown() === "map" ? 1 : 0 }}>
                   <Minimap />
                 </View>
                 <For each={HELD_LAYERS}>{(l) => <ChordCard layer={l} />}</For>
-                <View class="absolute left-0 top-0 w-[512] h-[318] contain-strict" style={{ opacity: shown() === "menu" ? 1 : 0 }}>
-                  <MenuDeck />
-                </View>
-                <Show when={shown() === "picker"}>
-                  <Picker />
+                <Show when={shown() === "remote"}>
+                  <Remote />
                 </Show>
-                <Show when={shown() === "panel"}>
-                  <Panels />
+                <Show when={shown() === "touchpad"}>
+                  <Touchpad />
+                </Show>
+                <Show when={shown() === "keys"}>
+                  <Keyboard mode="body" />
                 </Show>
                 <Show when={shown() === "controls"}>
                   <Show when={!terminal()} fallback={<Keyboard mode="body" />}>

@@ -16,12 +16,12 @@ import { BTN } from "@pocketjs/framework/input";
 import { run } from "../bridge.ts";
 import { C } from "../classes.ts";
 import { labelForPath, loadRows, nameForPath } from "../generated/image-picker-model.js";
-import { previewWallpaper, restoreWallpaper } from "../stage/wallpaper.tsx";
+import { previewWallpaper, restoreWallpaper } from "./wallpaper.tsx";
 import { serve } from "../system.ts";
-import { toast } from "../stage/toasts.tsx";
+import { toast } from "./toasts.tsx";
 import { color } from "../theme.ts";
-import { BODY_H } from "./geometry.ts";
-import { createList, List } from "./list.tsx";
+import { CARD_H, CARD_W } from "./geometry.ts";
+import { createList, List } from "../deck/list.tsx";
 import type { TouchFrame } from "../touch.ts";
 
 interface Row {
@@ -32,7 +32,7 @@ type Mode = { kind: "themes" } | { kind: "select"; selectionFile: string; doneFi
 
 const HEADER_H = 26;
 const ROW_H = 22;
-const ROWS = Math.floor((BODY_H - HEADER_H - 4) / ROW_H);
+const ROWS = Math.floor((CARD_H - HEADER_H - 4) / ROW_H);
 const PREVIEW_AFTER = 0.25;
 const ERROR = "\u{f015a}";
 
@@ -144,24 +144,28 @@ export function pickerPress(key: number) {
   else if (key & BTN.CROSS) close(false);
 }
 
-/** The picker's fingers (body coordinates): a tap on the header cancels, a
- *  tap previews a row and a tap on the previewed row applies it, a drag scrolls. */
+/** Fingers on the picker (card coordinates; the touchpad's clicks): a tap on
+ *  the header cancels, a tap previews a row and a tap on the previewed row
+ *  applies it, a drag scrolls. */
 export function pickerTouch(frame: TouchFrame) {
   for (const tap of frame.taps) if (!tap.moved && tap.y < HEADER_H) return close(false);
   picker.touch(frame, rows().length, (at) => (at === index() ? close(true) : select(at)));
 }
 
+/** The picker's title and position, for the deck's remote. */
+export const pickerPosition = () => ({ title: mode()?.kind === "themes" ? "Theme" : "Image", at: index(), count: rows().length });
+
 export function Picker() {
   return (
-    <View class={C.deck} style={{ bgColor: color("darker_background") }}>
+    <View class={C.card} style={{ bgColor: color("darker_background") }}>
       <Text class={C.crumbs} style={{ textColor: color("accent") }}>
         {mode()?.kind === "themes" ? "Theme" : "Image"}
       </Text>
       <Text class="absolute right-[12] top-[6] font-mono text-xs leading-[16]" style={{ textColor: color("dark_foreground") }}>
-        {`${index() + 1}/${rows().length}   A apply   B cancel`}
+        {`${index() + 1}/${rows().length}`}
       </Text>
-      <View class={C.rule} style={{ bgColor: color("muted") }} />
-      <List state={picker} items={rows} top={HEADER_H} rowH={ROW_H} selected={index}>
+      <View class={C.cardRule} style={{ bgColor: color("muted") }} />
+      <List state={picker} items={rows} top={HEADER_H} rowH={ROW_H} width={CARD_W - 16} selected={index}>
         {(row, at) => (
           <Text class={C.label} style={{ insetL: 12, textColor: color(at === index() ? "bright_foreground" : "foreground") }}>
             {labelForPath(row().filePath)}

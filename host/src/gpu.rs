@@ -20,7 +20,7 @@ use drm::{
 use pocket_drivers::*;
 use pocket_gles::{ContextAccess, TargetConfig, Viewport};
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     ffi::{c_char, c_int, c_void},
     fs::{File, OpenOptions},
     io,
@@ -887,6 +887,46 @@ pub struct AppGpu {
     /// the GL texture of each display, in order; they live as long as the
     /// renderer (the app's Runtime owns it)
     pub textures: Vec<u32>,
+    /// what resizes each display, kept by the host
+    pub sizes: Vec<AppSize>,
+}
+
+/// Resizes one app display: the texture keeps its GL name (the shell's
+/// binding stays), its storage and the renderer's target take the new size,
+/// and the display reports it to the Runtime's next refresh.
+pub struct AppSize {
+    driver: Rc<RefCell<AppDriver>>,
+    index: usize,
+    texture: u32,
+    size: Rc<Cell<[u32; 2]>>,
+    target: Rc<Cell<u64>>,
+    targets: Rc<AppTargets>,
+}
+
+impl AppSize {
+    pub fn get(&self) -> [u32; 2] {
+        self.size.get()
+    }
+
+    pub fn set(&self, size: [u32; 2]) -> io::Result<()> {
+        let t = &self.targets;
+        unsafe {
+            if eglMakeCurrent(t.display, t.surface, t.surface, t.context) != 1 {
+                return Err(egl_error("eglMakeCurrent to resize an app"));
+            }
+            glBindTexture(GL_TEXTURE_2D, self.texture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA as i32, size[0] as i32, size[1] as i32, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr::null());
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+        let mut driver = self.driver.borrow_mut();
+        let _ = driver.unregister_target(self.target.get());
+        let target = driver
+            .register_target(TargetConfig::new(self.index, size, Viewport::new(0, 0, size[0], size[1]), PixelFormat::Rgba8888))
+            .map_err(|e| io::Error::other(format!("app target: {e:?}")))?;
+        self.target.set(target);
+        self.size.set(size);
+        Ok(())
+    }
 }
 
 struct AppTargets {
@@ -959,23 +999,25 @@ impl pocket_drivers::Renderer for AppRenderer {
 pub struct AppDisplay {
     driver: Rc<RefCell<AppDriver>>,
     role: DisplayRole,
-    size: [u32; 2],
-    target: u64,
+    size: Rc<Cell<[u32; 2]>>,
+    target: Rc<Cell<u64>>,
     sequence: u64,
 }
 
 impl DisplayOutput for AppDisplay {
     type Token = u64;
     fn descriptor(&self) -> DisplayDescriptor {
-        let mut d = DisplayDescriptor::new(self.role, self.size[0], self.size[1], PixelFormat::Rgba8888, self.size[0] as usize * 4, TargetOwnership::DeviceOwned);
+        let size = self.size.get();
+        let mut d = DisplayDescriptor::new(self.role, size[0], size[1], PixelFormat::Rgba8888, size[0] as usize * 4, TargetOwnership::DeviceOwned);
         d.vsync = VsyncSource::None;
         d
     }
     fn acquire(&mut self, region: Rect) -> Result<Target<'_>, DisplayError> {
-        if region != Rect::new(0, 0, self.size[0], self.size[1]) {
+        let size = self.size.get();
+        if region != Rect::new(0, 0, size[0], size[1]) {
             return Err(DisplayError::InvalidTarget);
         }
-        self.driver.borrow().target(self.target).map(Target::DeviceOwned).map_err(|_| DisplayError::Failed)
+        self.driver.borrow().target(self.target.get()).map(Target::DeviceOwned).map_err(|_| DisplayError::Failed)
     }
     fn flush(&mut self, _: &[Rect]) -> Result<u64, DisplayError> {
         self.sequence += 1;
@@ -1037,12 +1079,18 @@ impl Compositor {
             );
         }
         let driver = Rc::new(RefCell::new(driver));
+        let cells: Vec<_> = sizes.iter().zip(&handles).map(|((_, size), target)| (Rc::new(Cell::new(*size)), Rc::new(Cell::new(*target)))).collect();
         let displays = sizes
             .iter()
-            .zip(&handles)
-            .map(|((role, size), target)| AppDisplay { driver: driver.clone(), role: *role, size: *size, target: *target, sequence: 0 })
+            .zip(&cells)
+            .map(|((role, _), (size, target))| AppDisplay { driver: driver.clone(), role: *role, size: size.clone(), target: target.clone(), sequence: 0 })
             .collect();
-        Ok(AppGpu { renderer: AppRenderer { driver, _targets: targets }, displays, textures })
+        let resizers = cells
+            .iter()
+            .enumerate()
+            .map(|(index, (size, target))| AppSize { driver: driver.clone(), index, texture: textures[index], size: size.clone(), target: target.clone(), targets: targets.clone() })
+            .collect();
+        Ok(AppGpu { renderer: AppRenderer { driver, _targets: targets }, displays, textures, sizes: resizers })
     }
 
     /// Draws GL texture `texture` wherever the shell draws core texture `handle`; None ends it.

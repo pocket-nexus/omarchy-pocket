@@ -1,6 +1,7 @@
-// Omarchy's menu on the deck's body (L1 + A, the dock's first cell, or
+// Omarchy's menu in the stage's card (L1 + A, the dock's first cell, or
 // `omarchy-shell shell summon omarchy.menu`): the D-pad moves, A opens, B
-// goes back and closes it at the root. Opening a level asks
+// goes back and closes it at the root; the deck's remote does the same by
+// touch (deck/remote.tsx). Opening a level asks
 // omarchy-pocketd for every `when`, `checked` and `disabled` command of its
 // rows; a row with a `when` appears once its command exits 0. A row's action
 // runs through omarchy-pocketd as the Omarchy user; a failure shows as a
@@ -19,17 +20,16 @@ import { serve } from "../system.ts";
 import { applets } from "../applets/applet.ts";
 import { openWindow } from "../windows.ts";
 import { openPackage } from "../packages.ts";
-import { setBody } from "./body.ts";
-import { BODY_H } from "./geometry.ts";
-import { createList, List, type ListState } from "./list.tsx";
+import { CARD_H, CARD_W } from "./geometry.ts";
+import { createList, List, type ListState } from "../deck/list.tsx";
 import { glide, place } from "../motion.ts";
 import type { TouchFrame } from "../touch.ts";
 import { PANELS, showPanel, type PanelName } from "./panels.tsx";
 import { openThemePicker } from "./picker.tsx";
-import { toast } from "../stage/toasts.tsx";
+import { toast } from "./toasts.tsx";
 import { color } from "../theme.ts";
 
-const H = BODY_H;
+const H = CARD_H;
 const HEADER_H = 26;
 const ROW_H = 22;
 const ROWS = Math.floor((H - HEADER_H - 4) / ROW_H);
@@ -46,7 +46,32 @@ const TERMINAL = "\u{f018d}";
 
 const levelFor = (title: string, items: MenuItem[]): MenuLevel => ({ title, items, selected: items[0]?.id ?? "", scroll: 0 });
 
+// Omarchy Pocket's own row in Setup, after Network: mihomo's panel (the
+// proxy Clash Verge Rev's core runs), summoned as Omarchy summons its
+// Quickshell panels
+{
+  const setup = MENU.find((item) => item.id === "setup");
+  if (setup && !setup.children.some((item) => item.id === "setup.proxy")) {
+    const at = setup.children.findIndex((item) => item.id === "setup.network");
+    setup.children.splice(at + 1, 0, row("setup.proxy", "\u{f0582}", "Proxy", "omarchy-shell shell summon omarchy.proxy"));
+  }
+}
+
 const [stack, setStack] = createSignal<MenuLevel[]>([levelFor(ROOT_TITLE, MENU)]);
+const [menuOpen, setMenuOpen] = createSignal(false);
+export { menuOpen };
+
+/** Shows the menu at its root, or closes it. */
+export function toggleMenu() {
+  if (!menuOpen()) setStack((s) => s.slice(0, 1));
+  setMenuOpen(!menuOpen());
+}
+
+export function closeMenu() {
+  if (!menuOpen()) return;
+  setMenuOpen(false);
+  setStack((s) => s.slice(0, 1));
+}
 const [truth, setTruth] = createSignal<Truth>({});
 const level = () => stack()[stack().length - 1]!;
 const rows = (l: MenuLevel) => shown(l.items, truth());
@@ -153,18 +178,14 @@ function activate(item: MenuItem) {
   if (item.disabled && truth()[item.disabled]) return;
   if (item.provider) return openProvider(item);
   if (item.open) {
-    // the window takes the deck; the menu is at its root when it comes back
-    if (openWindow(item.open)) {
-      setBody("map");
-      toRoot();
-    }
+    // the window takes the stage; the menu is at its root when it comes back
+    if (openWindow(item.open)) closeMenu();
     return;
   }
   if (item.applet) {
     // a package opens in a window beside the focused one, as any window does
+    closeMenu();
     openPackage(item.applet, item.label, item.aux === true, item.appletSurface === true);
-    setBody("map");
-    toRoot();
     return;
   }
   if (item.action) {
@@ -181,7 +202,7 @@ function activate(item: MenuItem) {
   }
 }
 
-/** Opens the deck at the menu with `id` ("root" is the top). */
+/** Opens the menu at `id` ("root" is the top). */
 export function summon(id: string) {
   const path = id === "root" ? [] : pathTo(MENU, id);
   if (!path) return false;
@@ -204,7 +225,7 @@ function summonPlugin(id: string, payloadJson: string) {
       menu = JSON.parse(payloadJson || "{}").menu || "root";
     } catch {}
     summon(menu);
-    setBody("menu");
+    setMenuOpen(true);
     return "ok";
   }
   const panelName = id.replace(/^omarchy\./, "") as PanelName;
@@ -229,7 +250,8 @@ serve("shell", { summon: summonPlugin, toggle: summonPlugin });
 
 evaluate(MENU);
 
-export function deckPress(key: number) {
+export function menuPress(key: number) {
+  if (key & BACK && atRoot()) return closeMenu();
   if (key & BTN.UP) move(-1);
   else if (key & BTN.DOWN) move(1);
 
@@ -240,10 +262,11 @@ export function deckPress(key: number) {
 
 }
 
-/** The menu's fingers (body coordinates): a tap on the header goes back, a
- *  tap selects a row and a tap on the selected row opens it, a drag scrolls. */
+/** Fingers on the menu (card coordinates; the touchpad's clicks): a tap on
+ *  the header goes back, a tap selects a row and a tap on the selected row
+ *  opens it, a drag scrolls. */
 export function menuTouch(frame: TouchFrame) {
-  for (const tap of frame.taps) if (!tap.moved && tap.y < HEADER_H) back();
+  for (const tap of frame.taps) if (!tap.moved && tap.y < HEADER_H) return atRoot() ? closeMenu() : back();
   const shownRows = rows(level());
   list?.touch(frame, shownRows.length, (index) => {
     const item = shownRows[index];
@@ -287,22 +310,25 @@ function Level() {
     glide(node, "opacity", 1, 160);
   });
   return (
-    <View class={C.deck} ref={(n: NodeMirror) => (node = n)}>
-      <List state={state} items={() => rows(level())} top={HEADER_H} rowH={ROW_H} selected={() => indexIn(level())}>
+    <View class={C.card} ref={(n: NodeMirror) => (node = n)}>
+      <List state={state} items={() => rows(level())} top={HEADER_H} rowH={ROW_H} width={CARD_W - 16} selected={() => indexIn(level())}>
         {(item) => <Row item={item} selected={() => level().selected === item().id} />}
       </List>
     </View>
   );
 }
 
-export function MenuDeck() {
+/** The current level's position, for the deck's remote. */
+export const menuPosition = () => ({ title: stack().map((l) => l.title).join(" \u203a "), at: indexIn(level()), count: rows(level()).length });
+
+export function MenuCard() {
   const crumbs = () => stack().map((l) => l.title).join(`  ${CHEVRON}  `);
   // a level remounts when the stack changes depth or contents, not on a move
   const levelItems = createMemo(() => level().items);
   return (
-    <View class={C.deck} style={{ bgColor: color("darker_background") }}>
+    <View class={C.card} style={{ bgColor: color("darker_background") }}>
       <Text class={C.crumbs} style={{ textColor: color("accent") }}>{crumbs()}</Text>
-      <View class={C.rule} style={{ bgColor: color("muted") }} />
+      <View class={C.cardRule} style={{ bgColor: color("muted") }} />
       <Show when={levelItems()} keyed>
         {(_items) => <Level />}
       </Show>

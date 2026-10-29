@@ -22,7 +22,7 @@ use crate::{children, net};
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, RuntimeError};
 use pocket_spec::op;
-use rquickjs::{Function, Object};
+use rquickjs::{function::Opt, Function, Object};
 use std::{
     cell::{Cell, RefCell},
     path::PathBuf,
@@ -111,15 +111,18 @@ impl BridgedGuest {
             let apps = self.children.clone();
             object.set(
                 "openApp",
-                Function::new(ctx.clone(), move |path: String| -> i64 {
+                // w, h: the touch surface's logical size, the tile's
+                Function::new(ctx.clone(), move |path: String, w: Opt<u32>, h: Opt<u32>| -> i64 {
                     let path = PathBuf::from(path);
                     if path.extension().is_some_and(|e| e == "pocket") && path.is_file() {
-                        apps.borrow_mut().open(path) as i64
+                        apps.borrow_mut().open(path, w.0.zip(h.0).map(|(w, h)| [w, h])) as i64
                     } else {
                         -1
                     }
                 })?,
             )?;
+            let apps = self.children.clone();
+            object.set("resizeApp", Function::new(ctx.clone(), move |id: u32, w: u32, h: u32| apps.borrow_mut().resize(id, [w, h]))?)?;
             let apps = self.children.clone();
             object.set("closeApp", Function::new(ctx.clone(), move |id: u32| apps.borrow_mut().close(id))?)?;
             let apps = self.children.clone();

@@ -7,9 +7,14 @@
 //                           get killed, so closing is a hold, a slide and a
 //                           release)
 //   drag a window           onto another to swap the two, onto a workspace
-//                           tab in the strip to move it there
+//                           tab to move it there
 //   drag a gap              moves that split (dwindle)
 //   drag the background     pans the strip (scrolling)
+//
+// Beside the map: the workspace tabs and the layout badge in the left
+// column (a tab switches; a tile dropped on one goes there; the badge toggles
+// dwindle and scrolling), and the panels in the right one (Proxy, Bluetooth,
+// Network, Audio, Power: a tap opens the panel's card on the stage).
 import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { animate, jump } from "@pocketjs/framework/animation";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
@@ -19,9 +24,13 @@ import { flip, place, TOP_LEFT, type Box } from "../motion.ts";
 import { color } from "../theme.ts";
 import type { Contact, TouchFrame } from "../touch.ts";
 import { BAR_H, sameRect, STAGE_H, STAGE_W, type SplitHandle } from "../wm.ts";
-import { act, barPosition, focused, placements, splitAt, visibleWindows, windowAt, windowById, type Win } from "../workspaces.ts";
+import { act, barPosition, current, focus, focused, layout, occupied, placements, splitAt, visibleWindows, windowAt, windowById, WORKSPACES, type Win } from "../workspaces.ts";
+import { perform } from "../actions.ts";
+import { audioGlyph, batteryGlyph, bluetoothGlyph, networkGlyph } from "../indicators.ts";
+import { closePanel, openPanel, showPanel, type PanelName } from "../stage/panels.tsx";
+import { state } from "../system.ts";
 import { BODY_H } from "./geometry.ts";
-import { tabAt } from "./strip.tsx";
+import { pressAt, pressed } from "./press.ts";
 
 export const MAP_SCALE = 0.7;
 const MAP_W = STAGE_W * MAP_SCALE;
@@ -33,6 +42,57 @@ const CLOSE_Y = BODY_H - CLOSE_H;
 /** frames a still finger takes to arm the close bar (0.4 s) */
 const HOLD_FRAMES = 24;
 const SPLIT_TOLERANCE = 8;
+
+/** the side columns: the workspaces and the layout on the left, the panels on the right */
+const SIDE_W = 60;
+const LEFT_X = (MAP_X - SIDE_W) / 2;
+const RIGHT_X = 512 - MAP_X + (MAP_X - SIDE_W) / 2;
+const CELL_H = 40;
+const CELL_GAP = 6;
+const LAYOUT_Y = MAP_Y + WORKSPACES * (CELL_H + CELL_GAP);
+const PANEL_LIST: PanelName[] = ["proxy", "bluetooth", "network", "audio", "power"];
+const cellAt = (y: number) => {
+  const i = Math.floor((y - MAP_Y) / (CELL_H + CELL_GAP));
+  return y >= MAP_Y && y - MAP_Y - i * (CELL_H + CELL_GAP) < CELL_H ? i : -1;
+};
+/** the workspace tab under body point (x, y), or -1 */
+const wsTabAt = (x: number, y: number) => {
+  const i = x >= LEFT_X && x < LEFT_X + SIDE_W ? cellAt(y) : -1;
+  return i < WORKSPACES ? i : -1;
+};
+const panels = () => PANEL_LIST.filter((p) => p !== "proxy" || state()?.proxy);
+const panelGlyph = (p: PanelName) => {
+  const s = state();
+  return p === "proxy" ? "\u{f0582}" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
+};
+
+/** A tap beside the map; true when it landed on a column. */
+function sideTap(x: number, y: number): boolean {
+  const ws = wsTabAt(x, y);
+  if (ws >= 0) {
+    focus(ws);
+    return true;
+  }
+  if (x >= LEFT_X && x < LEFT_X + SIDE_W && y >= LAYOUT_Y && y < LAYOUT_Y + CELL_H) {
+    perform("layout");
+    return true;
+  }
+  const i = x >= RIGHT_X && x < RIGHT_X + SIDE_W ? cellAt(y) : -1;
+  const p = panels()[i];
+  if (!p) return false;
+  if (openPanel() === p) closePanel();
+  else showPanel(p);
+  return true;
+}
+
+/** The pressed look's target for a finger beside the map. */
+export function sideTarget(x: number, y: number): string | null {
+  const ws = wsTabAt(x, y);
+  if (ws >= 0) return `map:ws${ws}`;
+  if (x >= LEFT_X && x < LEFT_X + SIDE_W && y >= LAYOUT_Y && y < LAYOUT_Y + CELL_H) return "map:layout";
+  const p = x >= RIGHT_X && x < RIGHT_X + SIDE_W ? panels()[cellAt(y)] : undefined;
+  return p ? `map:${p}` : null;
+}
 
 const toStage = (x: number, y: number) => ({ x: (x - MAP_X) / MAP_SCALE, y: (y - MAP_Y) / MAP_SCALE });
 const onMap = (x: number, y: number) => x >= MAP_X && x < MAP_X + MAP_W && y >= MAP_Y && y < MAP_Y + MAP_H;
@@ -61,8 +121,8 @@ interface Drag {
 }
 const [drag, setDrag] = createSignal<Drag | null>(null);
 const [closing, setClosing] = createSignal<{ id: number; over: boolean } | null>(null);
-/** the strip reads the tab a window is dragged over */
-export const dropWorkspace = () => drag()?.overWs ?? -1;
+/** the workspace tab a window is dragged over */
+const dropWs = () => drag()?.overWs ?? -1;
 
 /** the floating copy of a dragged tile, moved by the finger */
 let proxy: NodeMirror | undefined;
@@ -99,6 +159,8 @@ function drop(d: Drag) {
 /** The body's fingers this frame, in body coordinates (the strip is above y = 0). */
 export function minimapTouch(frame: TouchFrame) {
   const c = frame.down[0];
+  pressAt(c && !onMap(c.start.x, c.start.y) && !c.moved ? sideTarget(c.x, c.y) : null);
+  for (const tap of frame.taps) if (!tap.moved && !onMap(tap.start.x, tap.start.y)) sideTap(tap.start.x, tap.start.y);
   if (c && (!finger || finger.id !== c.id)) finger = { id: c.id, gesture: begin(c) };
   if (c && finger) {
     const g = finger.gesture;
@@ -110,7 +172,7 @@ export function minimapTouch(frame: TouchFrame) {
         const p = toStage(c.x, c.y);
         const hit = onMap(c.x, c.y) ? windowAt(p.x, p.y) : null;
         const over = hit === g.id ? null : hit;
-        const overWs = c.y < 0 ? tabAt(c.x) : -1;
+        const overWs = wsTabAt(c.x, c.y);
         const was = drag();
         const from = was?.from ?? onDeck(placements().find((q) => q.id === g.id)!.rect);
         const dx = c.x - c.start.x;
@@ -226,6 +288,35 @@ export function Minimap() {
       <Text class="absolute left-0 w-[512] text-center font-mono text-xs leading-[14]" style={{ insetT: MAP_Y + MAP_H + 12, textColor: color("dark_foreground") }}>
         tap focus · again controls · hold close · drag swap or move
       </Text>
+      <For each={Array.from({ length: WORKSPACES }, (_, i) => i)}>
+        {(n) => (
+          <View
+            class="absolute rounded-md"
+            style={{ insetL: LEFT_X, insetT: MAP_Y + n * (CELL_H + CELL_GAP), width: SIDE_W, height: CELL_H, bgColor: color(dropWs() === n ? "accent" : current() === n ? "selection" : pressed(`map:ws${n}`) ? "selection" : "dark_background") }}
+          >
+            <Text class="absolute left-0 text-center font-mono text-sm leading-[16]" style={{ insetT: CELL_H / 2 - 8, width: SIDE_W, textColor: color(current() === n ? "accent" : occupied(n) ? "foreground" : "muted") }}>
+              {String(n + 1)}
+            </Text>
+          </View>
+        )}
+      </For>
+      <View class="absolute rounded-md" style={{ insetL: LEFT_X, insetT: LAYOUT_Y, width: SIDE_W, height: CELL_H, bgColor: color(pressed("map:layout") ? "selection" : "background") }}>
+        <Text class="absolute left-0 text-center font-mono text-xs leading-[14]" style={{ insetT: CELL_H / 2 - 7, width: SIDE_W, textColor: color("dark_foreground") }}>
+          {layout() === "dwindle" ? "dwindle" : "scroll"}
+        </Text>
+      </View>
+      <For each={panels()}>
+        {(p, i) => (
+          <View
+            class="absolute rounded-md"
+            style={{ insetL: RIGHT_X, insetT: MAP_Y + i() * (CELL_H + CELL_GAP), width: SIDE_W, height: CELL_H, bgColor: color(openPanel() === p || pressed(`map:${p}`) ? "selection" : "dark_background") }}
+          >
+            <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: CELL_H / 2 - 9, width: SIDE_W, textColor: color(openPanel() === p ? "accent" : p === "proxy" && state()?.proxy?.running === false ? "muted" : "foreground") }}>
+              {panelGlyph(p)}
+            </Text>
+          </View>
+        )}
+      </For>
       <Show when={drag()?.id ?? null} keyed>
         {(id) => {
           const d = drag()!;

@@ -10,6 +10,8 @@ export const C = {
   barRight: "absolute right-[8] top-[2] font-mono text-xs leading-[14]",
 
   deck: "absolute left-0 top-0 w-[512] h-[318] contain-strict",
+  card: "absolute left-0 top-0 w-[360] h-[296] contain-strict",
+  cardRule: "absolute left-[8] top-[25] w-[344] h-[1]",
   crumbs: "absolute left-[12] top-[6] font-mono text-sm leading-[16]",
   rule: "absolute left-[8] top-[25] w-[496] h-[1]",
   row: "absolute left-[8] w-[496] h-[22]",

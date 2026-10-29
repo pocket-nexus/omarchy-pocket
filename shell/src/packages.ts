@@ -14,6 +14,7 @@ import { setBody } from "./deck/body.ts";
 
 interface AppBridge {
   openApp(path: string): number;
+  resizeApp(id: number, w: number, h: number): void;
   closeApp(id: number): void;
   showApp(id: number, visible: boolean): void;
   appInput(id: number, buttons: number, contacts: number[]): void;
@@ -23,6 +24,45 @@ const host = (globalThis as { omarchyBridge?: Partial<AppBridge> }).omarchyBridg
 /** each package window's textures, top display then touch surface, once booted */
 const [textures, setTextures] = createSignal<Record<number, number[]>>({});
 export const appTextures = (id: number) => textures()[id] ?? null;
+
+/** An applet's touch surface in its window: its size in logical points and
+ *  the scale the window draws it at. */
+export interface Fit {
+  w: number;
+  h: number;
+  scale: number;
+}
+/** The applets' baseline surface (PocketJS contracts/spec/applet.ts: the 3DS
+ *  touch screen) and their adaptive maximum. */
+const BASELINE = [320, 240] as const;
+const MAX = [640, 720] as const;
+/** The smallest scale a window draws an applet at; a smaller tile refuses it. */
+const MIN_SCALE = 0.6;
+
+/** How a tile of w x h shows an applet: at its size when it holds the
+ *  baseline; else at the baseline's scale with the tile's shape (a narrow
+ *  tile gets a portrait layout); null below MIN_SCALE. */
+export function fitSurface(w: number, h: number): Fit | null {
+  if (w >= BASELINE[0] && h >= BASELINE[1]) return { w: Math.min(MAX[0], Math.floor(w)), h: Math.min(MAX[1], Math.floor(h)), scale: 1 };
+  const scale = Math.min(w / BASELINE[0], h / BASELINE[1]);
+  if (scale < MIN_SCALE) return null;
+  return { w: Math.min(MAX[0], Math.round(w / scale)), h: Math.min(MAX[1], Math.round(h / scale)), scale };
+}
+
+/** the surface size each applet was last given; absent: refused (too small) or not yet sized */
+const [sized, setSized] = createSignal<Record<number, Fit | null>>({});
+export const appletFit = (id: number) => sized()[id];
+/** An applet whose tile refuses it is paused, as one off the workspace is. */
+export const appletRefused = (id: number) => sized()[id] === null;
+
+/** Gives applet `id` the surface its tile fits; the host lays it out again. */
+export function sizeApplet(id: number, fit: Fit | null) {
+  const last = sized()[id];
+  if (fit && last && fit.w === last.w && fit.h === last.h) return;
+  if (fit === null && last === null) return;
+  setSized((s) => ({ ...s, [id]: fit }));
+  if (fit) host?.resizeApp?.(id, fit.w, fit.h);
+}
 
 const ERROR = "\u{f015a}";
 const isApp = (id: number) => (w: Win) => w.kind === "app" && w.app === id;
@@ -43,6 +83,7 @@ export function closePackage(id: number) {
   const w = find(isApp(id));
   if (w) closeWindow(w.id);
   setTextures(({ [id]: _, ...rest }) => rest);
+  setSized(({ [id]: _, ...rest }) => rest);
 }
 
 export function showPackage(id: number, visible: boolean) {

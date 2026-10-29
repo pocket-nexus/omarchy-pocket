@@ -1,0 +1,10 @@
+// Omarchy Pocket's Proxy panel (daemon/proxy.ts) starts and stops mihomo as
+// the Omarchy user, and only that unit.
+polkit.addRule(function (action, subject) {
+  if (action.id == "org.freedesktop.systemd1.manage-units" &&
+      action.lookup("unit") == "mihomo.service" &&
+      ["start", "stop", "restart"].indexOf(action.lookup("verb")) >= 0 &&
+      subject.user == "omarchy") {
+    return polkit.Result.YES;
+  }
+});

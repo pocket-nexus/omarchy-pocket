@@ -13,23 +13,28 @@ import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
 import { request } from "../bridge.ts";
-import type { AudioDevice, AudioPanel, BluetoothPanel, NetworkPanel, PowerPanel } from "../../../daemon/protocol.ts";
+import type { AudioDevice, AudioPanel, BluetoothPanel, NetworkPanel, PowerPanel, ProxyPanel } from "../../../daemon/protocol.ts";
 import { C } from "../classes.ts";
+import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
+import { cjk } from "../glyphs.ts";
 import { isAddressLike } from "../generated/bluetooth-model.js";
 import { wifiIconFor } from "../generated/network-model.js";
 import { profileIcon } from "../generated/power-model.js";
 import { batteryGlyph } from "../indicators.ts";
-import { toast } from "../stage/toasts.tsx";
+import { toast } from "./toasts.tsx";
 import { state } from "../system.ts";
 import { setKeySink } from "../term/keyboard.tsx";
 import { color } from "../theme.ts";
-import { BODY_H } from "./geometry.ts";
-import { createList, List } from "./list.tsx";
+import { CARD_H, CARD_W } from "./geometry.ts";
+import { createList, List } from "../deck/list.tsx";
 import type { TouchFrame } from "../touch.ts";
 
-export type PanelName = "bluetooth" | "network" | "audio" | "power";
-export const PANELS: PanelName[] = ["bluetooth", "network", "audio", "power"];
-const TITLES: Record<PanelName, string> = { bluetooth: "Bluetooth", network: "Network", audio: "Audio", power: "Power" };
+export type PanelName = "proxy" | "bluetooth" | "network" | "audio" | "power";
+export const PANELS: PanelName[] = ["proxy", "bluetooth", "network", "audio", "power"];
+const TITLES: Record<PanelName, string> = { proxy: "Proxy", bluetooth: "Bluetooth", network: "Network", audio: "Audio", power: "Power" };
+const PROXY_MODES = ["rule", "global", "direct"];
+/** a node's name as the card draws it: flags (regional indicators) have no glyph */
+const nodeName = (name: string) => name.replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "").trim();
 
 interface Row {
   icon: string;
@@ -45,7 +50,7 @@ interface Row {
 
 const HEADER_H = 26;
 const ROW_H = 22;
-const ROWS = Math.floor((BODY_H - HEADER_H - 4) / ROW_H);
+const ROWS = Math.floor((CARD_H - HEADER_H - 4) / ROW_H);
 const REFRESH_EVERY = 4;
 const ERROR = "\u{f015a}";
 const CHECK = "\u{f012c}";
@@ -60,6 +65,7 @@ let seen = new Map<string, number>();
 const [network, setNetwork] = createSignal<NetworkPanel | null>(null);
 const [audio, setAudio] = createSignal<AudioPanel | null>(null);
 const [power, setPower] = createSignal<PowerPanel | null>(null);
+const [proxy, setProxy] = createSignal<ProxyPanel | null>(null);
 const [bluetooth, setBluetooth] = createSignal<BluetoothPanel | null>(null);
 /** the SSID whose password the keyboard is taking */
 const [entry, setEntry] = createSignal<{ ssid: string; text: string } | null>(null);
@@ -76,6 +82,7 @@ function load(name: PanelName, rescan = false) {
   else if (name === "network") request<NetworkPanel>({ method: "network", rescan }).then(setNetwork, fail("Network"));
   else if (name === "audio") request<AudioPanel>({ method: "audio" }).then(setAudio, fail("Audio"));
   else if (name === "power") request<PowerPanel>({ method: "power" }).then(setPower, fail("Power"));
+  else if (name === "proxy") request<ProxyPanel>({ method: "proxy" }).then(setProxy, fail("Proxy"));
 }
 
 function poll(token: number) {
@@ -268,6 +275,36 @@ const rawRows = createMemo((): Row[] => {
       }
       return list;
     }
+    case "proxy": {
+      const p = proxy();
+      if (!p) return [{ icon: "", label: "Asking mihomo...", info: true }];
+      if (!p.installed) return [{ icon: ERROR, label: "mihomo is not installed", info: true }];
+      const list: Row[] = [
+        {
+          icon: "\u{f0582}",
+          label: "Proxy",
+          value: p.running ? "On" : "Off",
+          checked: p.running,
+          activate: () => change(p.running ? "Stopping mihomo" : "Starting mihomo", request({ method: "proxySet", running: !p.running }), "Proxy"),
+        },
+      ];
+      if (!p.running) return list;
+      const at = Math.max(0, PROXY_MODES.indexOf(p.mode));
+      const mode = (delta: number) => change("", request({ method: "proxySet", mode: PROXY_MODES[(at + delta + PROXY_MODES.length) % PROXY_MODES.length] }), "Proxy mode");
+      list.push({ icon: "\u{f01e7}", label: "Mode", value: p.mode.charAt(0).toUpperCase() + p.mode.slice(1), activate: () => mode(1), adjust: mode });
+      for (const g of p.groups) {
+        const i = Math.max(0, g.all.indexOf(g.now));
+        list.push({
+          icon: "\u{f0b8a}",
+          label: nodeName(g.name),
+          // A tests the group's nodes; left and right pick the previous or next one
+          value: `${nodeName(g.now)}${g.delay ? ` ${g.delay} ms` : ""}`,
+          activate: () => change(`Testing ${nodeName(g.name)}`, request({ method: "proxySet", test: g.name }), g.name),
+          adjust: (delta) => change("", request({ method: "proxySet", group: g.name, node: g.all[(i + delta + g.all.length) % g.all.length] }), g.name),
+        });
+      }
+      return list;
+    }
     default:
       return [];
   }
@@ -307,8 +344,9 @@ export function panelPress(key: number) {
   else if (key & BTN.CROSS) closePanel();
 }
 
-/** The panel's fingers (body coordinates): a tap on the header closes it, a
- *  tap selects a row and a tap on the selected row acts, a drag scrolls. */
+/** Fingers on the panel (card coordinates; the touchpad's clicks): a tap on
+ *  the header closes it, a tap selects a row and a tap on the selected row
+ *  acts, a drag scrolls. */
 export function panelTouch(frame: TouchFrame) {
   for (const tap of frame.taps) if (!tap.moved && tap.y < HEADER_H) return closePanel();
   list.touch(frame, rows().length, (at) => {
@@ -317,23 +355,26 @@ export function panelTouch(frame: TouchFrame) {
   });
 }
 
+/** The panel's title and position, for the deck's remote. */
+export const panelPosition = () => ({ title: TITLES[panel() ?? "network"], at: index(), count: rows().length });
+
 export function Panels() {
   return (
-    <View class={C.deck} style={{ bgColor: color("darker_background") }}>
+    <View class={C.card} style={{ bgColor: color("darker_background") }}>
       <Text class={C.crumbs} style={{ textColor: color("accent") }}>{TITLES[panel() ?? "network"]}</Text>
       <Text class="absolute right-[12] top-[6] font-mono text-xs leading-[16]" style={{ textColor: color(busy() ? "accent" : "dark_foreground") }}>
-        {busy() || "A select  \u{2190}\u{2192} adjust  Y forget  B close"}
+        {busy()}
       </Text>
-      <View class={C.rule} style={{ bgColor: color("muted") }} />
-      <List state={list} items={rows} top={HEADER_H} rowH={ROW_H} selected={index}>
+      <View class={C.cardRule} style={{ bgColor: color("muted") }} />
+      <List state={list} items={rows} top={HEADER_H} rowH={ROW_H} width={CARD_W - 16} selected={index}>
         {(row, at) => (
           <>
             <Text class={C.icon} style={{ textColor: color(at === index() ? "accent" : "dark_foreground") }}>{row().icon}</Text>
-            <Text class={C.label} style={{ textColor: color(row().info ? "dark_foreground" : at === index() ? "bright_foreground" : "foreground") }}>
+            <Text class={C.label} style={{ textColor: color(row().info ? "dark_foreground" : at === index() ? "bright_foreground" : "foreground"), ...cjk(row().label, CJK_SLOT_14) }}>
               {row().label}
             </Text>
             <Show when={row().value !== undefined || row().checked}>
-              <Text class={C.chevron} style={{ textColor: color(row().checked ? "accent" : "foreground") }}>
+              <Text class={C.chevron} style={{ textColor: color(row().checked ? "accent" : "foreground"), ...cjk(row().value ?? "", CJK_SLOT_14) }}>
                 {row().checked && row().value === undefined ? CHECK : (row().value ?? "")}
               </Text>
             </Show>

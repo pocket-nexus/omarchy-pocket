@@ -1,22 +1,21 @@
-// The deck's bottom band, after Pocket Shell's 3DS dock: Omarchy's bar moved
-// under the thumb. The menu first, then the shell's windows (a tap opens one
-// beside the focused window, or focuses it where it is; Terminal always
-// opens a new session), then the switches: keyboard (the focused window's
-// controls on the body), keys (the key sheet on the stage), wallpaper (the
-// theme's next background) and bar. Glyphs carry no labels; the pressed cell
-// fills with the accent and names itself above the dock. An accent mark sits
-// under the focused window's app and a short grey one under an app with a
-// window elsewhere; a switch that is on draws in the accent.
+// The deck's bottom band, the remote's launch bar: Omarchy's menu, the
+// shell's windows (a tap opens one beside the focused window, or focuses it
+// where it is; Terminal always opens a new session), then the applets (X,
+// Discord, YouTube, Hacker News: one window each, focused when it is open).
+// Every cell launches; the deck's modes are the strip's switch. Glyphs carry
+// no labels; the pressed cell fills with the accent and names itself above
+// the dock. An accent mark sits under the focused window's app and a short
+// grey one under an app with a window elsewhere; the menu cell draws in the
+// accent while the menu is up.
 import { For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { openApplet } from "../applets/applet.ts";
-import { perform, toggleControls, toggleMenu } from "../actions.ts";
-import { sheetOpen, toggleSheet } from "../stage/keysheet.tsx";
-import { state } from "../system.ts";
+import { toggleMenu } from "../actions.ts";
+import { openPackage } from "../packages.ts";
+import { menuOpen } from "../stage/menu.tsx";
 import { openTerminal } from "../term/store.ts";
 import { color } from "../theme.ts";
-import { find, focused, revision } from "../workspaces.ts";
-import { body } from "./body.ts";
+import { find, focused, focusWindow, revision, type Win } from "../workspaces.ts";
 import { DOCK_H, DOCK_TOP } from "./geometry.ts";
 import { pressed } from "./press.ts";
 
@@ -28,31 +27,48 @@ interface Item {
   tap(): void;
   /** an app: whether it has a window, and whether that window has focus */
   app?: () => "focused" | "open" | null;
-  /** a switch: whether it is on */
+  /** the menu: whether it is up */
   on?: () => boolean;
 }
 
 const CELL = 46;
-const appState = (kind: "terminal" | string) => (): "focused" | "open" | null => {
+const stateOf = (isIt: (w: Win) => boolean) => (): "focused" | "open" | null => {
   revision();
   const f = focused();
-  const isIt = (w: { kind: string; applet?: string }) => (kind === "terminal" ? w.kind === "terminal" : w.kind === "applet" && w.applet === kind);
   if (f && isIt(f)) return "focused";
   return find(isIt) ? "open" : null;
 };
-const app = (id: string, glyph: string, label: string, x: number): Item => ({ id, glyph, label, x, tap: () => openApplet(id), app: appState(id) });
+const app = (id: string, glyph: string, label: string, x: number): Item => ({ id, glyph, label, x, tap: () => openApplet(id), app: stateOf((w) => w.kind === "applet" && w.applet === id) });
+const APPLETS = "/usr/share/omarchy-pocket/applets";
+/** A Pocket applet: its window is focused when it has one, else it opens. */
+const applet = (name: string, glyph: string, label: string, x: number): Item => {
+  const path = `${APPLETS}/${name}.pocket`;
+  const isIt = (w: Win) => w.kind === "app" && w.path === path;
+  return {
+    id: name,
+    glyph,
+    label,
+    x,
+    tap: () => {
+      const open = find(isIt);
+      if (open) focusWindow(open.id);
+      else openPackage(path, label, true, true);
+    },
+    app: stateOf(isIt),
+  };
+};
 
 const ITEMS: Item[] = [
-  { id: "menu", glyph: "\u{e900}", label: "menu", x: 18, tap: toggleMenu, on: () => body() === "menu" },
-  { id: "terminal", glyph: "\u{f018d}", label: "terminal", x: 18 + CELL + 8, tap: openTerminal, app: appState("terminal") },
+  { id: "menu", glyph: "\u{e900}", label: "menu", x: 18, tap: toggleMenu, on: menuOpen },
+  { id: "terminal", glyph: "\u{f018d}", label: "terminal", x: 18 + CELL + 8, tap: openTerminal, app: stateOf((w) => w.kind === "terminal") },
   app("notes", "\u{f09ed}", "notes", 18 + CELL * 2 + 8),
   app("activity", "\u{f04c5}", "activity", 18 + CELL * 3 + 8),
   app("pictures", "\u{f02e9}", "pictures", 18 + CELL * 4 + 8),
   app("clock", "\u{f0954}", "clock", 18 + CELL * 5 + 8),
-  { id: "keyboard", glyph: "\u{f030c}", label: "keyboard", x: 18 + CELL * 6 + 16, tap: toggleControls, on: () => body() === "controls" },
-  { id: "keys", glyph: "\u{f0306}", label: "keys", x: 18 + CELL * 7 + 16, tap: toggleSheet, on: sheetOpen },
-  { id: "wallpaper", glyph: "\u{f02f9}", label: "next background", x: 18 + CELL * 8 + 16, tap: () => perform("wallpaper") },
-  { id: "bar", glyph: "\u{f035c}", label: "bar", x: 18 + CELL * 9 + 16, tap: () => perform("bar"), on: () => !state()?.bar?.hidden },
+  applet("x", "\u{f0544}", "X", 18 + CELL * 6 + 16),
+  applet("discord", "\u{f066f}", "Discord", 18 + CELL * 7 + 16),
+  applet("youtube", "\u{f05c3}", "YouTube", 18 + CELL * 8 + 16),
+  applet("hn", "\u{f2e5}", "Hacker News", 18 + CELL * 9 + 16),
 ];
 
 const itemAt = (x: number) => ITEMS.find((i) => x >= i.x && x < i.x + CELL) ?? null;

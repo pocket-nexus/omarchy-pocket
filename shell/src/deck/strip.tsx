@@ -1,51 +1,67 @@
-// The deck's top band: the L1 pill, the five workspaces (the current one a
-// rounded square as in Omarchy's bar, empty ones dimmed; tap one to go
-// there), the workspace's layout (tap to toggle dwindle and scrolling),
-// Omarchy's bar indicators (tap one for its panel in the body), and the R1
-// pill. A pill latches its layer for one chord; both latched are the
+// The deck's top band, after the iPod touch remote's: the L1 pill, the mode
+// switch, and the R1 pill. The stage's bar already shows the workspaces, the
+// clock and the indicators, so the strip repeats none of them; the switch
+// says what the body below is for:
+//
+//   Windows    the live map of the stage, its workspaces and panels
+//   <window>   the focused window's remote, named after it: an applet's
+//              touchpad, a terminal's keyboard, an app's own controls
+//   Keys       the keyboard, for a window that takes keys
+//
+// The lit segment is the body that shows; its highlight glides between
+// segments. A pill latches its layer for one chord; both latched are the
 // workspace layer.
 import { createEffect, createRoot, For, on, untrack } from "solid-js";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { glide } from "../motion.ts";
-import { perform } from "../actions.ts";
-import { audioGlyph, batteryGlyph, bluetoothGlyph, networkGlyph } from "../indicators.ts";
-import { state } from "../system.ts";
+import { appletOf, focusedApplet } from "../applets/applet.ts";
+import { windowTitle } from "../stage/windows.tsx";
+import { toast } from "../stage/toasts.tsx";
 import { color } from "../theme.ts";
-import { current, focus, layout, occupied, WORKSPACES } from "../workspaces.ts";
+import { focused } from "../workspaces.ts";
+import { body, setBody, type Body } from "./body.ts";
 import { STRIP_H } from "./geometry.ts";
 import { layer, pills, togglePill } from "./layer.ts";
-import { closePanel, openPanel, showPanel, type PanelName } from "./panels.tsx";
-import { dropWorkspace } from "./minimap.tsx";
 import { pressed } from "./press.ts";
 
 const PILL_W = 40;
 const L_X = 4;
-const TABS_X = 50;
-const TAB_W = 34;
-const LAYOUT_X = TABS_X + WORKSPACES * TAB_W + 4;
-const LAYOUT_W = 76;
-const IND_X = LAYOUT_X + LAYOUT_W + 6;
-const IND_W = 34;
 const R_X = 512 - 4 - PILL_W;
-const INDICATORS: PanelName[] = ["bluetooth", "network", "audio", "power"];
-const NUMBERS = Array.from({ length: WORKSPACES }, (_, i) => i);
+const SEG_W = 126;
+const SEG_X = (512 - 3 * SEG_W) / 2;
 
-/** The workspace tab under `x`, or -1. */
-export function tabAt(x: number): number {
-  if (x < TABS_X || x >= TABS_X + WORKSPACES * TAB_W) return -1;
-  return Math.floor((x - TABS_X) / TAB_W);
+/** Whether the focused window takes keys: a terminal, or an applet with a sink (Notes). */
+export const takesKeys = () => focused()?.kind === "terminal" || !!focusedApplet()?.keys?.();
+
+interface Segment {
+  body: Body;
+  glyph: () => string;
+  label: () => string;
 }
+const SEGMENTS: Segment[] = [
+  { body: "map", glyph: () => "\u{f056e}", label: () => "Windows" },
+  {
+    body: "controls",
+    glyph: () => {
+      const w = focused();
+      return !w ? "\u{f0b8a}" : w.kind === "terminal" ? "\u{f018d}" : w.kind === "app" ? "\u{f0741}" : (appletOf(w)?.icon ?? "\u{f0b8a}");
+    },
+    label: () => {
+      const w = focused();
+      return w ? windowTitle(w) : "No window";
+    },
+  },
+  { body: "keys", glyph: () => "\u{f030c}", label: () => "Keys" },
+];
+
+const segmentAt = (x: number) => (x >= SEG_X && x < SEG_X + 3 * SEG_W ? Math.floor((x - SEG_X) / SEG_W) : -1);
 
 /** The strip's target under `x`, for the pressed look. */
 export function stripTarget(x: number): string | null {
   if (x >= L_X && x < L_X + PILL_W) return "strip:L";
   if (x >= R_X) return "strip:R";
-  const tab = tabAt(x);
-  if (tab >= 0) return `strip:ws${tab}`;
-  if (x >= LAYOUT_X && x < LAYOUT_X + LAYOUT_W) return "strip:layout";
-  const i = Math.floor((x - IND_X) / IND_W);
-  if (x >= IND_X && i < INDICATORS.length) return `strip:${INDICATORS[i]}`;
-  return null;
+  const i = segmentAt(x);
+  return i >= 0 ? `strip:${SEGMENTS[i]!.body}` : null;
 }
 
 export function stripTap(x: number) {
@@ -54,11 +70,9 @@ export function stripTap(x: number) {
   const what = target.slice(6);
   if (what === "L") return togglePill("l");
   if (what === "R") return togglePill("r");
-  if (what === "layout") return perform("layout");
-  if (what.startsWith("ws")) return focus(Number(what.slice(2)));
-  const panel = what as PanelName;
-  if (openPanel() === panel) closePanel();
-  else showPanel(panel);
+  if (what === "controls" && !focused()) return toast({ icon: "\u{f02fc}", title: "No window here", body: "", tone: "info" }, 1.8);
+  if (what === "keys" && !takesKeys()) return toast({ icon: "\u{f02fc}", title: "This window takes no keys", body: "", tone: "info" }, 1.8);
+  setBody(what as Body);
 }
 
 function Pill(props: { x: number; label: string; on: () => boolean; target: string }) {
@@ -71,42 +85,42 @@ function Pill(props: { x: number; label: string; on: () => boolean; target: stri
   );
 }
 
-let marker: NodeMirror | undefined;
-// the current workspace's square glides to its tab
-createRoot(() => createEffect(on(current, (ws) => glide(marker, "translateX", ws * TAB_W, 160), { defer: true })));
+/** The body the switch lights: a body that shows nothing of its own falls back to the map. */
+const lit = () => {
+  const b = body();
+  if (b === "controls" && !focused()) return 0;
+  if (b === "keys" && !takesKeys()) return 0;
+  return Math.max(0, SEGMENTS.findIndex((s) => s.body === b));
+};
+
+let highlight: NodeMirror | undefined;
+createRoot(() => createEffect(on(lit, (i) => glide(highlight, "translateX", i * SEG_W, 160), { defer: true })));
 
 export function Strip() {
-  const glyph = (p: PanelName) => {
-    const s = state();
-    return p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
-  };
   const lOn = () => pills().l || layer() === "window" || layer() === "workspace";
   const rOn = () => pills().r || layer() === "move" || layer() === "workspace";
   return (
     <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: STRIP_H, bgColor: color("background") }}>
       <Pill x={L_X} label="L1" on={lOn} target="strip:L" />
-      <For each={NUMBERS}>
-        {(n) => (
-          <View class="absolute top-[3] h-[20] rounded-sm" style={{ insetL: TABS_X + n * TAB_W, width: TAB_W - 4, bgColor: color(dropWorkspace() === n ? "accent" : pressed(`strip:ws${n}`) ? "selection" : "background") }}>
-            <Text class="absolute left-0 top-[3] text-center font-mono text-xs leading-[14]" style={{ width: TAB_W - 4, opacity: current() === n ? 0 : 1, textColor: color(occupied(n) ? "foreground" : "muted") }}>
-              {String(n + 1)}
-            </Text>
-          </View>
-        )}
-      </For>
+      <View class="absolute top-[3] h-[20] rounded-sm" style={{ insetL: SEG_X, width: 3 * SEG_W, bgColor: color("dark_background") }} />
       <View
-        class="absolute top-[8] h-[10] w-[10] rounded-sm"
-        style={{ insetL: TABS_X + (TAB_W - 4 - 10) / 2, translateX: untrack(current) * TAB_W, bgColor: color("bright_foreground") }}
-        ref={(n: NodeMirror) => (marker = n)}
+        class="absolute top-[3] h-[20] rounded-sm"
+        style={{ insetL: SEG_X, width: SEG_W, translateX: untrack(lit) * SEG_W, bgColor: color("selection") }}
+        ref={(n: NodeMirror) => (highlight = n)}
       />
-      <View class="absolute top-[3] h-[20] rounded-sm" style={{ insetL: LAYOUT_X, width: LAYOUT_W, bgColor: color(pressed("strip:layout") ? "selection" : "dark_background") }}>
-        <Text class="absolute left-0 top-[3] text-center font-mono text-xs leading-[14]" style={{ width: LAYOUT_W, textColor: color("dark_foreground") }}>{layout()}</Text>
-      </View>
-      <For each={INDICATORS}>
-        {(p, i) => (
-          <View class="absolute top-[3] h-[20] rounded-sm" style={{ insetL: IND_X + i() * IND_W, width: IND_W - 4, bgColor: color(openPanel() === p ? "selection" : pressed(`strip:${p}`) ? "selection" : "background") }}>
-            <Text class="absolute left-0 top-[3] text-center font-mono text-sm leading-[14]" style={{ width: IND_W - 4, textColor: color(openPanel() === p ? "accent" : "foreground") }}>{glyph(p)}</Text>
-          </View>
+      <For each={SEGMENTS}>
+        {(s, i) => (
+          <>
+            <Text class="absolute top-[4] w-[20] text-center font-mono text-sm leading-[16]" style={{ insetL: SEG_X + i() * SEG_W + 8, textColor: color(lit() === i() ? "accent" : pressed(`strip:${s.body}`) ? "foreground" : "dark_foreground") }}>
+              {s.glyph()}
+            </Text>
+            <Text
+              class="absolute top-[5] h-[14] overflow-hidden font-mono text-xs leading-[14]"
+              style={{ insetL: SEG_X + i() * SEG_W + 32, width: SEG_W - 40, textColor: color(lit() === i() ? "bright_foreground" : "dark_foreground") }}
+            >
+              {s.label()}
+            </Text>
+          </>
         )}
       </For>
       <Pill x={R_X} label="R1" on={rOn} target="strip:R" />

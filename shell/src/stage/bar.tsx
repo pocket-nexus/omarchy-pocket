@@ -3,8 +3,8 @@
 // empty ones dimmed), the clock in the middle, and on the right the chord
 // layer while a shoulder is held (otherwise the workspace's layout) before
 // the Bluetooth, network, audio and power indicators from omarchy-pocketd's
-// SystemState. The indicator whose panel is open on the deck is drawn in the
-// accent. The bar follows Omarchy's shell.json: the clock's format, hidden
+// SystemState, and mihomo's while it is installed. The indicator whose panel
+// is open on the stage's card is drawn in the accent. The bar follows Omarchy's shell.json: the clock's format, hidden
 // (bar-off), at the top or bottom, and an opaque, glassy or clear background.
 // The layer titles are mounted together and shown by opacity, so a shoulder
 // press repaints the bar without a relayout.
@@ -41,22 +41,25 @@ export function Bar(props: { now: () => Date; focused: () => string | null }) {
       { name: "audio", glyph: audioGlyph(s?.audio ?? null) },
       { name: "network", glyph: networkGlyph(s?.network) },
       { name: "bluetooth", glyph: bluetoothGlyph(s?.bluetooth ?? null) },
+      // mihomo, the proxy: drawn while it is installed, dimmed while stopped
+      { name: "proxy", glyph: s?.proxy ? "\u{f0582}" : "", off: s?.proxy?.running === false },
     ].filter((i) => i.glyph);
   };
   const statusRight = () => 512 - 8 - SLOT * indicators().length - 8;
   return (
     <Show when={!settings()?.hidden}>
       <View class={C.bar} style={{ insetT: top(), bgColor: color("background", ALPHA[settings()?.background ?? "opaque"] ?? 1) }}>
-        <Text class={C.barText} style={{ insetL: 6, textColor: color("foreground") }}>{"\u{e900}"}</Text>
+        {/* centred on the bar's middle (9): Omarchy's logo sits high in its em, 2 points down; the digits half a point */}
+        <Text class={C.barText} style={{ insetL: 6, insetT: 4, textColor: color("foreground") }}>{"\u{e900}"}</Text>
         <For each={NUMBERS}>
           {(n) => (
-            <Text class={C.barText} style={{ insetL: 26 + n * 14, opacity: current() === n ? 0 : 1, textColor: color(occupied(n) ? "foreground" : "muted") }}>
+            <Text class={C.barText} style={{ insetL: 26 + n * 14, insetT: 2.5, opacity: current() === n ? 0 : 1, textColor: color(occupied(n) ? "foreground" : "muted") }}>
               {String(n + 1)}
             </Text>
           )}
         </For>
         <View
-          class="absolute top-[5] h-[9] w-[9] rounded-sm"
+          class="absolute top-[4.5] h-[9] w-[9] rounded-sm"
           style={{ insetL: 25, translateX: untrack(current) * 14, bgColor: color("bright_foreground") }}
           ref={(n: NodeMirror) => (marker = n)}
         />
@@ -73,7 +76,7 @@ export function Bar(props: { now: () => Date; focused: () => string | null }) {
         </For>
         <For each={indicators()}>
           {(i, n) => (
-            <Text class={C.barText} style={{ insetL: 512 - 8 - SLOT * (n() + 1) + 4, textColor: color(props.focused() === i.name ? "accent" : "foreground") }}>
+            <Text class={C.barText} style={{ insetL: 512 - 8 - SLOT * (n() + 1) + 4, textColor: color(props.focused() === i.name ? "accent" : "off" in i && i.off ? "muted" : "foreground") }}>
               {i.glyph}
             </Text>
           )}
