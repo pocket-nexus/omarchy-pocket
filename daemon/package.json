@@ -4,6 +4,7 @@
   "type": "module",
   "description": "omarchy-pocketd's dependencies; tools/build.ts bundles them into one script",
   "dependencies": {
-    "@wterm/ghostty": "0.3.4"
+    "@wterm/ghostty": "0.3.4",
+    "dbus-next": "0.10.2"
   }
 }

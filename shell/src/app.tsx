@@ -17,7 +17,7 @@ import { remoteButtons, remoteContact } from "./remote-input.ts";
 import { Bar } from "./stage/bar.tsx";
 import { LockDeck, lockFrame, LockStage } from "./stage/lock.tsx";
 import { Osd } from "./stage/osd.tsx";
-import { Toasts } from "./stage/toasts.tsx";
+import { actOnNewest, Toasts } from "./stage/toasts.tsx";
 import { TermGrid } from "./term/grid.tsx";
 import { Keyboard, keyboardTouch, latch, sendKey, TABS_HEIGHT, tabsTap } from "./term/keyboard.tsx";
 import { cycle, hide, openTerminal, shown as termShown } from "./term/store.ts";
@@ -49,6 +49,8 @@ export default function Shell() {
   const press = (key: number) => {
     if (termShown()) return termPress(key);
     if (key & BTN.SELECT) openTerminal();
+    else if (key & BTN.SQUARE) actOnNewest(true);
+    else if (key & BTN.TRIANGLE) actOnNewest(false);
     else if (key & BTN.ZL) setWorkspace((w) => (w > 1 ? w - 1 : 5));
     else if (key & BTN.ZR) setWorkspace((w) => (w < 5 ? w + 1 : 1));
     else deckPress(key);

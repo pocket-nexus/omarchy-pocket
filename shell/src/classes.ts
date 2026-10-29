@@ -26,7 +26,8 @@ export const C = {
 
   toast: "absolute right-[8] w-[248] h-[52] overflow-hidden rounded-md border-[1]",
   toastIcon: "absolute left-[10] top-[8] w-[18] font-mono text-sm leading-[16]",
-  toastTitle: "absolute left-[32] top-[8] w-[206] h-[16] overflow-hidden font-mono text-sm leading-[16]",
+  toastTitle: "absolute left-[32] top-[8] w-[136] h-[16] overflow-hidden font-mono text-sm leading-[16]",
+  toastKeys: "absolute right-[8] top-[9] font-mono text-xs leading-[14]",
   toastBody: "absolute left-[32] top-[28] w-[206] h-[16] overflow-hidden font-mono text-xs leading-[14]",
 
   cover: "absolute left-0 top-0 w-[512] h-[384]",

@@ -5,6 +5,7 @@
 //
 //   $XDG_RUNTIME_DIR/omarchy-pocket/bridge.sock   the shell's bridge (protocol.ts):
 //       run commands, evaluate menu conditions, push SystemState
+//   org.freedesktop.Notifications on the session bus (notifications.ts)
 //   $XDG_RUNTIME_DIR/omarchy-shell-<id>.sock      the socket Omarchy's
 //       `omarchy-shell` CLI talks to, served in place of Quickshell's; each
 //       call goes to the shell as a `shell` event and the shell's answer
@@ -18,6 +19,7 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync
 import { join } from "node:path";
 import { bridgePath, shellPath } from "./paths.ts";
 import type { DaemonMessage, Request, RunResult, SystemState } from "./protocol.ts";
+import { CLOSED, Notifications } from "./notifications.ts";
 import { Terminals, type OpenOptions } from "./term.ts";
 
 const HOME = process.env.HOME ?? "/home/omarchy";
@@ -245,6 +247,17 @@ async function handle(socket: Socket<Peer>, request: Request) {
         result = terminals.list();
         for (const { sid } of terminals.list()) terminals.get(sid).attach();
         break;
+      case "notifyInvoke":
+        notifications.invoke(request.notice, request.action);
+        result = null;
+        break;
+      case "notifyDismiss":
+        notifications.close(request.notice, CLOSED.dismissed);
+        result = null;
+        break;
+      case "notifyList":
+        result = notifications.list();
+        break;
       default:
         throw new Error(`unknown method ${(request as { method: string }).method}`);
     }
@@ -279,6 +292,14 @@ function openTerminal(options: OpenOptions, announce: boolean): number {
   if (announce) broadcast({ event: "termOpened", sid, title: terminals.get(sid).title });
   return sid;
 }
+
+// ---- notifications --------------------------------------------------------
+
+const notifications = new Notifications({
+  shown: (notice) => broadcast({ event: "notify", notice }),
+  closed: (notice, reason) => broadcast({ event: "notifyClosed", notice, reason }),
+});
+notifications.start().catch((error) => log("notifications:", error instanceof Error ? error.message : error));
 
 listen(bridgePath, {
   open(socket) {

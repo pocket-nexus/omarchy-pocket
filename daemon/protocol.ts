@@ -45,7 +45,12 @@ export type Request =
   /** Ends a session (SIGHUP to its process). */
   | { id: number; method: "termClose"; sid: number }
   /** The open sessions; each also sends a full snapshot as `termRows`. */
-  | { id: number; method: "termList" };
+  | { id: number; method: "termList" }
+  /** Runs a notification's command (action -1) or one of its actions, and closes it. */
+  | { id: number; method: "notifyInvoke"; notice: number; action: number }
+  | { id: number; method: "notifyDismiss"; notice: number }
+  /** Recent notifications, newest first. */
+  | { id: number; method: "notifyList" };
 
 /** A request without its id, as the shell's bridge.request() takes it. */
 export type RequestBody = Request extends infer R ? (R extends { id: number } ? Omit<R, "id"> : never) : never;
@@ -57,6 +62,21 @@ export interface RunResult {
 }
 
 export type Reply = { id: number; ok: true; result: unknown } | { id: number; ok: false; error: string };
+
+/** A desktop notification (org.freedesktop.Notifications Notify). */
+export interface Notice {
+  id: number;
+  app: string;
+  summary: string;
+  body: string;
+  /** Omarchy's omarchy-glyph hint: one Nerd Font glyph */
+  glyph: string;
+  icon: string;
+  /** 0 low, 1 normal, 2 critical */
+  urgency: number;
+  /** labels of the actions, in order */
+  actions: string[];
+}
 
 export interface SystemState {
   battery: { percent: number; charging: boolean } | null;
@@ -78,6 +98,9 @@ export type Event =
   /** Rows that changed (every row when full), and the cursor. */
   | { event: "termRows"; sid: number; rows: TermRow[]; cursor: Cursor; full: boolean }
   | { event: "termTitle"; sid: number; title: string }
-  | { event: "termExit"; sid: number; code: number | null };
+  | { event: "termExit"; sid: number; code: number | null }
+  | { event: "notify"; notice: Notice }
+  /** reason: 1 expired, 2 dismissed, 3 closed by the program */
+  | { event: "notifyClosed"; notice: number; reason: number };
 
 export type DaemonMessage = Reply | Event;

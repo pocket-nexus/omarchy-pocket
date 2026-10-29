@@ -95,6 +95,8 @@ The daemon pushes `state` events when the state changes (read every 15 s and on 
 | `lock` | `lock`, `isLocked`, `status` | `stage/lock.tsx` |
 | `pocket.input` | `hold <BUTTON> [frames]`, `tap <x> <y>` | `remote-input.ts`: drives the shell over SSH for testing |
 
+**Notifications.** omarchy-pocketd owns `org.freedesktop.Notifications` on the user's session bus (`daemon/notifications.ts`, dbus-next; its native `usocket` and `x11` modules stay out of the bundle, and it falls back to `net`). `Notify` reads Omarchy's hints (`urgency`, `omarchy-glyph`, `omarchy-exec-argv`, `omarchy-actions`) and libnotify's action pairs; the notice goes to the shell as a `notify` event and closes after 5 s (critical notices stay), with `NotificationClosed` on the bus. The shell's `notifyInvoke` runs the notice's command with `setsid -f` or emits `ActionInvoked`.
+
 `/usr/local/bin/hyprctl`, `uwsm` and `uwsm-app` are copies of `daemon/shim.ts`, which picks the command by the name it runs under. `hyprctl` answers queries with the two panels and no windows and runs `dispatch exec`; `uwsm stop` ends the session.
 
 ## Pocket Term

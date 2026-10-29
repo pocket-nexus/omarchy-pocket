@@ -85,7 +85,8 @@ async function daemon() {
   const wasm = join(ROOT, "daemon", "node_modules", "@wterm", "ghostty", "wasm", "ghostty-vt.wasm");
   if (!existsSync(wasm)) await $`bun install --frozen-lockfile`.cwd(join(ROOT, "daemon"));
   if (!existsSync(join(ROOT, "vendor", "pocket-term", "host", "grid.ts"))) throw new Error("no vendor/pocket-term; run: git submodule update --init vendor/pocket-term");
-  await $`bun build daemon/main.ts --target=bun --outfile ${OUTPUTS.daemon}`.cwd(ROOT).quiet();
+  // dbus-next tries usocket (native) and x11 at run time and falls back without them
+  await $`bun build daemon/main.ts --target=bun --external usocket --external x11 --outfile ${OUTPUTS.daemon}`.cwd(ROOT).quiet();
   await $`cp ${wasm} ${OUTPUTS.wasm}`;
   await $`bun build daemon/shim.ts --target=bun --outfile ${OUTPUTS.shim}`.cwd(ROOT).quiet();
   const shim = readFileSync(OUTPUTS.shim, "utf8");
