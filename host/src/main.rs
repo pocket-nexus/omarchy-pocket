@@ -40,8 +40,9 @@ const GAMEPAD: &[(u16, u32)] = {
     &[
         (304, btn::CIRCLE),   // A
         (305, btn::CROSS),    // B
-        (306, btn::TRIANGLE), // X
-        (307, btn::SQUARE),   // Y
+        // the stock SDL entry for ANBERNIC-keys: x:b3, y:b2
+        (307, btn::TRIANGLE), // X
+        (306, btn::SQUARE),   // Y
         (308, btn::LTRIGGER), // L1
         (309, btn::RTRIGGER), // R1
         (314, btn::ZL),       // L2
@@ -121,7 +122,8 @@ fn options() -> Result<Option<Options>, Box<dyn Error>> {
 /// Demand presentation. The GBM displays report no buffer identity, so the
 /// presenter cannot know their pixels are retained and redraws both panels
 /// on every present. A tick whose draw lists equal the last presented ones
-/// skips rendering and the page flip; the panels keep showing that frame.
+/// skips rendering and the page flip; the panels keep showing that frame. A
+/// tick that changed one panel's list swaps and flips that panel alone.
 #[derive(Default)]
 struct Presented {
     primary: Vec<u32>,
@@ -132,21 +134,22 @@ struct Presented {
 impl Presented {
     /// Draws both lists and reports whether either differs from the last
     /// presented frame, remembering the new ones.
-    fn changed(&mut self, runtime: &Runtime) -> Result<bool, Box<dyn Error>> {
+    fn changed(&mut self, runtime: &Runtime) -> Result<(bool, bool), Box<dyn Error>> {
         let ops = runtime.op_context();
         let mut state = ops.core_mut().map_err(error)?;
         let primary = &state.ui.draw().words;
-        let mut changed = *primary != self.primary;
-        if changed {
+        let top = *primary != self.primary;
+        if top {
             self.primary.clone_from(primary);
         }
+        let mut bottom = false;
         if let Some(auxiliary) = state.ui.draw_auxiliary() {
             if auxiliary.words != self.auxiliary {
                 self.auxiliary.clone_from(&auxiliary.words);
-                changed = true;
+                bottom = true;
             }
         }
-        Ok(changed)
+        Ok((top, bottom))
     }
 
     /// Whether `/tmp/pocket-shot` waits for a frame, checked twice a second.
@@ -158,6 +161,9 @@ impl Presented {
 
 #[derive(Default)]
 struct Timing {
+    /// OMARCHY_POCKET_TIMING=frames (or frames=<ms>): also every tick over
+    /// that long (20 ms), as it happens
+    frames: Option<std::time::Duration>,
     ticks: u32,
     presents: u32,
     advance: std::time::Duration,
@@ -165,14 +171,23 @@ struct Timing {
     present: std::time::Duration,
 }
 
+
 impl Timing {
     fn record(&mut self, started: std::time::Instant, advanced: std::time::Instant, drawn: std::time::Instant, presented: bool) {
         self.ticks += 1;
         self.advance += advanced - started;
         self.draw += drawn - advanced;
+        let present = if presented { drawn.elapsed() } else { std::time::Duration::ZERO };
         if presented {
             self.presents += 1;
-            self.present += drawn.elapsed();
+            self.present += present;
+        }
+        if self.frames.is_some_and(|long| started.elapsed() > long) {
+            let ms = |d: std::time::Duration| d.as_secs_f64() * 1000.0;
+            eprintln!(
+                "omarchy-pocket-host: long tick {:.1} ms: guest+core {:.1}, draw+compare {:.1}, present {:.1}",
+                ms(started.elapsed()), ms(advanced - started), ms(drawn - advanced), ms(present)
+            );
         }
         if self.ticks == 300 {
             let per = |d: std::time::Duration, n: u32| d.as_micros() as f64 / n.max(1) as f64;
@@ -180,7 +195,7 @@ impl Timing {
                 "omarchy-pocket-host: {} ticks: guest+core {:.0} us, draw+compare {:.0} us; {} presents {:.0} us",
                 self.ticks, per(self.advance, self.ticks), per(self.draw, self.ticks), self.presents, per(self.present, self.presents)
             );
-            *self = Timing::default();
+            *self = Timing { frames: self.frames, ..Timing::default() };
         }
     }
 }
@@ -305,8 +320,14 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf, shell: Opti
     let mut clock = MonotonicClock::default();
     let mut schedule = TickSchedule::new(profile.tick_hz, clock.now(), 1).map_err(error)?;
     let mut presented = Presented::default();
-    // OMARCHY_POCKET_TIMING=1: mean costs of each tick's phases every 5 s
-    let mut timing = std::env::var_os("OMARCHY_POCKET_TIMING").map(|_| Timing::default());
+    #[cfg(target_os = "linux")]
+    let mut gpu_floor = (shot.is_none()).then(gpu::GpuFloor::new);
+    // OMARCHY_POCKET_TIMING=1: mean costs of each tick's phases every 5 s;
+    // =frames[=<ms>]: and each tick over 20 ms (or <ms>)
+    let mut timing = std::env::var("OMARCHY_POCKET_TIMING").ok().map(|v| {
+        let frames = v.strip_prefix("frames").map(|ms| std::time::Duration::from_millis(ms.trim_start_matches('=').parse().unwrap_or(20)));
+        Timing { frames, ..Timing::default() }
+    });
     while !STOP.load(Ordering::Relaxed) {
         schedule.wait_next(&mut clock).map_err(error)?;
         if let Some(shot) = shot.as_mut() {
@@ -319,9 +340,17 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf, shell: Opti
         let advanced = timing.as_ref().map(|_| std::time::Instant::now());
         // --shot frames, GPU readbacks and a new glyph atlas need every panel presented
         let forced = shot.is_some() || presented.readback_due() || repaint.replace(false);
-        let changed = presented.changed(&runtime)?;
+        let (top, bottom) = presented.changed(&runtime)?;
+        let changed = top || bottom;
         let drawn = timing.as_ref().map(|_| std::time::Instant::now());
+        #[cfg(target_os = "linux")]
+        if let Some(floor) = gpu_floor.as_mut() {
+            floor.tick(changed || forced);
+        }
         if changed || forced {
+            // a panel whose list is the one it shows keeps its frame (no swap, no flip)
+            #[cfg(target_os = "linux")]
+            gpu::hold(!top && !forced, !bottom && !forced);
             runtime.present().map_err(error)?;
         } else {
             runtime.skip_presentation().map_err(error)?;

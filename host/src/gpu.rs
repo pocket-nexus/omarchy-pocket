@@ -2,8 +2,12 @@
 //! KMS card (Mali-G52, kbase driver; the kernel has no Panfrost), GLES 2
 //! rendering through pocket-gles2, one GBM surface and EGL window surface per
 //! panel, one EGL context for both. A flush swaps the panel's surface, adds
-//! its front buffer to KMS once and page-flips it; a wait takes the flip event
-//! for that panel's CRTC and returns the previous front buffer to GBM.
+//! its front buffer to KMS once and page-flips it. The flip completes at the
+//! panel's next acquire (taking the flip event for its CRTC and returning the
+//! previous front buffer to GBM), not inside the present that queued it: a
+//! present costs its rendering, and the flip lands while the next tick runs.
+//! A panel whose draw list did not change (`hold`) is rendered but neither
+//! swapped nor flipped, so it keeps showing its frame.
 //!
 //! EGL, GLES and GBM all come from libmali.so.1, which the program links
 //! directly: libmali's libEGL/libGLESv2/libgbm are small wrappers that export
@@ -204,6 +208,15 @@ struct Shared {
     panels: Vec<Panel>,
 }
 
+/// Panels (bit 0 the top, bit 1 the bottom) whose next present repeats the
+/// frame they show: the flush keeps their buffers and queues no flip.
+static HELD: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
+/// Marks the panels the next present leaves as they are.
+pub fn hold(top: bool, bottom: bool) {
+    HELD.store(u8::from(top) | (u8::from(bottom) << 1), std::sync::atomic::Ordering::Relaxed);
+}
+
 /// The renderer's view of EGL: the context and each panel's window surface.
 pub struct Context {
     display: EGLDisplay,
@@ -300,9 +313,15 @@ impl Shared {
             return Err(egl_error("eglMakeCurrent before swap"));
         }
         capture(index, self.panels[index].size);
+        let held = HELD.load(std::sync::atomic::Ordering::Relaxed) & (1 << index) != 0;
+        if held && self.panels[index].front.is_some() {
+            return Ok(());
+        }
+        let swap_started = Instant::now();
         if unsafe { eglSwapBuffers(display, surface) } != 1 {
             return Err(egl_error("eglSwapBuffers"));
         }
+        probe(index, "swap", swap_started);
         let bo = unsafe { gbm_surface_lock_front_buffer(gbm) };
         if bo.is_null() {
             return Err(io::Error::other(
@@ -329,6 +348,7 @@ impl Shared {
         Ok(())
     }
     fn complete(&mut self, index: usize) -> io::Result<()> {
+        let wait_started = Instant::now();
         if self.panels[index].flip_expected {
             let crtc = self.panels[index].crtc;
             let deadline = Instant::now() + Duration::from_secs(5);
@@ -371,6 +391,7 @@ impl Shared {
                 }
             }
         }
+        probe(index, "flip wait", wait_started);
         let panel = &mut self.panels[index];
         panel.flip_expected = false;
         if let Some(bo) = panel.pending.take() {
@@ -379,6 +400,87 @@ impl Shared {
             }
         }
         Ok(())
+    }
+}
+
+/// The Mali-G52's devfreq floor while frames are being presented. Its
+/// governor (simple_ondemand) samples load every 50 ms and leaves the GPU at
+/// 200 MHz through a 200 ms window animation, where a panel takes about 15 ms
+/// to render; at 800 MHz it takes about 4. Presenting raises the floor to the
+/// highest frequency, and two seconds without a present lower it to the
+/// lowest again (a window that updates once a second keeps it raised). Writing needs the video group's access (tmpfiles.d
+/// omarchy-pocket-gpu.conf); without it the floor stays as it is.
+pub struct GpuFloor {
+    path: &'static str,
+    low: u64,
+    high: u64,
+    raised: bool,
+    last: Instant,
+    broken: bool,
+}
+
+const GPU_DEVFREQ: &str = "/sys/class/devfreq/fde60000.gpu";
+const GPU_IDLE: Duration = Duration::from_secs(2);
+
+impl GpuFloor {
+    pub fn new() -> Self {
+        let frequencies: Vec<u64> = std::fs::read_to_string(format!("{GPU_DEVFREQ}/available_frequencies"))
+            .unwrap_or_default()
+            .split_whitespace()
+            .filter_map(|f| f.parse().ok())
+            .collect();
+        Self {
+            path: "/sys/class/devfreq/fde60000.gpu/min_freq",
+            low: frequencies.iter().copied().min().unwrap_or(0),
+            high: frequencies.iter().copied().max().unwrap_or(0),
+            raised: false,
+            last: Instant::now(),
+            broken: frequencies.is_empty(),
+        }
+    }
+
+    /// Once per tick: whether this tick presents a frame.
+    pub fn tick(&mut self, presenting: bool) {
+        if self.broken {
+            return;
+        }
+        if presenting {
+            self.last = Instant::now();
+            if !self.raised {
+                self.raised = true;
+                self.write(self.high);
+            }
+        } else if self.raised && self.last.elapsed() > GPU_IDLE {
+            self.raised = false;
+            self.write(self.low);
+        }
+    }
+
+    fn write(&mut self, hz: u64) {
+        if let Err(e) = std::fs::write(self.path, hz.to_string()) {
+            eprintln!("omarchy-pocket-host: GPU floor {}: {e}; leaving the governor alone", self.path);
+            self.broken = true;
+        }
+    }
+}
+
+impl Drop for GpuFloor {
+    fn drop(&mut self) {
+        if self.raised && !self.broken {
+            let _ = std::fs::write(self.path, self.low.to_string());
+        }
+    }
+}
+
+/// OMARCHY_POCKET_TIMING=frames: a presentation step over 4 ms, as it happens.
+fn probe(index: usize, what: &str, started: Instant) {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if !*ON.get_or_init(|| std::env::var_os("OMARCHY_POCKET_TIMING").is_some_and(|v| v == "frames")) {
+        return;
+    }
+    let spent = started.elapsed();
+    if spent > Duration::from_millis(4) {
+        eprintln!("omarchy-pocket-host: panel {index} {what} {:.1} ms", spent.as_secs_f64() * 1000.0);
     }
 }
 
@@ -429,9 +531,16 @@ impl DisplayOutput for Display {
         d
     }
     fn acquire(&mut self, region: Rect) -> Result<Target<'_>, DisplayError> {
+        // the previous frame's flip, queued by the last present
+        if self.shared.borrow().panels[self.index].pending.is_some() {
+            self.shared.borrow_mut().complete(self.index).map_err(|e| {
+                eprintln!("omarchy-pocket-host: panel {} flip: {e}", self.index);
+                DisplayError::Failed
+            })?;
+        }
         let shared = self.shared.borrow();
         let panel = &shared.panels[self.index];
-        if region != Rect::new(0, 0, panel.size[0], panel.size[1]) || panel.pending.is_some() {
+        if region != Rect::new(0, 0, panel.size[0], panel.size[1]) {
             return Err(DisplayError::InvalidTarget);
         }
         self.driver
@@ -448,14 +557,12 @@ impl DisplayOutput for Display {
         self.sequence += 1;
         Ok(self.sequence)
     }
+    /// The flip completes at the next acquire (or when the panels close).
     fn wait(&mut self, token: u64) -> Result<(), DisplayError> {
         if token != self.sequence {
             return Err(DisplayError::InvalidTarget);
         }
-        self.shared.borrow_mut().complete(self.index).map_err(|e| {
-            eprintln!("omarchy-pocket-host: panel {} flip: {e}", self.index);
-            DisplayError::Failed
-        })
+        Ok(())
     }
     fn vsync(&mut self) -> VsyncSource {
         VsyncSource::Display
@@ -464,6 +571,12 @@ impl DisplayOutput for Display {
 
 impl Drop for Shared {
     fn drop(&mut self) {
+        // a queued flip finishes before the CRTCs go back to the old framebuffers
+        for index in 0..self.panels.len() {
+            if self.panels[index].pending.is_some() {
+                let _ = self.complete(index);
+            }
+        }
         unsafe {
             eglMakeCurrent(
                 self.display,
