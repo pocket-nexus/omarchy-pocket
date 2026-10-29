@@ -18,10 +18,12 @@ export const GRID_TOP = 18;
 
 const hex = (rgb: number) => "#" + rgb.toString(16).padStart(6, "0");
 
-/** A run from the run-time CJK atlas: one Text per character, each on its
- *  own two columns, so the face's advance never drifts off the grid. */
+/** A run from the run-time atlas: one Text per character, each on its own
+ *  columns (two for a wide character, the run's span over its length), so
+ *  the face's advance never drifts off the grid. */
 function WideRun(props: { run: Run }) {
   const chars = () => [...props.run[1]];
+  const step = () => runColumns(props.run) / Math.max(1, chars().length);
   return (
     <>
       <Show when={props.run[3] >= 0}>
@@ -34,7 +36,7 @@ function WideRun(props: { run: Run }) {
         {(ch, i) => (
           <Text
             class="absolute top-0 font-mono text-xs"
-            style={{ insetL: (props.run[0] + i() * 2) * CELL_W, lineHeight: CELL_H, fontSlot: props.run[4], textColor: props.run[2] >= 0 ? hex(props.run[2]) : color("foreground") }}
+            style={{ insetL: (props.run[0] + i() * step()) * CELL_W, lineHeight: CELL_H, fontSlot: props.run[4], textColor: props.run[2] >= 0 ? hex(props.run[2]) : color("foreground") }}
           >
             {ch}
           </Text>

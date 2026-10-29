@@ -1,4 +1,5 @@
-// Run-time glyphs for characters the shell package never baked: CJK first.
+// Run-time glyphs for characters the shell package never baked: CJK, and the
+// other scripts the CJK face covers (Latin Extended, Greek, Cyrillic).
 // The package's atlases hold what the build saw (menu, models, ASCII, box
 // drawing, Braille); a terminal printing 你好, a Wi-Fi network's name or an IME
 // candidate needs more. This module keeps every such character it has been
@@ -15,7 +16,7 @@
 // characters and face, so a restarted daemon publishes it without baking.
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { AtlasFile } from "./protocol.ts";
+import { needsRuntimeGlyph, type AtlasFile } from "./protocol.ts";
 
 /** Spare slots above the package's baked ones (0..20; MAX_FONT_SLOTS is 24):
  *  21 at 12 px for the terminal's cells, 22 at 14 px for the shell's text-sm. */
@@ -99,9 +100,9 @@ export class Glyphs {
     this.published(this.current);
   }
 
-  /** Whether `cp` needs a run-time atlas: not ASCII, not in the package. */
+  /** Whether `cp` needs a run-time atlas: not in the package's baked ranges. */
   static needs(cp: number): boolean {
-    return cp >= 0x2e80 && !(cp >= 0x2800 && cp <= 0x28ff);
+    return needsRuntimeGlyph(cp);
   }
 
   /** Adds the characters of `text` that need run-time glyphs; true when the

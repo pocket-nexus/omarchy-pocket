@@ -26,6 +26,7 @@ import * as panels from "./panels.ts";
 import { checkPassword, watchSleep } from "./session.ts";
 import { Glyphs } from "./glyphs.ts";
 import { commonHanzi, Ime } from "./ime.ts";
+import { apps } from "./apps.ts";
 import { RUNTIME } from "./paths.ts";
 
 if (process.argv[2] === "bake") {
@@ -335,6 +336,9 @@ async function handle(socket: Socket<Peer>, request: Request) {
         break;
       case "atlases":
         result = glyphs.atlases();
+        break;
+      case "apps":
+        result = apps(HOME);
         break;
       case "ime": {
         const snapshot = await ime.compose(request.keys);

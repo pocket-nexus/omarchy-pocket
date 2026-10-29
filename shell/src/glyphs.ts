@@ -1,4 +1,5 @@
-// Run-time glyphs: omarchy-pocketd bakes the CJK characters the shell draws
+// Run-time glyphs: omarchy-pocketd bakes the characters the shell draws that
+// the package lacks (CJK, Cyrillic, ...)
 // into font slots 21 (12 px) and 22 (14 px) and announces each new atlas; the
 // host program loads the file into its slot (omarchyBridge.loadFontAtlas).
 // `cjk(text, slot)` asks for a string's characters and returns the style a
@@ -6,7 +7,7 @@
 // package's own atlas has every character.
 import { createSignal } from "solid-js";
 import { onEvent, request } from "./bridge.ts";
-import type { AtlasFile } from "../../daemon/protocol.ts";
+import { needsRuntimeGlyph, type AtlasFile } from "../../daemon/protocol.ts";
 
 interface Loader {
   loadFontAtlas(path: string): boolean;
@@ -15,13 +16,9 @@ interface Loader {
 const [generation, setGeneration] = createSignal(0);
 const asked = new Set<string>();
 
-/** Characters past U+2E80 (CJK and the scripts after it) come from the
- *  run-time atlases; Braille is baked. */
+/** Whether `text` has a character the package's atlases lack. */
 export function needsRuntime(text: string): boolean {
-  for (const ch of text) {
-    const cp = ch.codePointAt(0)!;
-    if (cp >= 0x2e80 && !(cp >= 0x2800 && cp <= 0x28ff)) return true;
-  }
+  for (const ch of text) if (needsRuntimeGlyph(ch.codePointAt(0)!)) return true;
   return false;
 }
 

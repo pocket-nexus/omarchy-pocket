@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveCell, rowKey, rowRuns, type Cell } from "../vendor/pocket-term/host/grid.ts";
 import { encodeKey } from "../vendor/pocket-term/host/keys.ts";
-import { CJK_SLOT_12, TERM_COLS, TERM_ROWS, type Cursor, type TermRow } from "./protocol.ts";
+import { CJK_SLOT_12, needsRuntimeGlyph, TERM_COLS, TERM_ROWS, type Cursor, type TermRow } from "./protocol.ts";
 
 const SCROLLBACK = 2000;
 const FLUSH_MS = 16;
@@ -48,13 +48,15 @@ export interface OpenOptions {
   env?: Record<string, string>;
 }
 
-/** A row's cells. A wide character (CJK) is drawn from the run-time atlas in
- *  slot 21 and spans two cells; its continuation cell stays empty. */
+/** A row's cells. A character the package has no glyph for (CJK, Cyrillic,
+ *  ...) is drawn from the run-time atlas in slot 21; a wide one spans two
+ *  cells and its continuation cell stays empty. */
 function cellsOf(core: GhosttyCore, y: number, want: (text: string) => void): Cell[] {
   const cells: Cell[] = [];
   for (let x = 0; x < TERM_COLS; x++) {
     const cell = resolveCell(core.getCell(y, x));
-    if (cell.width === 2) {
+    const cp = cell.ch.codePointAt(0);
+    if (cell.width === 2 || (cp !== undefined && needsRuntimeGlyph(cp))) {
       cell.slot = CJK_SLOT_12;
       want(cell.ch);
     }

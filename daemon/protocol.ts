@@ -73,6 +73,8 @@ export type Request =
   | { id: number; method: "glyphs"; text: string }
   /** The run-time atlases as they are now. */
   | { id: number; method: "atlases" }
+  /** Desktop entries that run in a terminal, for the Apps menu. */
+  | { id: number; method: "apps" }
   /** Evaluates a pinyin key transcript (PocketJS IME key codes). */
   | { id: number; method: "ime"; keys: number[] }
   /** The Omarchy user's password, for the lock screen. */
@@ -89,12 +91,30 @@ export interface RunResult {
 
 export type Reply = { id: number; ok: true; result: unknown } | { id: number; ok: false; error: string };
 
+/** An application the Apps menu can start (daemon/apps.ts). */
+export interface App {
+  id: string;
+  name: string;
+  command: string;
+}
+
 /** A run-time font atlas omarchy-pocketd baked (daemon/glyphs.ts). */
 export interface AtlasFile {
   slot: number;
   path: string;
   gen: number;
   glyphs: number;
+}
+
+/** Whether a code point needs a run-time glyph: it is outside every range the
+ *  shell package bakes (ASCII, Latin-1, general punctuation, arrows, box
+ *  drawing and blocks, Braille) and outside the private use areas, where the
+ *  Nerd Font icons the package bakes live and a CJK face has nothing. */
+export function needsRuntimeGlyph(cp: number): boolean {
+  if (cp <= 0x7e || (cp >= 0xa0 && cp <= 0xff)) return false;
+  if ((cp >= 0x2010 && cp <= 0x205e) || (cp >= 0x2190 && cp <= 0x21ff) || (cp >= 0x2500 && cp <= 0x259f) || (cp >= 0x2800 && cp <= 0x28ff)) return false;
+  if ((cp >= 0xe000 && cp <= 0xf8ff) || cp >= 0xf0000) return false;
+  return cp >= 0x100;
 }
 
 /** The run-time CJK slots: 12 px for terminal cells, 14 px for text-sm. */

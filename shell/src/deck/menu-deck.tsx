@@ -7,10 +7,13 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
-import { conditions, run } from "../bridge.ts";
+import { conditions, request, run } from "../bridge.ts";
+import type { App } from "../../../daemon/protocol.ts";
+import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
+import { cjk } from "../glyphs.ts";
 import { C } from "../classes.ts";
 import { MENU } from "../generated/menu.ts";
-import { conditionsOf, pathTo, ROOT_TITLE, scrollFor, shown, type MenuItem, type MenuLevel, type Truth } from "../menu.ts";
+import { conditionsOf, pathTo, PROVIDERS, providerRows, ROOT_TITLE, row, scrollFor, shown, type MenuItem, type MenuLevel, type Truth } from "../menu.ts";
 import { serve } from "../system.ts";
 import { PANELS, showPanel, type PanelName } from "./panels.tsx";
 import { openThemePicker } from "./picker.tsx";
@@ -29,6 +32,7 @@ const CHECK = "\u{f012c}";
 const CHEVRON = "\u{f0142}";
 const ERROR = "\u{f015a}";
 const INFO = "\u{f02fc}";
+const APP = "\u{f018d}";
 
 const levelFor = (title: string, items: MenuItem[]): MenuLevel => ({ title, items, selected: items[0]?.id ?? "", scroll: 0 });
 
@@ -72,9 +76,25 @@ function lastLine(text: string): string {
   return lines[lines.length - 1] ?? "";
 }
 
+/** A provider's rows as a new level: Omarchy's bash providers, or the
+ *  daemon's terminal applications for Apps. */
+function openProvider(item: MenuItem) {
+  const fill = (rows: MenuItem[]) => {
+    if (!rows.length) return toast({ icon: INFO, title: item.label, body: "Nothing to list", tone: "info" });
+    setStack((s) => [...s, levelFor(item.title, rows)]);
+  };
+  const failed = (error: unknown) => toast({ icon: ERROR, title: item.label, body: String(error), tone: "error" });
+  if (item.provider === "apps") {
+    request<App[]>({ method: "apps" }).then((apps) => fill(apps.map((a) => row(`apps.${a.id}`, APP, a.name, a.command))), failed);
+  } else if (PROVIDERS[item.provider]) {
+    run(PROVIDERS[item.provider]!.script).then((result) => fill(providerRows(item.id, item.provider, result.stdout)), failed);
+  } else toast({ icon: INFO, title: item.label, body: `The ${item.provider} list is not in Omarchy Pocket`, tone: "info" });
+}
+
 function activate(item: MenuItem) {
   if (item.children.length) return push(item);
   if (item.disabled && truth()[item.disabled]) return;
+  if (item.provider) return openProvider(item);
   if (item.action) {
     const where = level();
     run(item.action).then(
@@ -86,8 +106,6 @@ function activate(item: MenuItem) {
       },
       (error) => toast({ icon: ERROR, title: item.label, body: String(error), tone: "error" }),
     );
-  } else if (item.provider) {
-    toast({ icon: INFO, title: item.label, body: `The ${item.provider} list is not in Omarchy Pocket yet`, tone: "info" });
   }
 }
 
@@ -170,7 +188,7 @@ function scrollOf(l: MenuLevel, list: MenuItem[]) {
 
 function Row(props: { item: MenuItem; selected: () => boolean; top: number }) {
   const disabled = () => !!props.item.disabled && truth()[props.item.disabled] === true;
-  const checked = () => !!props.item.checked && truth()[props.item.checked] === true;
+  const checked = () => props.item.current === true || (!!props.item.checked && truth()[props.item.checked] === true);
   return (
     <View class={C.row} style={{ insetT: props.top }}>
       <Show when={props.selected()}>
@@ -179,7 +197,7 @@ function Row(props: { item: MenuItem; selected: () => boolean; top: number }) {
       <Text class={C.icon} style={{ textColor: color(props.selected() ? "accent" : "dark_foreground") }}>{props.item.icon}</Text>
       <Text
         class={C.label}
-        style={{ textColor: color(disabled() ? "dark_foreground" : props.selected() ? "bright_foreground" : "foreground") }}
+        style={{ textColor: color(disabled() ? "dark_foreground" : props.selected() ? "bright_foreground" : "foreground"), ...cjk(props.item.label, CJK_SLOT_14) }}
       >
         {props.item.label}
       </Text>
