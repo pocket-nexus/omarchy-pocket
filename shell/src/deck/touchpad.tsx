@@ -9,7 +9,7 @@
 import { createSignal } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { C } from "../classes.ts";
-import { click, hold, movePointer, scrollBy, trackPointer } from "../stage/pointer.tsx";
+import { click, hold, movePointer, scrollBy } from "../stage/pointer.tsx";
 import { color } from "../theme.ts";
 import type { TouchFrame } from "../touch.ts";
 import { BODY_H } from "./geometry.ts";
@@ -84,7 +84,6 @@ export function touchpadTouch(frame: TouchFrame) {
       waiting.dx = waiting.dy = 0;
     }
   } else waiting.dx = waiting.dy = 0;
-  trackPointer();
 }
 
 export function Touchpad() {

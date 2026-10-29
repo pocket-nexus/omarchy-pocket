@@ -20,11 +20,6 @@
 // starts on it, or, after a hold fired, by the same contact moving on (the
 // springboard's hold-to-jiggle-then-drag). The drag gets surface
 // coordinates every move and ends at the release.
-//
-// On Omarchy Pocket the surface shows on a screen without touch and a
-// pointer works it; the host reads the page's targets for that pointer
-// through `__omarchyTargets()`: a flags word (bit 0: the program is taking
-// typed text), then x, y, w, h and kind (0: tapped, 1: dragged) per target.
 
 import { createSignal, type Accessor } from "solid-js";
 import { createGesture } from "@pocketjs/framework/gesture";
@@ -116,22 +111,9 @@ export interface TouchRouterOptions {
   active?: () => boolean;
   /** Any contact on the surface (the input-mode switch to touch). */
   onTouch?: () => void;
-  /** True while the program takes typed text (its keyboard is open). */
-  typing?: () => boolean;
-}
-
-/** The page's targets for a host's pointer (see the header). */
-function publishTargets(options: TouchRouterOptions) {
-  (globalThis as { __omarchyTargets?: () => number[] }).__omarchyTargets = () => {
-    const out = [options.typing?.() ? 1 : 0];
-    const page = options.active?.() === false ? null : options.page();
-    for (const t of page?.targets() ?? []) out.push(t.x, t.y, t.w, t.h, t.drag ? 1 : 0);
-    return out;
-  };
 }
 
 export function createTouchRouter(options: TouchRouterOptions): void {
-  if (options.surface === "auxiliary") publishTargets(options);
   let downTarget: Target | null = null;
   let mode: "" | "x" | "y" | "drag" = "";
   let dragging: TargetDrag | null = null;

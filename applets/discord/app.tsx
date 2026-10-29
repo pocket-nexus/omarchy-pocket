@@ -100,7 +100,6 @@ export default function Discord() {
     page: () => stack.touch(),
     active: () => !stack.busy() && !composing(),
     onTouch: () => setKeys(false),
-    typing: composing,
   });
   // The open keyboard blocks app gestures; the composer's bar is part of the
   // keyboard's session, so its two buttons take their own exempt gesture.

@@ -17,7 +17,6 @@ import { createEffect, createRoot, For, on, untrack } from "solid-js";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { glide } from "../motion.ts";
 import { appletOf, focusedApplet } from "../applets/applet.ts";
-import { appletTyping } from "../packages.ts";
 import { windowTitle } from "../stage/windows.tsx";
 import { toast } from "../stage/toasts.tsx";
 import { color } from "../theme.ts";
@@ -34,15 +33,8 @@ const R_X = 512 - 4 - PILL_W;
 const SEG_W = 126;
 const SEG_X = (512 - 3 * SEG_W) / 2;
 
-/** Whether the focused applet package is taking typed text (its keyboard is open). */
-const typing = () => {
-  const w = focused();
-  return w?.kind === "app" && !!w.appletSurface && appletTyping(w.app);
-};
-
-/** Whether the focused window takes keys: a terminal, a shell applet with a
- *  sink (Notes), or an applet package while it takes typed text. */
-export const takesKeys = () => focused()?.kind === "terminal" || !!focusedApplet()?.keys?.() || typing();
+/** Whether the focused window takes keys: a terminal, or an applet with a sink (Notes). */
+export const takesKeys = () => focused()?.kind === "terminal" || !!focusedApplet()?.keys?.();
 
 interface Segment {
   body: Body;
@@ -116,7 +108,6 @@ function Pill(props: { x: number; label: string; on: () => boolean; target: stri
 
 /** The body the switch lights: a body that shows nothing of its own falls back to the map. */
 const lit = () => {
-  if (typing()) return 2;
   const b = body();
   if (b === "controls" && !focused()) return 0;
   if (b === "keys" && !takesKeys()) return 0;

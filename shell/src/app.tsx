@@ -22,8 +22,7 @@
 // asker is gone: a chord card lasts while a shoulder or a pill's finger is
 // down (or a pill's latch, which any other tap lets go), a card's remote
 // while the card is up (a menu row that runs closes the menu; locking closes
-// the card), an applet's keyboard while the applet takes typed text, and a
-// window's body while there is a focused window.
+// the card), and a window's body while there is a focused window.
 //
 // The bottom panel has one AuxiliarySurface: each portal is a flex child of
 // the panel's root, so two would share its width. The portal inserts its
@@ -69,7 +68,7 @@ import { Keyboard, keyboardTouch, sendKey, setWindowKeys } from "./term/keyboard
 import { band, trackTouches, type TouchFrame } from "./touch.ts";
 import "./windows.ts";
 import { current, focused, revision, visibleWindows, windowsOn, WORKSPACES } from "./workspaces.ts";
-import { appletKeys, appletRefused, appletTargets, appletTyping, feedPackage, nextAppletFrame, showPackage } from "./packages.ts";
+import { appletRefused, feedPackage, showPackage } from "./packages.ts";
 import { AppControls, appControlsTouch } from "./deck/app-controls.tsx";
 
 const REPEATS = BTN.UP | BTN.DOWN | BTN.LEFT | BTN.RIGHT;
@@ -110,25 +109,16 @@ export default function Shell() {
     const w = focused();
     return w?.kind === "app" ? w : null;
   };
-  /** the focused applet, while it takes typed text */
-  const typingApplet = () => {
-    const w = focusedPackage();
-    return w?.appletSurface && appletTyping(w.app) ? w.app : null;
-  };
   const shown = (): Shown => {
     if (layer() !== "plain") return "chords";
     if (card()) return "remote";
-    if (typingApplet() !== null) return "keys";
     if (body() === "keys" && takesKeys()) return "keys";
     // an applet is a touch app: its remote is the touchpad on the stage
     if (body() === "controls" && focusedPackage()?.appletSurface) return "touchpad";
     if (body() === "controls" && focused()) return "controls";
     return "map";
   };
-  setWindowKeys(() => {
-    const typing = typingApplet();
-    return typing !== null ? appletKeys(typing) : (focusedApplet()?.keys?.() ?? null);
-  });
+  setWindowKeys(() => focusedApplet()?.keys?.() ?? null);
   // A window opened from the menu takes focus; the menu makes way for it.
   createEffect(on([current, focused], () => closeMenu(), { defer: true }));
   // With no focused window the body goes back to the map, so a window's body
@@ -314,12 +304,6 @@ export default function Shell() {
     stripTouch(band(touch, 0, STRIP_H));
     for (const tap of band(touch, DOCK_TOP, 384).taps) if (!tap.moved) dockTap(tap.x);
     const body = band(touch, BODY_TOP, DOCK_TOP);
-    // the focused applet's page, read while the deck drives it: its targets
-    // for the pointer, and whether it takes typed text
-    nextAppletFrame();
-    const view = shown();
-    const app = focusedPackage();
-    if (app?.appletSurface && (view === "touchpad" || view === "keys")) appletTargets(app.app);
     feed(buttons, body);
     bodyTouch(body);
     // a latched pill lets go at any tap that is not on a pill

@@ -6,14 +6,8 @@
 // when it has none. The window manager
 // keeps the shoulders, L2/R2 and SELECT; the focused package gets the other
 // buttons. A package off the current workspace is paused.
-//
-// An applet's page says what it can be pressed (`appTargets`, host
-// children.rs): its rows and buttons on its touch surface, for the stage's
-// pointer, and whether it is taking typed text, for the deck, which then
-// brings up the keyboard and types into it (`appText`).
 import { createSignal } from "solid-js";
 import { onEvent } from "./bridge.ts";
-import type { KeySink } from "./term/keyboard.tsx";
 import { toast } from "./stage/toasts.tsx";
 import { closeWindow, find, open, type Win } from "./workspaces.ts";
 import { setBody } from "./deck/body.ts";
@@ -24,8 +18,6 @@ interface AppBridge {
   closeApp(id: number): void;
   showApp(id: number, visible: boolean): void;
   appInput(id: number, buttons: number, contacts: number[]): void;
-  appTargets(id: number): number[];
-  appText(id: number, kind: "text" | "key", text: string): void;
 }
 const host = (globalThis as { omarchyBridge?: Partial<AppBridge> }).omarchyBridge;
 
@@ -72,52 +64,6 @@ export function sizeApplet(id: number, fit: Fit | null) {
   if (fit) host?.resizeApp?.(id, fit.w, fit.h);
 }
 
-/** One of an applet's targets on its touch surface: tapped (0) or dragged (1). */
-export interface AppletTarget {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  kind: number;
-}
-
-/** each applet's targets as last read, and the frame they were read in */
-const pages = new Map<number, { frame: number; targets: AppletTarget[] }>();
-let frame = 0;
-const [typingApp, setTypingApp] = createSignal<number | null>(null);
-
-/** Once per frame, before the deck and the pointer ask. */
-export function nextAppletFrame() {
-  frame++;
-}
-
-/** Applet `id`'s targets, read from the host at most once a frame; asking
- *  keeps the host reading them. */
-export function appletTargets(id: number): AppletTarget[] {
-  const page = pages.get(id);
-  if (page && page.frame === frame) return page.targets;
-  const flat = host?.appTargets?.(id) ?? [];
-  const targets: AppletTarget[] = [];
-  for (let i = 1; i + 4 < flat.length; i += 5) targets.push({ x: flat[i]!, y: flat[i + 1]!, w: flat[i + 2]!, h: flat[i + 3]!, kind: flat[i + 4]! });
-  pages.set(id, { frame, targets });
-  const typing = ((flat[0] ?? 0) & 1) !== 0;
-  if (typing && typingApp() !== id) setTypingApp(id);
-  else if (!typing && typingApp() === id) setTypingApp(null);
-  return targets;
-}
-
-/** Whether applet `id` is taking typed text (its keyboard is open). */
-export const appletTyping = (id: number) => typingApp() === id;
-
-/** The deck keyboard's keys for applet `id`, as a hardware keyboard's. */
-const KEY_NAMES: Record<string, string> = { Left: "ArrowLeft", Right: "ArrowRight", Up: "ArrowUp", Down: "ArrowDown" };
-export const appletKeys = (id: number): KeySink => ({
-  text: (text) => host?.appText?.(id, "text", text),
-  key: (name) => host?.appText?.(id, "key", KEY_NAMES[name] ?? name),
-  close: () => host?.appText?.(id, "key", "Escape"),
-  hint: () => "types into the window above · × closes its keyboard",
-});
-
 const ERROR = "\u{f015a}";
 const isApp = (id: number) => (w: Win) => w.kind === "app" && w.app === id;
 
@@ -138,8 +84,6 @@ export function closePackage(id: number) {
   if (w) closeWindow(w.id);
   setTextures(({ [id]: _, ...rest }) => rest);
   setSized(({ [id]: _, ...rest }) => rest);
-  pages.delete(id);
-  if (typingApp() === id) setTypingApp(null);
 }
 
 export function showPackage(id: number, visible: boolean) {
