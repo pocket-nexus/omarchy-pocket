@@ -1,0 +1,14 @@
+# After a resume the kernel answers every Start Discovery on this adapter
+# with Busy (MGMT status 0x0a) and sends the controller nothing, so a scan
+# finds no device until the adapter is powered off and on. This runs after
+# each suspend and does that when the adapter is on.
+[Unit]
+Description=RG DS Plus Bluetooth: power the adapter off and on after a resume
+After=suspend.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/sh -c 'btmgmt info | grep -q "current settings: powered" || exit 0; btmgmt power off; btmgmt power on'
+
+[Install]
+WantedBy=suspend.target
