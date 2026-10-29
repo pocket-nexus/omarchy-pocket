@@ -125,7 +125,7 @@ install -Dm755 /repo/.cache/host/cargo/aarch64-unknown-linux-gnu/release/omarchy
 install -Dm644 /repo/.cache/shell/omarchy-pocket.pocket /usr/share/pocketjs/omarchy-pocket.pocket
 install -Dm644 /repo/.cache/daemon/omarchy-pocketd.js /usr/lib/omarchy-pocket/omarchy-pocketd.js
 install -Dm644 /repo/.cache/daemon/ghostty-vt.wasm /usr/lib/omarchy-pocket/ghostty-vt.wasm
-for name in hyprctl uwsm uwsm-app omarchy-pocket-term; do install -Dm755 /repo/.cache/daemon/shim.js /usr/local/bin/$name; done
+for name in hyprctl uwsm uwsm-app omarchy-pocket-term omasnap; do install -Dm755 /repo/.cache/daemon/shim.js /usr/local/bin/$name; done
 install -d -m 755 /usr/lib/mali
 install -m 755 /repo/.cache/blobs/libmali.so.1.9.0 /repo/.cache/blobs/libmali-hook.so.1.9.0 /usr/lib/mali/
 ln -sf libmali.so.1.9.0 /usr/lib/mali/libmali.so.1

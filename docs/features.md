@@ -27,6 +27,7 @@ Omarchy's desktop is Hyprland plus a Quickshell shell (`/usr/share/omarchy/shell
 | Setup menu (Omarchy's rows: DNS, defaults, plugins, security, config, language) | Omarchy's rows run through the daemon; terminal ones open in Pocket Term | rows not run one by one yet |
 | Install / Remove / Update | terminal TUIs in Pocket Term | not yet run on the device |
 | Apps (`dock` plugin, app launcher) | — | planned: PocketJS applets |
-| Trigger (screenshot, screen recording, share) | — | screenshot planned through the GPU readback |
+| Trigger › Capture › Screenshot (`omarchy-capture-screenshot` → `omasnap`) | `omasnap` (daemon/shim.ts) reads both panels back from the GPU, writes a 1024 × 1536 PNG to `~/Pictures` with vips and sends Omarchy's notification | done 2026-10-29; no clipboard copy (no Wayland clipboard) |
+| Trigger › screen recording, text, QR, color picker | Wayland tools | not planned |
 | Learn (web apps) | no browser without a compositor | not planned |
 | Clipboard, emojis, reminders, agents, image picker | — | planned after the keyboard |

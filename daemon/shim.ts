@@ -8,10 +8,14 @@
 //   uwsm       `stop` ends the shell's session (systemd starts a new one);
 //              `check is-active` succeeds; `app -- cmd` runs cmd
 //   uwsm-app   runs the command after `--`
+//   omasnap    Omarchy's screenshot tool (omarchy-capture-screenshot): both panels
+//              from the GPU readback, top over bottom, as a PNG in the
+//              screenshot directory, announced by a notification
 //   omarchy-pocket-term   the terminal xdg-terminal-exec runs (omarchy-pocket-term.desktop):
 //              `[--app-id=ID] [--title=T] [--dir=D] [-e cmd args...]` opens a
 //              Pocket Term session in the shell through omarchy-pocketd
-import { basename } from "node:path";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { shellPath } from "./paths.ts";
 
 const name = basename(process.argv[1] ?? "");
@@ -134,7 +138,48 @@ async function pocketTerm(argv: string[]) {
   console.log(await shellCall(["pocket.term", "open", JSON.stringify(options)]));
 }
 
+/** The host program reads each panel's next frame back into
+ *  /tmp/pocket-shot-<panel>.rgba (RGBA, bottom row first) while /tmp/pocket-shot exists. */
+async function readback(): Promise<Uint8Array> {
+  const [W, H] = [1024, 768];
+  const frames = [0, 1].map((p) => `/tmp/pocket-shot-${p}.rgba`);
+  for (const f of frames) rmSync(f, { force: true });
+  writeFileSync("/tmp/pocket-shot", "");
+  for (let i = 0; i < 50 && !(frames.every(existsSync) && !existsSync("/tmp/pocket-shot")); i++) await Bun.sleep(100);
+  if (!frames.every(existsSync)) throw new Error("the shell did not read its panels back");
+  await Bun.sleep(100);
+  const out = new Uint8Array(W * H * 2 * 4);
+  frames.forEach((file, panel) => {
+    const raw = readFileSync(file);
+    for (let y = 0; y < H; y++) out.set(raw.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), (panel * H + y) * W * 4);
+  });
+  for (let i = 3; i < out.length; i += 4) out[i] = 255;
+  return out;
+}
+
+async function omasnap(argv: string[]) {
+  const home = process.env.HOME ?? "/home/omarchy";
+  const dir = process.env.OMASNAP_SCREENSHOT_DIR || process.env.XDG_PICTURES_DIR || join(home, "Pictures");
+  mkdirSync(dir, { recursive: true });
+  const now = new Date();
+  const two = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}_${two(now.getHours())}-${two(now.getMinutes())}-${two(now.getSeconds())}`;
+  const file = join(dir, `screenshot-${stamp}.png`);
+  const raw = `${file}.rgba`;
+  writeFileSync(raw, await readback());
+  const vips = Bun.spawnSync(["vips", "rawload", raw, file, "1024", "1536", "4"], { env: { ...process.env, VIPS_WARNING: "0" } });
+  rmSync(raw, { force: true });
+  if (vips.exitCode !== 0 || !statSync(file).size) throw new Error("vips could not write the screenshot");
+  console.log(file);
+  if (argv.includes("--notify")) {
+    Bun.spawnSync(["omarchy-notification-send", "-g", "\u{f0100}", "Screenshot saved", file.replace(home, "~")]);
+  }
+}
+
 switch (name) {
+  case "omasnap":
+    await omasnap(args);
+    break;
   case "omarchy-pocket-term":
     await pocketTerm(args);
     break;

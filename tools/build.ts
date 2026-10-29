@@ -38,7 +38,7 @@ export const OUTPUTS = {
   wasm: join(CACHE, "daemon", "ghostty-vt.wasm"),
 };
 /** The names daemon/shim.ts is installed under, in /usr/local/bin */
-export const SHIM_NAMES = ["hyprctl", "uwsm", "uwsm-app", "omarchy-pocket-term"];
+export const SHIM_NAMES = ["hyprctl", "uwsm", "uwsm-app", "omarchy-pocket-term", "omasnap"];
 const [W, H] = [1024, 768];
 
 const argv = process.argv.slice(2);
