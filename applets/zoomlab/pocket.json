@@ -1,0 +1,30 @@
+{
+  "$schema": "https://pocketjs.dev/schema/pocket-2.json",
+  "pocket": 2,
+  "id": "dev.pocket-nexus.omarchy-pocket.zoomlab",
+  "name": "omarchy-pocket-zoomlab",
+  "title": "Zoom Lab",
+  "version": "0.6.0",
+  "engine": {
+    "capabilities": {
+      "requires": [
+        "text.glyphs.baked",
+        "input.buttons"
+      ]
+    }
+  },
+  "app": {
+    "entry": "vendor/pocketjs/apps/zoomlab/main.tsx",
+    "output": "zoomlab-main",
+    "framework": "solid",
+    "viewport": {
+      "fixed": {
+        "logical": [
+          512,
+          384
+        ],
+        "presentation": "native"
+      }
+    }
+  }
+}

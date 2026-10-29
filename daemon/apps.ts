@@ -3,7 +3,7 @@
 // omarchy-pocket/applets), which the host program runs in place of the
 // shell, and desktop entries that run in a terminal (Terminal=true, or an
 // Exec through xdg-terminal-exec), which xdg-terminal-exec opens in Pocket Term.
-import { readdirSync, readFileSync } from "node:fs";
+import { closeSync, openSync, readdirSync, readFileSync, readSync } from "node:fs";
 import { join } from "node:path";
 import type { App } from "./protocol.ts";
 
@@ -11,12 +11,30 @@ import type { App } from "./protocol.ts";
 const stripCodes = (exec: string) => exec.replace(/\s+%[a-zA-Z]/g, "").trim();
 
 /** "pocket-motions.pocket" -> "Pocket Motions" */
-const title = (file: string) =>
+const fileTitle = (file: string) =>
   file
     .replace(/\.pocket$/, "")
     .split(/[-_]/)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
+
+/** The package's own title: its pocket.json sits after the 32-byte header
+ *  (contracts/spec/pocket-package.ts), its length at byte 8. "PocketJS: "
+ *  prefixes the pocketjs apps' titles and says nothing in this list. */
+function title(path: string, file: string): string {
+  try {
+    const fd = openSync(path, "r");
+    const head = Buffer.alloc(32);
+    readSync(fd, head, 0, 32, 0);
+    const size = head.toString("latin1", 0, 4) === "PCKT" ? head.readUInt32LE(8) : 0;
+    const manifest = Buffer.alloc(Math.min(size, 1 << 20));
+    readSync(fd, manifest, 0, manifest.length, 32);
+    closeSync(fd);
+    const name = (JSON.parse(manifest.toString("utf8")) as { title?: string }).title;
+    if (name) return name.replace(/^PocketJS:\s*/, "");
+  } catch {}
+  return fileTitle(file);
+}
 
 function applets(home: string): App[] {
   const out: App[] = [];
@@ -29,7 +47,7 @@ function applets(home: string): App[] {
     }
     for (const file of files) {
       if (out.some((a) => a.id === file)) continue;
-      out.push({ id: file, name: title(file), command: "", applet: join(dir, file) });
+      out.push({ id: file, name: title(join(dir, file), file), command: "", applet: join(dir, file) });
     }
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
