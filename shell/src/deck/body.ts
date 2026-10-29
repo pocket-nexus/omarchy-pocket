@@ -7,8 +7,8 @@
 //   keys       the keyboard, for a window that takes keys (the strip's Keys)
 //   controls   the focused window's remote (the strip's middle segment,
 //              SELECT, a second tap on the window in the map): an applet's
-//              touchpad and the stage's pointer, a terminal's keyboard, an
-//              app's own controls
+//              touchpad and the stage's pointer, a terminal's arrows and
+//              control keys, a shell applet's own controls
 //   map        the minimap
 import { createSignal } from "solid-js";
 

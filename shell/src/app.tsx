@@ -42,6 +42,7 @@ import { openPanel, passwordEntry } from "./stage/panels.tsx";
 import { Card, card, cardPress } from "./stage/card.tsx";
 import { Remote, remoteTouch } from "./deck/remote.tsx";
 import { Touchpad, touchpadTouch } from "./deck/touchpad.tsx";
+import { TermRemote, termRemoteTouch } from "./deck/term-remote.tsx";
 import { Pointer, pointerContacts } from "./stage/pointer.tsx";
 import { pressAt } from "./deck/press.ts";
 import { Strip, stripTap, stripTarget, takesKeys } from "./deck/strip.tsx";
@@ -227,7 +228,7 @@ export default function Shell() {
         return keyboardTouch(frame, "body");
       case "controls": {
         if (focusedPackage()) return;
-        if (terminal()) return keyboardTouch(frame, "body");
+        if (terminal()) return termRemoteTouch(frame);
         const applet = focusedApplet();
         if (applet?.touches) return applet.touches(frame);
         for (const tap of frame.taps) if (!tap.moved) applet?.tap?.(tap.x, tap.y);
@@ -319,7 +320,7 @@ export default function Shell() {
                   <Keyboard mode="body" />
                 </Show>
                 <Show when={shown() === "controls"}>
-                  <Show when={!terminal()} fallback={<Keyboard mode="body" />}>
+                  <Show when={!terminal()} fallback={<TermRemote />}>
                     <Show when={focusedPackage()} keyed fallback={<Show when={focusedApplet()} keyed>{(applet) => <applet.Deck />}</Show>}>
                       {(w) => <AppControls win={w} />}
                     </Show>

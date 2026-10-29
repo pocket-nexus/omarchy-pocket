@@ -5,7 +5,8 @@
 //
 //   Windows    the live map of the stage, its workspaces and panels
 //   <window>   the focused window's remote, named after it: an applet's
-//              touchpad, a terminal's keyboard, an app's own controls
+//              touchpad, a terminal's arrows and control keys
+//              (term-remote.tsx), a shell applet's own controls
 //   Keys       the keyboard, for a window that takes keys
 //
 // The lit segment is the body that shows; its highlight glides between
