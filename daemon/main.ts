@@ -154,7 +154,9 @@ async function bluetooth(): Promise<SystemState["bluetooth"]> {
 
 async function proxyState(): Promise<SystemState["proxy"]> {
   if (!proxy.installed()) return null;
-  return { running: (await output(["systemctl", "is-active", "mihomo.service"])) === "active" };
+  const running = (await output(["systemctl", "is-active", "mihomo.service"])) === "active";
+  proxy.followUnit(running);
+  return { running };
 }
 
 async function systemState(): Promise<SystemState> {

@@ -8,7 +8,9 @@
 //
 // The daemon itself reaches Discord and YouTube through mihomo
 // (HTTPS_PROXY in its unit's drop-in); while mihomo is stopped the daemon
-// drops those variables, so the applets' requests go out directly.
+// drops those variables, so the applets' requests go out directly. The
+// daemon reads the unit's state at each system-state poll (main.ts), so a
+// unit stopped outside the panel (systemctl) takes the variables with it.
 import { existsSync, readFileSync } from "node:fs";
 import type { ProxyPanel } from "./protocol.ts";
 
@@ -49,7 +51,7 @@ async function active(): Promise<boolean> {
 }
 
 /** Keeps the daemon's own proxy variables in step with the unit. */
-function followUnit(running: boolean) {
+export function followUnit(running: boolean) {
   for (const [key, value] of Object.entries(PROXY_ENV)) {
     if (running) process.env[key] = value;
     else delete process.env[key];
