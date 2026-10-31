@@ -7,7 +7,8 @@
 //! previous front buffer to GBM), not inside the present that queued it: a
 //! present costs its rendering, and the flip lands while the next tick runs.
 //! A panel whose draw list did not change (`hold`) is rendered but neither
-//! swapped nor flipped, so it keeps showing its frame.
+//! swapped nor flipped, so it keeps showing its frame. One flip is in flight
+//! at a time: a panel's flip waits for the other panel's to land.
 //!
 //! EGL, GLES and GBM all come from libmali.so.1, which the program links
 //! directly: libmali's libEGL/libGLESv2/libgbm are small wrappers that export
@@ -370,6 +371,14 @@ impl Shared {
             ));
         }
         let fb = self.framebuffer(index, bo)?;
+        // One flip in flight at a time. The VOP2's ports share one
+        // config-done register; a port's flip queued while the other port's
+        // waited for its frame start was lost now and then, and that panel
+        // stayed a change behind. The other panel's flip lands first.
+        let other = (index + 1) % self.panels.len();
+        if other != index && self.panels[other].pending.is_some() {
+            self.complete(other)?;
+        }
         let panel = &mut self.panels[index];
         if let Some(drawn) = drawn {
             panel.drawn = drawn;
@@ -470,15 +479,15 @@ fn probe(index: usize, what: &str, started: Instant) {
 }
 
 /// OMARCHY_POCKET_TIMING=content: each flipped frame's content as a hash of
-/// 16 rows, taken before the swap (what the renderer drew) and again once the
+/// every fourth row, taken before the swap (what the renderer drew) and again once the
 /// frame shows (what its buffer holds).
 fn content_on() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var_os("OMARCHY_POCKET_TIMING").is_some_and(|v| v == "content"))
 }
-const CONTENT_ROWS: u32 = 16;
+/// Every fourth row: a line of text is at least four rows tall.
 fn content_rows(height: u32) -> impl Iterator<Item = u32> {
-    (0..CONTENT_ROWS).map(move |i| i * height / CONTENT_ROWS + height / (2 * CONTENT_ROWS))
+    (0..height / 4).map(|i| i * 4 + 2)
 }
 /// FNV-1a over a pixel's red, green and blue.
 fn content_mix(hash: &mut u64, rgb: [u8; 3]) {
@@ -492,12 +501,14 @@ fn content_hash_gl(size: [u32; 2]) -> Option<u64> {
     if !content_on() {
         return None;
     }
-    let mut row = vec![0u8; size[0] as usize * 4];
+    let pitch = size[0] as usize * 4;
+    let mut pixels = vec![0u8; pitch * size[1] as usize];
+    unsafe {
+        glReadPixels(0, 0, size[0] as i32, size[1] as i32, GL_RGBA, GL_UNSIGNED_BYTE, pixels.as_mut_ptr().cast())
+    };
     let mut hash = 0xcbf29ce484222325u64;
     for y in content_rows(size[1]) {
-        unsafe {
-            glReadPixels(0, (size[1] - 1 - y) as i32, size[0] as i32, 1, GL_RGBA, GL_UNSIGNED_BYTE, row.as_mut_ptr().cast())
-        };
+        let row = &pixels[(size[1] as usize - 1 - y as usize) * pitch..][..pitch];
         for px in row.chunks_exact(4).step_by(4) {
             content_mix(&mut hash, [px[0], px[1], px[2]]);
         }
