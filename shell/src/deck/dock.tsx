@@ -5,7 +5,7 @@
 // in that window: `omarchy-agent --inline --pick`, since the launcher's own
 // terminal hand-off opens nothing from inside a session), then the applets (X,
 // Discord, YouTube, Hacker News: one window each, focused when it is open).
-// Every cell launches; the deck's modes are the strip's switch. Glyphs carry
+// Every cell launches the frame a finger settles on it. Glyphs carry
 // no labels; the pressed cell fills with the accent and names itself above
 // the dock. An accent mark sits under the focused window's app and a short
 // grey one under an app with a window elsewhere; the menu cell draws in the

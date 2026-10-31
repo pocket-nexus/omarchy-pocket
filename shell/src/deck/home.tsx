@@ -85,11 +85,11 @@ function tap(x: number, y: number) {
   }
 }
 
-/** The home layout's fingers this frame (body coordinates). */
+/** The home layout's fingers this frame (body coordinates): a finger acts where it settles. */
 export function homeTouch(frame: TouchFrame) {
   const c = frame.down[0];
   pressAt(c && !c.moved ? homeTarget(c.x, c.y) : null);
-  for (const t of frame.taps) if (!t.moved) tap(t.start.x, t.start.y);
+  for (const p of frame.presses) tap(p.x, p.y);
 }
 
 /** One window on the map, kept while the window lives: a layout change

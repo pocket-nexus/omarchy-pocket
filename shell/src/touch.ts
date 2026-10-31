@@ -1,13 +1,16 @@
-// Taps and drags on the deck, one per contact id. A contact is reported from
-// its first frame, so a key lights the frame a finger lands; it taps at its
-// lift, where it was last seen, once it has stayed down for SETTLE frames.
-// A contact lifted sooner taps nothing: the Goodix panel reports brief
-// contacts at a finger's previous position, and before this filter a key
-// tapped after `s` sent `s` again (`ls` + Enter ran `lss`). Each finger is
-// its own tap, so a second thumb landing before the first lifts presses its
-// own key in turn instead of taking over the first one's. A contact that
-// travelled more than SLOP from where it landed is a drag: its lift reports
-// `moved`, and lists scroll by its `dy` while it is down.
+// Contacts on the deck, one per id, as the deck's bands take them. A contact
+// is reported from its first frame, so the key under a finger lights the
+// frame it lands; it presses once it has stayed down for SETTLE frames
+// (`presses`, once per contact), and the bands act on that press, not on
+// the lift: a touch answers when the finger lands, as a hardware key does,
+// and nothing waits on the panel reporting the lift. A contact lifted
+// sooner presses nothing: the Goodix panel reports brief contacts at a
+// finger's previous position, and before this filter a key tapped after `s`
+// sent `s` again (`ls` + Enter ran `lss`). Each finger is its own press, so a
+// second thumb landing before the first lifts presses its own key in turn.
+// A contact that travelled more than SLOP from where it landed is a drag:
+// its lift reports `moved`, and lists scroll by its `dy` while it is down.
+// The pad alone acts on lifts (`taps`): a click and a drag part only there.
 import { auxiliaryTouches } from "@pocketjs/framework/input";
 import { remoteContacts, watchTouches } from "./remote-input.ts";
 
@@ -23,7 +26,7 @@ export interface Contact extends Point {
   id: number;
   /** frames since it landed */
   frames: number;
-  /** where it landed: a tap belongs to the band it began in */
+  /** where it landed: a press belongs to the band it began in */
   start: Point;
   /** movement since the last frame */
   dx: number;
@@ -41,6 +44,8 @@ export interface TouchFrame {
   raw: number;
   /** contacts down this frame, oldest first; `frames` says how long */
   down: Contact[];
+  /** contacts that settled this frame: each presses once, where it is */
+  presses: Contact[];
   /** settled contacts that lifted this frame */
   taps: Contact[];
 }
@@ -53,6 +58,7 @@ export function trackTouches(): TouchFrame {
   for (const c of contacts) now.set(c.id, { x: c.x, y: c.y });
   remoteContacts().forEach((p, i) => now.set(REMOTE + i, p));
   const taps: Contact[] = [];
+  const presses: Contact[] = [];
   for (const [id, t] of live) {
     if (now.has(id)) continue;
     live.delete(id);
@@ -67,10 +73,11 @@ export function trackTouches(): TouchFrame {
       t.y = p.y;
       t.frames++;
       t.moved ||= Math.abs(p.x - t.start.x) > SLOP || Math.abs(p.y - t.start.y) > SLOP;
+      if (t.frames === SETTLE) presses.push({ ...t });
     } else live.set(id, { id, x: p.x, y: p.y, dx: 0, dy: 0, moved: false, frames: 1, start: { ...p } });
   }
   const down = [...live.values()].map((c) => ({ ...c }));
-  return { raw: now.size, down, taps };
+  return { raw: now.size, down, presses, taps };
 }
 
 /** Whether a contact has stayed down long enough to count as a finger. */
@@ -80,5 +87,5 @@ export const settled = (c: Contact) => c.frames >= SETTLE;
 export function band(frame: TouchFrame, top: number, bottom: number): TouchFrame {
   const inside = (c: Contact) => c.start.y >= top && c.start.y < bottom;
   const shift = (c: Contact): Contact => ({ ...c, y: c.y - top, start: { x: c.start.x, y: c.start.y - top } });
-  return { raw: frame.raw, down: frame.down.filter(inside).map(shift), taps: frame.taps.filter(inside).map(shift) };
+  return { raw: frame.raw, down: frame.down.filter(inside).map(shift), presses: frame.presses.filter(inside).map(shift), taps: frame.taps.filter(inside).map(shift) };
 }

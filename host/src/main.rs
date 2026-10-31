@@ -447,8 +447,7 @@ fn attach_devices(
         }
         runtime.add_input_source(Box::new(device)).map_err(error)?;
     }
-    let probe = floor::InputProbe::open(&inputs[..inputs.len().min(16)]);
-    Ok((compositor, probe))
+    Ok((compositor, floor::InputProbe::open()))
 }
 
 #[cfg(not(target_os = "linux"))]

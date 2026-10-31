@@ -8,14 +8,13 @@
 //! lowest after IDLE without either. tmpfiles.d rules give the video group
 //! the files; where a write is refused the floor leaves that governor alone.
 //!
-//! Input is seen before the runtime samples it: the probe keeps a second
-//! handle on every evdev device and polls them for readiness at the top of
-//! each tick, so the clocks are up before the guest work the input causes.
+//! Input is seen before the runtime samples it: the probe polls the
+//! runtime's own evdev descriptors for readiness (found through
+//! /proc/self/fd, never read, never a second client of the device) at the
+//! top of each tick, so the clocks are up before the guest work the input
+//! causes.
 use std::{
-    fs::File,
-    io::Read,
-    os::fd::AsRawFd,
-    path::Path,
+    os::fd::RawFd,
     time::{Duration, Instant},
 };
 
@@ -102,41 +101,39 @@ impl Drop for Floors {
     }
 }
 
-/// Second handles on the input devices, polled for readiness and drained.
+/// The runtime's input descriptors, polled for readiness.
 pub struct InputProbe {
-    files: Vec<File>,
-    scratch: Vec<u8>,
+    fds: Vec<libc::pollfd>,
 }
 
 impl InputProbe {
-    pub fn open(paths: &[impl AsRef<Path>]) -> Self {
-        use std::os::unix::fs::OpenOptionsExt;
-        let files = paths
-            .iter()
-            .filter_map(|p| std::fs::OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK | libc::O_CLOEXEC).open(p).ok())
-            .collect();
-        Self { files, scratch: vec![0; 4096] }
+    /// Every descriptor this process holds on /dev/input/event*, as the
+    /// runtime opened them.
+    pub fn open() -> Self {
+        let mut fds = Vec::new();
+        if let Ok(entries) = std::fs::read_dir("/proc/self/fd") {
+            for entry in entries.flatten() {
+                let Ok(target) = std::fs::read_link(entry.path()) else { continue };
+                if !target.to_string_lossy().starts_with("/dev/input/event") {
+                    continue;
+                }
+                if let Some(fd) = entry.file_name().to_str().and_then(|n| n.parse::<RawFd>().ok()) {
+                    fds.push(libc::pollfd { fd, events: libc::POLLIN, revents: 0 });
+                }
+            }
+        }
+        Self { fds }
     }
 
-    /// Whether any device has events waiting; what waits is read and dropped
-    /// (each open handle has a queue of its own).
+    /// Whether any device has events waiting for the runtime to read.
     pub fn poll(&mut self) -> bool {
-        if self.files.is_empty() {
+        if self.fds.is_empty() {
             return false;
         }
-        let mut fds: Vec<libc::pollfd> = self.files.iter().map(|f| libc::pollfd { fd: f.as_raw_fd(), events: libc::POLLIN, revents: 0 }).collect();
-        let ready = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, 0) };
-        if ready <= 0 {
-            return false;
+        for fd in &mut self.fds {
+            fd.revents = 0;
         }
-        let mut active = false;
-        for (i, fd) in fds.iter().enumerate() {
-            if fd.revents & libc::POLLIN == 0 {
-                continue;
-            }
-            active = true;
-            while matches!(self.files[i].read(&mut self.scratch), Ok(n) if n > 0) {}
-        }
-        active
+        let ready = unsafe { libc::poll(self.fds.as_mut_ptr(), self.fds.len() as libc::nfds_t, 0) };
+        ready > 0 && self.fds.iter().any(|fd| fd.revents & libc::POLLIN != 0)
     }
 }

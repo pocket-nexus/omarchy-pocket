@@ -240,7 +240,7 @@ export default function Shell() {
               : null,
     );
     stripTouch(band(touch, 0, STRIP_H));
-    for (const tap of band(touch, DOCK_TOP, 384).taps) if (!tap.moved) dockTap(tap.x);
+    for (const c of band(touch, DOCK_TOP, 384).presses) dockTap(c.x);
     const contacts = bodyTouch(band(touch, BODY_TOP, DOCK_TOP));
     feed(buttons, contacts);
   });

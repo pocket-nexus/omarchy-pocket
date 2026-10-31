@@ -98,8 +98,10 @@ export function perform(action: Action) {
       return openApplet(last.applet);
     }
     case "wallpaper":
+      say("Next background");
       return void run("omarchy-theme-bg-next").then(fail("Next background"), () => {});
     case "bar":
+      say("Toggling the bar");
       return void run("omarchy-toggle-bar").then(fail("Toggle bar"), () => {});
   }
 }

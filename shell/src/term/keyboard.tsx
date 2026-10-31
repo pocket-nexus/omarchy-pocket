@@ -7,26 +7,22 @@
 // button, a text field's value, and, while a pinyin composition is open
 // (the 中 key, ime.ts), its preedit and candidates along the keys' top edge.
 //
-// A key lights the frame a finger lands and types when the finger lifts,
-// where the finger is then: a finger that slides onto the next key types
-// that one, as on a phone. While it is down a character key shows its
-// preview above it, which springs up on the core's tracks and follows the
-// finger; Backspace and the arrows repeat while held. Shift is one-shot,
-// twice in a row locks capitals; Ctrl and Alt latch for the next key, and
-// the chord they make shows on the preview and above the keys (Ctrl then L
-// sends ^L, which clears a terminal and types nothing). Each finger is its
-// own key press (touch.ts).
+// A key lights the frame a finger lands and types the frame the finger
+// settles (two frames in, touch.ts), as a hardware key does: nothing waits
+// on the lift. Backspace and the arrows repeat while held, up to REPEAT_MAX
+// times a press. Shift is one-shot, twice in a row locks capitals; Ctrl and
+// Alt latch for the next key, and the chord they make shows above the keys
+// (Ctrl then L sends ^L, which clears a terminal and types nothing). Each
+// finger is its own key press.
 import { createSignal, For, Show } from "solid-js";
-import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
-import { animate, jump } from "@pocketjs/framework/animation";
+import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
 import { keySink } from "../focus.ts";
-import { glide, slowed } from "../motion.ts";
 import { color } from "../theme.ts";
 import { chinese, composing, pick, route, snapshot, toggleChinese } from "./ime.ts";
-import { settled, type Contact, type TouchFrame } from "../touch.ts";
+import type { Contact, TouchFrame } from "../touch.ts";
 import { BODY_H } from "../deck/geometry.ts";
 
 type Layer = "abc" | "123" | "sym";
@@ -94,6 +90,8 @@ const EXTRA_PITCH = 38;
 const EDGE = 6;
 const REPEAT_AFTER = 24;
 const REPEAT_EVERY = 4;
+/** repeats one press may send: a lift the panel never reports ends there */
+const REPEAT_MAX = 40;
 const CHORD_S = 1.4;
 
 /** Where the keys sit: the whole deck (the lock) or the deck's body under its strip. */
@@ -145,8 +143,6 @@ const [capsLock, setCapsLock] = createSignal(false);
 const [layer, setLayer] = createSignal<Layer>("abc");
 /** keys under a finger, as of the last frame */
 let pressed: Placed[] = [];
-/** the key the newest finger is on, for the preview */
-const [preview, setPreview] = createSignal<Placed | null>(null);
 /** the chord last sent, shown above the keys for CHORD_S */
 const [chord, setChord] = createSignal("");
 
@@ -209,12 +205,13 @@ function press(key: Placed) {
   else sendKey(key.key, key.shifted);
 }
 
-/** frames each settled finger has been down, for the repeat keys */
-const held = new Map<number, { frames: number; repeated: boolean }>();
+/** frames each finger has been down and its repeats, for the repeat keys */
+const held = new Map<number, { frames: number; repeats: number }>();
 
 /** The keyboard's fingers this frame, in its own coordinates: the keys under
- *  them light, the newest shows its preview, and a finger lifted over a key
- *  presses it. A finger that landed above the keys taps there. */
+ *  them light, a finger that settles presses the key under it, and a
+ *  repeat key keeps pressing while its finger stays. A finger that settles
+ *  above the keys picks a candidate or the close button. */
 export function keyboardTouch(frame: TouchFrame, mode: KeyboardMode) {
   frameCount++;
   const { keys, stripH } = layout(mode, layer());
@@ -224,30 +221,27 @@ export function keyboardTouch(frame: TouchFrame, mode: KeyboardMode) {
   for (const k of pressed) if (!now.includes(k)) k.setLit(false);
   for (const k of now) if (!pressed.includes(k)) k.setLit(true);
   pressed = now;
-  const newest = down[down.length - 1];
-  const under = newest ? keyAt(keys, newest.x, newest.y) : null;
-  setPreview(under?.char ? under : null);
-  for (const c of down) {
-    if (!settled(c)) continue;
-    const h = held.get(c.id) ?? { frames: 0, repeated: false };
-    h.frames++;
-    held.set(c.id, h);
+  for (const c of frame.presses) {
+    if (!onKeys(c)) {
+      stripTap(c.x, c.y, stripH);
+      continue;
+    }
     const key = keyAt(keys, c.x, c.y);
-    if (key?.repeat && h.frames > REPEAT_AFTER && (h.frames - REPEAT_AFTER) % REPEAT_EVERY === 0) {
-      h.repeated = true;
+    if (!key) continue;
+    press(key);
+    if (key.repeat) held.set(c.id, { frames: 0, repeats: 0 });
+  }
+  for (const c of down) {
+    const h = held.get(c.id);
+    if (!h) continue;
+    h.frames++;
+    const key = keyAt(keys, c.x, c.y);
+    if (key?.repeat && h.repeats < REPEAT_MAX && h.frames > REPEAT_AFTER && (h.frames - REPEAT_AFTER) % REPEAT_EVERY === 0) {
+      h.repeats++;
       press(key);
     }
   }
-  for (const tap of frame.taps) {
-    const h = held.get(tap.id);
-    held.delete(tap.id);
-    if (!onKeys(tap)) {
-      stripTap(tap.start.x, tap.start.y, stripH);
-      continue;
-    }
-    const key = keyAt(keys, tap.x, tap.y);
-    if (key && !h?.repeated) press(key);
-  }
+  for (const t of frame.taps) held.delete(t.id);
 }
 
 /** The candidate boxes along the strip's bottom edge, after the preedit. */
@@ -256,62 +250,13 @@ const CANDIDATE_W = (512 - PREEDIT_W) / 5;
 const CANDIDATES_H = 32;
 const CLOSE_X = 512 - 40;
 
-/** A tap above the keys: a candidate while composing; otherwise the close button. */
+/** A press above the keys: a candidate while composing; otherwise the close button. */
 function stripTap(x: number, y: number, stripH: number) {
   if (composing()) {
     if (y >= stripH - CANDIDATES_H && x >= PREEDIT_W) pick(Math.floor((x - PREEDIT_W) / CANDIDATE_W), (text) => keySink().text(text));
     return;
   }
   if (x >= CLOSE_X && y < 30) keySink().close?.();
-}
-
-/** The key preview: one balloon over the key the newest finger is on. */
-function Preview() {
-  let node: NodeMirror | undefined;
-  let shown: Placed | null = null;
-  const box = () => {
-    const k = preview() ?? shown;
-    if (!k) return { x: 0, y: 0, w: 0, h: 0 };
-    const w = k.w + 12;
-    const h = k.h + 40;
-    return { x: Math.max(2, Math.min(510 - w, k.x - 6)), y: k.y + k.h - h, w, h };
-  };
-  const text = () => {
-    const k = preview() ?? shown;
-    if (!k) return "";
-    const m = mods();
-    const ch = (m.shift || capsLock()) && k.shifted ? k.shifted : k.label;
-    return m.ctrl || m.alt ? chordName(m, ch) : ch;
-  };
-  /** the balloon is up: it springs up on a press and fades at the lift,
-   *  keeping the last key's place while it fades */
-  let up = false;
-  const track = () => {
-    const k = preview();
-    if (k && !up && node) {
-      jump(node, "scaleY", 0.6);
-      jump(node, "opacity", 0.2);
-      animate(node, "scaleY", 1, { dur: slowed(80), easing: "out" });
-      animate(node, "opacity", 1, { dur: slowed(60), easing: "out" });
-      up = true;
-    } else if (!k && up) {
-      glide(node, "opacity", 0, 90);
-      up = false;
-    }
-    if (k) shown = k;
-    return box();
-  };
-  return (
-    <View
-      class="absolute rounded-lg"
-      ref={(n: NodeMirror) => (node = n)}
-      style={{ insetL: track().x, insetT: box().y, width: box().w, height: box().h, originX: 0, originY: 0.5, opacity: 0, bgColor: color("lighter_background") }}
-    >
-      <Text class="absolute left-0 top-[6] text-center text-2xl leading-[30]" style={{ width: box().w, textColor: color("bright_foreground") }}>
-        {text()}
-      </Text>
-    </View>
-  );
 }
 
 export function Keyboard(props: { mode: KeyboardMode }) {
@@ -390,7 +335,6 @@ export function Keyboard(props: { mode: KeyboardMode }) {
           </View>
         )}
       </For>
-      <Preview />
     </View>
   );
 }

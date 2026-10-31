@@ -75,8 +75,11 @@ function close(apply: boolean) {
   previewToken++;
   if (!m) return;
   if (m.kind === "themes") {
-    if (apply && row) void run(`omarchy-theme-set ${quote(nameForPath(row.filePath))}`);
-    else restoreWallpaper();
+    if (apply && row) {
+      const name = nameForPath(row.filePath);
+      toast({ icon: "\u{f0d7d}", title: `Applying ${name}`, body: "the colours follow in a moment", tone: "info" }, 3);
+      void run(`omarchy-theme-set ${quote(name)}`);
+    } else restoreWallpaper();
     return;
   }
   const write = apply && row ? `printf '%s\\n' ${quote(row.filePath)} > ${quote(m.selectionFile)}; ` : "";

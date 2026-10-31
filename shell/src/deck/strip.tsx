@@ -2,7 +2,7 @@
 // title names the thing in focus (focus.ts): a window, the card, the
 // password field, or the workspace when nothing has focus. The tabs are the
 // deck's three layouts, Keys, Pad and Home; the lit one is the layout
-// shown, its highlight glides between tabs, and a tap picks a layout by
+// shown, its highlight glides between tabs, and a press picks a layout by
 // hand until the focus changes.
 import { createEffect, createRoot, For, on, untrack } from "solid-js";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
@@ -36,11 +36,10 @@ export function stripTarget(x: number): string | null {
   return i >= 0 ? `strip:${TABS[i]!.layout}` : null;
 }
 
-/** The strip's fingers this frame: a tap on a tab picks that layout. */
+/** The strip's fingers this frame: a press on a tab picks that layout. */
 export function stripTouch(frame: TouchFrame) {
-  for (const tap of frame.taps) {
-    if (tap.moved) continue;
-    const i = tabAt(tap.start.x);
+  for (const c of frame.presses) {
+    const i = tabAt(c.x);
     if (i >= 0) chooseLayout(TABS[i]!.layout);
   }
 }
