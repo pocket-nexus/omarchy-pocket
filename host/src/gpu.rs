@@ -124,6 +124,17 @@ mod ffi {
         /// `union gbm_bo_handle` is eight bytes, returned in a register.
         pub fn gbm_bo_get_handle(bo: *mut gbm_bo) -> u64;
         pub fn gbm_bo_get_stride(bo: *mut gbm_bo) -> u32;
+        pub fn gbm_bo_map(
+            bo: *mut gbm_bo,
+            x: u32,
+            y: u32,
+            width: u32,
+            height: u32,
+            flags: u32,
+            stride: *mut u32,
+            map_data: *mut *mut c_void,
+        ) -> *mut c_void;
+        pub fn gbm_bo_unmap(bo: *mut gbm_bo, map_data: *mut c_void);
     }
     // pocket-gles declares the other gl* entry points without a library.
     #[link(name = "mali")]
@@ -219,6 +230,8 @@ struct Panel {
     framebuffers: Vec<(*mut gbm_bo, framebuffer::Handle)>,
     front: Option<*mut gbm_bo>,
     pending: Option<*mut gbm_bo>,
+    /// OMARCHY_POCKET_TIMING=content: a hash of rows of the frame last swapped
+    drawn: u64,
     /// The first frame sets the CRTC and produces no flip event.
     flip_expected: bool,
     target: u64,
@@ -344,6 +357,7 @@ impl Shared {
         if held && self.panels[index].front.is_some() {
             return Ok(());
         }
+        let drawn = content_hash_gl(self.panels[index].size);
         let swap_started = Instant::now();
         if unsafe { eglSwapBuffers(display, surface) } != 1 {
             return Err(egl_error("eglSwapBuffers"));
@@ -357,6 +371,10 @@ impl Shared {
         }
         let fb = self.framebuffer(index, bo)?;
         let panel = &mut self.panels[index];
+        if let Some(drawn) = drawn {
+            panel.drawn = drawn;
+            eprintln!("omarchy-pocket-host: panel {index} flip fb={} bo={bo:?} drawn={drawn:016x}", u32::from(fb));
+        }
         if panel.front.is_none() {
             self.card.set_crtc(
                 panel.crtc,
@@ -425,6 +443,15 @@ impl Shared {
             if let Some(old) = panel.front.replace(bo) {
                 unsafe { gbm_surface_release_buffer(panel.gbm, old) };
             }
+            if content_on() {
+                let scan = content_hash_bo(bo, panel.size);
+                let verdict = if scan == Some(panel.drawn) { "same" } else { "DIFFERS" };
+                eprintln!(
+                    "omarchy-pocket-host: panel {index} shown bo={bo:?} scan={:016x} {verdict} drawn={:016x}",
+                    scan.unwrap_or(0),
+                    panel.drawn
+                );
+            }
         }
         Ok(())
     }
@@ -440,6 +467,62 @@ fn probe(index: usize, what: &str, started: Instant) {
     if spent > Duration::from_millis(4) {
         eprintln!("omarchy-pocket-host: panel {index} {what} {:.1} ms", spent.as_secs_f64() * 1000.0);
     }
+}
+
+/// OMARCHY_POCKET_TIMING=content: each flipped frame's content as a hash of
+/// 16 rows, taken before the swap (what the renderer drew) and again once the
+/// frame shows (what its buffer holds).
+fn content_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("OMARCHY_POCKET_TIMING").is_some_and(|v| v == "content"))
+}
+const CONTENT_ROWS: u32 = 16;
+fn content_rows(height: u32) -> impl Iterator<Item = u32> {
+    (0..CONTENT_ROWS).map(move |i| i * height / CONTENT_ROWS + height / (2 * CONTENT_ROWS))
+}
+/// FNV-1a over a pixel's red, green and blue.
+fn content_mix(hash: &mut u64, rgb: [u8; 3]) {
+    for byte in rgb {
+        *hash ^= u64::from(byte);
+        *hash = hash.wrapping_mul(0x100000001b3);
+    }
+}
+/// The rows as the GPU drew them: GL reads bottom row first.
+fn content_hash_gl(size: [u32; 2]) -> Option<u64> {
+    if !content_on() {
+        return None;
+    }
+    let mut row = vec![0u8; size[0] as usize * 4];
+    let mut hash = 0xcbf29ce484222325u64;
+    for y in content_rows(size[1]) {
+        unsafe {
+            glReadPixels(0, (size[1] - 1 - y) as i32, size[0] as i32, 1, GL_RGBA, GL_UNSIGNED_BYTE, row.as_mut_ptr().cast())
+        };
+        for px in row.chunks_exact(4).step_by(4) {
+            content_mix(&mut hash, [px[0], px[1], px[2]]);
+        }
+    }
+    Some(hash)
+}
+/// The rows as the buffer holds them (XRGB8888: blue first).
+fn content_hash_bo(bo: *mut gbm_bo, size: [u32; 2]) -> Option<u64> {
+    let mut stride = 0u32;
+    let mut map_data: *mut c_void = ptr::null_mut();
+    let base = unsafe { gbm_bo_map(bo, 0, 0, size[0], size[1], 1, &mut stride, &mut map_data) };
+    if base.is_null() {
+        return None;
+    }
+    let mut hash = 0xcbf29ce484222325u64;
+    for y in content_rows(size[1]) {
+        let row = unsafe {
+            std::slice::from_raw_parts(base.cast::<u8>().add(y as usize * stride as usize), size[0] as usize * 4)
+        };
+        for px in row.chunks_exact(4).step_by(4) {
+            content_mix(&mut hash, [px[2], px[1], px[0]]);
+        }
+    }
+    unsafe { gbm_bo_unmap(bo, map_data) };
+    Some(hash)
 }
 
 /// While /tmp/pocket-shot exists, each presented frame is read back from the
@@ -734,6 +817,7 @@ pub fn open(
             framebuffers: Vec::new(),
             front: None,
             pending: None,
+            drawn: 0,
             flip_expected: false,
             target: 0,
         });
