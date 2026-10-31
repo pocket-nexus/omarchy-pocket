@@ -23,6 +23,8 @@ use std::{
 mod bridge;
 mod children;
 #[cfg(target_os = "linux")]
+mod floor;
+#[cfg(target_os = "linux")]
 mod gpu;
 mod guest;
 mod net;
@@ -270,6 +272,8 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
     .map_err(error)?;
     #[cfg(target_os = "linux")]
     let mut compositor: Option<gpu::Compositor> = None;
+    #[cfg(target_os = "linux")]
+    let mut probe: Option<floor::InputProbe> = None;
     let mut shot = match options.shot.clone() {
         Some(directory) => {
             let renderer = runtime
@@ -287,7 +291,9 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
         None => {
             #[cfg(target_os = "linux")]
             {
-                compositor = Some(attach_devices(&mut runtime, &profile, options)?);
+                let (c, p) = attach_devices(&mut runtime, &profile, options)?;
+                compositor = Some(c);
+                probe = Some(p);
             }
             #[cfg(not(target_os = "linux"))]
             attach_devices(&mut runtime, &profile, options)?;
@@ -310,8 +316,9 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
     let mut clock = MonotonicClock::default();
     let mut schedule = TickSchedule::new(profile.tick_hz, clock.now(), 1).map_err(error)?;
     let mut presented = Presented::default();
+    // the clock floors: up at input or a present, down after two idle seconds
     #[cfg(target_os = "linux")]
-    let mut gpu_floor = (shot.is_none()).then(gpu::GpuFloor::new);
+    let mut floors = (shot.is_none()).then(floor::Floors::new);
     // OMARCHY_POCKET_TIMING=1: mean costs of each tick's phases every 5 s;
     // =frames[=<ms>]: and each tick over 20 ms (or <ms>)
     let mut timing = std::env::var("OMARCHY_POCKET_TIMING").ok().map(|v| {
@@ -326,6 +333,13 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
             }
         }
         let started = timing.as_ref().map(|_| std::time::Instant::now());
+        // input waiting on a device raises the clocks before the guest runs
+        #[cfg(target_os = "linux")]
+        let input = probe.as_mut().is_some_and(|p| p.poll());
+        #[cfg(target_os = "linux")]
+        if let (Some(floors), true) = (floors.as_mut(), input) {
+            floors.tick(true);
+        }
         runtime.advance().map_err(error)?;
         // the apps in the shell's windows: opened, closed and advanced after the shell's turn
         #[cfg(target_os = "linux")]
@@ -340,8 +354,8 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
         let changed = top || bottom;
         let drawn = timing.as_ref().map(|_| std::time::Instant::now());
         #[cfg(target_os = "linux")]
-        if let Some(floor) = gpu_floor.as_mut() {
-            floor.tick(changed || forced);
+        if let Some(floors) = floors.as_mut() {
+            floors.tick(changed || forced || input);
         }
         if changed || forced {
             // a panel whose list is the one it shows keeps its frame (no swap, no flip)
@@ -362,14 +376,15 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
     Ok(())
 }
 
-/// Both panels on the GPU and every evdev device. Linux only: on another
-/// system the program builds for --shot and its unit tests.
+/// Both panels on the GPU and every evdev device, with a probe on the
+/// devices for the clock floors. Linux only: on another system the program
+/// builds for --shot and its unit tests.
 #[cfg(target_os = "linux")]
 fn attach_devices(
     runtime: &mut Runtime,
     profile: &Profile,
     options: &Options,
-) -> Result<gpu::Compositor, Box<dyn Error>> {
+) -> Result<(gpu::Compositor, floor::InputProbe), Box<dyn Error>> {
     use gpu::PanelSpec;
     use pocket_drivers::{DisplayRole, InputSource};
     let (renderer, displays, compositor) = gpu::open(
@@ -432,7 +447,8 @@ fn attach_devices(
         }
         runtime.add_input_source(Box::new(device)).map_err(error)?;
     }
-    Ok(compositor)
+    let probe = floor::InputProbe::open(&inputs[..inputs.len().min(16)]);
+    Ok((compositor, probe))
 }
 
 #[cfg(not(target_os = "linux"))]

@@ -142,10 +142,11 @@ async function shot() {
   const dir = resolve(option("--out") ?? join(CACHE, "shots"));
   await profile();
   const targetDir = join(CACHE, "host", "native");
-  await $`cargo build -p omarchy-pocket-host --target-dir ${targetDir}`.cwd(ROOT).env({ ...process.env, POCKETJS_PROFILE_RS: PROFILE_RS });
+  // release: a debug build's native frames exhaust QuickJS's stack while the shell mounts
+  await $`cargo build --release -p omarchy-pocket-host --target-dir ${targetDir}`.cwd(ROOT).env({ ...process.env, POCKETJS_PROFILE_RS: PROFILE_RS });
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
-  await $`${join(targetDir, "debug", "omarchy-pocket-host")} --package ${OUTPUTS.shell} --shot ${dir} --script ${script}`;
+  await $`${join(targetDir, "release", "omarchy-pocket-host")} --package ${OUTPUTS.shell} --shot ${dir} --script ${script}`;
   for (const name of readdirSync(dir).filter((n) => n.endsWith("-top.xrgb"))) {
     const tick = name.slice(0, -"-top.xrgb".length);
     const rgba = new Uint8Array(W * H * 2 * 4);

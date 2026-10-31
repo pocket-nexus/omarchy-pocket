@@ -163,14 +163,27 @@ impl BridgedGuest {
     }
 }
 
+impl BridgedGuest {
+    /// A guest failure with the exception behind it, which the runtime's
+    /// error does not carry.
+    fn report<T>(&self, what: &str, result: Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        if result.is_err() {
+            eprintln!("omarchy-pocket-host: shell {what}: {}", self.inner.last_error().unwrap_or("no error text"));
+        }
+        result
+    }
+}
+
 impl Guest for BridgedGuest {
     fn initialize(&mut self, ops: OpContext, environment: &GuestEnvironment<'_>) -> Result<(), RuntimeError> {
         self.ops = Some(ops.clone());
-        self.inner.initialize(ops, environment)?;
+        let initialized = self.inner.initialize(ops, environment);
+        self.report("initialize", initialized)?;
         self.install()
     }
     fn evaluate(&mut self, code: &[u8]) -> Result<(), RuntimeError> {
-        self.inner.evaluate(code)
+        let evaluated = self.inner.evaluate(code);
+        self.report("boot", evaluated)
     }
     fn frame(&mut self, frame: &GuestFrame<'_>) -> Result<(), RuntimeError> {
         let (mut lines, dropped) = {
@@ -189,7 +202,8 @@ impl Guest for BridgedGuest {
         if !lines.is_empty() {
             self.deliver(lines);
         }
-        self.inner.frame(frame)
+        let advanced = self.inner.frame(frame);
+        self.report("frame", advanced)
     }
     fn collect(&mut self) -> Result<(), RuntimeError> {
         self.inner.collect()
