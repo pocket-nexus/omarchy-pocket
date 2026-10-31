@@ -31,12 +31,16 @@ use std::{
 
 /// Set when the next frame must be presented though its draw lists are unchanged.
 pub type Repaint = Rc<Cell<bool>>;
+/// Set when lines arrived from the daemon this tick: something is going on
+/// (terminal output, an applet's request answered, a bake in progress).
+pub type Traffic = Rc<Cell<bool>>;
 
 pub struct BridgedGuest {
     inner: RquickjsGuest,
     bridge: Rc<RefCell<Bridge>>,
     ops: Option<OpContext>,
     repaint: Repaint,
+    traffic: Traffic,
     children: children::Shared,
     net: net::Shared,
 }
@@ -79,8 +83,8 @@ fn load_texture(ops: &OpContext, path: &str, w: usize, h: usize) -> i64 {
 }
 
 impl BridgedGuest {
-    pub fn new(bridge: Rc<RefCell<Bridge>>, repaint: Repaint, children: children::Shared, net: net::Shared) -> Self {
-        Self { inner: RquickjsGuest::default(), bridge, ops: None, repaint, children, net }
+    pub fn new(bridge: Rc<RefCell<Bridge>>, repaint: Repaint, traffic: Traffic, children: children::Shared, net: net::Shared) -> Self {
+        Self { inner: RquickjsGuest::default(), bridge, ops: None, repaint, traffic, children, net }
     }
 
     fn install(&self) -> Result<(), RuntimeError> {
@@ -191,6 +195,9 @@ impl Guest for BridgedGuest {
             let lines = bridge.poll();
             (lines, bridge.take_dropped())
         };
+        if !lines.is_empty() {
+            self.traffic.set(true);
+        }
         {
             let mut net = self.net.borrow_mut();
             if dropped {

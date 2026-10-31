@@ -235,9 +235,13 @@ export async function bakeMain(dir: string) {
 
 /** The applets' faces, sans first: their text is prose, the shell's is a
  *  terminal's. wqy-microhei carries Latin, CJK and kana; the Nerd Font
- *  backs it with symbols. */
-const APPLET_FACES = [CJK, MONO];
-const BAKER_IDLE_MS = 60_000;
+ *  backs it with symbols, and Noto Emoji (the monochrome face,
+ *  device/rootfs/usr/share/fonts/noto-emoji) with emoji. */
+const EMOJI = ["/usr/share/fonts/noto-emoji/NotoEmoji.ttf"];
+const APPLET_FACES = [CJK, MONO, EMOJI];
+/** The child keeps its parsed faces this long after its last job: an applet
+ *  asks for atlases as it scrolls, minutes apart. */
+const BAKER_IDLE_MS = 10 * 60_000;
 
 interface AtlasJob {
   px: number;

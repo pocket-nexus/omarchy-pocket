@@ -9,7 +9,7 @@
 // two requests at a time: pages go first, pictures after them, and the live
 // poll of an open channel takes one slot for up to POLL_WAIT_S seconds.
 
-import { companionService, fetch, NetError } from "../lib/net.ts";
+import { companionService, fetch, NetError, NET_MAX_RESPONSE_BYTES } from "../lib/net.ts";
 import { GLYPH_ATLAS_URL } from "../ui/glyphs.ts";
 import { notLinked, SERVICE_STORE, theComputer, yourComputer } from "../ui/companion.ts";
 
@@ -155,7 +155,7 @@ export function createDiscordClient(): DiscordClient {
     send: (channel, content) =>
       request<{ message: Message }>(`/channels/${channel}/messages`, { method: "POST", body: { content }, urgent: true }).then((answer) => answer.message),
     picture: (kind, owner, hash) => request<Uint8Array>(`/${kind}/${owner}/${hash}`, { binary: true }),
-    atlas: (body) => request<Uint8Array>("", { url: GLYPH_ATLAS_URL, method: "POST", body: JSON.parse(body) as unknown, binary: true, maxBytes: 256 * 1024 }),
+    atlas: (body) => request<Uint8Array>("", { url: GLYPH_ATLAS_URL, method: "POST", body: JSON.parse(body) as unknown, binary: true, maxBytes: NET_MAX_RESPONSE_BYTES }),
     inflight: () => running,
     peak: () => peak,
   };

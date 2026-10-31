@@ -8,11 +8,14 @@
 // it. Requests share one queue of at most
 // MAX_INFLIGHT, the NET module's limit; avatars wait behind pages.
 
-import { companionService, fetch, NetError } from "../lib/net.ts";
+import { companionService, fetch, NET_MAX_RESPONSE_BYTES, NetError } from "../lib/net.ts";
 import { GLYPH_ATLAS_URL } from "../ui/glyphs.ts";
 import { notLinked, theComputer, yourComputer } from "../ui/companion.ts";
 
 export const MAX_INFLIGHT = 2;
+/** A post's photo in the list: a pow2 texture, two to one, cropped to fill. */
+export const MEDIA_W = 256;
+export const MEDIA_H = 128;
 /** A first request can wait while the Mac reads x.com's client. */
 const PAGE_TIMEOUT_MS = 90_000;
 
@@ -38,7 +41,8 @@ export interface Post {
   replyTo?: string;
   repostedBy?: string;
   quote?: { name: string; handle: string; text: string };
-  media?: { count: number; kind: "photo" | "video" | "gif" };
+  /** `urls`: the photos, for `media()`. */
+  media?: { count: number; kind: "photo" | "video" | "gif"; urls?: string[] };
   avatar?: string;
 }
 
@@ -84,6 +88,8 @@ export interface XClient {
   thread(id: string, cursor?: string | null): Promise<Thread>;
   /** The avatar's IMG entry bytes. */
   avatar(url: string): Promise<Uint8Array>;
+  /** A photo's IMG entry bytes, MEDIA_W x MEDIA_H, cropped to fill. */
+  media(url: string): Promise<Uint8Array>;
   act(action: Action, id: string): Promise<void>;
   /** A glyph atlas from the companion's glyphs service, in this queue. */
   atlas(body: string): Promise<Uint8Array>;
@@ -159,7 +165,8 @@ export function createXClient(): XClient {
     timeline: (kind, cursor) => request<Page>(withCursor(`/timeline?kind=${kind}`, cursor), { urgent: true }),
     thread: (id, cursor) => request<Thread>(withCursor(`/post/${id}`, cursor), { urgent: true }),
     avatar: (url) => request<Uint8Array>(`/avatar?u=${encodeURIComponent(url)}`, { binary: true, timeoutMs: 20_000, maxBytes: 8 * 1024 }),
-    atlas: (body) => request<Uint8Array>("", { url: GLYPH_ATLAS_URL, body, binary: true, timeoutMs: 20_000, maxBytes: 256 * 1024 }),
+    media: (url) => request<Uint8Array>(`/media?u=${encodeURIComponent(url)}&w=${MEDIA_W}&h=${MEDIA_H}`, { binary: true, timeoutMs: 30_000, maxBytes: 8 + MEDIA_W * MEDIA_H * 2 }),
+    atlas: (body) => request<Uint8Array>("", { url: GLYPH_ATLAS_URL, body, binary: true, timeoutMs: 30_000, maxBytes: NET_MAX_RESPONSE_BYTES }),
     act: (action, id) => request<unknown>(`/${action}?id=${id}`, { urgent: true, body: "", timeoutMs: 30_000 }).then(() => undefined),
     reply: (id, text) =>
       request<{ post?: Post }>("/reply", { urgent: true, body: JSON.stringify({ id, text }), timeoutMs: 30_000 }).then((answer) => answer.post ?? null),

@@ -13,7 +13,7 @@
 //                               takes keys, the pad for a touch app, home
 //                               when nothing has focus. The strip's tabs
 //                               pick one by hand until the focus changes;
-//                               the dock launches.
+//                               the strip's logo opens Omarchy's menu.
 //   The gamepad is SUPER.       L1, R1 and both are the chord layers of
 //                               chords.ts and last as long as the shoulder;
 //                               with no shoulder the buttons are keys for
@@ -38,8 +38,7 @@ import { perform } from "./actions.ts";
 import { appletOf, type Applet } from "./applets/applet.ts";
 import { request, type SystemState } from "./bridge.ts";
 import { chordFor, layerOf, MODIFIERS } from "./chords.ts";
-import { Dock, dockTap, dockTarget } from "./deck/dock.tsx";
-import { BODY_H, BODY_TOP, DOCK_TOP, STRIP_H } from "./deck/geometry.ts";
+import { BODY_H, BODY_TOP, STRIP_H } from "./deck/geometry.ts";
 import { Home, homeTarget, homeTouch } from "./deck/home.tsx";
 import { pressAt } from "./deck/press.ts";
 import { Strip, stripTarget, stripTouch } from "./deck/strip.tsx";
@@ -228,20 +227,9 @@ export default function Shell() {
 
     // the pressed look follows the oldest finger
     const first = touch.down[0];
-    pressAt(
-      !first
-        ? null
-        : first.start.y < STRIP_H
-          ? stripTarget(first.x)
-          : first.start.y >= DOCK_TOP
-            ? dockTarget(first.x)
-            : layout() === "home"
-              ? homeTarget(first.x, first.y - BODY_TOP)
-              : null,
-    );
+    pressAt(!first ? null : first.start.y < STRIP_H ? stripTarget(first.x) : layout() === "home" ? homeTarget(first.x, first.y - BODY_TOP) : null);
     stripTouch(band(touch, 0, STRIP_H));
-    for (const c of band(touch, DOCK_TOP, 384).presses) dockTap(c.x);
-    const contacts = bodyTouch(band(touch, BODY_TOP, DOCK_TOP));
+    const contacts = bodyTouch(band(touch, BODY_TOP, 384));
     feed(buttons, contacts);
   });
 
@@ -267,10 +255,10 @@ export default function Shell() {
               <View class="absolute left-0 w-[512] overflow-hidden contain-strict" style={{ insetT: BODY_TOP, height: BODY_H }}>
                 {/* the keys and home stay mounted and show by opacity, so a change of
                     focus repaints instead of building a layout; the pad mounts on demand */}
-                <View class="absolute left-0 top-0 w-[512] h-[318] contain-strict" style={{ opacity: layout() === "home" ? 1 : 0 }}>
+                <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: BODY_H, opacity: layout() === "home" ? 1 : 0 }}>
                   <Home />
                 </View>
-                <View class="absolute left-0 top-0 w-[512] h-[318] contain-strict" style={{ opacity: layout() === "keys" ? 1 : 0 }}>
+                <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: BODY_H, opacity: layout() === "keys" ? 1 : 0 }}>
                   <Keyboard mode="body" />
                 </View>
                 <Show when={layout() === "pad"}>
@@ -278,7 +266,6 @@ export default function Shell() {
                 </Show>
               </View>
               <Strip />
-              <Dock />
             </View>
             <View class="absolute left-0 top-0 w-[512] h-[384] contain-strict" style={{ opacity: locked() ? 1 : 0 }}>
               <Keyboard mode="full" />

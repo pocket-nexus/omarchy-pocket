@@ -52,16 +52,18 @@ serve("pocket.input", {
   },
   /** logs the deck's contacts for `frames` frames (the host's stderr) */
   watch: (frames = "120") => {
-    watching = Math.max(1, Number(frames) || 120);
+    watchFrames = Math.max(1, Number(frames) || 120);
     return "ok";
   },
 });
 
-let watching = 0;
+let watchFrames = 0;
+/** Whether a watch is on: the keyboard logs its keys lighting and going out too. */
+export const watching = () => watchFrames > 0;
 /** Once per frame: the contacts the panel reports, while a watch is on. */
 export function watchTouches(contacts: readonly { id: number; x: number; y: number }[]) {
-  if (watching <= 0) return;
-  watching--;
+  if (watchFrames <= 0) return;
+  watchFrames--;
   if (contacts.length) console.log(`touch ${contacts.map((c) => `${c.id}@${c.x.toFixed(0)},${c.y.toFixed(0)}`).join(" ")}`);
 }
 

@@ -20,6 +20,8 @@ import { registerTexture } from "@pocketjs/framework/renderer";
 import { createXClient, errorText, type Action, type Kind, type Post, type XClient } from "./api.ts";
 
 const AVATARS = 64;
+/** photos stay uploaded: 64 KiB each, the least recently shown go first */
+const PHOTOS = 24;
 
 export interface TimelineState {
   status: "loading" | "ready" | "error";
@@ -58,6 +60,10 @@ export interface XModel {
   avatar(url: string | undefined): string;
   /** Bumped when an avatar arrives. */
   avatars: Accessor<number>;
+  /** The texture key of the photo at `url`, or "" until it is uploaded; asks for it. */
+  media(url: string | undefined): string;
+  /** Bumped when a photo arrives. */
+  photos: Accessor<number>;
   /** `post` with the reader's likes, reposts and replies applied. */
   view(post: Post): Post;
   /** Bumped when an override changes. */
@@ -192,6 +198,45 @@ export function createXModel(client: XClient = createXClient()): XModel {
     return "";
   };
 
+  // -- photos, held as the avatars are --------------------------------------------
+  const [photos, setPhotos] = createSignal(0);
+  const pictures = new Map<string, { key: string; handle: number; shown: number }>();
+  const askedPictures = new Set<string>();
+  let nextPicture = 0;
+  const media = (url: string | undefined): string => {
+    if (!url) return "";
+    const picture = pictures.get(url);
+    if (picture) {
+      picture.shown = ++clock;
+      return picture.key;
+    }
+    if (!askedPictures.has(url)) {
+      askedPictures.add(url);
+      client.media(url).then(
+        (bytes) => {
+          const ops = getOps();
+          const handle = ops.uploadImgEntry ? ops.uploadImgEntry(bytes) : -1;
+          if (handle < 0) return;
+          if (pictures.size >= PHOTOS) {
+            let oldest: [string, { handle: number; shown: number }] | null = null;
+            for (const entry of pictures) if (!oldest || entry[1].shown < oldest[1].shown) oldest = entry;
+            if (oldest) {
+              pictures.delete(oldest[0]);
+              askedPictures.delete(oldest[0]);
+              ops.freeTexture?.(oldest[1].handle);
+            }
+          }
+          const key = `x.photo.${nextPicture++}`;
+          registerTexture(key, handle);
+          pictures.set(url, { key, handle, shown: ++clock });
+          setPhotos(photos() + 1);
+        },
+        () => undefined,
+      );
+    }
+    return "";
+  };
+
   // -- the reader's actions --------------------------------------------------------
   const [marks, setMarks] = createSignal(0);
   const [notice, setNotice] = createSignal("");
@@ -262,6 +307,8 @@ export function createXModel(client: XClient = createXClient()): XModel {
     moreReplies,
     avatar,
     avatars,
+    media,
+    photos,
     view,
     marks,
     toggle,

@@ -10,8 +10,8 @@
 // files under ~/.local/share/omarchy-pocket/companion/services/<name>/ (the
 // Mac's `services/x/session.json`, `services/discord/token` copied there
 // sign this device in), glyphs from this daemon's own baker at the device's
-// raster density, and X's avatars scaled by ffmpeg (the Mac's service runs
-// sips). A service answers only a package whose manifest
+// raster density, and X's avatars and photos scaled by ffmpeg (the Mac's
+// service runs sips). A service answers only a package whose manifest
 // lists it in `applet.services`. Any other URL is fetched with
 // performNet: redirects checked hop by hop, private addresses refused, and
 // HTTPS_PROXY honoured (the omarchy-pocketd unit's environment).
@@ -26,8 +26,8 @@ import { AtlasBaker } from "./glyphs.ts";
 
 /** This host's whole-response limit: a glyph atlas at raster density 2 holds
  *  a quarter of the glyphs one at density 1 does in the same bytes, so the
- *  applets ask for up to 1 MiB (the NET contract's is 256 KiB). */
-export const APP_RESPONSE_MAX = 1024 * 1024;
+ *  applets ask for up to 2 MiB (the NET contract's is 256 KiB). */
+export const APP_RESPONSE_MAX = 2 * 1024 * 1024;
 const GLYPH_PX = [8, 32] as const;
 const GLYPH_TEXT_MAX = 20_000;
 const ASCII = Array.from({ length: 0x7f - 0x20 }, (_, i) => 0x20 + i);
@@ -62,16 +62,20 @@ function deviceGlyphs(baker: AtlasBaker): ServiceProvider {
   };
 }
 
-/** An avatar (JPEG or PNG from twimg.com) as `size` x `size` RGBA, by ffmpeg. */
-async function ffmpegAvatar(bytes: Uint8Array, size: number) {
-  const child = Bun.spawn(["ffmpeg", "-loglevel", "error", "-i", "pipe:0", "-vf", `scale=${size}:${size}`, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgba", "pipe:1"], {
+/** An image (JPEG, PNG or WebP from twimg.com) as `width` x `height` RGBA
+ *  by ffmpeg, scaled to cover the box and cropped at its centre. */
+async function ffmpegImage(bytes: Uint8Array, width: number, height: number) {
+  const filter = `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`;
+  const child = Bun.spawn(["ffmpeg", "-loglevel", "error", "-i", "pipe:0", "-vf", filter, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgba", "pipe:1"], {
     stdin: bytes,
     stdout: "pipe",
     stderr: "ignore",
   });
   const [rgba, code] = await Promise.all([new Response(child.stdout).bytes(), child.exited]);
-  return code === 0 && rgba.length === size * size * 4 ? { width: size, height: size, rgba } : null;
+  return code === 0 && rgba.length === width * height * 4 ? { width, height, rgba } : null;
 }
+/** An avatar as `size` x `size` RGBA. */
+const ffmpegAvatar = (bytes: Uint8Array, size: number) => ffmpegImage(bytes, size, size);
 
 export class AppNet {
   private readonly services: ServiceHost;
@@ -86,7 +90,7 @@ export class AppNet {
     const baker = this.baker;
     // the device's glyphs, the other providers as PocketJS has them
     SERVICE_FACTORIES.glyphs = () => deviceGlyphs(baker);
-    SERVICE_FACTORIES.x = (context) => createXService(context, { decodeAvatar: ffmpegAvatar });
+    SERVICE_FACTORIES.x = (context) => createXService(context, { decodeAvatar: ffmpegAvatar, decodeMedia: ffmpegImage });
     this.services = new ServiceHost({ storeDir, log: (line) => log(line) });
   }
 

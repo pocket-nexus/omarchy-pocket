@@ -20,6 +20,7 @@ import { after } from "@pocketjs/framework/clock";
 import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
 import { keySink } from "../focus.ts";
+import { watching } from "../remote-input.ts";
 import { color } from "../theme.ts";
 import { chinese, composing, pick, route, snapshot, toggleChinese } from "./ime.ts";
 import type { Contact, TouchFrame } from "../touch.ts";
@@ -218,8 +219,14 @@ export function keyboardTouch(frame: TouchFrame, mode: KeyboardMode) {
   const onKeys = (c: Contact) => c.start.y >= stripH;
   const down = frame.down.filter(onKeys);
   const now = down.map((c) => keyAt(keys, c.x, c.y)).filter((k) => k !== null);
-  for (const k of pressed) if (!now.includes(k)) k.setLit(false);
-  for (const k of now) if (!pressed.includes(k)) k.setLit(true);
+  for (const k of pressed) if (!now.includes(k)) {
+    k.setLit(false);
+    if (watching()) console.log(`key ${k.label} unlit`);
+  }
+  for (const k of now) if (!pressed.includes(k)) {
+    k.setLit(true);
+    if (watching()) console.log(`key ${k.label} lit`);
+  }
   pressed = now;
   for (const c of frame.presses) {
     if (!onKeys(c)) {

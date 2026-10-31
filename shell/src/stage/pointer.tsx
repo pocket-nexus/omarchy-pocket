@@ -111,7 +111,7 @@ export function click() {
   if (card()) {
     if (!onCard(x, y)) return closeCard();
     const at: Contact = { id: 1, x: x - CARD_X, y: y - CARD_Y, frames: 2, start: { x: x - CARD_X, y: y - CARD_Y }, dx: 0, dy: 0, moved: false };
-    return cardTouch({ raw: 0, down: [], taps: [at] } satisfies TouchFrame);
+    return cardTouch({ raw: 0, down: [], presses: [], taps: [at] } satisfies TouchFrame);
   }
   const top = state()?.bar?.position === "bottom" ? 384 - BAR_H : 0;
   if (!state()?.bar?.hidden && y >= top && y < top + BAR_H) return barClick(x);

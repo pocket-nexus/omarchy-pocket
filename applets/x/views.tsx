@@ -26,7 +26,7 @@ import { ellipsize, FONT, measure, toAscii, wrap } from "../ui/text.ts";
 import { richText, type Glyphs } from "../ui/glyphs.ts";
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import type { Press, Target } from "../ui/touch.ts";
-import { KINDS, type Post } from "./api.ts";
+import { KINDS, MEDIA_W, type Post } from "./api.ts";
 import type { XModel } from "./model.ts";
 import { yourComputer } from "../ui/companion.ts";
 
@@ -56,6 +56,9 @@ function reloadButton(run: () => void): (() => NavButton) | undefined {
 }
 const PAD = 7;
 const REPOST_H = 14;
+/** A photo in the list: the texture's two-to-one shape at the column's width, at most the texture's. */
+const photoW_ = () => Math.min(MEDIA_W, TEXT_W);
+const photoH_ = () => Math.round(photoW_() / 2);
 const HEAD_H = 16;
 const BODY_LINE = 17;
 const QUOTE_LINE = 15;
@@ -110,7 +113,8 @@ export function shortCount(n: number): string {
 function extras(post: Post, full: boolean): string {
   const parts: string[] = [];
   if (full && post.views) parts.push(`${shortCount(post.views)} views`);
-  if (post.media) parts.push(post.media.kind === "video" ? "[Video]" : post.media.kind === "gif" ? "[GIF]" : post.media.count > 1 ? `[${post.media.count} photos]` : "[Photo]");
+  if (post.media && !(post.media.kind === "photo" && post.media.urls?.length)) parts.push(post.media.kind === "video" ? "[Video]" : post.media.kind === "gif" ? "[GIF]" : post.media.count > 1 ? `[${post.media.count} photos]` : "[Photo]");
+  else if (post.media && post.media.count > 1) parts.push(`+${post.media.count - 1} more`);
   return parts.join(" ");
 }
 
@@ -157,6 +161,8 @@ export interface PostRow {
   quoteLines: number;
   /** The action bar's top, from the row's top. */
   footY: number;
+  /** the first photo's url, or "" */
+  photo: string;
   replies: string;
   reposts: string;
   likes: string;
@@ -239,6 +245,8 @@ interface RowShape {
   rich: boolean;
   h: number;
   footY: number;
+  /** the first photo's url, drawn MEDIA_H tall under the body */
+  photo: string;
   repost: string;
   head: string;
   nameW: number;
@@ -290,13 +298,16 @@ function rowShape(post: Post, focal: boolean, glyphs: GlyphPair | null, rich: bo
     quote = post.quote ? wrap(`${toAscii(post.quote.name)} @${toAscii(post.quote.handle)}: ${toAscii(post.quote.text)}`, FONT.xs, TEXT_W - 14, focal ? 6 : 2) : [];
   }
   const repost = post.repostedBy ? `${rich ? richText(post.repostedBy) : toAscii(post.repostedBy)} reposted` : "";
+  const photo = post.media?.kind === "photo" ? (post.media.urls?.[0] ?? "") : "";
+  const photoH = photo ? 4 + photoH_() : 0;
   const quoteH = quote.length ? 4 + 12 + quote.length * QUOTE_LINE : 0;
-  const footY = PAD + (repost ? REPOST_H : 0) + HEAD_H + lines.length * BODY_LINE + quoteH + 4;
+  const footY = PAD + (repost ? REPOST_H : 0) + HEAD_H + lines.length * BODY_LINE + photoH + quoteH + 4;
   const head = rich && glyphs ? glyphs.bold.ellipsize(richText(post.name || post.handle), 150) : ellipsize(toAscii(post.name || post.handle), FONT.smBold, 150);
   const shape: RowShape = {
     rich,
     h: footY + FOOT_H + PAD,
     footY,
+    photo,
     repost,
     head,
     nameW: rich && glyphs ? glyphs.bold.measure(head) : measure(head, FONT.smBold),
@@ -410,6 +421,7 @@ export function layoutPosts(
       quote: shape.quote,
       quoteLines: shape.quoteLines,
       footY: shape.footY,
+      photo: shape.photo,
       replies: shape.replies,
       reposts: shape.reposts,
       likes: shape.likes,
@@ -467,6 +479,12 @@ function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: str
   let shown: PostRow | null = null;
   const [key, setKey] = createSignal("");
   const [avatarUrl, setAvatarUrl] = createSignal<string | undefined>(undefined);
+  const [photoUrl, setPhotoUrl] = createSignal<string | undefined>(undefined);
+  const photoKey = () => {
+    props.model.photos();
+    return props.model.media(photoUrl());
+  };
+  let photoBox!: NodeMirror;
   const [liked, setLiked] = createSignal(false);
   const [reposted, setReposted] = createSignal(false);
   const lit = createMemo(() => key() !== "" && props.lit(key()));
@@ -500,6 +518,7 @@ function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: str
         for (const text of [letters, repost, head, meta, body, quote, extra, counts.reply!, counts.repost!, counts.like!]) paintText(text, "");
         setKey("");
         setAvatarUrl(undefined);
+        setPhotoUrl(undefined);
         shown = null;
         return;
       }
@@ -514,7 +533,12 @@ function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: str
       jump(face, "insetT", top);
       jump(headRow, "insetT", top);
       jump(body, "insetT", top + HEAD_H);
-      const quoteTop = top + HEAD_H + row.bodyLines * BODY_LINE + 4;
+      const photoTop = top + HEAD_H + row.bodyLines * BODY_LINE + 4;
+      jump(photoBox, "insetT", photoTop);
+      jump(photoBox, "height", row.photo ? photoH_() : 0);
+      jump(photoBox, "opacity", row.photo ? 1 : 0);
+      setPhotoUrl(row.photo || undefined);
+      const quoteTop = photoTop + (row.photo ? photoH_() + 4 : 0);
       jump(quoteBox, "insetT", quoteTop);
       jump(quoteBox, "height", row.quoteLines ? 12 + row.quoteLines * QUOTE_LINE : 0);
       jump(quoteBox, "opacity", row.quoteLines ? 1 : 0);
@@ -564,6 +588,9 @@ function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: str
         <Text ref={meta} class="ml-[6] text-xs text-[#536471]">{" "}</Text>
       </View>
       <Text ref={body} class="absolute left-[50] top-[23] text-sm text-[#0f1419] leading-[17]">{" "}</Text>
+      <View ref={photoBox} class="absolute left-[50] h-0 opacity-0 overflow-hidden rounded-[8] bg-[#e6ecf0]" style={{ width: photoW_() }}>
+        <Show when={photoKey()}>{(src) => <Image class="absolute left-0 top-0" style={{ width: photoW_(), height: photoH_() }} src={src()} />}</Show>
+      </View>
       <View ref={quoteBox} class="absolute left-[50] h-0 opacity-0 rounded-[8] border border-[#cfd9de] bg-white" style={{ width: TEXT_W }}>
         <Text ref={quote} class="absolute left-[7] top-[5] text-xs text-[#0f1419] leading-[15]">{" "}</Text>
       </View>

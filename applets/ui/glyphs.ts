@@ -39,8 +39,9 @@ export const GLYPH_TEXT: GlyphFace = { slot: 21, px: 13, bold: false };
 export const GLYPH_BOLD: GlyphFace = { slot: 22, px: 13, bold: true };
 
 /** omarchy-pocketd's response limit (lib/net.ts NET_MAX_RESPONSE_BYTES).
- *  Omarchy Pocket: 1 MiB, the companion's 256 KiB times the four bytes of
- *  coverage a density-2 atlas keeps per logical pixel. */
+ *  Omarchy Pocket: 2 MiB, the companion's 256 KiB times the four bytes of
+ *  coverage a density-2 atlas keeps per logical pixel, and twice that for
+ *  a timeline's worth of CJK and emoji. */
 const RESPONSE_MAX = NET_MAX_RESPONSE_BYTES;
 /** Raster samples per logical pixel in this device's atlases. */
 const DENSITY = 2;

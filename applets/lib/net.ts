@@ -36,7 +36,7 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_TIMEOUT_MS = 120_000;
 const DEFAULT_RESPONSE_BYTES = 128 * 1024;
 /** omarchy-pocketd's limit (APP_RESPONSE_MAX): 1 MiB, for density-2 glyph atlases */
-export const NET_MAX_RESPONSE_BYTES = 1024 * 1024;
+export const NET_MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_REQUEST_BYTES = 64 * 1024;
 
 export interface FetchOptions {

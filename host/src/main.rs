@@ -168,6 +168,8 @@ struct Timing {
     /// OMARCHY_POCKET_TIMING=frames (or frames=<ms>): also every tick over
     /// that long (20 ms), as it happens
     frames: Option<std::time::Duration>,
+    /// OMARCHY_POCKET_TIMING=presents: every present, with the panels it changes
+    each: bool,
     ticks: u32,
     presents: u32,
     advance: std::time::Duration,
@@ -199,7 +201,7 @@ impl Timing {
                 "omarchy-pocket-host: {} ticks: guest+core {:.0} us, draw+compare {:.0} us; {} presents {:.0} us",
                 self.ticks, per(self.advance, self.ticks), per(self.draw, self.ticks), self.presents, per(self.present, self.presents)
             );
-            *self = Timing { frames: self.frames, ..Timing::default() };
+            *self = Timing { frames: self.frames, each: self.each, ..Timing::default() };
         }
     }
 }
@@ -304,13 +306,14 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
         .set_package_source(Box::new(source))
         .map_err(error)?;
     let repaint: guest::Repaint = Default::default();
+    let traffic: guest::Traffic = Default::default();
     // a --shot run has no daemon to talk to
     let bridge = options.shot.is_none().then(|| options.bridge.clone().unwrap_or_else(default_bridge));
     let bridge = std::rc::Rc::new(std::cell::RefCell::new(bridge::Bridge::new(bridge)));
     let net = net::Hub::new(bridge.clone());
     let children = children::Children::new(net.clone());
     runtime
-        .set_guest(Box::new(guest::BridgedGuest::new(bridge, repaint.clone(), children.clone(), net)))
+        .set_guest(Box::new(guest::BridgedGuest::new(bridge, repaint.clone(), traffic.clone(), children.clone(), net)))
         .map_err(error)?;
     runtime.boot().map_err(error)?;
     let mut clock = MonotonicClock::default();
@@ -323,7 +326,7 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
     // =frames[=<ms>]: and each tick over 20 ms (or <ms>)
     let mut timing = std::env::var("OMARCHY_POCKET_TIMING").ok().map(|v| {
         let frames = v.strip_prefix("frames").map(|ms| std::time::Duration::from_millis(ms.trim_start_matches('=').parse().unwrap_or(20)));
-        Timing { frames, ..Timing::default() }
+        Timing { frames, each: v == "presents", ..Timing::default() }
     });
     while !STOP.load(Ordering::Relaxed) {
         schedule.wait_next(&mut clock).map_err(error)?;
@@ -353,11 +356,18 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
         let (top, bottom) = presented.changed(&runtime)?;
         let changed = top || bottom;
         let drawn = timing.as_ref().map(|_| std::time::Instant::now());
+        // the daemon's traffic keeps the clocks up too: a terminal printing,
+        // an applet's page arriving, a glyph bake answering
         #[cfg(target_os = "linux")]
         if let Some(floors) = floors.as_mut() {
-            floors.tick(changed || forced || input);
+            floors.tick(changed || forced || input || traffic.replace(false));
         }
+        #[cfg(not(target_os = "linux"))]
+        traffic.set(false);
         if changed || forced {
+            if timing.as_ref().is_some_and(|t| t.each) {
+                eprintln!("omarchy-pocket-host: present top={top} bottom={bottom} forced={forced}");
+            }
             // a panel whose list is the one it shows keeps its frame (no swap, no flip)
             #[cfg(target_os = "linux")]
             gpu::hold(!top && !forced, !bottom && !forced);
