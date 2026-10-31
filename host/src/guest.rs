@@ -26,7 +26,7 @@ use crate::{children, net};
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, RuntimeError};
 use pocket_spec::op;
-use rquickjs::{function::Opt, Function, Object};
+use rquickjs::{function::Opt, Coerced, FromJs, Function, Object};
 use std::{
     cell::{Cell, RefCell},
     path::PathBuf,
@@ -194,10 +194,20 @@ impl BridgedGuest {
     }
 
     fn deliver(&self, lines: Vec<String>) {
-        let delivered = self.inner.with(|ctx| -> rquickjs::Result<()> {
-            let receive: Option<Function> = ctx.globals().get("__omarchyBridgeReceive")?;
+        let delivered = self.inner.with(|ctx| -> Result<(), String> {
+            let receive: Option<Function> = ctx.globals().get("__omarchyBridgeReceive").map_err(|e| e.to_string())?;
             match receive {
-                Some(receive) => receive.call::<_, ()>((lines,)),
+                Some(receive) => receive.call::<_, ()>((lines,)).map_err(|error| {
+                    // the thrown value: an Error's message and stack, else its text
+                    if matches!(error, rquickjs::Error::Exception) {
+                        let value = ctx.catch();
+                        if let Some(exception) = value.as_exception() {
+                            return format!("{}\n{}", exception.message().unwrap_or_default(), exception.stack().unwrap_or_default());
+                        }
+                        return Coerced::<String>::from_js(&ctx, value).map(|v| v.0).unwrap_or_else(|_| error.to_string());
+                    }
+                    error.to_string()
+                }),
                 None => Ok(()),
             }
         });

@@ -21,6 +21,7 @@ import { card, cardSink, cardTitle } from "./stage/card.tsx";
 import { windowTitle } from "./stage/windows.tsx";
 import { terminalSink } from "./term/store.ts";
 import { current, focused } from "./workspaces.ts";
+import { watching } from "./watch.ts";
 
 export type Layout = "keys" | "pad" | "home";
 
@@ -76,6 +77,16 @@ createRoot(() => createEffect(on(rule, () => setChosen(null), { defer: true })))
 
 /** The deck's layout: the tabs' choice while it lasts, else the rule's. */
 export const layout = (): Layout => chosen() ?? rule();
+
+// while a watch is on (`pocket.input watch`), the deck's layout and the
+// workspace are logged as they change, beside the host's presents
+createRoot(() =>
+  createEffect(
+    on([layout, current], ([l, ws]) => {
+      if (watching()) console.log(`deck: layout ${l}, workspace ${ws + 1}`);
+    }, { defer: true }),
+  ),
+);
 
 export function chooseLayout(next: Layout) {
   setChosen(next === rule() ? null : next);
