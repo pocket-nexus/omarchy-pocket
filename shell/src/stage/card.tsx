@@ -1,36 +1,80 @@
 // The stage's card: Omarchy's menu, the bar's panels and the theme picker
 // open over the windows in one card, as Omarchy's launcher opens over a
-// desktop, and the stage dims behind it. The top panel takes no touch: while
-// a card is up the gamepad's D-pad and A/B are the card's, and the deck shows
-// its remote (deck/remote.tsx). The card fades and lifts in on the core's
-// tracks; the last card's content stays while it fades out.
+// desktop, and the stage dims behind it. While a card is up it has the keys
+// (focus.ts): the deck's keyboard and the gamepad's plain buttons drive it,
+// and a pointer click lands on its rows. The card fades and lifts in on the
+// core's tracks; the last card's content stays while it fades out.
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { View, type NodeMirror } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
 import { C } from "../classes.ts";
+import type { KeySink } from "../keys.ts";
 import { glide } from "../motion.ts";
 import { color } from "../theme.ts";
 import type { TouchFrame } from "../touch.ts";
 import { CARD_H, CARD_W, CARD_X, CARD_Y } from "./geometry.ts";
-import { BACK, closeMenu, MenuCard, menuOpen, menuPosition, menuPress, menuTouch } from "./menu.tsx";
-import { closePanel, openPanel, panelPosition, panelPress, Panels, panelTouch } from "./panels.tsx";
-import { Picker, pickerOpen, pickerPosition, pickerPress, pickerTouch } from "./picker.tsx";
+import { closeMenu, MenuCard, menuKey, menuOpen, menuText, menuTitle, menuTouch } from "./menu.tsx";
+import { closePanel, openPanel, panelKey, panelTitle, Panels, panelTouch } from "./panels.tsx";
+import { Picker, pickerKey, pickerOpen, pickerTitle, pickerTouch } from "./picker.tsx";
 
 export type CardKind = "picker" | "panel" | "menu";
 
 /** The card that is up, the picker over a panel over the menu. */
 export const card = (): CardKind | null => (pickerOpen() ? "picker" : openPanel() ? "panel" : menuOpen() ? "menu" : null);
 
-/** A button for the card that is up. */
-export function cardPress(key: number) {
+/** A key for the card that is up: a name (Up, Enter, Escape, ...). */
+export function cardKey(name: string) {
   switch (card()) {
     case "picker":
-      return pickerPress(key);
+      return pickerKey(name);
     case "panel":
-      if (key & BACK) return closePanel();
-      return panelPress(key);
+      return panelKey(name);
     case "menu":
-      return menuPress(key);
+      return menuKey(name);
+  }
+}
+
+/** A character typed at the card: the menu filters by it. */
+export function cardText(ch: string) {
+  if (card() === "menu") menuText(ch);
+}
+
+/** A plain gamepad button the card takes beyond the keys: Y forgets a
+ *  network or a device in a panel. */
+export function cardButton(button: number): boolean {
+  if (card() === "panel" && button & BTN.SQUARE) {
+    panelKey("Forget");
+    return true;
+  }
+  return false;
+}
+
+export const cardSink = (): KeySink => ({ text: cardText, key: cardKey, hint: cardHint });
+
+/** The card's title, for the strip. */
+export function cardTitle(): string {
+  switch (card()) {
+    case "picker":
+      return pickerTitle();
+    case "panel":
+      return panelTitle();
+    case "menu":
+      return menuTitle();
+    default:
+      return "";
+  }
+}
+
+function cardHint(): string {
+  switch (card()) {
+    case "menu":
+      return "type to filter · ↑↓ move · Enter opens · Esc closes";
+    case "panel":
+      return "↑↓ move · ←→ adjust · Enter acts · Esc closes";
+    case "picker":
+      return "↑↓ preview · Enter applies · Esc cancels";
+    default:
+      return "";
   }
 }
 
@@ -50,25 +94,11 @@ export function cardTouch(frame: TouchFrame) {
 export function closeCard() {
   switch (card()) {
     case "picker":
-      return pickerPress(BTN.CROSS);
+      return pickerKey("Escape");
     case "panel":
       return closePanel();
     case "menu":
       return closeMenu();
-  }
-}
-
-/** The card's title and where its selection is, for the remote. */
-export function cardPosition(): { title: string; at: number; count: number } | null {
-  switch (card()) {
-    case "picker":
-      return pickerPosition();
-    case "panel":
-      return panelPosition();
-    case "menu":
-      return menuPosition();
-    default:
-      return null;
   }
 }
 

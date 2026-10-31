@@ -2,15 +2,14 @@
 // the shell: the host program runs it beside the shell in a Runtime of its
 // own (host/src/children.rs), drawing its two displays into textures, and
 // the shell's window shows the top one (an applet's: its touch surface, its
-// UI); the deck's controls body shows its touch surface, or a touch gamepad
-// when it has none. The window manager
-// keeps the shoulders, L2/R2 and SELECT; the focused package gets the other
-// buttons. A package off the current workspace is paused.
+// UI); the deck's pad layout is its trackpad, or shows a package's own touch
+// surface. The window manager keeps the shoulders, L2/R2 and SELECT; a
+// package that is not a touch app gets the other buttons. A package off the
+// current workspace is paused.
 import { createSignal } from "solid-js";
 import { onEvent } from "./bridge.ts";
 import { toast } from "./stage/toasts.tsx";
 import { closeWindow, find, open, type Win } from "./workspaces.ts";
-import { setBody } from "./deck/body.ts";
 
 interface AppBridge {
   openApp(path: string): number;
@@ -68,13 +67,12 @@ const ERROR = "\u{f015a}";
 const isApp = (id: number) => (w: Win) => w.kind === "app" && w.app === id;
 
 /** Opens the package at `path` in a window beside the focused one. An
- *  applet's window shows its touch surface, and the deck brings that surface
- *  up for the fingers. */
+ *  applet's window shows its touch surface, and the deck becomes its pad
+ *  (focus.ts). */
 export function openPackage(path: string, title: string, aux: boolean, applet = false) {
   const id = host?.openApp?.(path) ?? -1;
   if (id < 0) return toast({ icon: ERROR, title, body: "This host cannot run packages", tone: "error" });
   open({ kind: "app", app: id, path, title, aux, appletSurface: applet });
-  if (aux) setBody("controls");
 }
 
 /** Ends the package; its window closes now. */

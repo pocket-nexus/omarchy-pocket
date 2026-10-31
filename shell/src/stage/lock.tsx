@@ -2,13 +2,13 @@
 // and the one the shell puts up before logind suspends: the clock over the
 // dimmed wallpaper on the stage, the touch keyboard on the deck with a
 // password field. omarchy-pocketd checks the password (unix_chkpwd); the
-// gamepad's A is Enter and B is Backspace.
+// gamepad's A is Enter, B Backspace and START clears the field.
 import { createSignal, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { onEvent, request } from "../bridge.ts";
 import { C } from "../classes.ts";
+import { setFieldSink } from "../keys.ts";
 import { serve } from "../system.ts";
-import { setKeySink } from "../term/keyboard.tsx";
 import { color } from "../theme.ts";
 
 const LOCK = "\u{f033e}";
@@ -27,7 +27,7 @@ function verify() {
       if (!ok) return setStatus("Wrong password");
       setLocked(false);
       setStatus("");
-      setKeySink(null);
+      setFieldSink(null);
     },
     (error) => setStatus(String(error)),
   );
@@ -38,7 +38,7 @@ export function lock() {
   setLocked(true);
   setPassword("");
   setStatus("");
-  setKeySink({
+  setFieldSink({
     text: (ch) => setPassword((p) => p + ch),
     key: (name) => {
       if (name === "Enter") verify();
@@ -46,6 +46,7 @@ export function lock() {
       else if (name === "Escape") setPassword("");
     },
     field: () => `${LOCK} ${status() || "Password"}: ${"•".repeat([...password()].length)}_`,
+    hint: () => "A Enter · B Backspace · START clears",
   });
 }
 

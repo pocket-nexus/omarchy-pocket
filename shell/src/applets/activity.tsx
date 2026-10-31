@@ -1,21 +1,18 @@
 // Activity: the system monitor. The window shows CPU load (all cores and each
 // core) with a minute of history, memory, network rates, temperatures,
 // uptime and load average, in two columns when it is wide and one when it
-// is not. The deck lists the busiest processes, by CPU or by memory (the
-// chips along its top); a finger drags the list. Figures come from
-// omarchy-pocketd (daemon/applets.ts) once a second while the window is on
-// the current workspace, processes every two while the deck shows them.
-import { batch, createMemo, createSignal, For, Index, onCleanup, Show } from "solid-js";
+// is not; Tab turns the window to the busiest processes, by CPU or by memory
+// (Left and Right), the arrows moving down the list, and Tab turns it back.
+// Figures come from omarchy-pocketd (daemon/applets.ts) once a second while
+// the window is on the current workspace, processes every two while they
+// show.
+import { batch, createMemo, createSignal, For, Index } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
 import { request } from "../bridge.ts";
 import type { Process, SystemStats } from "../../../daemon/protocol.ts";
-import { C } from "../classes.ts";
-import { BODY_H } from "../deck/geometry.ts";
-import { createList, List } from "../deck/list.tsx";
 import { color } from "../theme.ts";
-import type { TouchFrame } from "../touch.ts";
 import { register } from "./applet.ts";
 
 const HISTORY = 60;
@@ -28,10 +25,9 @@ const [head, setHead] = createSignal(0);
 const [procs, setProcs] = createSignal<Process[]>([]);
 const [sort, setSort] = createSignal<"cpu" | "mem">("cpu");
 const [selected, setSelected] = createSignal(0);
+const [view, setView] = createSignal<"stats" | "processes">("stats");
 let polling = 0;
 let ticks = 0;
-/** the process list is fetched only while the deck shows it */
-let deckShown = false;
 
 function loadProcs(token: number) {
   request<Process[]>({ method: "processes", sort: sort() }).then((p) => token === polling && setProcs(p.slice(0, PROCESSES)), () => {});
@@ -47,7 +43,7 @@ function poll(token: number) {
       setHead((h) => (h + 1) % HISTORY);
     });
   }, () => {});
-  if (ticks++ % 2 === 0 && deckShown) loadProcs(token);
+  if (ticks++ % 2 === 0 && view() === "processes") loadProcs(token);
   after(1, () => poll(token));
 }
 
@@ -74,7 +70,7 @@ function Meter(props: { x: number; y: number; w: number; label: string; value: s
 
 const GRAPH_H = 64;
 
-function Stage(props: { w: number; h: number }) {
+function Stats(props: { w: number; h: number }) {
   const s = stats;
   const wide = () => props.w >= 420;
   const colW = () => (wide() ? (props.w - 36) / 2 : props.w - 24);
@@ -121,55 +117,54 @@ function Stage(props: { w: number; h: number }) {
   );
 }
 
-const ROW_H = 22;
-const LIST_T = 34;
-const list = createList(ROW_H, LIST_T, Math.floor((BODY_H - LIST_T - 4) / ROW_H));
-const CHIPS: { id: "cpu" | "mem"; label: string; x: number }[] = [
-  { id: "cpu", label: "CPU", x: 8 },
-  { id: "mem", label: "Memory", x: 76 },
-];
+const ROW_H = 20;
+const LIST_T = 30;
+
+/** The busiest processes in the window, the selected one kept in view. */
+function Processes(props: { w: number; h: number }) {
+  const count = () => Math.max(1, Math.floor((props.h - LIST_T - 4) / ROW_H));
+  const first = () => Math.max(0, Math.min(selected() - count() + 1, procs().length - count()));
+  const narrow = () => props.w < 300;
+  return (
+    <>
+      <Text class="absolute left-[12] top-[8] font-mono text-xs leading-[14]" style={{ textColor: color("accent") }}>{`by ${sort() === "cpu" ? "CPU" : "memory"}`}</Text>
+      <Text class="absolute right-[12] top-[8] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>{narrow() ? "CPU    MEM" : "PID      CPU       MEM"}</Text>
+      <For each={procs().slice(first(), first() + count())}>
+        {(p, i) => {
+          const at = () => first() + i();
+          return (
+            <View class="absolute rounded-sm" style={{ insetL: 6, insetT: LIST_T + i() * ROW_H, width: props.w - 12, height: ROW_H, bgColor: color(at() === selected() ? "selection" : "background") }}>
+              <Text class="absolute left-[6] top-[3] h-[14] overflow-hidden font-mono text-sm leading-[14]" style={{ width: narrow() ? props.w - 136 : props.w - 200, textColor: color(at() === selected() ? "bright_foreground" : "foreground") }}>
+                {p.name}
+              </Text>
+              <Text class="absolute right-[6] top-[3] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>
+                {narrow() ? `${p.cpu.toFixed(1).padStart(5)}% ${mib(p.rssKb).padStart(7)}` : `${String(p.pid).padStart(6)}  ${p.cpu.toFixed(1).padStart(5)}%  ${mib(p.rssKb).padStart(8)}`}
+              </Text>
+            </View>
+          );
+        }}
+      </For>
+    </>
+  );
+}
+
+function Stage(props: { w: number; h: number }) {
+  return <>{view() === "stats" ? <Stats w={props.w} h={props.h} /> : <Processes w={props.w} h={props.h} />}</>;
+}
 
 function choose(id: "cpu" | "mem") {
   setSort(id);
   setSelected(0);
-  list.reset();
   loadProcs(polling);
-}
-
-function Deck() {
-  deckShown = true;
-  loadProcs(polling);
-  onCleanup(() => (deckShown = false));
-  return (
-    <View class={C.deck} style={{ bgColor: color("darker_background") }}>
-      <For each={CHIPS}>
-        {(chip) => (
-          <View class="absolute top-[5] h-[22] w-[62] rounded-sm" style={{ insetL: chip.x, bgColor: color(sort() === chip.id ? "accent" : "dark_background") }}>
-            <Text class="absolute left-0 top-[4] w-[62] text-center font-mono text-xs leading-[14]" style={{ textColor: color(sort() === chip.id ? "background" : "foreground") }}>{chip.label}</Text>
-          </View>
-        )}
-      </For>
-      <Text class="absolute right-[12] top-[10] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>PID      CPU       MEM</Text>
-      <List state={list} items={procs} top={LIST_T} rowH={ROW_H} selected={selected}>
-        {(p, at) => (
-          <>
-            <Text class="absolute left-[8] top-[4] w-[230] h-[14] overflow-hidden font-mono text-sm leading-[14]" style={{ textColor: color(at === selected() ? "bright_foreground" : "foreground") }}>
-              {p().name}
-            </Text>
-            <Text class="absolute right-[8] top-[4] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>
-              {`${String(p().pid).padStart(6)}  ${p().cpu.toFixed(1).padStart(5)}%  ${mib(p().rssKb).padStart(8)}`}
-            </Text>
-          </>
-        )}
-      </List>
-    </View>
-  );
 }
 
 function select(index: number) {
-  const next = Math.max(0, Math.min(procs().length - 1, index));
-  setSelected(next);
-  list.reveal(next, procs().length);
+  setSelected(Math.max(0, Math.min(procs().length - 1, index)));
+}
+
+function toggleView() {
+  setView((v) => (v === "stats" ? "processes" : "stats"));
+  if (view() === "processes") loadProcs(polling);
 }
 
 register({
@@ -177,18 +172,13 @@ register({
   title: "Activity",
   icon: "\u{f04c5}",
   Stage,
-  Deck,
+  hint: () => (view() === "stats" ? "Tab shows the processes" : "↑↓ move · ←→ by CPU or memory · Tab shows the stats"),
   press(key) {
-    if (key & BTN.UP) select(selected() - 1);
+    if (key & BTN.TRIANGLE) toggleView();
+    else if (key & BTN.UP) select(selected() - 1);
     else if (key & BTN.DOWN) select(selected() + 1);
-  },
-  touches(frame: TouchFrame) {
-    for (const tap of frame.taps) {
-      if (tap.moved || tap.y >= LIST_T) continue;
-      const chip = CHIPS.find((c) => tap.x >= c.x && tap.x < c.x + 62);
-      if (chip) choose(chip.id);
-    }
-    list.touch(frame, procs().length, setSelected);
+    else if (key & BTN.LEFT) choose("cpu");
+    else if (key & BTN.RIGHT) choose("mem");
   },
   shown() {
     poll(++polling);

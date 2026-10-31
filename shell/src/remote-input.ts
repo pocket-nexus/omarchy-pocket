@@ -10,6 +10,7 @@
 import { BTN } from "@pocketjs/framework/input";
 import { serve } from "./system.ts";
 import { sendKey } from "./term/keyboard.tsx";
+import { chooseLayout, type Layout } from "./focus.ts";
 
 const held: { mask: number; frames: number }[] = [];
 /** queued taps: each is a contact for TAP_FRAMES frames (a drag: from x,y to
@@ -36,12 +37,33 @@ serve("pocket.input", {
     taps.push({ x: Number(x), y: Number(y), x2: Number(x2), y2: Number(y2), frames: total + 1, total, hold: 0, apart: Number(apart) || 80 });
     return "ok";
   },
-  /** text typed on the touch keyboard: into the terminal, the lock or a password field */
+  /** text typed on the touch keyboard, to whatever has the keys */
   type: (text) => {
     for (const ch of text ?? "") sendKey(ch);
     return "ok";
   },
+  /** a named key (Enter, Escape, Up, ...) on the keyboard */
+  key: (name) => (sendKey(name ?? ""), "ok"),
+  /** the deck's layout, as the strip's tabs pick it */
+  layout: (name) => {
+    if (name !== "keys" && name !== "pad" && name !== "home") throw new Error(`no layout ${name}`);
+    chooseLayout(name as Layout);
+    return "ok";
+  },
+  /** logs the deck's contacts for `frames` frames (the host's stderr) */
+  watch: (frames = "120") => {
+    watching = Math.max(1, Number(frames) || 120);
+    return "ok";
+  },
 });
+
+let watching = 0;
+/** Once per frame: the contacts the panel reports, while a watch is on. */
+export function watchTouches(contacts: readonly { id: number; x: number; y: number }[]) {
+  if (watching <= 0) return;
+  watching--;
+  if (contacts.length) console.log(`touch ${contacts.map((c) => `${c.id}@${c.x.toFixed(0)},${c.y.toFixed(0)}`).join(" ")}`);
+}
 
 /** The buttons held for this frame. */
 export function remoteButtons(): number {

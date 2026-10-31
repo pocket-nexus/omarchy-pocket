@@ -1,5 +1,5 @@
-// Omarchy's image picker on the deck, with the highlighted image previewed
-// as the stage's wallpaper. Two callers open it, as they open Quickshell's
+// Omarchy's image picker in the stage's card, with the highlighted image
+// previewed as the stage's wallpaper. Two callers open it, as they open Quickshell's
 // omarchy.image-picker:
 //   `shell summon omarchy.image-picker {"source":"themes"}` (Appearance › Theme):
 //       the rows `omarchy-theme-switcher --print-rows` prints; A runs
@@ -12,7 +12,6 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
-import { BTN } from "@pocketjs/framework/input";
 import { run } from "../bridge.ts";
 import { C } from "../classes.ts";
 import { labelForPath, loadRows, nameForPath } from "../generated/image-picker-model.js";
@@ -135,14 +134,25 @@ function decode(b64: string): string {
   return out;
 }
 
-export function pickerPress(key: number) {
-  if (key & BTN.UP) select(index() - 1);
-  else if (key & BTN.DOWN) select(index() + 1);
-  else if (key & BTN.ZL) select(index() - ROWS);
-  else if (key & BTN.ZR) select(index() + ROWS);
-  else if (key & BTN.CIRCLE) close(true);
-  else if (key & BTN.CROSS) close(false);
+/** A key at the picker: the arrows preview, Enter applies, Escape and Backspace cancel. */
+export function pickerKey(name: string) {
+  switch (name) {
+    case "Up":
+      return select(index() - 1);
+    case "Down":
+      return select(index() + 1);
+    case "PageUp":
+      return select(index() - ROWS);
+    case "PageDown":
+      return select(index() + ROWS);
+    case "Enter":
+      return close(true);
+    case "Escape":
+    case "Backspace":
+      return close(false);
+  }
 }
+
 
 /** Fingers on the picker (card coordinates; the touchpad's clicks): a tap on
  *  the header cancels, a tap previews a row and a tap on the previewed row
@@ -152,8 +162,8 @@ export function pickerTouch(frame: TouchFrame) {
   picker.touch(frame, rows().length, (at) => (at === index() ? close(true) : select(at)));
 }
 
-/** The picker's title and position, for the deck's remote. */
-export const pickerPosition = () => ({ title: mode()?.kind === "themes" ? "Theme" : "Image", at: index(), count: rows().length });
+/** The picker's title, for the strip. */
+export const pickerTitle = () => (mode()?.kind === "themes" ? "Theme" : "Image");
 
 export function Picker() {
   return (

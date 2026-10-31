@@ -6,6 +6,7 @@
 import { createSignal, type Accessor, type Setter } from "solid-js";
 import { onEvent, request } from "../bridge.ts";
 import { TERM_ROWS, type Cursor, type Run } from "../../../daemon/protocol.ts";
+import type { KeySink } from "../keys.ts";
 import { closeWindow, find, focused, focusWindow, open } from "../workspaces.ts";
 
 export interface TermSession {
@@ -46,6 +47,25 @@ function session(sid: number, title: string): TermSession {
 }
 
 export const activeSession = () => sessions().find((s) => s.sid === active()) ?? null;
+
+/** Where keys go while a terminal has focus: characters to the PTY as text,
+ *  named keys and modified characters as key names, which omarchy-pocketd
+ *  encodes against the terminal's modes. */
+export const terminalSink: KeySink = {
+  text: (text) => {
+    const sid = active();
+    if (sid !== null) void request({ method: "termInput", sid, text });
+  },
+  key: (key, m) => {
+    const sid = active();
+    if (sid !== null) void request({ method: "termKey", sid, key, ctrl: m.ctrl, alt: m.alt, shift: m.shift });
+  },
+  close: () => {
+    const sid = active();
+    if (sid !== null) closeTerminal(sid);
+  },
+  hint: () => "A Enter · B Backspace · X Tab · Y Space · START Esc",
+};
 
 const isSession = (sid: number) => (w: { kind: string; sid?: number }) => w.kind === "terminal" && w.sid === sid;
 

@@ -14,7 +14,7 @@ import { glide } from "../motion.ts";
 import { HELD_LAYERS, LAYER_TITLE } from "../chords.ts";
 import { C } from "../classes.ts";
 import { formatClock } from "../clock-format.ts";
-import { layer } from "../deck/layer.ts";
+import { heldLayer as layer } from "../held.ts";
 import { audioGlyph, batteryGlyph, bluetoothGlyph, networkGlyph } from "../indicators.ts";
 import { state } from "../system.ts";
 import { color } from "../theme.ts";

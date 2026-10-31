@@ -22,6 +22,8 @@ export const C = {
   footer: "absolute left-0 top-[298] w-[512] h-[20]",
   hint: "absolute left-[12] top-[3] font-mono text-xs leading-[14]",
 
+  legend: "absolute left-[12] top-[336] w-[488] h-[40] overflow-hidden rounded-md border-[1]",
+
   osd: "absolute top-[288] h-[48] overflow-hidden rounded-md border-[1]",
   osdIcon: "absolute left-[12] top-[10] w-[28] text-center text-2xl leading-[28]",
   osdTrack: "absolute left-[52] top-[22] w-[120] h-[4]",

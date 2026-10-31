@@ -1,16 +1,12 @@
-// The shell's own applets: programs that open as windows on the stage and
-// take the deck's body while focused, inside the shell's package. An applet
-// is a touch program: its controls are on the deck and every one of them
-// answers a tap; the gamepad belongs to the window manager (chords.ts), and
-// an applet may also take plain D-pad and face buttons as shortcuts. Its
-// stage view lays out in the window's size, whatever the tiling gives it.
-// An applet hears when its window comes onto the current workspace and
-// leaves it, so it polls the daemon only while it can be seen. A PocketJS
-// package applet (Apps) takes both panels instead and runs in place of the
-// shell.
+// The shell's own applets: programs that open as windows on the stage,
+// inside the shell's package. An applet draws in its window at the size the
+// tiling gives it and is driven by keys: the gamepad's plain buttons and
+// the deck's keyboard, which type the same keys (keys.ts). An applet takes
+// buttons (`press`), or a sink of its own while it edits text (`keys`,
+// Notes). It hears when its window comes onto the current workspace and
+// leaves it, so it polls the daemon only while it can be seen.
 import type { JSX } from "solid-js";
-import type { KeySink } from "../term/keyboard.tsx";
-import type { TouchFrame } from "../touch.ts";
+import type { KeySink } from "../keys.ts";
 import { closeWindow, find, focused, focusWindow, open, type Win } from "../workspaces.ts";
 
 export interface Applet {
@@ -19,16 +15,12 @@ export interface Applet {
   icon: string;
   /** the window's content, w x h points inside its border */
   Stage: (props: { w: number; h: number; focused: boolean }) => JSX.Element;
-  /** the deck's body while the window is focused (512 x BODY_H) */
-  Deck: () => JSX.Element;
-  /** plain gamepad buttons, as shortcuts for what the deck does by touch */
+  /** plain gamepad buttons, and the keys that stand for them (keys.ts BUTTON_KEYS) */
   press?(key: number): void;
-  /** a tap on the deck's body */
-  tap?(x: number, y: number): void;
-  /** the body's fingers this frame, in place of `tap` (keyboards, scrolling lists) */
-  touches?(frame: TouchFrame): void;
-  /** where the touch keyboard types while the applet shows it */
+  /** where the keyboard types while the applet edits text */
   keys?(): KeySink | null;
+  /** the line above the keys: what the keys do here */
+  hint?(): string;
   /** the window is on the current workspace */
   shown?(): void;
   hidden?(): void;

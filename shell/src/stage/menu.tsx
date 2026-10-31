@@ -1,14 +1,15 @@
 // Omarchy's menu in the stage's card (L1 + A, the dock's first cell, or
-// `omarchy-shell shell summon omarchy.menu`): the D-pad moves, A opens, B
-// goes back and closes it at the root; the deck's remote does the same by
-// touch (deck/remote.tsx). Opening a level asks
-// omarchy-pocketd for every `when`, `checked` and `disabled` command of its
-// rows; a row with a `when` appears once its command exits 0. A row's action
-// closes the menu, as Omarchy's menu exits once a row is chosen, and runs
-// through omarchy-pocketd as the Omarchy user; a failure shows as a toast.
+// `omarchy-shell shell summon omarchy.menu`). It has the keys while it is
+// up: typing filters the level's rows as Omarchy's walker menu does, the
+// arrows move, Enter (or Right) opens, Backspace takes a filter character
+// back and then a level, Escape clears the filter and then closes the menu.
+// Opening a level asks omarchy-pocketd for every `when`, `checked` and
+// `disabled` command of its rows; a row with a `when` appears once its
+// command exits 0. A row's action closes the menu, as Omarchy's menu exits
+// once a row is chosen, and runs through omarchy-pocketd as the Omarchy
+// user; a failure shows as a toast.
 import { createMemo, createSignal, onMount, Show } from "solid-js";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
-import { BTN } from "@pocketjs/framework/input";
 import { conditions, request, run } from "../bridge.ts";
 import type { App } from "../../../daemon/protocol.ts";
 import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
@@ -33,9 +34,6 @@ const H = CARD_H;
 const HEADER_H = 26;
 const ROW_H = 22;
 const ROWS = Math.floor((H - HEADER_H - 4) / ROW_H);
-// The device program maps the RG DS Plus's A to CIRCLE and B to CROSS.
-export const OPEN = BTN.CIRCLE;
-export const BACK = BTN.CROSS;
 const CHECK = "\u{f012c}";
 const CHEVRON = "\u{f0142}";
 const ERROR = "\u{f015a}";
@@ -44,7 +42,7 @@ const APP = "\u{f018d}";
 const APPLET = "\u{f0b8a}";
 const TERMINAL = "\u{f018d}";
 
-const levelFor = (title: string, items: MenuItem[]): MenuLevel => ({ title, items, selected: items[0]?.id ?? "", scroll: 0 });
+const levelFor = (title: string, items: MenuItem[]): MenuLevel => ({ title, items, selected: items[0]?.id ?? "", scroll: 0, filter: "" });
 
 // Omarchy Pocket's own row in Setup, after Network: mihomo's panel (the
 // proxy Clash Verge Rev's core runs), summoned as Omarchy summons its
@@ -74,7 +72,13 @@ export function closeMenu() {
 }
 const [truth, setTruth] = createSignal<Truth>({});
 const level = () => stack()[stack().length - 1]!;
-const rows = (l: MenuLevel) => shown(l.items, truth());
+/** The level's rows: those their `when` admits, then those the filter keeps. */
+const rows = (l: MenuLevel) => {
+  const admitted = shown(l.items, truth());
+  if (!l.filter) return admitted;
+  const needle = l.filter.toLowerCase();
+  return admitted.filter((item) => item.label.toLowerCase().includes(needle));
+};
 const indexIn = (l: MenuLevel) => Math.max(0, rows(l).findIndex((item) => item.id === l.selected));
 
 function evaluate(items: MenuItem[]) {
@@ -125,6 +129,14 @@ function back() {
 function remember() {
   const first = list?.first() ?? 0;
   update((v) => ({ ...v, scroll: first }));
+}
+
+/** The filter typed at this level; the first row it keeps is selected. */
+function setFilter(filter: string) {
+  update((v) => ({ ...v, filter }));
+  list?.reset();
+  const first = rows(level())[0];
+  if (first) update((v) => ({ ...v, selected: first.id }));
 }
 
 /** The root level with Apps open. */
@@ -189,7 +201,7 @@ function activate(item: MenuItem) {
     return;
   }
   if (item.action) {
-    // as Omarchy's menu exits once a row runs, so the card and its remote go
+    // as Omarchy's menu exits once a row runs, so the card goes
     closeMenu();
     run(item.action).then(
       (result) => {
@@ -250,16 +262,35 @@ serve("shell", { summon: summonPlugin, toggle: summonPlugin });
 
 evaluate(MENU);
 
-export function menuPress(key: number) {
-  if (key & BACK && atRoot()) return closeMenu();
-  if (key & BTN.UP) move(-1);
-  else if (key & BTN.DOWN) move(1);
+/** A key at the menu. */
+export function menuKey(name: string) {
+  const l = level();
+  switch (name) {
+    case "Up":
+      return move(-1);
+    case "Down":
+      return move(1);
+    case "Enter":
+    case "Right": {
+      const item = rows(l)[indexIn(l)];
+      if (item) activate(item);
+      return;
+    }
+    case "Left":
+      return back();
+    case "Backspace":
+      if (l.filter) return setFilter(l.filter.slice(0, -1));
+      return atRoot() ? closeMenu() : back();
+    case "Escape":
+      if (l.filter) return setFilter("");
+      return closeMenu();
+  }
+}
 
-  else if (key & (OPEN | BTN.RIGHT)) {
-    const item = rows(level())[indexIn(level())];
-    if (item) activate(item);
-  } else if (key & (BACK | BTN.LEFT)) back();
-
+/** A character typed at the menu narrows the level to the rows that contain it. */
+export function menuText(ch: string) {
+  if (ch === " " && !level().filter) return;
+  setFilter(level().filter + ch);
 }
 
 /** Fingers on the menu (card coordinates; the touchpad's clicks): a tap on
@@ -314,12 +345,17 @@ function Level() {
       <List state={state} items={() => rows(level())} top={HEADER_H} rowH={ROW_H} width={CARD_W - 16} selected={() => indexIn(level())}>
         {(item) => <Row item={item} selected={() => level().selected === item().id} />}
       </List>
+      <Show when={level().filter && rows(level()).length === 0}>
+        <Text class="absolute left-0 text-center font-mono text-xs leading-[14]" style={{ insetT: HEADER_H + 40, width: CARD_W, textColor: color("dark_foreground") }}>
+          {`nothing here matches "${level().filter}"`}
+        </Text>
+      </Show>
     </View>
   );
 }
 
-/** The current level's position, for the deck's remote. */
-export const menuPosition = () => ({ title: stack().map((l) => l.title).join(" \u203a "), at: indexIn(level()), count: rows(level()).length });
+/** The menu's path, for the strip. */
+export const menuTitle = () => stack().map((l) => l.title).join(" › ");
 
 export function MenuCard() {
   const crumbs = () => stack().map((l) => l.title).join(`  ${CHEVRON}  `);
@@ -328,6 +364,9 @@ export function MenuCard() {
   return (
     <View class={C.card} style={{ bgColor: color("darker_background") }}>
       <Text class={C.crumbs} style={{ textColor: color("accent") }}>{crumbs()}</Text>
+      <Show when={level().filter}>
+        <Text class="absolute right-[12] top-[6] font-mono text-sm leading-[16]" style={{ textColor: color("bright_foreground") }}>{`${level().filter}_`}</Text>
+      </Show>
       <View class={C.cardRule} style={{ bgColor: color("muted") }} />
       <Show when={levelItems()} keyed>
         {(_items) => <Level />}

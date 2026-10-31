@@ -1,38 +1,33 @@
-// The deck's touch keyboard, laid out like a phone's in landscape: ten keys
-// to a row, 46 points from row to row, sitting on the bottom edge, with a
-// letters layer and two symbol layers (123, #+=). For a terminal or Notes a
-// row of the keys a terminal needs rides above it (Esc, Tab, Ctrl, Alt and
-// the arrows); a text field (a Wi-Fi password, the lock) has none. The space
-// above the keys holds the strip: the sink's line and its close button, a
-// text field's value, or, while a pinyin composition is open (the 中 key,
-// ime.ts), its preedit and candidates along the keys' top edge.
+// The deck's keyboard, laid out like a phone's in landscape: ten keys to a
+// row, 46 points from row to row, sitting on the bottom edge, with a letters
+// layer and two symbol layers (123, #+=), and above them the row every
+// target takes: Esc, Tab, Ctrl, Alt and the arrows. It is the deck's `keys`
+// layout, and the whole deck while the screen is locked. The space above
+// the keys says where they go (focus.ts): the sink's hint and its close
+// button, a text field's value, and, while a pinyin composition is open
+// (the 中 key, ime.ts), its preedit and candidates along the keys' top edge.
 //
-// A key types when its finger lifts, where the finger is then: a finger that
-// slides onto the next key types that one, as on a phone. While it is down a
-// character key shows its preview above it, which springs up on the core's
-// tracks and follows the finger; Backspace and the arrows repeat while held.
-// Shift is one-shot, twice in a row locks capitals; Ctrl and Alt latch for
-// the next key, and the chord they make shows on the preview and on the
-// strip (Ctrl then L sends ^L, which clears a terminal and types nothing).
-// Each finger is its own key press (touch.ts).
-//
-// Keys go to a sink: the focused window's (a terminal, Notes), or a text
-// field that takes the keyboard over with setKeySink. For a terminal,
-// characters go to the PTY as text; named keys and modified characters go as
-// key names, which omarchy-pocketd encodes against the terminal's modes.
+// A key lights the frame a finger lands and types when the finger lifts,
+// where the finger is then: a finger that slides onto the next key types
+// that one, as on a phone. While it is down a character key shows its
+// preview above it, which springs up on the core's tracks and follows the
+// finger; Backspace and the arrows repeat while held. Shift is one-shot,
+// twice in a row locks capitals; Ctrl and Alt latch for the next key, and
+// the chord they make shows on the preview and above the keys (Ctrl then L
+// sends ^L, which clears a terminal and types nothing). Each finger is its
+// own key press (touch.ts).
 import { createSignal, For, Show } from "solid-js";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { animate, jump } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
-import { request } from "../bridge.ts";
 import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
+import { keySink } from "../focus.ts";
 import { glide, slowed } from "../motion.ts";
 import { color } from "../theme.ts";
 import { chinese, composing, pick, route, snapshot, toggleChinese } from "./ime.ts";
-import type { Contact, TouchFrame } from "../touch.ts";
+import { settled, type Contact, type TouchFrame } from "../touch.ts";
 import { BODY_H } from "../deck/geometry.ts";
-import { active, closeTerminal } from "./store.ts";
 
 type Layer = "abc" | "123" | "sym";
 
@@ -101,8 +96,7 @@ const REPEAT_AFTER = 24;
 const REPEAT_EVERY = 4;
 const CHORD_S = 1.4;
 
-/** Where the keys sit: the whole deck (the lock, a password field) or the
- *  deck's body under its strip. */
+/** Where the keys sit: the whole deck (the lock) or the deck's body under its strip. */
 export type KeyboardMode = "full" | "body";
 const HEIGHT: Record<KeyboardMode, number> = { full: 384, body: BODY_H };
 
@@ -113,43 +107,47 @@ interface Placed extends Key {
   h: number;
   /** a key that shows a preview */
   char: boolean;
+  /** a finger is on it: its own signal, so a press repaints two keys, not the whole keyboard */
+  lit: () => boolean;
+  setLit: (on: boolean) => void;
 }
 
 const placeRow = (row: Key[], inset: number, y: number, h: number): Placed[] => {
   let x = inset * UNIT;
   return row.map((key) => {
     const w = (key.w ?? 1) * UNIT;
-    const p = { ...key, x, y, w, h, char: [...key.key].length === 1 && key.key !== " " };
+    const [lit, setLit] = createSignal(false);
+    const p: Placed = { ...key, x, y, w, h, char: [...key.key].length === 1 && key.key !== " ", lit, setLit };
     x += w;
     return p;
   });
 };
 
-/** The keys of `layer` laid out for `mode`, the terminal's row above them when `extras`. */
-function layoutFor(mode: KeyboardMode, layer: Layer, extras: boolean) {
+/** The keys of `layer` laid out for `mode`, with the Esc/Tab/arrows row above them. */
+function layoutFor(mode: KeyboardMode, layer: Layer) {
   const height = HEIGHT[mode];
   const rowsTop = height - EDGE - LAYERS[layer].rows.length * PITCH;
   const extrasTop = rowsTop - EXTRA_PITCH;
   const keys = LAYERS[layer].rows.flatMap((row, r) => placeRow(row, LAYERS[layer].inset[r]!, rowsTop + r * PITCH, PITCH));
-  if (extras) keys.push(...placeRow(EXTRAS.map((k) => ({ ...k, w: 10 / EXTRAS.length })), 0, extrasTop, EXTRA_PITCH));
-  return { keys, stripH: (extras ? extrasTop : rowsTop) - 2 };
+  keys.push(...placeRow(EXTRAS.map((k) => ({ ...k, w: 10 / EXTRAS.length })), 0, extrasTop, EXTRA_PITCH));
+  return { keys, stripH: extrasTop - 2 };
 }
 const LAYOUTS = new Map<string, ReturnType<typeof layoutFor>>();
-const layout = (mode: KeyboardMode, layer: Layer, extras: boolean) => {
-  const id = `${mode}:${layer}:${extras}`;
+const layout = (mode: KeyboardMode, layer: Layer) => {
+  const id = `${mode}:${layer}`;
   let l = LAYOUTS.get(id);
-  if (!l) LAYOUTS.set(id, (l = layoutFor(mode, layer, extras)));
+  if (!l) LAYOUTS.set(id, (l = layoutFor(mode, layer)));
   return l;
 };
 
 const [mods, setMods] = createSignal({ shift: false, ctrl: false, alt: false });
 const [capsLock, setCapsLock] = createSignal(false);
 const [layer, setLayer] = createSignal<Layer>("abc");
-/** keys under a settled finger */
-const [pressed, setPressed] = createSignal<Placed[]>([]);
+/** keys under a finger, as of the last frame */
+let pressed: Placed[] = [];
 /** the key the newest finger is on, for the preview */
 const [preview, setPreview] = createSignal<Placed | null>(null);
-/** the chord last sent, shown on the strip for CHORD_S */
+/** the chord last sent, shown above the keys for CHORD_S */
 const [chord, setChord] = createSignal("");
 
 export const modifiers = mods;
@@ -173,54 +171,17 @@ export function latch(modifier: "shift" | "ctrl" | "alt") {
   setMods((m) => ({ ...m, [modifier]: !m[modifier] }));
 }
 
-/** Where keys go: a character (shift applied) or a key name with modifiers. */
-export interface KeySink {
-  text(ch: string): void;
-  key(name: string, mods: { ctrl: boolean; alt: boolean; shift: boolean }): void;
-  /** a text field's value, shown on the strip */
-  field?: () => string;
-  /** the strip's close button */
-  close?(): void;
-  /** the gamepad line on the strip */
-  hint?: () => string;
-}
-
-const TERMINAL_HINT = "A Enter  B Bksp  X Tab  Y Space  START Esc  SELECT hides";
-
-const terminalSink: KeySink = {
-  text: (text) => {
-    const sid = active();
-    if (sid !== null) void request({ method: "termInput", sid, text });
-  },
-  key: (key, m) => {
-    const sid = active();
-    if (sid !== null) void request({ method: "termKey", sid, key, ctrl: m.ctrl, alt: m.alt, shift: m.shift });
-  },
-  close: () => {
-    const sid = active();
-    if (sid !== null) closeTerminal(sid);
-  },
-};
-const [override, setOverride] = createSignal<KeySink | null>(null);
-let windowSink: () => KeySink | null = () => null;
-const sink = (): KeySink => override() ?? windowSink() ?? terminalSink;
-
-/** Sends keys to `next` until called with null (back to the window's sink). */
-export function setKeySink(next: KeySink | null) {
-  setOverride(() => next);
+/** The keyboard starts fresh for a new sink: no latched modifiers, letters. */
+export function resetKeyboard() {
   setMods({ shift: false, ctrl: false, alt: false });
+  setCapsLock(false);
   setLayer("abc");
-}
-
-/** The focused window's sink, when it is not a terminal (Notes). */
-export function setWindowKeys(accessor: () => KeySink | null) {
-  windowSink = accessor;
 }
 
 const chordName = (m: { ctrl: boolean; alt: boolean }, name: string) => `${m.ctrl ? "^" : ""}${m.alt ? "M-" : ""}${name.length === 1 ? name.toUpperCase() : name}`;
 
 /** Sends one key, with the latched modifiers; through pinyin composition in
- *  中 mode, except into a password field. */
+ *  中 mode, except into a text field. */
 export function sendKey(key: string, shifted?: string) {
   const m = mods();
   const shift = m.shift || capsLock();
@@ -230,12 +191,13 @@ export function sendKey(key: string, shifted?: string) {
     setChord(chordName(m, name));
     after(CHORD_S, () => setChord(""));
   }
+  const sink = keySink();
   const direct = () => {
-    if ([...key].length === 1 && !m.ctrl && !m.alt) sink().text(name);
-    else sink().key(name, { ctrl: m.ctrl, alt: m.alt, shift: shift && !shifted });
+    if ([...key].length === 1 && !m.ctrl && !m.alt) sink.text(name);
+    else sink.key(name, { ctrl: m.ctrl, alt: m.alt, shift: shift && !shifted });
   };
-  if (m.ctrl || m.alt || sink().field) return direct();
-  route(name, (text) => sink().text(text), direct);
+  if (m.ctrl || m.alt || sink.field) return direct();
+  route(name, (text) => sink.text(text), direct);
 }
 
 const keyAt = (keys: Placed[], x: number, y: number) => keys.find((k) => x >= k.x && x < k.x + k.w && y >= k.y && y < k.y + k.h) ?? null;
@@ -252,17 +214,21 @@ const held = new Map<number, { frames: number; repeated: boolean }>();
 
 /** The keyboard's fingers this frame, in its own coordinates: the keys under
  *  them light, the newest shows its preview, and a finger lifted over a key
- *  presses it. A finger that landed on the strip taps it. */
+ *  presses it. A finger that landed above the keys taps there. */
 export function keyboardTouch(frame: TouchFrame, mode: KeyboardMode) {
   frameCount++;
-  const { keys, stripH } = layout(mode, layer(), !sink().field);
+  const { keys, stripH } = layout(mode, layer());
   const onKeys = (c: Contact) => c.start.y >= stripH;
   const down = frame.down.filter(onKeys);
-  setPressed(down.map((c) => keyAt(keys, c.x, c.y)).filter((k) => k !== null));
+  const now = down.map((c) => keyAt(keys, c.x, c.y)).filter((k) => k !== null);
+  for (const k of pressed) if (!now.includes(k)) k.setLit(false);
+  for (const k of now) if (!pressed.includes(k)) k.setLit(true);
+  pressed = now;
   const newest = down[down.length - 1];
   const under = newest ? keyAt(keys, newest.x, newest.y) : null;
   setPreview(under?.char ? under : null);
   for (const c of down) {
+    if (!settled(c)) continue;
     const h = held.get(c.id) ?? { frames: 0, repeated: false };
     h.frames++;
     held.set(c.id, h);
@@ -290,15 +256,13 @@ const CANDIDATE_W = (512 - PREEDIT_W) / 5;
 const CANDIDATES_H = 32;
 const CLOSE_X = 512 - 40;
 
-/** A tap on the strip: a candidate while composing; otherwise the close
- *  button. A text field's strip takes no taps. */
+/** A tap above the keys: a candidate while composing; otherwise the close button. */
 function stripTap(x: number, y: number, stripH: number) {
   if (composing()) {
-    if (y >= stripH - CANDIDATES_H && x >= PREEDIT_W) pick(Math.floor((x - PREEDIT_W) / CANDIDATE_W), (text) => sink().text(text));
+    if (y >= stripH - CANDIDATES_H && x >= PREEDIT_W) pick(Math.floor((x - PREEDIT_W) / CANDIDATE_W), (text) => keySink().text(text));
     return;
   }
-  if (sink().field) return;
-  if (x >= CLOSE_X && y < 30) sink().close?.();
+  if (x >= CLOSE_X && y < 30) keySink().close?.();
 }
 
 /** The key preview: one balloon over the key the newest finger is on. */
@@ -351,7 +315,8 @@ function Preview() {
 }
 
 export function Keyboard(props: { mode: KeyboardMode }) {
-  const current = () => layout(props.mode, layer(), !sink().field);
+  const current = () => layout(props.mode, layer());
+  const sink = keySink;
   const latched = (k: Placed) => (!!k.modifier && mods()[k.modifier]) || (k.modifier === "shift" && capsLock());
   const fnKey = (k: Placed) => !k.char && k.key !== " ";
   const label = (k: Placed) => {
@@ -359,6 +324,7 @@ export function Keyboard(props: { mode: KeyboardMode }) {
     if (k.modifier === "shift" && capsLock()) return "\u{21ea}";
     return (mods().shift || capsLock()) && k.shifted ? k.shifted : k.label;
   };
+  const hint = () => (chord() ? `sent ${chord()}` : (sink().hint?.() ?? ""));
   return (
     <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: HEIGHT[props.mode], bgColor: color("darker_background") }}>
       <Show when={sink().field}>
@@ -368,14 +334,14 @@ export function Keyboard(props: { mode: KeyboardMode }) {
               {field()()}
             </Text>
             <Text class="absolute left-0 w-[512] text-center font-mono text-xs leading-[14]" style={{ insetT: current().stripH / 2 + 10, textColor: color("dark_foreground") }}>
-              {"A Enter   B Backspace   X Cancel"}
+              {hint()}
             </Text>
           </>
         )}
       </Show>
       <Show when={!sink().field}>
         <Text class="absolute left-[12] top-[8] w-[440] h-[14] overflow-hidden font-mono text-xs leading-[14]" style={{ textColor: color(chord() ? "accent" : "dark_foreground") }}>
-          {chord() ? `sent ${chord()}` : (sink().hint?.() ?? TERMINAL_HINT)}
+          {hint()}
         </Text>
         <Show when={sink().close}>
           <Text class="absolute right-[14] top-[6] font-mono text-sm leading-[16]" style={{ textColor: color("red") }}>{"\u{f0156}"}</Text>
@@ -407,7 +373,7 @@ export function Keyboard(props: { mode: KeyboardMode }) {
               insetT: k.y + GAP / 2,
               width: k.w - GAP,
               height: k.h - GAP,
-              bgColor: color(pressed().includes(k) ? (k.char ? "background" : "accent") : latched(k) ? "selection" : fnKey(k) ? "dark_background" : "muted"),
+              bgColor: color(k.lit() ? (k.char ? "background" : "accent") : latched(k) ? "selection" : fnKey(k) ? "dark_background" : "muted"),
             }}
           >
             <Text
@@ -415,7 +381,7 @@ export function Keyboard(props: { mode: KeyboardMode }) {
               style={{
                 width: k.w - GAP,
                 insetT: (k.h - GAP) / 2 - 9,
-                textColor: color(pressed().includes(k) && !k.char ? "background" : latched(k) || (k.ime && chinese()) ? "accent" : "bright_foreground"),
+                textColor: color(k.lit() && !k.char ? "background" : latched(k) || (k.ime && chinese()) ? "accent" : "bright_foreground"),
                 ...(k.ime && chinese() ? cjk("中", CJK_SLOT_14) : {}),
               }}
             >

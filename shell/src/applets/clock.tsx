@@ -1,15 +1,15 @@
-// Clock: the time and date with a stopwatch under them in the window, and a
-// month calendar on the deck with buttons for the months and the stopwatch.
-// The hours and minutes are seven-segment digits drawn from views, scaled to
-// the window: a baked face at that size would cost the package megabytes of
+// Clock: the time and date with a stopwatch under them, and a month
+// calendar in the window when it is tall enough for both, or in place of
+// the clock on Tab. Left and Right turn the month, Backspace comes back to
+// this month, Enter starts and stops the stopwatch, Y resets it. The hours
+// and minutes are seven-segment digits drawn from views, scaled to the
+// window: a baked face at that size would cost the package megabytes of
 // atlas.
 import { createMemo, createSignal, For, Index, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
-import { C } from "../classes.ts";
 import { color } from "../theme.ts";
-import type { TouchFrame } from "../touch.ts";
 import { register } from "./applet.ts";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -26,6 +26,7 @@ const civil = createMemo(() => {
 const [banked, setBanked] = createSignal(0);
 const [since, setSince] = createSignal<number | null>(null);
 const [month, setMonth] = createSignal(0);
+const [view, setView] = createSignal<"clock" | "calendar">("clock");
 let ticking = 0;
 
 function tick(token: number) {
@@ -112,10 +113,12 @@ function Digits(props: { text: () => string; x: number; y: number; s: number }) 
 
 const digits = createMemo(() => `${two(civil().hours)}${two(civil().minutes)}`);
 
-function Stage(props: { w: number; h: number }) {
-  // the digits, seconds, date and stopwatch take about 270 points at scale 1
-  const s = () => Math.min(1, (props.w - 24) / CLOCK_W, (props.h - 20) / 270);
-  const top = () => Math.max(6, (props.h - 270 * s()) / 2);
+/** The digits, seconds, date and stopwatch take about 270 points at scale 1. */
+const CLOCK_H = 270;
+
+function ClockFace(props: { w: number; h: number; y: number }) {
+  const s = () => Math.min(1, (props.w - 24) / CLOCK_W, (props.h - 20) / CLOCK_H);
+  const top = () => props.y + Math.max(6, (props.h - CLOCK_H * s()) / 2);
   const digitsL = () => (props.w - CLOCK_W * s()) / 2;
   const below = () => top() + DIGIT_H * s() + 10;
   return (
@@ -147,40 +150,23 @@ function weeks(offset: number) {
   return { first, rows };
 }
 
-const CELL_W = 56;
-const CELL_H = 32;
-const GRID_L = 8;
-const GRID_T = 52;
-/** the deck's buttons: the month header's arrows and today, the stopwatch on the right */
-const BUTTONS: { id: string; x: number; y: number; w: number; h: number }[] = [
-  { id: "prev", x: 8, y: 4, w: 40, h: 24 },
-  { id: "today", x: 52, y: 4, w: 288, h: 24 },
-  { id: "next", x: 344, y: 4, w: 40, h: 24 },
-  { id: "stopwatch", x: 404, y: 108, w: 100, h: 64 },
-  { id: "reset", x: 404, y: 180, w: 100, h: 40 },
-];
-const button = (id: string) => BUTTONS.find((b) => b.id === id)!;
+/** The month at `y`, laid out in `w` points: six rows of CELL_H under a header. */
+const CELL_H = 26;
+const CAL_H = 22 + 16 + 6 * CELL_H;
 
-function Button(props: { id: string; label: () => string; on?: () => boolean }) {
-  const b = button(props.id);
-  return (
-    <View class="absolute rounded-md" style={{ insetL: b.x, insetT: b.y, width: b.w, height: b.h, bgColor: color(props.on?.() ? "accent" : "dark_background") }}>
-      <Text class="absolute left-0 text-center font-mono text-sm leading-[16]" style={{ insetT: b.h / 2 - 8, width: b.w, textColor: color(props.on?.() ? "background" : "foreground") }}>{props.label()}</Text>
-    </View>
-  );
-}
-
-function Deck() {
+function Calendar(props: { w: number; y: number }) {
   const view = () => weeks(month());
+  const cellW = () => Math.min(56, (props.w - 16) / 7);
+  const gridL = () => (props.w - cellW() * 7) / 2;
   const isToday = (day: number | null) => month() === 0 && day === civil().date;
   return (
-    <View class={C.deck} style={{ bgColor: color("darker_background") }}>
-      <Button id="prev" label={() => "\u{f0141}"} />
-      <Button id="today" label={() => `${MONTHS[view().first.getMonth()]} ${view().first.getFullYear()}`} />
-      <Button id="next" label={() => "\u{f0142}"} />
+    <>
+      <Text class="absolute left-0 h-[16] text-center font-mono text-sm leading-[16]" style={{ insetT: props.y, width: props.w, textColor: color("accent") }}>
+        {`\u{f0141}  ${MONTHS[view().first.getMonth()]} ${view().first.getFullYear()}  \u{f0142}`}
+      </Text>
       <For each={["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]}>
         {(d, i) => (
-          <Text class="absolute top-[34] text-center font-mono text-xs leading-[14]" style={{ insetL: GRID_L + i() * CELL_W, width: CELL_W, textColor: color(i() >= 5 ? "magenta" : "dark_foreground") }}>
+          <Text class="absolute text-center font-mono text-xs leading-[14]" style={{ insetL: gridL() + i() * cellW(), insetT: props.y + 22, width: cellW(), textColor: color(i() >= 5 ? "magenta" : "dark_foreground") }}>
             {d}
           </Text>
         )}
@@ -190,8 +176,8 @@ function Deck() {
           <Index each={week()}>
             {(day, c) => (
               <Show when={day() !== null}>
-                <View class="absolute rounded-md" style={{ insetL: GRID_L + c * CELL_W + 3, insetT: GRID_T + r * CELL_H, width: CELL_W - 6, height: CELL_H - 4, bgColor: color(isToday(day()) ? "accent" : "dark_background") }}>
-                  <Text class="absolute left-0 top-[6] text-center text-base leading-[16]" style={{ width: CELL_W - 6, textColor: color(isToday(day()) ? "background" : c >= 5 ? "magenta" : "foreground") }}>
+                <View class="absolute rounded-sm" style={{ insetL: gridL() + c * cellW() + 2, insetT: props.y + 38 + r * CELL_H, width: cellW() - 4, height: CELL_H - 3, bgColor: color(isToday(day()) ? "accent" : "dark_background") }}>
+                  <Text class="absolute left-0 top-[4] text-center font-mono text-sm leading-[16]" style={{ width: cellW() - 4, textColor: color(isToday(day()) ? "background" : c >= 5 ? "magenta" : "foreground") }}>
                     {String(day())}
                   </Text>
                 </View>
@@ -200,20 +186,23 @@ function Deck() {
           </Index>
         )}
       </Index>
-      <Text class="absolute left-[404] top-[60] w-[100] text-center font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>Stopwatch</Text>
-      <Text class="absolute left-[404] top-[80] w-[100] text-center font-mono text-sm leading-[16]" style={{ textColor: color(since() === null ? "foreground" : "green") }}>{stopwatch()}</Text>
-      <Button id="stopwatch" label={() => (since() === null ? (elapsed() ? "Resume" : "Start") : "Stop")} on={() => since() !== null} />
-      <Button id="reset" label={() => "Reset"} />
-    </View>
+    </>
   );
 }
 
-function act(id: string) {
-  if (id === "prev") setMonth((m) => m - 1);
-  else if (id === "next") setMonth((m) => m + 1);
-  else if (id === "today") setMonth(0);
-  else if (id === "stopwatch") toggleStopwatch();
-  else if (id === "reset") resetStopwatch();
+function Stage(props: { w: number; h: number }) {
+  // both fit one over the other when the window is tall; else Tab turns the page
+  const both = () => props.h >= 190 + CAL_H;
+  return (
+    <>
+      <Show when={both() || view() === "clock"}>
+        <ClockFace w={props.w} h={both() ? props.h - CAL_H : props.h} y={0} />
+      </Show>
+      <Show when={both() || view() === "calendar"}>
+        <Calendar w={props.w} y={both() ? props.h - CAL_H : Math.max(6, (props.h - CAL_H) / 2)} />
+      </Show>
+    </>
+  );
 }
 
 register({
@@ -221,19 +210,14 @@ register({
   title: "Clock",
   icon: "\u{f0954}",
   Stage,
-  Deck,
+  hint: () => "←→ turn the month · B this month · Enter stopwatch · Y resets · Tab turns the page",
   press(key) {
     if (key & BTN.LEFT) setMonth((m) => m - 1);
     else if (key & BTN.RIGHT) setMonth((m) => m + 1);
+    else if (key & BTN.CROSS) setMonth(0);
     else if (key & BTN.CIRCLE) toggleStopwatch();
-  },
-  touches(frame: TouchFrame) {
-    for (const tap of frame.taps) {
-      const hit = BUTTONS.find((b) => tap.x >= b.x && tap.x < b.x + b.w && tap.y >= b.y && tap.y < b.y + b.h);
-      if (hit) act(hit.id);
-      // a sideways swipe over the calendar turns the month
-      else if (tap.moved && tap.start.x < 400 && Math.abs(tap.x - tap.start.x) > 40) setMonth((m) => m + (tap.x < tap.start.x ? 1 : -1));
-    }
+    else if (key & BTN.SQUARE) resetStopwatch();
+    else if (key & BTN.TRIANGLE) setView((v) => (v === "clock" ? "calendar" : "clock"));
   },
   shown() {
     tick(++ticking);

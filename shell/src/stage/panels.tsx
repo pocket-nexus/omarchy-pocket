@@ -1,17 +1,22 @@
 // The panels Omarchy opens from the bar's indicators (plugins/panels:
-// Bluetooth, Network, Audio, Power) on the deck's body: a tap on the
-// indicator in the deck's strip, or `omarchy-shell shell summon
-// omarchy.network|...`; the bar marks the open one. Up/Down move between
-// rows, A acts, Left/Right adjust a slider, Y forgets a saved network, B
-// closes the panel. The highlight follows a row, not a position: rows keep their
-// first order while the panel is open, though rescans re-sort them. A secured
-// network asks for its password on the touch keyboard. Data comes from
+// Bluetooth, Network, Audio, Power, and mihomo's Proxy) in the stage's card:
+// a pointer click on the indicator, the home layout's panel column, or
+// `omarchy-shell shell summon omarchy.network|...`. The panel has the keys
+// while it is up: Up/Down move between rows, Enter acts, Left/Right adjust
+// a slider, Escape closes it; the gamepad's Y forgets a saved network or a
+// paired device. The highlight follows a row, not a position: rows keep
+// their first order while the panel is open, though rescans re-sort them.
+// A secured network asks for its password on the keyboard. Data comes from
 // omarchy-pocketd (daemon/panels.ts), again every few seconds while a panel
 // is open.
+//
+// A slider answers at once: the row shows the value the finger asked for,
+// Omarchy's OSD shows it on the stage, and one request at a time carries the
+// newest value to the daemon; the row reads the device's own value back
+// once the last request has landed.
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
-import { BTN } from "@pocketjs/framework/input";
 import { request } from "../bridge.ts";
 import type { AudioDevice, AudioPanel, BluetoothPanel, NetworkPanel, PowerPanel, ProxyPanel } from "../../../daemon/protocol.ts";
 import { C } from "../classes.ts";
@@ -21,9 +26,10 @@ import { isAddressLike } from "../generated/bluetooth-model.js";
 import { wifiIconFor } from "../generated/network-model.js";
 import { profileIcon } from "../generated/power-model.js";
 import { batteryGlyph } from "../indicators.ts";
+import { fieldSink, setFieldSink, type KeySink } from "../keys.ts";
+import { showOsd } from "./osd.tsx";
 import { toast } from "./toasts.tsx";
 import { state } from "../system.ts";
-import { setKeySink } from "../term/keyboard.tsx";
 import { color } from "../theme.ts";
 import { CARD_H, CARD_W } from "./geometry.ts";
 import { createList, List } from "../deck/list.tsx";
@@ -55,6 +61,7 @@ const REFRESH_EVERY = 4;
 const ERROR = "\u{f015a}";
 const CHECK = "\u{f012c}";
 const LOCK = "\u{f033e}";
+const STEP = 5;
 
 const [panel, setPanel] = createSignal<PanelName | null>(null);
 /** the highlighted row, by its label: rows come and go and reorder as the
@@ -77,19 +84,20 @@ export const passwordEntry = () => entry() !== null;
 
 const fail = (title: string) => (error: unknown) => toast({ icon: ERROR, title, body: String(error).replace(/^Error: /, ""), tone: "error" });
 
-function load(name: PanelName, rescan = false) {
-  if (name === "bluetooth") request<BluetoothPanel>({ method: "bluetooth" }).then(setBluetooth, fail("Bluetooth"));
-  else if (name === "network") request<NetworkPanel>({ method: "network", rescan }).then(setNetwork, fail("Network"));
-  else if (name === "audio") request<AudioPanel>({ method: "audio" }).then(setAudio, fail("Audio"));
-  else if (name === "power") request<PowerPanel>({ method: "power" }).then(setPower, fail("Power"));
-  else if (name === "proxy") request<ProxyPanel>({ method: "proxy" }).then(setProxy, fail("Proxy"));
+/** Reads the panel's data again; the promise settles once the rows have it. */
+function load(name: PanelName, rescan = false): Promise<unknown> {
+  if (name === "bluetooth") return request<BluetoothPanel>({ method: "bluetooth" }).then(setBluetooth, fail("Bluetooth"));
+  if (name === "network") return request<NetworkPanel>({ method: "network", rescan }).then(setNetwork, fail("Network"));
+  if (name === "audio") return request<AudioPanel>({ method: "audio" }).then(setAudio, fail("Audio"));
+  if (name === "power") return request<PowerPanel>({ method: "power" }).then(setPower, fail("Power"));
+  return request<ProxyPanel>({ method: "proxy" }).then(setProxy, fail("Proxy"));
 }
 
 function poll(token: number) {
   after(REFRESH_EVERY, () => {
     const name = panel();
     if (token !== refreshing || !name) return;
-    if (!entry() && !busy()) load(name);
+    if (!entry() && !busy() && !sliding.size) load(name);
     poll(token);
   });
 }
@@ -106,6 +114,7 @@ export function showPanel(name: PanelName) {
 export function closePanel() {
   setPanel(null);
   refreshing++;
+  endEntry();
 }
 
 /** Runs a change, shows `label` while it runs, then reloads the panel. */
@@ -124,13 +133,65 @@ function change(label: string, work: Promise<unknown>, title: string) {
   );
 }
 
+/** A slider's value as the finger set it, by the slider's id, while a
+ *  request for it is out or waiting: the row shows this, not the device's
+ *  last reading. */
+const [asked, setAsked] = createSignal<Record<string, number>>({});
+const sliding = new Map<string, { inFlight: boolean; next: number | null; send(value: number): Promise<unknown>; title: string }>();
+
+/** Moves slider `id` to `value` now: the row and the OSD show it, one
+ *  request at a time carries the newest value, and the device's reading
+ *  comes back once the last request lands. */
+function slide(id: string, value: number, send: (value: number) => Promise<unknown>, title: string, osd: { icon: string; max?: number }) {
+  setAsked((a) => ({ ...a, [id]: value }));
+  showOsd(JSON.stringify({ icon: osd.icon, value, max: osd.max ?? 100, progressText: `${Math.round(value)}%` }));
+  const s = sliding.get(id) ?? { inFlight: false, next: null, send, title };
+  s.send = send;
+  sliding.set(id, s);
+  if (s.inFlight) {
+    s.next = value;
+    return;
+  }
+  const go = (v: number) => {
+    s.inFlight = true;
+    s.send(v).then(
+      () => settled(),
+      (error) => {
+        fail(title)(error);
+        settled();
+      },
+    );
+  };
+  const settled = () => {
+    s.inFlight = false;
+    if (s.next !== null) {
+      const v = s.next;
+      s.next = null;
+      return go(v);
+    }
+    sliding.delete(id);
+    // the row keeps the asked value until the device's own reading is in,
+    // so a press that lands meanwhile adds to it and not to the old reading
+    const name = panel();
+    const done = () => {
+      if (!sliding.has(id)) setAsked(({ [id]: _, ...rest }) => rest);
+    };
+    if (name) load(name).then(done, done);
+    else done();
+  };
+  go(value);
+}
+
 function connect(ssid: string, password?: string) {
   change(`Connecting to ${ssid}`, request({ method: "wifiConnect", ssid, password }), ssid);
 }
 
+/** the password field's sink, so ending the entry never takes another field's keyboard */
+let entrySink: KeySink | null = null;
+
 function askPassword(ssid: string) {
   setEntry({ ssid, text: "" });
-  setKeySink({
+  entrySink = {
     text: (ch) => setEntry((e) => e && { ...e, text: e.text + ch }),
     key: (name) => {
       const e = entry();
@@ -145,24 +206,34 @@ function askPassword(ssid: string) {
       const e = entry();
       return e ? `${LOCK} ${e.ssid}: ${"•".repeat([...e.text].length)}_` : "";
     },
-  });
+    hint: () => "A connects · B Backspace · START cancels",
+  };
+  setFieldSink(entrySink);
 }
 
 function endEntry() {
+  if (!entry()) return;
   setEntry(null);
-  setKeySink(null);
+  if (fieldSink() === entrySink) setFieldSink(null);
+  entrySink = null;
 }
 
 function deviceRows(kind: "sink" | "source", list: AudioDevice[], title: string, icon: string): Row[] {
   const current = list.find((d) => d.current);
   const rows: Row[] = [];
   if (current) {
+    const id = `${kind}:${current.name}`;
+    const level = () => asked()[id] ?? current.volume;
     rows.push({
       icon,
       label: title,
-      value: current.muted ? "Muted" : `${current.volume}%`,
+      value: current.muted ? "Muted" : `${Math.round(level())}%`,
       activate: () => change("", request({ method: "audioSet", kind, name: current.name, muted: !current.muted }), title),
-      adjust: (delta) => change("", request({ method: "audioSet", kind, name: current.name, volume: current.volume + delta * 5 }), title),
+      adjust: (delta) =>
+        slide(id, Math.max(0, Math.min(150, level() + delta * STEP)), (volume) => request({ method: "audioSet", kind, name: current.name, volume }), title, {
+          icon: kind === "sink" ? "\u{f057e}" : "\u{f036c}",
+          max: 150,
+        }),
     });
   }
   for (const d of list) {
@@ -257,12 +328,12 @@ const rawRows = createMemo((): Row[] => {
       ];
       if (!p) return list;
       if (p.brightness !== null) {
-        const level = p.brightness;
+        const level = () => asked()["brightness"] ?? p.brightness!;
         list.push({
           icon: "\u{f00df}",
           label: "Brightness",
-          value: `${level}%`,
-          adjust: (delta) => change("", request({ method: "powerSet", brightness: level + delta * 5 }), "Brightness"),
+          value: `${Math.round(level())}%`,
+          adjust: (delta) => slide("brightness", Math.max(5, Math.min(100, level() + delta * STEP)), (brightness) => request({ method: "powerSet", brightness }), "Brightness", { icon: "\u{f00df}" }),
         });
       }
       for (const profile of p.profiles) {
@@ -297,7 +368,7 @@ const rawRows = createMemo((): Row[] => {
         list.push({
           icon: "\u{f0b8a}",
           label: nodeName(g.name),
-          // A tests the group's nodes; left and right pick the previous or next one
+          // Enter tests the group's nodes; left and right pick the previous or next one
           value: `${nodeName(g.now)}${g.delay ? ` ${g.delay} ms` : ""}`,
           activate: () => change(`Testing ${nodeName(g.name)}`, request({ method: "proxySet", test: g.name }), g.name),
           adjust: (delta) => change("", request({ method: "proxySet", group: g.name, node: g.all[(i + delta + g.all.length) % g.all.length] }), g.name),
@@ -333,15 +404,26 @@ function move(delta: number) {
   setIndex(index() + delta);
 }
 
-export function panelPress(key: number) {
+/** A key at the panel; "Forget" is the gamepad's Y. */
+export function panelKey(name: string) {
   const row = rows()[Math.min(index(), rows().length - 1)];
-  if (key & BTN.UP) move(-1);
-  else if (key & BTN.DOWN) move(1);
-  else if (key & BTN.LEFT) row?.adjust?.(-1);
-  else if (key & BTN.RIGHT) row?.adjust?.(1);
-  else if (key & BTN.CIRCLE) row?.activate?.();
-  else if (key & BTN.SQUARE) row?.forget?.();
-  else if (key & BTN.CROSS) closePanel();
+  switch (name) {
+    case "Up":
+      return move(-1);
+    case "Down":
+      return move(1);
+    case "Left":
+      return row?.adjust?.(-1);
+    case "Right":
+      return row?.adjust?.(1);
+    case "Enter":
+      return row?.activate?.();
+    case "Forget":
+      return row?.forget?.();
+    case "Escape":
+    case "Backspace":
+      return closePanel();
+  }
 }
 
 /** Fingers on the panel (card coordinates; the touchpad's clicks): a tap on
@@ -355,8 +437,8 @@ export function panelTouch(frame: TouchFrame) {
   });
 }
 
-/** The panel's title and position, for the deck's remote. */
-export const panelPosition = () => ({ title: TITLES[panel() ?? "network"], at: index(), count: rows().length });
+/** The panel's title, for the strip. */
+export const panelTitle = () => TITLES[panel() ?? "network"];
 
 export function Panels() {
   return (

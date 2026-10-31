@@ -89,6 +89,8 @@ export interface MenuLevel {
   selected: string;
   /** index of the first row in the window */
   scroll: number;
+  /** the text typed at this level: only rows whose label contains it show */
+  filter: string;
 }
 
 export const ROOT_TITLE = "Go";

@@ -1,12 +1,11 @@
-// What each chord does (chords.ts). Buttons, the deck's chord card, the dock
-// and the key sheet all end here, so a chord behaves the same however it is
-// given. An action that cannot happen says why in a notice, as Pocket Shell's
-// 3DS shell does.
+// What each chord does (chords.ts). Buttons, the home layout's badges, the
+// dock and the key sheet all end here, so a chord behaves the same however
+// it is given. An action that cannot happen says why in a notice, as Pocket
+// Shell's 3DS shell does.
 import { createEffect, createRoot } from "solid-js";
 import { run } from "./bridge.ts";
 import type { Action } from "./chords.ts";
 import { appletById, openApplet } from "./applets/applet.ts";
-import { body, setBody } from "./deck/body.ts";
 import { toggleMenu } from "./stage/menu.tsx";
 import { toggleSheet } from "./stage/keysheet.tsx";
 import { toast } from "./stage/toasts.tsx";
@@ -24,12 +23,6 @@ const fail = (title: string) => (result: { code: number | null; stderr: string }
 };
 
 export { toggleMenu };
-
-/** The focused window's keyboard or controls on the deck (SELECT). */
-export function toggleControls() {
-  if (!focused()) return say("No window here");
-  setBody(body() === "controls" ? "map" : "controls");
-}
 
 export function closeFocused() {
   const w = focused();

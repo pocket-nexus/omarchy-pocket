@@ -1,24 +1,20 @@
-// Notes: Markdown files in ~/Documents/Notes. The deck lists them (a finger
-// drags the list) and the window shows the highlighted one; a tap on the
-// highlighted row opens it for editing on the touch keyboard (with pinyin,
-// term/ime.ts), the text in the window with a cursor, wrapped to its width.
-// The strip's close button or X closes the note; the D-pad moves the cursor.
-// Edits are written a second after the last key and on close.
+// Notes: Markdown files in ~/Documents/Notes. The window lists them, newest
+// first, with a preview of the highlighted one beside the list when the
+// window is wide enough; Enter opens the highlighted note (or a new one) for
+// editing on the keyboard (with pinyin, term/ime.ts), the text in the window
+// with a cursor, wrapped to its width. The arrows move the cursor, Escape
+// (or the close button above the keys) closes the note. Edits are written a
+// second after the last key and on close.
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
 import { request } from "../bridge.ts";
 import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
-import { C } from "../classes.ts";
 import { cjk } from "../glyphs.ts";
+import type { KeySink } from "../keys.ts";
 import { toast } from "../stage/toasts.tsx";
 import { color } from "../theme.ts";
-import { composing } from "../term/ime.ts";
-import { Keyboard, keyboardTouch, sendKey, type KeySink } from "../term/keyboard.tsx";
-import { BODY_H } from "../deck/geometry.ts";
-import { createList, List as Rows } from "../deck/list.tsx";
-import type { TouchFrame } from "../touch.ts";
 import { register } from "./applet.ts";
 
 const [names, setNames] = createSignal<string[]>([]);
@@ -154,7 +150,7 @@ const sink: KeySink = {
   text: insert,
   key: (name) => key(name),
   close: closeNote,
-  hint: () => "A newline  B Bksp  Y space  X or \u{f0156} done",
+  hint: () => "editing · Esc or \u{f0156} closes · A newline · B Bksp · Y space",
 };
 
 // The window: wrapped lines in the 14 px mono face; a CJK character advances 14 points.
@@ -192,7 +188,7 @@ function wrap(list: string[], width: number): Line[] {
   return lines;
 }
 
-function Page(props: { chars: () => string[]; cursor?: () => number; title: string; w: number; h: number }) {
+function Page(props: { chars: () => string[]; cursor?: () => number; title: string; x: number; w: number; h: number }) {
   const lines = createMemo(() => wrap(props.chars(), props.w - 24));
   const count = () => Math.max(1, Math.floor((props.h - TOP - 6) / LINE_H));
   const caret = () => {
@@ -215,55 +211,63 @@ function Page(props: { chars: () => string[]; cursor?: () => number; title: stri
   };
   return (
     <>
-      <Text class="absolute left-[12] top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]" style={{ width: props.w - 24, textColor: color("dark_foreground"), ...cjk(props.title, CJK_SLOT_14) }}>{props.title}</Text>
+      <Text class="absolute top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]" style={{ insetL: props.x + 12, width: props.w - 24, textColor: color("dark_foreground"), ...cjk(props.title, CJK_SLOT_14) }}>
+        {props.title}
+      </Text>
       <For each={lines().slice(first(), first() + count())}>
         {(line, i) => (
-          <Text class="absolute left-[12] h-[18] overflow-hidden font-mono text-sm leading-[18]" style={{ insetT: TOP + i() * LINE_H, width: props.w - 20, textColor: color("foreground"), ...cjk(line.text, CJK_SLOT_14) }}>
+          <Text class="absolute h-[18] overflow-hidden font-mono text-sm leading-[18]" style={{ insetL: props.x + 12, insetT: TOP + i() * LINE_H, width: props.w - 20, textColor: color("foreground"), ...cjk(line.text, CJK_SLOT_14) }}>
             {line.text}
           </Text>
         )}
       </For>
       <Show when={caret()}>
-        {(c) => <View class="absolute w-[2] h-[16]" style={{ insetL: 12 + c().x, insetT: TOP + 1 + (c().row - first()) * LINE_H, bgColor: color("accent") }} />}
+        {(c) => <View class="absolute w-[2] h-[16]" style={{ insetL: props.x + 12 + c().x, insetT: TOP + 1 + (c().row - first()) * LINE_H, bgColor: color("accent") }} />}
       </Show>
     </>
   );
 }
 
-function Stage(props: { w: number; h: number }) {
-  return (
-    <Show when={editing()} fallback={<Page chars={() => [...preview()]} title={names()[selected() - 1]?.replace(/\.md$/, "") ?? "Tap New note on the deck"} w={props.w} h={props.h} />}>
-      <Page chars={chars} cursor={cursor} title={`${(editing() ?? "").replace(/\.md$/, "")}  (editing)`} w={props.w} h={props.h} />
-    </Show>
-  );
-}
-
 const ROW_H = 22;
-const LIST_TOP = 30;
-const scroller = createList(ROW_H, LIST_TOP, Math.floor((BODY_H - LIST_TOP - 4) / ROW_H));
+const LIST_W = 180;
 
-function List() {
+/** The notes as a column; the selected row is highlighted and kept in view. */
+function Rows(props: { w: number; h: number }) {
+  const count = () => Math.max(1, Math.floor((props.h - TOP - 4) / ROW_H));
+  const first = () => Math.max(0, Math.min(selected() - count() + 1, rowsOf().length - count()));
   return (
-    <View class={C.deck} style={{ bgColor: color("darker_background") }}>
-      <Text class={C.crumbs} style={{ textColor: color("accent") }}>Notes</Text>
-      <Text class="absolute right-[12] top-[8] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>tap twice to open</Text>
-      <View class={C.rule} style={{ bgColor: color("muted") }} />
-      <Rows state={scroller} items={rowsOf} top={LIST_TOP} rowH={ROW_H} selected={selected}>
-        {(label, at) => (
-          <>
-            <Text class={C.icon} style={{ textColor: color(at === selected() ? "accent" : "dark_foreground") }}>{at === 0 ? "\u{f0415}" : "\u{f09ed}"}</Text>
-            <Text class={C.label} style={{ textColor: color(at === selected() ? "bright_foreground" : "foreground"), ...cjk(label(), CJK_SLOT_14) }}>{label()}</Text>
-          </>
-        )}
-      </Rows>
-    </View>
+    <>
+      <Text class="absolute left-[12] top-[6] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>{`Notes  ${names().length}`}</Text>
+      <For each={rowsOf().slice(first(), first() + count())}>
+        {(label, i) => {
+          const at = () => first() + i();
+          return (
+            <View class="absolute rounded-sm" style={{ insetL: 6, insetT: TOP + i() * ROW_H, width: props.w - 12, height: ROW_H, bgColor: color(at() === selected() ? "selection" : "background") }}>
+              <Text class="absolute left-[6] top-[4] w-[16] font-mono text-sm leading-[14]" style={{ textColor: color(at() === selected() ? "accent" : "dark_foreground") }}>{at() === 0 ? "\u{f0415}" : "\u{f09ed}"}</Text>
+              <Text class="absolute left-[26] top-[4] h-[14] overflow-hidden font-mono text-sm leading-[14]" style={{ width: props.w - 40, textColor: color(at() === selected() ? "bright_foreground" : "foreground"), ...cjk(label, CJK_SLOT_14) }}>
+                {label}
+              </Text>
+            </View>
+          );
+        }}
+      </For>
+    </>
   );
 }
 
-function Deck() {
+function Stage(props: { w: number; h: number }) {
+  const split = () => props.w >= 360;
   return (
-    <Show when={editing()} fallback={<List />}>
-      <Keyboard mode="body" />
+    <Show when={editing()} fallback={
+      <>
+        <Rows w={split() ? LIST_W : props.w} h={props.h} />
+        <Show when={split()}>
+          <View class="absolute top-0 w-[1]" style={{ insetL: LIST_W, height: props.h, bgColor: color("muted") }} />
+          <Page chars={() => [...preview()]} title={names()[selected() - 1]?.replace(/\.md$/, "") ?? "Enter opens a new note"} x={LIST_W} w={props.w - LIST_W} h={props.h} />
+        </Show>
+      </>
+    }>
+      <Page chars={chars} cursor={cursor} title={`${(editing() ?? "").replace(/\.md$/, "")}  (editing)`} x={0} w={props.w} h={props.h} />
     </Show>
   );
 }
@@ -272,36 +276,20 @@ function select(index: number) {
   const next = Math.max(0, Math.min(rowsOf().length - 1, index));
   if (next === selected()) return;
   setSelected(next);
-  scroller.reveal(next, rowsOf().length);
   loadPreview();
 }
-
-const EDIT_KEYS: [number, string][] = [
-  [BTN.UP, "Up"], [BTN.DOWN, "Down"], [BTN.LEFT, "Left"], [BTN.RIGHT, "Right"],
-  [BTN.CIRCLE, "Enter"], [BTN.CROSS, "Backspace"], [BTN.SQUARE, " "],
-];
 
 register({
   id: "notes",
   title: "Notes",
   icon: "\u{f09ed}",
   Stage,
-  Deck,
   keys: () => (editing() ? sink : null),
+  hint: () => "↑↓ pick a note · Enter opens it",
   press(button) {
-    if (editing()) {
-      if (button & BTN.TRIANGLE) return closeNote();
-      if (button & BTN.CIRCLE && composing()) return sendKey(" ");
-      for (const [mask, name] of EDIT_KEYS) if (button & mask) return sendKey(name);
-      return;
-    }
     if (button & BTN.UP) select(selected() - 1);
     else if (button & BTN.DOWN) select(selected() + 1);
     else if (button & BTN.CIRCLE) open(selected());
-  },
-  touches(frame: TouchFrame) {
-    if (editing()) return keyboardTouch(frame, "body");
-    scroller.touch(frame, rowsOf().length, (at) => (at === selected() || at === 0 ? open(at) : select(at)));
   },
   shown: reload,
   hidden: save,

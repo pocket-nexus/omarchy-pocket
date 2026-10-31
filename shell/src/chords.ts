@@ -5,16 +5,15 @@
 //   L1 held        window      act on the focused window (SUPER)
 //   R1 held        move        the same verbs, moved: swap, maximize, spawn
 //   L1 + R1 held   workspace   the D-pad steps workspaces and carries windows
-//   neither        plain       the buttons belong to the focused window;
-//                              SELECT brings up its keyboard or controls on
-//                              the deck, L2/R2 step workspaces
+//   neither        plain       the buttons are keys for what has focus
+//                              (keys.ts BUTTON_KEYS); SELECT turns the
+//                              deck's layout, L2/R2 step workspaces
 //
 // L2/R2 under a shoulder do what the 3DS's circle pad does: resize under L1,
-// pan the scrolling strip under R1. The dispatcher (app.tsx), the deck's
-// chord card and the key sheet read this table, so a label cannot describe
-// what its button does not do. The L1 and R1 pills on the deck latch a layer
-// for one action, and the card's rows are tap targets, so every chord is
-// also a touch.
+// pan the scrolling strip under R1. The dispatcher (app.tsx), the legend
+// while a shoulder is held and the key sheet read this table, so a label
+// cannot describe what its button does not do. A layer lasts as long as its
+// shoulder: nothing on the deck latches one.
 import { BTN } from "@pocketjs/framework/input";
 import type { Layout } from "./wm.ts";
 
@@ -154,7 +153,7 @@ export function dpadLabel(layer: Layer): string {
     case "workspace":
       return "← → switch  ↑ ↓ carry";
     case "plain":
-      return "to the window";
+      return "arrows";
   }
 }
 
@@ -224,11 +223,13 @@ export function keySheet(layout: Layout): { title: string; rows: SheetRow[] }[] 
     groups.push({ title: LAYER_TITLE[layer], rows });
   }
   groups.push({
-    title: "always",
+    title: "no shoulder",
     rows: [
-      { keys: "SELECT", what: "keyboard / controls" },
+      { keys: "d-pad", what: "arrows" },
+      { keys: "A B X Y", what: "Enter Bksp Tab Space" },
+      { keys: "START", what: "Escape" },
+      { keys: "SELECT", what: "Keys · Pad · Home" },
       { keys: "L2 / R2", what: "switch workspace" },
-      { keys: "touch", what: "the deck does it all" },
     ],
   });
   return groups;

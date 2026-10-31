@@ -1,14 +1,15 @@
-// Taps and drags on the deck, one per contact id. A contact counts once it
-// has stayed down for SETTLE frames, and it taps at its lift, where it was
-// last seen. A contact lifted sooner is dropped: the Goodix panel reports
-// brief contacts at a finger's previous position, and before this filter a
-// key tapped after `s` sent `s` again (`ls` + Enter ran `lss`). Each finger
-// is its own tap, so a second thumb landing before the first lifts presses
-// its own key in turn instead of taking over the first one's. A contact that
+// Taps and drags on the deck, one per contact id. A contact is reported from
+// its first frame, so a key lights the frame a finger lands; it taps at its
+// lift, where it was last seen, once it has stayed down for SETTLE frames.
+// A contact lifted sooner taps nothing: the Goodix panel reports brief
+// contacts at a finger's previous position, and before this filter a key
+// tapped after `s` sent `s` again (`ls` + Enter ran `lss`). Each finger is
+// its own tap, so a second thumb landing before the first lifts presses its
+// own key in turn instead of taking over the first one's. A contact that
 // travelled more than SLOP from where it landed is a drag: its lift reports
 // `moved`, and lists scroll by its `dy` while it is down.
 import { auxiliaryTouches } from "@pocketjs/framework/input";
-import { remoteContacts } from "./remote-input.ts";
+import { remoteContacts, watchTouches } from "./remote-input.ts";
 
 const SETTLE = 2;
 const SLOP = 10;
@@ -36,9 +37,9 @@ const live = new Map<number, Contact>();
 const REMOTE = 1000;
 
 export interface TouchFrame {
-  /** contacts on the panel this frame, settled or not */
+  /** contacts on the panel this frame */
   raw: number;
-  /** settled contacts still down, oldest first */
+  /** contacts down this frame, oldest first; `frames` says how long */
   down: Contact[];
   /** settled contacts that lifted this frame */
   taps: Contact[];
@@ -47,7 +48,9 @@ export interface TouchFrame {
 /** Advances the tracker one frame; call once per frame. */
 export function trackTouches(): TouchFrame {
   const now = new Map<number, Point>();
-  for (const c of auxiliaryTouches()) now.set(c.id, { x: c.x, y: c.y });
+  const contacts = auxiliaryTouches();
+  watchTouches(contacts);
+  for (const c of contacts) now.set(c.id, { x: c.x, y: c.y });
   remoteContacts().forEach((p, i) => now.set(REMOTE + i, p));
   const taps: Contact[] = [];
   for (const [id, t] of live) {
@@ -66,9 +69,12 @@ export function trackTouches(): TouchFrame {
       t.moved ||= Math.abs(p.x - t.start.x) > SLOP || Math.abs(p.y - t.start.y) > SLOP;
     } else live.set(id, { id, x: p.x, y: p.y, dx: 0, dy: 0, moved: false, frames: 1, start: { ...p } });
   }
-  const down = [...live.values()].filter((t) => t.frames >= SETTLE).map((c) => ({ ...c }));
+  const down = [...live.values()].map((c) => ({ ...c }));
   return { raw: now.size, down, taps };
 }
+
+/** Whether a contact has stayed down long enough to count as a finger. */
+export const settled = (c: Contact) => c.frames >= SETTLE;
 
 /** The part of a frame whose contacts began inside [top, bottom), moved up by `top`. */
 export function band(frame: TouchFrame, top: number, bottom: number): TouchFrame {
