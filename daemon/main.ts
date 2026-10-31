@@ -195,19 +195,34 @@ let state: SystemState | null = null;
 let stateText = "";
 let refreshing: Promise<SystemState> | null = null;
 
+function publish(next: SystemState) {
+  const text = JSON.stringify(next);
+  state = next;
+  if (text !== stateText) {
+    stateText = text;
+    broadcast({ event: "state", state: next });
+  }
+}
+
 function refresh(): Promise<SystemState> {
   refreshing ??= systemState()
-    .then((next) => {
-      const text = JSON.stringify(next);
-      state = next;
-      if (text !== stateText) {
-        stateText = text;
-        broadcast({ event: "state", state: next });
-      }
-      return next;
-    })
+    .then((next) => (publish(next), next))
     .finally(() => (refreshing = null));
   return refreshing;
+}
+
+/** Reads one part of the state again after a change to it, instead of
+ *  every CLI the whole state runs (nmcli alone takes a good part of a
+ *  second on the RK3568). */
+async function refreshPart(part: "network" | "audio" | "bluetooth" | "powerProfile" | "proxy") {
+  const base = state ?? (await refresh());
+  const next = { ...base };
+  if (part === "network") next.network = await network();
+  else if (part === "audio") next.audio = await audio();
+  else if (part === "bluetooth") next.bluetooth = await bluetooth();
+  else if (part === "powerProfile") next.powerProfile = await output(["powerprofilesctl", "get"]);
+  else next.proxy = await proxyState();
+  publish(next);
 }
 
 // ---- the bridge -----------------------------------------------------------
@@ -332,12 +347,12 @@ async function handle(socket: Socket<Peer>, request: Request) {
         break;
       case "wifiConnect":
         await panels.wifiConnect(request.ssid, request.password);
-        void refresh();
+        void refreshPart("network");
         result = null;
         break;
       case "wifiDisconnect":
         await panels.wifiDisconnect();
-        void refresh();
+        void refreshPart("network");
         result = null;
         break;
       case "wifiForget":
@@ -346,7 +361,7 @@ async function handle(socket: Socket<Peer>, request: Request) {
         break;
       case "wifiPower":
         await panels.wifiPower(request.on);
-        void refresh();
+        void refreshPart("network");
         result = null;
         break;
       case "audio":
@@ -354,7 +369,7 @@ async function handle(socket: Socket<Peer>, request: Request) {
         break;
       case "audioSet":
         await panels.audioSet(request.kind, request.name, request);
-        void refresh();
+        void refreshPart("audio");
         result = null;
         break;
       case "power":
@@ -369,12 +384,12 @@ async function handle(socket: Socket<Peer>, request: Request) {
       }
       case "proxySet":
         await proxy.proxySet(request);
-        void refresh();
+        void refreshPart("proxy");
         result = null;
         break;
       case "powerSet":
         await panels.powerSet(request);
-        void refresh();
+        if (request.profile) void refreshPart("powerProfile");
         result = null;
         break;
       case "bluetooth":
@@ -382,7 +397,7 @@ async function handle(socket: Socket<Peer>, request: Request) {
         break;
       case "bluetoothPower":
         await panels.bluetoothPower(request.on);
-        void refresh();
+        void refreshPart("bluetooth");
         result = null;
         break;
       case "bluetoothConnect":

@@ -2,6 +2,7 @@
 // the CLIs Omarchy's own panels use underneath: nmcli, pactl/wpctl,
 // powerprofilesctl and brightnessctl. Arguments go to the programs as argv,
 // never through a shell, so an SSID or a password is only ever data.
+import { readFileSync, writeFileSync } from "node:fs";
 import type { AudioDevice, AudioPanel, BluetoothDevice, BluetoothPanel, NetworkPanel, PowerPanel, WifiNetwork } from "./protocol.ts";
 
 async function exec(argv: string[], input?: string): Promise<{ code: number; stdout: string; stderr: string }> {
@@ -122,31 +123,55 @@ export async function audio(): Promise<AudioPanel> {
 }
 
 export async function audioSet(kind: "sink" | "source", name: string, change: { volume?: number; muted?: boolean; current?: boolean }) {
-  if (change.volume !== undefined) await must(["pactl", `set-${kind}-volume`, name, `${Math.max(0, Math.min(150, Math.round(change.volume)))}%`]);
+  // wpctl talks to PipeWire itself; pactl goes through pipewire-pulse and answers later
+  if (change.volume !== undefined) await must(["wpctl", "set-volume", name, `${Math.max(0, Math.min(150, Math.round(change.volume)))}%`]);
   if (change.muted !== undefined) await must(["pactl", `set-${kind}-mute`, name, change.muted ? "1" : "0"]);
   if (change.current) await must(["pactl", `set-default-${kind}`, name]);
 }
 
-/** Both panels' backlights move together. */
+/** Both panels' backlights move together. The daemon reads and writes
+ *  their sysfs files itself (no process per step): a udev rule gives the
+ *  video group the brightness files (device/rootfs/etc/udev/rules.d). Where
+ *  the write is refused, brightnessctl sets it through logind. */
 const BACKLIGHTS = ["backlight", "backlight1"];
+const backlightFile = (device: string, name: string) => `/sys/class/backlight/${device}/${name}`;
+const readNumber = (path: string) => {
+  try {
+    return Number(readFileSync(path, "utf8").trim());
+  } catch {
+    return NaN;
+  }
+};
+
+/** The first backlight's level as a percentage, or null without one. */
+export function brightness(): number | null {
+  const max = readNumber(backlightFile(BACKLIGHTS[0]!, "max_brightness"));
+  const now = readNumber(backlightFile(BACKLIGHTS[0]!, "brightness"));
+  return Number.isFinite(max) && Number.isFinite(now) && max > 0 ? Math.round((now * 100) / max) : null;
+}
 
 export async function power(): Promise<PowerPanel> {
-  const [list, current, light] = await Promise.all([
-    exec(["powerprofilesctl", "list"]),
-    exec(["powerprofilesctl", "get"]),
-    exec(["brightnessctl", "-m", "-d", BACKLIGHTS[0]!, "info"]),
-  ]);
+  const [list, current] = await Promise.all([exec(["powerprofilesctl", "list"]), exec(["powerprofilesctl", "get"])]);
   const profiles = [...list.stdout.matchAll(/^[* ] ([\w-]+):$/gm)].map((m) => m[1]!);
-  // brightnessctl -m: device,class,current,percent%,max
-  const percent = parseInt(light.stdout.split(",")[3] ?? "", 10);
-  return { profiles, profile: current.stdout.trim(), brightness: Number.isFinite(percent) ? percent : null };
+  return { profiles, profile: current.stdout.trim(), brightness: brightness() };
+}
+
+async function setBacklight(device: string, percent: number) {
+  const max = readNumber(backlightFile(device, "max_brightness"));
+  if (!Number.isFinite(max)) return;
+  const raw = String(Math.max(1, Math.round((max * percent) / 100)));
+  try {
+    writeFileSync(backlightFile(device, "brightness"), raw);
+  } catch {
+    await must(["brightnessctl", "-q", "-d", device, "set", `${percent}%`]);
+  }
 }
 
 export async function powerSet(change: { profile?: string; brightness?: number }) {
   if (change.profile) await must(["powerprofilesctl", "set", change.profile]);
   if (change.brightness !== undefined) {
-    const value = `${Math.max(5, Math.min(100, Math.round(change.brightness)))}%`;
-    await Promise.all(BACKLIGHTS.map((device) => must(["brightnessctl", "-q", "-d", device, "set", value])));
+    const percent = Math.max(5, Math.min(100, Math.round(change.brightness)));
+    await Promise.all(BACKLIGHTS.map((device) => setBacklight(device, percent)));
   }
 }
 
