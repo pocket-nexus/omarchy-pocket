@@ -7,8 +7,9 @@
 //! previous front buffer to GBM), not inside the present that queued it: a
 //! present costs its rendering, and the flip lands while the next tick runs.
 //! A panel whose draw list did not change (`hold`) is rendered but neither
-//! swapped nor flipped, so it keeps showing its frame. One flip is in flight
-//! at a time: a panel's flip waits for the other panel's to land.
+//! swapped nor flipped, so it keeps showing its frame. A panel's next flip
+//! is queued no sooner than 2 ms after its last one landed: the VOP2 drops
+//! a config-done written in the lines after its frame start.
 //!
 //! EGL, GLES and GBM all come from libmali.so.1, which the program links
 //! directly: libmali's libEGL/libGLESv2/libgbm are small wrappers that export
@@ -185,8 +186,9 @@ fn egl_error(what: &str) -> io::Error {
 
 struct Card {
     file: File,
-    /// Flips completed for CRTCs whose panel was not the one reading events.
-    completed: RefCell<Vec<crtc::Handle>>,
+    /// Flips completed for CRTCs whose panel was not the one reading events,
+    /// with the vblank time of each.
+    completed: RefCell<Vec<(crtc::Handle, Duration)>>,
 }
 impl AsFd for Card {
     fn as_fd(&self) -> BorrowedFd<'_> {
@@ -233,6 +235,8 @@ struct Panel {
     pending: Option<*mut gbm_bo>,
     /// OMARCHY_POCKET_TIMING=content: a hash of rows of the frame last swapped
     drawn: u64,
+    /// when the last flip landed (the vblank time of its event, CLOCK_MONOTONIC)
+    landed: Duration,
     /// The first frame sets the CRTC and produces no flip event.
     flip_expected: bool,
     target: u64,
@@ -371,13 +375,13 @@ impl Shared {
             ));
         }
         let fb = self.framebuffer(index, bo)?;
-        // One flip in flight at a time. The VOP2's ports share one
-        // config-done register; a port's flip queued while the other port's
-        // waited for its frame start was lost now and then, and that panel
-        // stayed a change behind. The other panel's flip lands first.
-        let other = (index + 1) % self.panels.len();
-        if other != index && self.panels[other].pending.is_some() {
-            self.complete(other)?;
+        // The VOP2 consumes a config-done written in the first lines after
+        // the port's frame start without taking the configuration: a flip
+        // queued as soon as the previous one's event arrived was lost, and
+        // the panel stayed a change behind. The write waits out that window.
+        let since = monotonic().saturating_sub(self.panels[index].landed);
+        if since < FLIP_GAP {
+            std::thread::sleep(FLIP_GAP - since);
         }
         let panel = &mut self.panels[index];
         if let Some(drawn) = drawn {
@@ -409,8 +413,8 @@ impl Shared {
             loop {
                 {
                     let mut completed = self.card.completed.borrow_mut();
-                    if let Some(at) = completed.iter().position(|c| *c == crtc) {
-                        completed.swap_remove(at);
+                    if let Some(at) = completed.iter().position(|c| c.0 == crtc) {
+                        self.panels[index].landed = completed.swap_remove(at).1;
                         break;
                     }
                 }
@@ -439,7 +443,7 @@ impl Shared {
                 if ready > 0 {
                     for event in self.card.receive_events()? {
                         if let Event::PageFlip(event) = event {
-                            self.card.completed.borrow_mut().push(event.crtc);
+                            self.card.completed.borrow_mut().push((event.crtc, event.duration));
                         }
                     }
                 }
@@ -464,6 +468,17 @@ impl Shared {
         }
         Ok(())
     }
+}
+
+/// How long after a panel's flip lands its next flip may be queued: the
+/// frame start's first 16 lines are 0.33 ms, the commit runs on a worker.
+const FLIP_GAP: Duration = Duration::from_millis(2);
+
+/// CLOCK_MONOTONIC, the clock of the flip events.
+fn monotonic() -> Duration {
+    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut ts) };
+    Duration::new(ts.tv_sec as u64, ts.tv_nsec as u32)
 }
 
 /// OMARCHY_POCKET_TIMING=frames: a presentation step over 4 ms, as it happens.
@@ -829,6 +844,7 @@ pub fn open(
             front: None,
             pending: None,
             drawn: 0,
+            landed: Duration::ZERO,
             flip_expected: false,
             target: 0,
         });
