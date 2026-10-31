@@ -1,8 +1,11 @@
 // What the shell's Network, Audio and Power panels show and change, through
-// the CLIs Omarchy's own panels use underneath: nmcli, pactl/wpctl,
-// powerprofilesctl and brightnessctl. Arguments go to the programs as argv,
-// never through a shell, so an SSID or a password is only ever data.
-import { readFileSync, writeFileSync } from "node:fs";
+// the CLIs Omarchy's own panels use underneath: nmcli, pactl/wpctl and
+// brightnessctl, and power-profiles-daemon over D-Bus (busctl answers in 10
+// ms where powerprofilesctl, a Python program, takes a second on the
+// RK3568). Arguments go to the programs as argv, never through a shell, so
+// an SSID or a password is only ever data.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { AudioDevice, AudioPanel, BluetoothDevice, BluetoothPanel, NetworkPanel, PowerPanel, WifiNetwork } from "./protocol.ts";
 
 async function exec(argv: string[], input?: string): Promise<{ code: number; stdout: string; stderr: string }> {
@@ -150,10 +153,52 @@ export function brightness(): number | null {
   return Number.isFinite(max) && Number.isFinite(now) && max > 0 ? Math.round((now * 100) / max) : null;
 }
 
+// ---- the power profile ----------------------------------------------------
+// power-profiles-daemon has no driver for the RK3568 (every profile's
+// PlatformDriver is "placeholder"), so a profile set there changes nothing.
+// Omarchy Pocket keeps its own choice of three and the shell applies it to
+// the clocks (host/src/floor.rs): performance keeps the clock floors up,
+// balanced raises them while the user works, power-saver caps the CPU and
+// the GPU at about half their top clock. The daemon is told the nearest of
+// its own two, so Omarchy's scripts that read it agree.
+
+export const PROFILES = ["performance", "balanced", "power-saver"] as const;
+export type Profile = (typeof PROFILES)[number];
+const PROFILE_FILE = join(process.env.HOME ?? "/home/omarchy", ".config", "omarchy-pocket", "power-profile");
+const PPD = ["busctl", "--system", "--timeout=2"];
+const PPD_NAMES: [string, string][] = [
+  ["org.freedesktop.UPower.PowerProfiles", "/org/freedesktop/UPower/PowerProfiles"],
+  ["net.hadess.PowerProfiles", "/net/hadess/PowerProfiles"],
+];
+
+/** The profile chosen, balanced until one is. */
+export function profile(): Profile {
+  try {
+    const name = readFileSync(PROFILE_FILE, "utf8").trim();
+    if ((PROFILES as readonly string[]).includes(name)) return name as Profile;
+  } catch {}
+  return "balanced";
+}
+
+/** Tells power-profiles-daemon, under either of its names; a daemon that
+ *  refuses (none running, a profile it lacks) is left alone. */
+async function tellDaemon(name: Profile) {
+  const theirs = name === "power-saver" ? "power-saver" : "balanced";
+  for (const [bus, path] of PPD_NAMES) {
+    const result = await exec([...PPD, "set-property", bus, path, bus, "ActiveProfile", "s", theirs]);
+    if (result.code === 0) return;
+  }
+}
+
+async function setProfile(name: string) {
+  if (!(PROFILES as readonly string[]).includes(name)) throw new Error(`no power profile ${name}`);
+  mkdirSync(dirname(PROFILE_FILE), { recursive: true });
+  writeFileSync(PROFILE_FILE, name + "\n");
+  await tellDaemon(name as Profile);
+}
+
 export async function power(): Promise<PowerPanel> {
-  const [list, current] = await Promise.all([exec(["powerprofilesctl", "list"]), exec(["powerprofilesctl", "get"])]);
-  const profiles = [...list.stdout.matchAll(/^[* ] ([\w-]+):$/gm)].map((m) => m[1]!);
-  return { profiles, profile: current.stdout.trim(), brightness: brightness() };
+  return { profiles: [...PROFILES], profile: profile(), brightness: brightness() };
 }
 
 async function setBacklight(device: string, percent: number) {
@@ -168,7 +213,7 @@ async function setBacklight(device: string, percent: number) {
 }
 
 export async function powerSet(change: { profile?: string; brightness?: number }) {
-  if (change.profile) await must(["powerprofilesctl", "set", change.profile]);
+  if (change.profile) await setProfile(change.profile);
   if (change.brightness !== undefined) {
     const percent = Math.max(5, Math.min(100, Math.round(change.brightness)));
     await Promise.all(BACKLIGHTS.map((device) => setBacklight(device, percent)));

@@ -77,6 +77,8 @@ const [bluetooth, setBluetooth] = createSignal<BluetoothPanel | null>(null);
 /** the SSID whose password the keyboard is taking */
 const [entry, setEntry] = createSignal<{ ssid: string; text: string } | null>(null);
 const [busy, setBusy] = createSignal("");
+/** the power profile asked for, shown checked until the panel reads it back */
+const [profileAsked, setProfileAsked] = createSignal<string | null>(null);
 let refreshing = 0;
 
 export { panel as openPanel };
@@ -336,12 +338,16 @@ const rawRows = createMemo((): Row[] => {
           adjust: (delta) => slide("brightness", Math.max(5, Math.min(100, level() + delta * STEP)), (brightness) => request({ method: "powerSet", brightness }), "Brightness", { icon: "\u{f00df}" }),
         });
       }
+      const chosen = profileAsked() ?? p.profile;
       for (const profile of p.profiles) {
         list.push({
           icon: profileIcon(profile),
           label: profile,
-          checked: profile === p.profile,
-          activate: () => change("", request({ method: "powerSet", profile }), "Power profile"),
+          checked: profile === chosen,
+          activate: () => {
+            setProfileAsked(profile);
+            change("", request({ method: "powerSet", profile }).finally(() => setProfileAsked(null)), "Power profile");
+          },
         });
       }
       return list;

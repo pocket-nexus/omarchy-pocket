@@ -8,6 +8,10 @@ import { onEvent, request } from "../bridge.ts";
 import { TERM_ROWS, type Cursor, type Run } from "../../../daemon/protocol.ts";
 import type { KeySink } from "../keys.ts";
 import { closeWindow, find, focused, focusWindow, open } from "../workspaces.ts";
+import { watching } from "../watch.ts";
+
+/** sessions whose first rows are still to come, logged while a watch is on */
+const awaitingRows = new Set<number>();
 
 export interface TermSession {
   sid: number;
@@ -81,7 +85,12 @@ export const sessionById = (sid: number) => sessions().find((s) => s.sid === sid
 /** Opens a login shell in a new window. */
 /** A new session in a window: a shell, or `argv` titled `title`. */
 export function openTerminal(argv?: string[], title = "bash") {
+  if (watching()) console.log(`term open asked: ${title}`);
   request<number>({ method: "termOpen", ...(argv ? { argv, title } : {}) }).then((sid) => {
+    if (watching()) {
+      console.log(`term ${sid} opened`);
+      awaitingRows.add(sid);
+    }
     session(sid, title);
     windowFor(sid);
   }, () => {});
@@ -104,6 +113,7 @@ onEvent((event) => {
       windowFor(event.sid);
       break;
     case "termRows": {
+      if (awaitingRows.delete(event.sid)) console.log(`term ${event.sid} first rows: ${event.rows.length}`);
       const s = session(event.sid, "");
       for (const [y, runs] of event.rows) s.setRows[y]?.(runs);
       s.setCursor(event.cursor);

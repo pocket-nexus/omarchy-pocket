@@ -2,11 +2,24 @@
 // Bluetooth, power profile, theme), and Omarchy's IPC targets: `omarchy-shell
 // <target> <method> [args...]` reaches the function a module registered with
 // serve(), the way a Quickshell plugin declares a ShellIpc target.
-import { createSignal } from "solid-js";
+import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { answer, onEvent, request, type SystemState } from "./bridge.ts";
 
 const [state, setState] = createSignal<SystemState | null>(null);
 export { state };
+
+// the power profile goes to the host, which applies it to the clocks
+// (host/src/floor.rs); the daemon reports it with the rest of the state
+createRoot(() =>
+  createEffect(
+    on(
+      () => state()?.powerProfile ?? null,
+      (profile) => {
+        if (profile) (globalThis as { omarchyBridge?: { powerProfile?(name: string): boolean } }).omarchyBridge?.powerProfile?.(profile);
+      },
+    ),
+  ),
+);
 
 export type Method = (...args: string[]) => string | void;
 const targets = new Map<string, Record<string, Method>>();

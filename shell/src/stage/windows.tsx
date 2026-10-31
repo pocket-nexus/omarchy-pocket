@@ -93,11 +93,11 @@ function Frame(props: { win: Win }) {
   const applet = appletOf(props.win);
   return (
     <View
-      class="absolute overflow-hidden contain-strict"
+      class="absolute overflow-hidden rounded-md contain-strict"
       style={{ insetL: rect().x, insetT: rect().y, width: rect().w, height: rect().h, bgColor: color(isFocused() ? "accent" : "muted"), ...WINDOW_ORIGIN }}
       ref={(node: NodeMirror) => onCleanup(bindWindow(props.win.id, node))}
     >
-      <View class="absolute overflow-hidden" style={{ insetL: BORDER, insetT: BORDER, width: contentW(), height: rect().h - 2 * BORDER, bgColor: color("background") }}>
+      <View class="absolute overflow-hidden rounded-md" style={{ insetL: BORDER, insetT: BORDER, width: contentW(), height: rect().h - 2 * BORDER, bgColor: color("background") }}>
         <View class="absolute left-0 top-0" style={{ width: contentW(), height: HEADER_H, bgColor: color(isFocused() ? "lighter_background" : "dark_background") }}>
           <Text
             class="absolute left-[6] top-[1] h-[14] overflow-hidden font-mono text-xs leading-[14]"
@@ -127,11 +127,11 @@ export function Windows() {
       <For each={ghosts()}>
         {(ghost) => (
           <View
-            class="absolute"
+            class="absolute rounded-md"
             style={{ insetL: ghost.rect.x, insetT: ghost.rect.y, width: ghost.rect.w, height: ghost.rect.h, bgColor: color("muted", 0.9) }}
             ref={(node: NodeMirror) => bindGhost(node)}
           >
-            <View class="absolute" style={{ insetL: BORDER, insetT: BORDER, width: ghost.rect.w - 2 * BORDER, height: ghost.rect.h - 2 * BORDER, bgColor: color("background", 0.9) }} />
+            <View class="absolute rounded-md" style={{ insetL: BORDER, insetT: BORDER, width: ghost.rect.w - 2 * BORDER, height: ghost.rect.h - 2 * BORDER, bgColor: color("background", 0.9) }} />
           </View>
         )}
       </For>

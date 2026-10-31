@@ -160,13 +160,13 @@ async function proxyState(): Promise<SystemState["proxy"]> {
 }
 
 async function systemState(): Promise<SystemState> {
-  const [net, sound, bt, profile, proxied] = await Promise.all([network(), audio(), bluetooth(), output(["powerprofilesctl", "get"]), proxyState()]);
+  const [net, sound, bt, proxied] = await Promise.all([network(), audio(), bluetooth(), proxyState()]);
   return {
     battery: battery(),
     network: net,
     audio: sound,
     bluetooth: bt,
-    powerProfile: profile,
+    powerProfile: panels.profile(),
     proxy: proxied,
     theme: theme(),
     bar: bar.settings(),
@@ -220,7 +220,7 @@ async function refreshPart(part: "network" | "audio" | "bluetooth" | "powerProfi
   if (part === "network") next.network = await network();
   else if (part === "audio") next.audio = await audio();
   else if (part === "bluetooth") next.bluetooth = await bluetooth();
-  else if (part === "powerProfile") next.powerProfile = await output(["powerprofilesctl", "get"]);
+  else if (part === "powerProfile") next.powerProfile = panels.profile();
   else next.proxy = await proxyState();
   publish(next);
 }

@@ -12,6 +12,10 @@
 //! cross the JSON bridge or the JS heap. A loaded atlas changes no draw list,
 //! so it asks for the next frame to be presented (`Repaint`).
 //!
+//! `omarchyBridge.powerProfile(name)` hands the host the power profile the
+//! daemon reports (performance, balanced, power-saver); the clock floors
+//! apply it at the next tick.
+//!
 //! `omarchyBridge.openApp(path)` opens a PocketJS package in a window: it runs
 //! beside the shell in a Runtime of its own (children.rs) and draws into
 //! textures the shell's windows show; `closeApp`, `showApp` and `appInput`
@@ -35,12 +39,36 @@ pub type Repaint = Rc<Cell<bool>>;
 /// (terminal output, an applet's request answered, a bake in progress).
 pub type Traffic = Rc<Cell<bool>>;
 
+/// Omarchy Pocket's power profile, as the daemon reports it; the clock floors
+/// apply it (floor.rs).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PowerProfile {
+    Performance,
+    Balanced,
+    PowerSaver,
+}
+
+impl PowerProfile {
+    pub fn parse(name: &str) -> Option<Self> {
+        match name {
+            "performance" => Some(Self::Performance),
+            "balanced" => Some(Self::Balanced),
+            "power-saver" => Some(Self::PowerSaver),
+            _ => None,
+        }
+    }
+}
+
+/// Set by `omarchyBridge.powerProfile(name)`, taken by the main loop.
+pub type ProfileRequest = Rc<Cell<Option<PowerProfile>>>;
+
 pub struct BridgedGuest {
     inner: RquickjsGuest,
     bridge: Rc<RefCell<Bridge>>,
     ops: Option<OpContext>,
     repaint: Repaint,
     traffic: Traffic,
+    profile: ProfileRequest,
     children: children::Shared,
     net: net::Shared,
 }
@@ -83,8 +111,8 @@ fn load_texture(ops: &OpContext, path: &str, w: usize, h: usize) -> i64 {
 }
 
 impl BridgedGuest {
-    pub fn new(bridge: Rc<RefCell<Bridge>>, repaint: Repaint, traffic: Traffic, children: children::Shared, net: net::Shared) -> Self {
-        Self { inner: RquickjsGuest::default(), bridge, ops: None, repaint, traffic, children, net }
+    pub fn new(bridge: Rc<RefCell<Bridge>>, repaint: Repaint, traffic: Traffic, profile: ProfileRequest, children: children::Shared, net: net::Shared) -> Self {
+        Self { inner: RquickjsGuest::default(), bridge, ops: None, repaint, traffic, profile, children, net }
     }
 
     fn install(&self) -> Result<(), RuntimeError> {
@@ -110,6 +138,19 @@ impl BridgedGuest {
                     let ok = load_font_atlas(&ops, &path);
                     repaint.set(repaint.get() || ok);
                     ok
+                })?,
+            )?;
+            let profile = self.profile.clone();
+            object.set(
+                "powerProfile",
+                Function::new(ctx.clone(), move |name: String| -> bool {
+                    match PowerProfile::parse(&name) {
+                        Some(p) => {
+                            profile.set(Some(p));
+                            true
+                        }
+                        None => false,
+                    }
                 })?,
             )?;
             let apps = self.children.clone();

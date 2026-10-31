@@ -8,44 +8,72 @@
 //! lowest after IDLE without either. tmpfiles.d rules give the video group
 //! the files; where a write is refused the floor leaves that governor alone.
 //!
+//! The power profile (guest.rs, from the daemon) shapes the floors:
+//! performance keeps them up, balanced is the rule above, power-saver writes
+//! each governor's `max_freq` down to the highest clock within SAVER_PERCENT
+//! of the top (1.1 of 1.99 GHz, 400 of 800 MHz) and raises the floor no
+//! higher. The floor never sits above the ceiling: a lower ceiling writes the
+//! floor first, a higher one the ceiling first.
+//!
 //! Input is seen before the runtime samples it: the probe polls the
 //! runtime's own evdev descriptors for readiness (found through
 //! /proc/self/fd, never read, never a second client of the device) at the
 //! top of each tick, so the clocks are up before the guest work the input
 //! causes.
+use crate::guest::PowerProfile;
 use std::{
     os::fd::RawFd,
     time::{Duration, Instant},
 };
 
 const IDLE: Duration = Duration::from_secs(2);
+/// power-saver's ceiling, as a share of the top clock
+const SAVER_PERCENT: u64 = 56;
 const GPU_DEVFREQ: &str = "/sys/class/devfreq/fde60000.gpu";
 const CPU_POLICY: &str = "/sys/devices/system/cpu/cpufreq/policy0";
 
 struct Floor {
     name: &'static str,
     path: String,
+    max_path: String,
+    frequencies: Vec<u64>,
     low: u64,
     high: u64,
+    /// the ceiling: where the floor rises to, and what `max_freq` holds
+    cap: u64,
     raised: bool,
     broken: bool,
+    max_broken: bool,
 }
 
 impl Floor {
-    /// `dir` holds `min_freq` and a list of frequencies under `list`.
+    /// `dir` holds `min_freq`, `max_freq` and a list of frequencies under `list`.
     fn new(name: &'static str, dir: &str, list: &str) -> Self {
         let frequencies: Vec<u64> = std::fs::read_to_string(format!("{dir}/{list}"))
             .unwrap_or_default()
             .split_whitespace()
             .filter_map(|f| f.parse().ok())
             .collect();
+        let cpu = dir == CPU_POLICY;
+        let high = frequencies.iter().copied().max().unwrap_or(0);
         Self {
             name,
-            path: format!("{dir}/{}", if dir == CPU_POLICY { "scaling_min_freq" } else { "min_freq" }),
+            path: format!("{dir}/{}", if cpu { "scaling_min_freq" } else { "min_freq" }),
+            max_path: format!("{dir}/{}", if cpu { "scaling_max_freq" } else { "max_freq" }),
             low: frequencies.iter().copied().min().unwrap_or(0),
-            high: frequencies.iter().copied().max().unwrap_or(0),
+            high,
+            cap: high,
             raised: false,
             broken: frequencies.is_empty(),
+            max_broken: false,
+            frequencies,
+        }
+    }
+
+    fn write_min(&mut self, hz: u64) {
+        if let Err(e) = std::fs::write(&self.path, hz.to_string()) {
+            eprintln!("omarchy-pocket-host: {} floor {}: {e}; leaving the governor alone", self.name, self.path);
+            self.broken = true;
         }
     }
 
@@ -54,17 +82,39 @@ impl Floor {
             return;
         }
         self.raised = raised;
-        let hz = if raised { self.high } else { self.low };
-        if let Err(e) = std::fs::write(&self.path, hz.to_string()) {
-            eprintln!("omarchy-pocket-host: {} floor {}: {e}; leaving the governor alone", self.name, self.path);
-            self.broken = true;
+        self.write_min(if raised { self.cap } else { self.low });
+    }
+
+    /// The ceiling: `max_freq`, and where the floor rises to.
+    fn limit(&mut self, cap: u64) {
+        if self.broken || self.max_broken || self.cap == cap {
+            return;
         }
+        let lowering = cap < self.cap;
+        self.cap = cap;
+        if lowering && self.raised {
+            self.write_min(cap);
+        }
+        if let Err(e) = std::fs::write(&self.max_path, cap.to_string()) {
+            eprintln!("omarchy-pocket-host: {} ceiling {}: {e}; leaving it alone", self.name, self.max_path);
+            self.max_broken = true;
+        }
+        if !lowering && self.raised {
+            self.write_min(cap);
+        }
+    }
+
+    /// The highest clock within `percent` of the top.
+    fn within(&self, percent: u64) -> u64 {
+        self.frequencies.iter().copied().filter(|&hz| hz * 100 <= self.high * percent).max().unwrap_or(self.low)
     }
 }
 
 pub struct Floors {
     floors: Vec<Floor>,
     last: Instant,
+    /// performance: the floors stay up
+    pinned: bool,
 }
 
 impl Floors {
@@ -75,12 +125,28 @@ impl Floors {
                 Floor::new("CPU", CPU_POLICY, "scaling_available_frequencies"),
             ],
             last: Instant::now() - IDLE,
+            pinned: false,
+        }
+    }
+
+    /// The profile's ceilings, and whether the floors stay up.
+    pub fn set_profile(&mut self, profile: PowerProfile) {
+        self.pinned = profile == PowerProfile::Performance;
+        for f in &mut self.floors {
+            let cap = match profile {
+                PowerProfile::PowerSaver => f.within(SAVER_PERCENT),
+                _ => f.high,
+            };
+            f.limit(cap);
+        }
+        if self.pinned {
+            self.tick(true);
         }
     }
 
     /// Once per tick: whether input arrived or a frame is presented this tick.
     pub fn tick(&mut self, active: bool) {
-        if active {
+        if active || self.pinned {
             self.last = Instant::now();
             for f in &mut self.floors {
                 f.set(true);
@@ -97,6 +163,8 @@ impl Drop for Floors {
     fn drop(&mut self) {
         for f in &mut self.floors {
             f.set(false);
+            let top = f.high;
+            f.limit(top);
         }
     }
 }

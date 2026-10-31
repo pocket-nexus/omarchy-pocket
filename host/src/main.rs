@@ -307,13 +307,14 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
         .map_err(error)?;
     let repaint: guest::Repaint = Default::default();
     let traffic: guest::Traffic = Default::default();
+    let profile_request: guest::ProfileRequest = Default::default();
     // a --shot run has no daemon to talk to
     let bridge = options.shot.is_none().then(|| options.bridge.clone().unwrap_or_else(default_bridge));
     let bridge = std::rc::Rc::new(std::cell::RefCell::new(bridge::Bridge::new(bridge)));
     let net = net::Hub::new(bridge.clone());
     let children = children::Children::new(net.clone());
     runtime
-        .set_guest(Box::new(guest::BridgedGuest::new(bridge, repaint.clone(), traffic.clone(), children.clone(), net)))
+        .set_guest(Box::new(guest::BridgedGuest::new(bridge, repaint.clone(), traffic.clone(), profile_request.clone(), children.clone(), net)))
         .map_err(error)?;
     runtime.boot().map_err(error)?;
     let mut clock = MonotonicClock::default();
@@ -360,10 +361,16 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
         // an applet's page arriving, a glyph bake answering
         #[cfg(target_os = "linux")]
         if let Some(floors) = floors.as_mut() {
+            if let Some(profile) = profile_request.take() {
+                floors.set_profile(profile);
+            }
             floors.tick(changed || forced || input || traffic.replace(false));
         }
         #[cfg(not(target_os = "linux"))]
-        traffic.set(false);
+        {
+            traffic.set(false);
+            profile_request.set(None);
+        }
         if changed || forced {
             if timing.as_ref().is_some_and(|t| t.each) {
                 eprintln!("omarchy-pocket-host: present top={top} bottom={bottom} forced={forced}");

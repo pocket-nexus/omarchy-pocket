@@ -84,6 +84,13 @@ class Session {
   cols = TERM_COLS;
   rows = TERM_ROWS;
   closed = false;
+  /** the opening's milestones, for one journal line at the first rows */
+  private readonly opened = performance.now();
+  private marks: string[] = [];
+
+  private mark(what: string) {
+    this.marks.push(`${what} ${(performance.now() - this.opened).toFixed(0)}`);
+  }
 
   constructor(sid: number, options: OpenOptions, private readonly events: TermEvents) {
     this.sid = sid;
@@ -94,13 +101,18 @@ class Session {
       terminal: {
         cols: TERM_COLS,
         rows: TERM_ROWS,
-        data: (_, data) => this.parse(this.decoder.decode(data, { stream: true })),
+        data: (_, data) => {
+          if (this.marks.length === 1) this.mark("output");
+          this.parse(this.decoder.decode(data, { stream: true }));
+        },
       },
     });
+    this.mark("spawned");
     void this.proc.exited.then((code) => this.close(code));
     void GhosttyCore.load({ wasmPath: ghosttyWasm(), scrollbackLimit: SCROLLBACK }).then(
       (core) => {
         if (this.closed) return;
+        this.mark("core");
         core.init(this.cols, this.rows);
         this.core = core;
         const waiting = this.backlog;
@@ -167,6 +179,11 @@ class Session {
     const cursorKey = cursor.join(",");
     if (!rows.length && cursorKey === this.cursorKey && !full) return;
     this.cursorKey = cursorKey;
+    if (this.marks.length) {
+      // one line per terminal: where its opening's milliseconds went
+      console.error(`omarchy-pocketd: terminal #${this.sid} first rows: ${this.marks.join(", ")}, sent ${(performance.now() - this.opened).toFixed(0)} ms`);
+      this.marks = [];
+    }
     this.events.rows(this.sid, rows, cursor, full);
   }
 

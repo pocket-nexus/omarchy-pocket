@@ -11,6 +11,8 @@ import { BTN } from "@pocketjs/framework/input";
 import { serve } from "./system.ts";
 import { sendKey } from "./term/keyboard.tsx";
 import { chooseLayout, type Layout } from "./focus.ts";
+import { watchFor, watchTick, watching } from "./watch.ts";
+export { watching };
 
 const held: { mask: number; frames: number }[] = [];
 /** queued taps: each is a contact for TAP_FRAMES frames (a drag: from x,y to
@@ -52,18 +54,14 @@ serve("pocket.input", {
   },
   /** logs the deck's contacts for `frames` frames (the host's stderr) */
   watch: (frames = "120") => {
-    watchFrames = Math.max(1, Number(frames) || 120);
+    watchFor(Math.max(1, Number(frames) || 120));
     return "ok";
   },
 });
 
-let watchFrames = 0;
-/** Whether a watch is on: the keyboard logs its keys lighting and going out too. */
-export const watching = () => watchFrames > 0;
 /** Once per frame: the contacts the panel reports, while a watch is on. */
 export function watchTouches(contacts: readonly { id: number; x: number; y: number }[]) {
-  if (watchFrames <= 0) return;
-  watchFrames--;
+  if (!watchTick()) return;
   if (contacts.length) console.log(`touch ${contacts.map((c) => `${c.id}@${c.x.toFixed(0)},${c.y.toFixed(0)}`).join(" ")}`);
 }
 

@@ -1,5 +1,5 @@
 // Omarchy's bar along the top of the stage, laid out like Omarchy 4's: the
-// logo and the workspaces on the left (the current one a rounded square,
+// logo and the workspaces on the left (the current one's number on a rounded square,
 // empty ones dimmed), the clock in the middle, and on the right the chord
 // layer while a shoulder is held (otherwise the workspace's layout) before
 // the Bluetooth, network, audio and power indicators from omarchy-pocketd's
@@ -51,18 +51,18 @@ export function Bar(props: { now: () => Date; focused: () => string | null }) {
       <View class={C.bar} style={{ insetT: top(), bgColor: color("background", ALPHA[settings()?.background ?? "opaque"] ?? 1) }}>
         {/* centred on the bar's middle (9): Omarchy's logo sits high in its em, 2 points down; the digits half a point */}
         <Text class={C.barText} style={{ insetL: 6, insetT: 4, textColor: color("foreground") }}>{"\u{e900}"}</Text>
+        <View
+          class="absolute top-[2] h-[14] w-[12] rounded-sm"
+          style={{ insetL: 23.5, translateX: untrack(current) * 14, bgColor: color("bright_foreground") }}
+          ref={(n: NodeMirror) => (marker = n)}
+        />
         <For each={NUMBERS}>
           {(n) => (
-            <Text class={C.barText} style={{ insetL: 26 + n * 14, insetT: 2.5, opacity: current() === n ? 0 : 1, textColor: color(occupied(n) ? "foreground" : "muted") }}>
+            <Text class={C.barText} style={{ insetL: 26 + n * 14, insetT: 2.5, textColor: color(current() === n ? "background" : occupied(n) ? "foreground" : "muted") }}>
               {String(n + 1)}
             </Text>
           )}
         </For>
-        <View
-          class="absolute top-[4.5] h-[9] w-[9] rounded-sm"
-          style={{ insetL: 25, translateX: untrack(current) * 14, bgColor: color("bright_foreground") }}
-          ref={(n: NodeMirror) => (marker = n)}
-        />
         <Text class={C.barCenter} style={{ textColor: color("foreground") }}>{clock()}</Text>
         <Text class="absolute top-[2] text-right font-mono text-xs leading-[14]" style={{ insetL: statusRight() - 160, width: 160, opacity: layer() === "plain" ? 1 : 0, textColor: color("dark_foreground") }}>
           {layout()}
