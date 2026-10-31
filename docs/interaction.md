@@ -14,9 +14,9 @@ Omarchy Pocket is a Linux desktop shrunk to a handheld: a terminal, a coding age
 |---|---|---|
 | **Keys** | the keyboard: Esc, Tab, Ctrl, Alt and the arrows over four rows of keys (`shell/src/term/keyboard.tsx`) | a terminal, Notes, Activity, Clock, Pictures; the card; a password field |
 | **Pad** | a trackpad for the pointer on the stage, with a Hold key (`shell/src/deck/touchpad.tsx`) | a touch app in a window (X, Discord, YouTube, Hacker News) |
-| **Home** | the workspaces, the current one's windows, and one list of what there is to open: the shell's windows, the touch apps, the bar's panels (`shell/src/deck/home.tsx`) | nothing in focus |
+| **Home** | the workspaces and the layout badge on the left, the current workspace's windows at 0.7 in the middle, the bar's panels on the right (`shell/src/deck/home.tsx`) | nothing in focus |
 
-The rule (`shell/src/focus.ts`) reads the thing in focus, in this order: a text field that took the keyboard (the lock, a Wi‑Fi password), the card on the stage, the focused window, nothing. The strip along the deck's top holds Omarchy's logo on the left (a press opens the menu, as L1 + A does), names the thing in focus, and holds the three layout tabs on the right; the lit tab is the layout shown. A press on a tab picks a layout by hand; **the choice lasts until the focus changes**, and then the rule picks again. SELECT turns the tabs from the gamepad. Nothing else sits on the deck: launching is the menu's Apps list (type to filter) or the home layout's list.
+The rule (`shell/src/focus.ts`) reads the thing in focus, in this order: a text field that took the keyboard (the lock, a Wi‑Fi password), the card on the stage, the focused window, nothing. The strip along the deck's top holds Omarchy's logo on the left (a press opens the menu, as L1 + A does), names the thing in focus, and holds the three layout tabs on the right; the lit tab is the layout shown. A press on a tab picks a layout by hand; **the choice lasts until the focus changes**, and then the rule picks again. SELECT turns the tabs from the gamepad. Nothing else sits on the deck: launching is the menu's Apps list (type to filter): Terminal, Agent, the shell's applets, the touch apps, then the terminal programs.
 
 What the deck never does: it never shows a window's own controls, never mirrors the stage, never keeps a layer or a card after the shoulder or the finger that asked for it is gone.
 
@@ -66,7 +66,7 @@ Something that cannot happen says why in a notice: "No window that way", "A spli
 
 ## The stage's card
 
-Omarchy's menu (L1 + A, the strip's logo, `omarchy-shell shell summon omarchy.menu`), the panels (Network, Audio, Power, Bluetooth, Proxy: a pointer click on the bar's indicator, the home layout's list, `omarchy-shell shell summon omarchy.network`) and the theme picker open in one 360 × 296 card centred under the bar, and the stage dims behind it. The card has the keys while it is up, so the deck shows the keyboard; a pointer click lands on its rows.
+Omarchy's menu (L1 + A, the strip's logo, `omarchy-shell shell summon omarchy.menu`), the panels (Network, Audio, Power, Bluetooth, Proxy: a pointer click on the bar's indicator, the home layout's right column, `omarchy-shell shell summon omarchy.network`) and the theme picker open in one 360 × 296 card centred under the bar, and the stage dims behind it. The card has the keys while it is up, so the deck shows the keyboard; a pointer click lands on its rows.
 
 **Sliders answer at once.** A brightness or volume row shows the value the key asked for the frame it is pressed, the OSD shows it on the stage, and one request at a time carries the newest value to omarchy-pocketd; the row reads the device's own value back once the last request has landed. Held or repeated presses accumulate: each step adds to the value shown, not to the value last read.
 

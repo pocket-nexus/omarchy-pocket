@@ -1,5 +1,6 @@
-// What a workspace can hold, by name: "terminal" (a new Pocket Term session)
-// or one of the shell's applets. The Apps list opens these, and
+// What a workspace can hold, by name: "terminal" (a new Pocket Term session),
+// "agent" (one running Omarchy's default coding agent, `omarchy-agent
+// --inline --pick`) or one of the shell's applets. The Apps list opens these, and
 // `omarchy-shell pocket.window open <name>` does over SSH;
 // `omarchy-shell pocket.window app <path.pocket> [title] [aux]` opens a
 // package in a window, as its Apps row does; `slow <factor>` stretches the
@@ -16,6 +17,7 @@ import { current, focus, focused, setSlowMotion, WORKSPACES, windowsOn } from ".
 
 export function openWindow(name: string): boolean {
   if (name === "terminal") openTerminal();
+  else if (name === "agent") openTerminal(["omarchy-agent", "--inline", "--pick"], "Agent");
   else if (appletById(name)) openApplet(name);
   else return false;
   return true;

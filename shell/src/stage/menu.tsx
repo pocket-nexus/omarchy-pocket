@@ -41,6 +41,7 @@ const INFO = "\u{f02fc}";
 const APP = "\u{f018d}";
 const APPLET = "\u{f0b8a}";
 const TERMINAL = "\u{f018d}";
+const AGENT = "\u{f06a9}";
 
 const levelFor = (title: string, items: MenuItem[]): MenuLevel => ({ title, items, selected: items[0]?.id ?? "", scroll: 0, filter: "" });
 
@@ -171,9 +172,10 @@ function openProvider(item: MenuItem) {
   };
   const failed = (error: unknown) => toast({ icon: ERROR, title: item.label, body: String(error), tone: "error" });
   if (item.provider === "apps") {
-    // the shell's own windows first, then packages and terminal programs
+    // the shell's own windows first (Terminal, Agent, the applets), then packages and terminal programs
     const windows: MenuItem[] = [
       { ...row("apps.terminal", TERMINAL, "Terminal", ""), open: "terminal" },
+      { ...row("apps.agent", AGENT, "Agent", ""), open: "agent" },
       ...applets().map((a) => ({ ...row(`apps.${a.id}`, a.icon, a.title, ""), open: a.id })),
     ];
     request<App[]>({ method: "apps" }).then(
