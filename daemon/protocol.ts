@@ -76,6 +76,9 @@ export type Request =
   /** mihomo's unit, mode and groups (daemon/proxy.ts) */
   | { id: number; method: "proxy" }
   | { id: number; method: "proxySet"; running?: boolean; mode?: string; group?: string; node?: string; test?: string }
+  /** tailscaled's unit, the node and its peers (daemon/tailscale.ts) */
+  | { id: number; method: "tailscale" }
+  | { id: number; method: "tailscaleSet"; running?: boolean; up?: boolean; logout?: boolean }
   | { id: number; method: "powerSet"; profile?: string; brightness?: number }
   | { id: number; method: "bluetooth"; scan?: boolean }
   | { id: number; method: "bluetoothPower"; on: boolean }
@@ -269,6 +272,19 @@ export interface ProxyPanel {
   groups: { name: string; now: string; all: string[]; delay: number | null }[];
 }
 
+/** tailscaled (daemon/tailscale.ts): its unit, the node's state and the tailnet's peers. */
+export interface TailscalePanel {
+  installed: boolean;
+  running: boolean;
+  /** tailscaled's BackendState: NoState, NeedsLogin, NeedsMachineAuth, Stopped, Starting, Running */
+  state: string;
+  /** the login link while a login waits (state NeedsLogin) */
+  authUrl: string;
+  self: { name: string; ip: string; dns: string } | null;
+  tailnet: string;
+  peers: { name: string; ip: string; online: boolean; os: string }[];
+}
+
 export interface PowerPanel {
   profiles: string[];
   profile: string;
@@ -309,6 +325,8 @@ export interface SystemState {
   powerProfile: string | null;
   /** mihomo, when it is installed */
   proxy: { running: boolean } | null;
+  /** tailscaled, when it is installed: its BackendState and the node's address */
+  tailscale: { state: string; ip: string } | null;
   /** Omarchy's current theme: its name and colors.toml */
   theme: { name: string; colors: Record<string, string> } | null;
   bar: BarSettings;

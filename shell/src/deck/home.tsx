@@ -34,7 +34,7 @@ const RIGHT_X = 512 - MAP_X + (MAP_X - SIDE_W) / 2;
 const CELL_H = 40;
 const CELL_GAP = 6;
 const LAYOUT_Y = MAP_Y + WORKSPACES * (CELL_H + CELL_GAP);
-const PANEL_LIST: PanelName[] = ["proxy", "bluetooth", "network", "audio", "power"];
+const PANEL_LIST: PanelName[] = ["tailscale", "proxy", "bluetooth", "network", "audio", "power"];
 const cellAt = (y: number) => {
   const i = Math.floor((y - MAP_Y) / (CELL_H + CELL_GAP));
   return y >= MAP_Y && y - MAP_Y - i * (CELL_H + CELL_GAP) < CELL_H ? i : -1;
@@ -45,12 +45,12 @@ const wsTabAt = (x: number, y: number) => {
   return i < WORKSPACES ? i : -1;
 };
 const onBadge = (x: number, y: number) => x >= LEFT_X && x < LEFT_X + SIDE_W && y >= LAYOUT_Y && y < LAYOUT_Y + CELL_H;
-const panels = () => PANEL_LIST.filter((p) => p !== "proxy" || state()?.proxy);
+const panels = () => PANEL_LIST.filter((p) => (p !== "proxy" || state()?.proxy) && (p !== "tailscale" || state()?.tailscale));
 /** the panel under body point (x, y) */
 const panelAt = (x: number, y: number): PanelName | undefined => (x >= RIGHT_X && x < RIGHT_X + SIDE_W ? panels()[cellAt(y)] : undefined);
 const panelGlyph = (p: PanelName) => {
   const s = state();
-  return p === "proxy" ? "\u{f0582}" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
+  return p === "tailscale" ? "\u{f0318}" : p === "proxy" ? "\u{f0582}" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
 };
 
 const toStage = (x: number, y: number) => ({ x: (x - MAP_X) / MAP_SCALE, y: (y - MAP_Y) / MAP_SCALE });
@@ -179,7 +179,7 @@ export function Home() {
             class="absolute rounded-md"
             style={{ insetL: RIGHT_X, insetT: MAP_Y + i() * (CELL_H + CELL_GAP), width: SIDE_W, height: CELL_H, bgColor: color(openPanel() === p || pressed(`home:${p}`) ? "selection" : "dark_background") }}
           >
-            <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: CELL_H / 2 - 9, width: SIDE_W, textColor: color(openPanel() === p ? "accent" : p === "proxy" && state()?.proxy?.running === false ? "muted" : "foreground") }}>
+            <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: CELL_H / 2 - 9, width: SIDE_W, textColor: color(openPanel() === p ? "accent" : (p === "proxy" && state()?.proxy?.running === false) || (p === "tailscale" && state()?.tailscale?.state !== "Running") ? "muted" : "foreground") }}>
               {panelGlyph(p)}
             </Text>
           </View>

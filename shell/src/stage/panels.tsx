@@ -18,7 +18,7 @@ import { createMemo, createSignal, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { request } from "../bridge.ts";
-import type { AudioDevice, AudioPanel, BluetoothPanel, NetworkPanel, PowerPanel, ProxyPanel } from "../../../daemon/protocol.ts";
+import type { AudioDevice, AudioPanel, BluetoothPanel, NetworkPanel, PowerPanel, ProxyPanel, TailscalePanel } from "../../../daemon/protocol.ts";
 import { C } from "../classes.ts";
 import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
@@ -34,10 +34,11 @@ import { color } from "../theme.ts";
 import { CARD_H, CARD_W } from "./geometry.ts";
 import { createList, List } from "../deck/list.tsx";
 import type { TouchFrame } from "../touch.ts";
+import { showQr } from "./qrsheet.tsx";
 
-export type PanelName = "proxy" | "bluetooth" | "network" | "audio" | "power";
-export const PANELS: PanelName[] = ["proxy", "bluetooth", "network", "audio", "power"];
-const TITLES: Record<PanelName, string> = { proxy: "Proxy", bluetooth: "Bluetooth", network: "Network", audio: "Audio", power: "Power" };
+export type PanelName = "tailscale" | "proxy" | "bluetooth" | "network" | "audio" | "power";
+export const PANELS: PanelName[] = ["tailscale", "proxy", "bluetooth", "network", "audio", "power"];
+const TITLES: Record<PanelName, string> = { tailscale: "Tailscale", proxy: "Proxy", bluetooth: "Bluetooth", network: "Network", audio: "Audio", power: "Power" };
 const PROXY_MODES = ["rule", "global", "direct"];
 /** a node's name as the card draws it: flags (regional indicators) have no glyph */
 const nodeName = (name: string) => name.replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "").trim();
@@ -61,6 +62,11 @@ const REFRESH_EVERY = 4;
 const ERROR = "\u{f015a}";
 const CHECK = "\u{f012c}";
 const LOCK = "\u{f033e}";
+const LAN = "\u{f0318}";
+const KEY = "\u{f0306}";
+const LOGOUT = "\u{f0343}";
+const ONLINE = "\u{f0765}";
+const OFFLINE = "\u{f0766}";
 const STEP = 5;
 
 const [panel, setPanel] = createSignal<PanelName | null>(null);
@@ -73,6 +79,7 @@ const [network, setNetwork] = createSignal<NetworkPanel | null>(null);
 const [audio, setAudio] = createSignal<AudioPanel | null>(null);
 const [power, setPower] = createSignal<PowerPanel | null>(null);
 const [proxy, setProxy] = createSignal<ProxyPanel | null>(null);
+const [tailscale, setTailscale] = createSignal<TailscalePanel | null>(null);
 const [bluetooth, setBluetooth] = createSignal<BluetoothPanel | null>(null);
 /** the SSID whose password the keyboard is taking */
 const [entry, setEntry] = createSignal<{ ssid: string; text: string } | null>(null);
@@ -92,6 +99,7 @@ function load(name: PanelName, rescan = false): Promise<unknown> {
   if (name === "network") return request<NetworkPanel>({ method: "network", rescan }).then(setNetwork, fail("Network"));
   if (name === "audio") return request<AudioPanel>({ method: "audio" }).then(setAudio, fail("Audio"));
   if (name === "power") return request<PowerPanel>({ method: "power" }).then(setPower, fail("Power"));
+  if (name === "tailscale") return request<TailscalePanel>({ method: "tailscale" }).then(setTailscale, fail("Tailscale"));
   return request<ProxyPanel>({ method: "proxy" }).then(setProxy, fail("Proxy"));
 }
 
@@ -350,6 +358,48 @@ const rawRows = createMemo((): Row[] => {
           },
         });
       }
+      return list;
+    }
+    case "tailscale": {
+      const t = tailscale();
+      if (!t) return [{ icon: "", label: "Asking tailscaled...", info: true }];
+      if (!t.installed) return [{ icon: ERROR, label: "tailscale is not installed", info: true }];
+      const list: Row[] = [
+        {
+          icon: LAN,
+          label: "Tailscale",
+          value: t.running ? "On" : "Off",
+          checked: t.running,
+          activate: () => change(t.running ? "Stopping tailscaled" : "Starting tailscaled", request({ method: "tailscaleSet", running: !t.running }), "Tailscale"),
+        },
+      ];
+      if (!t.running) return list;
+      if (t.state === "NeedsLogin") {
+        // The first press asks tailscaled for a login link; once it is in, the row shows it as a QR code.
+        list.push({
+          icon: KEY,
+          label: "Log in",
+          value: t.authUrl ? "Show the code" : "",
+          activate: () => {
+            if (!t.authUrl) return change("Asking Tailscale for a login link", request({ method: "tailscaleSet", up: true }), "Tailscale");
+            closePanel();
+            showQr("Log in to Tailscale", t.authUrl);
+          },
+        });
+        return list;
+      }
+      const up = t.state === "Running";
+      list.push({
+        icon: up ? CHECK : "",
+        label: "Connected",
+        value: up ? t.self?.ip || "Up" : t.state === "Stopped" ? "Down" : t.state,
+        checked: up,
+        activate: () => change(up ? "Disconnecting" : "Connecting", request({ method: "tailscaleSet", up: !up }), "Tailscale"),
+      });
+      if (t.self?.dns) list.push({ icon: "", label: "Name", value: t.self.dns, info: true });
+      if (t.tailnet) list.push({ icon: "", label: "Tailnet", value: t.tailnet, info: true });
+      for (const peer of t.peers) list.push({ icon: peer.online ? ONLINE : OFFLINE, label: peer.name, value: peer.ip, info: true });
+      list.push({ icon: LOGOUT, label: "Log out", activate: () => change("Logging out", request({ method: "tailscaleSet", logout: true }), "Tailscale") });
       return list;
     }
     case "proxy": {

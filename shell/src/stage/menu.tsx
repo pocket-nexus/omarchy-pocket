@@ -54,6 +54,10 @@ const levelFor = (title: string, items: MenuItem[]): MenuLevel => ({ title, item
     const at = setup.children.findIndex((item) => item.id === "setup.network");
     setup.children.splice(at + 1, 0, row("setup.proxy", "\u{f0582}", "Proxy", "omarchy-shell shell summon omarchy.proxy"));
   }
+  if (setup && !setup.children.some((item) => item.id === "setup.tailscale")) {
+    const at = setup.children.findIndex((item) => item.id === "setup.proxy");
+    setup.children.splice(at + 1, 0, row("setup.tailscale", "\u{f0318}", "Tailscale", "omarchy-shell shell summon omarchy.tailscale"));
+  }
 }
 
 const [stack, setStack] = createSignal<MenuLevel[]>([levelFor(ROOT_TITLE, MENU)]);

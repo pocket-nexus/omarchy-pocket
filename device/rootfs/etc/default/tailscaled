@@ -1,0 +1,11 @@
+# Set the port to listen on for incoming VPN packets.
+# Remote nodes will automatically be informed about the new port number,
+# but you might want to configure this in order to set external firewall
+# settings.
+PORT="41641"
+
+# Omarchy Pocket: the RG DS Plus kernel (Rockchip 6.1.141) has no TUN device
+# and no nftables, so tailscaled runs its own network stack. The node is
+# reachable from the tailnet; it reaches other nodes through the SOCKS5 and
+# HTTP proxy on 127.0.0.1:1055.
+FLAGS="--tun=userspace-networking --socks5-server=localhost:1055 --outbound-http-proxy-listen=localhost:1055"

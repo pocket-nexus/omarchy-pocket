@@ -25,6 +25,7 @@ import { Terminals, type OpenOptions } from "./term.ts";
 import { wallpaper } from "./wallpaper.ts";
 import * as panels from "./panels.ts";
 import * as proxy from "./proxy.ts";
+import * as tailscale from "./tailscale.ts";
 import { checkPassword, watchSleep } from "./session.ts";
 import { Glyphs } from "./glyphs.ts";
 import { commonHanzi, Ime } from "./ime.ts";
@@ -160,7 +161,7 @@ async function proxyState(): Promise<SystemState["proxy"]> {
 }
 
 async function systemState(): Promise<SystemState> {
-  const [net, sound, bt, proxied] = await Promise.all([network(), audio(), bluetooth(), proxyState()]);
+  const [net, sound, bt, proxied, tailnet] = await Promise.all([network(), audio(), bluetooth(), proxyState(), tailscale.state()]);
   return {
     battery: battery(),
     network: net,
@@ -168,6 +169,7 @@ async function systemState(): Promise<SystemState> {
     bluetooth: bt,
     powerProfile: panels.profile(),
     proxy: proxied,
+    tailscale: tailnet,
     theme: theme(),
     bar: bar.settings(),
     idle: bar.idle(),
@@ -214,13 +216,14 @@ function refresh(): Promise<SystemState> {
 /** Reads one part of the state again after a change to it, instead of
  *  every CLI the whole state runs (nmcli alone takes a good part of a
  *  second on the RK3568). */
-async function refreshPart(part: "network" | "audio" | "bluetooth" | "powerProfile" | "proxy") {
+async function refreshPart(part: "network" | "audio" | "bluetooth" | "powerProfile" | "proxy" | "tailscale") {
   const base = state ?? (await refresh());
   const next = { ...base };
   if (part === "network") next.network = await network();
   else if (part === "audio") next.audio = await audio();
   else if (part === "bluetooth") next.bluetooth = await bluetooth();
   else if (part === "powerProfile") next.powerProfile = panels.profile();
+  else if (part === "tailscale") next.tailscale = await tailscale.state();
   else next.proxy = await proxyState();
   publish(next);
 }
@@ -385,6 +388,14 @@ async function handle(socket: Socket<Peer>, request: Request) {
       case "proxySet":
         await proxy.proxySet(request);
         void refreshPart("proxy");
+        result = null;
+        break;
+      case "tailscale":
+        result = await tailscale.tailscale();
+        break;
+      case "tailscaleSet":
+        await tailscale.tailscaleSet(request);
+        void refreshPart("tailscale");
         result = null;
         break;
       case "powerSet":

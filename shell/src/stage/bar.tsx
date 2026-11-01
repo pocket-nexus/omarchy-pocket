@@ -17,6 +17,8 @@ import { formatClock } from "../clock-format.ts";
 import { heldLayer as layer } from "../held.ts";
 import { audioGlyph, batteryGlyph, bluetoothGlyph, networkGlyph } from "../indicators.ts";
 import { state } from "../system.ts";
+import type { SystemState } from "../../../daemon/protocol.ts";
+import type { PanelName } from "./panels.tsx";
 import { color } from "../theme.ts";
 import { current, layout, occupied, WORKSPACES } from "../workspaces.ts";
 
@@ -30,21 +32,24 @@ let marker: NodeMirror | undefined;
 // the current workspace's square glides to its number
 createRoot(() => createEffect(on(current, (ws) => glide(marker, "translateX", ws * 14, 160), { defer: true })));
 
+/** The indicators drawn, from the right edge: the four Omarchy ones, then
+ *  the proxy and Tailscale while each is installed, dimmed while stopped. */
+export function barIndicators(s: SystemState | null): { name: PanelName; glyph: string; off?: boolean }[] {
+  return [
+    { name: "power" as const, glyph: batteryGlyph(s?.battery ?? null) },
+    { name: "audio" as const, glyph: audioGlyph(s?.audio ?? null) },
+    { name: "network" as const, glyph: networkGlyph(s?.network) },
+    { name: "bluetooth" as const, glyph: bluetoothGlyph(s?.bluetooth ?? null) },
+    { name: "proxy" as const, glyph: s?.proxy ? "\u{f0582}" : "", off: s?.proxy?.running === false },
+    { name: "tailscale" as const, glyph: s?.tailscale ? "\u{f0318}" : "", off: s?.tailscale ? s.tailscale.state !== "Running" : false },
+  ].filter((i) => i.glyph);
+}
+
 export function Bar(props: { now: () => Date; focused: () => string | null }) {
   const settings = () => state()?.bar;
   const clock = () => formatClock(settings()?.clock ?? "dddd HH:mm", props.now());
   const top = () => (settings()?.position === "bottom" ? 384 - H : 0);
-  const indicators = () => {
-    const s = state();
-    return [
-      { name: "power", glyph: batteryGlyph(s?.battery ?? null) },
-      { name: "audio", glyph: audioGlyph(s?.audio ?? null) },
-      { name: "network", glyph: networkGlyph(s?.network) },
-      { name: "bluetooth", glyph: bluetoothGlyph(s?.bluetooth ?? null) },
-      // mihomo, the proxy: drawn while it is installed, dimmed while stopped
-      { name: "proxy", glyph: s?.proxy ? "\u{f0582}" : "", off: s?.proxy?.running === false },
-    ].filter((i) => i.glyph);
-  };
+  const indicators = () => barIndicators(state());
   const statusRight = () => 512 - 8 - SLOT * indicators().length - 8;
   return (
     <Show when={!settings()?.hidden}>

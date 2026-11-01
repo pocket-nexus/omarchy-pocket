@@ -53,6 +53,7 @@ import { remoteButtons } from "./remote-input.ts";
 import { Bar } from "./stage/bar.tsx";
 import { Card } from "./stage/card.tsx";
 import { KeySheet, Legend, tickLegend } from "./stage/keysheet.tsx";
+import { closeQr, qrOpen, QrSheet } from "./stage/qrsheet.tsx";
 import { lock, locked, LockStage } from "./stage/lock.tsx";
 import { Osd } from "./stage/osd.tsx";
 import { openPanel } from "./stage/panels.tsx";
@@ -149,6 +150,7 @@ export default function Shell() {
   /** A button pressed this frame. */
   const press = (key: number, held: number) => {
     if (screensaverActive()) return stopScreensaver();
+    if (qrOpen()) return closeQr();
     const layer = layerOf(held & MODIFIERS);
     if (layer !== "plain") {
       if (locked()) return;
@@ -242,6 +244,7 @@ export default function Shell() {
       <Bar now={now} focused={openPanel} />
       <Card />
       <KeySheet />
+      <QrSheet />
       <Legend />
       <Osd />
       <Toasts />

@@ -1,0 +1,18 @@
+# The Omarchy user drives tailscaled through the tailscale CLI from the
+# shell's Tailscale panel (daemon/tailscale.ts); the operator setting lets
+# that user, and no other, do so without root.
+[Unit]
+Description=Omarchy Pocket: the Omarchy user operates tailscale
+After=tailscaled.service
+Requires=tailscaled.service
+ConditionPathExists=/usr/bin/tailscale
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/tailscale set --operator=omarchy
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
