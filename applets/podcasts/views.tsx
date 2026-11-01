@@ -28,6 +28,7 @@ import { COMPACT, SCREEN_H, SCREEN_W, appletSurfaceId, appletTouch } from "../ui
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import type { Press, Target } from "../ui/touch.ts";
+import { SegmentFill } from "../ui/segments.tsx";
 import { SearchField } from "../ui/field.tsx";
 import { ART_LARGE, ART_ROW, clockText, dateText, lengthText, type Episode, type PodcastClient, type Show as PodcastShow } from "./api.ts";
 import type { PodcastModel, Tab } from "./model.ts";
@@ -102,12 +103,9 @@ function Segments(props: { env: PodcastEnv }) {
       <For each={TABS}>
         {(tab, index) => (
           <>
-            <View
-              class={model.tab() === tab.id || press.is(`tab.${tab.id}`)
-                ? "absolute top-[6] h-[24] bg-gradient-to-b from-[#7a35a6] via-[#9449c4] to-[#a95bdc]"
-                : "hidden"}
-              style={{ insetL: SEG_X + 1 + index() * SEG_W, width: SEG_W - 1 }}
-            />
+            <Show when={model.tab() === tab.id || press.is(`tab.${tab.id}`)}>
+              <SegmentFill x={SEG_X + 1 + index() * SEG_W} y={6} w={SEG_W - 1} h={24} first={index() === 0} last={index() === TABS.length - 1} class="absolute bg-gradient-to-b from-[#7a35a6] via-[#9449c4] to-[#a95bdc]" />
+            </Show>
             <Show when={index() > 0}>
               <View class="absolute top-[6] w-[1] h-[24] bg-[#000000]" style={{ insetL: SEG_X + index() * SEG_W }} />
             </Show>
@@ -439,14 +437,26 @@ export function listPage(env: PodcastEnv, stack: NavStack, layer: LayerContext):
 
 /** The show's header over its episodes: artwork at the left, the title,
  *  the author and the Subscribe button beside it. */
-const HEAD_ART = COMPACT ? 80 : 112;
-const HEAD_H = HEAD_ART + 20;
-const HEAD_TEXT_X = 10 + HEAD_ART + 12;
 const SUBSCRIBE_W = 104;
 const SUBSCRIBE_H = 24;
+/** The show's head: the artwork, two title lines, the author, the count and
+ *  the Subscribe button under them; sized to the surface by fitSurface(). */
+let HEAD_ART = 112;
+let HEAD_TEXT_X = 134;
+let SUBSCRIBE_Y = 94;
+let HEAD_H = 132;
+
+function fitHead(): void {
+  HEAD_ART = COMPACT ? 80 : 112;
+  HEAD_TEXT_X = 10 + HEAD_ART + 12;
+  // under the count line (at 70, 12 px type), and never above the artwork's foot
+  SUBSCRIBE_Y = Math.max(70 + 14 + 8, 10 + HEAD_ART - SUBSCRIBE_H);
+  HEAD_H = Math.max(10 + HEAD_ART, SUBSCRIBE_Y + SUBSCRIBE_H) + 10;
+}
 
 export function showPage(env: PodcastEnv, stack: NavStack, layer: LayerContext): PageSpec {
   fitSurface();
+  fitHead();
   const { model, client, playback, press } = env;
   const show = model.show();
   const feed = () => model.showState().feed;
@@ -483,7 +493,7 @@ export function showPage(env: PodcastEnv, stack: NavStack, layer: LayerContext):
     if (show) model.toggleSubscription(show);
   };
   const height = () => HEAD_H + (listed() ? rows().length * EPISODE_ROW_H : VIEW_H - HEAD_H);
-  const subscribeY = 10 + HEAD_ART - SUBSCRIBE_H;
+  const subscribeY = SUBSCRIBE_Y;
 
   const content: PageContent = {
     view: () => (
@@ -577,17 +587,17 @@ const SKIP_S = 30;
 const TRACK_H = 4;
 /** The control row: skip back, play, skip forward in the middle; the
  *  volume at the right end. */
-const BUTTON_W = 48;
-const BUTTON_H = 28;
-const BUTTON_GAP = 12;
-const VOLUME_W = 28;
+const BUTTON_W = 68;
+const BUTTON_H = 34;
+const BUTTON_GAP = 14;
+const VOLUME_W = 34;
 
 /** The artwork, the texts, the track and the controls by size class:
  *  side by side on the 3DS's 320x240, stacked and centred elsewhere, the
  *  artwork up to its 256 px texture. */
 function playerGeometry() {
   if (COMPACT) {
-    return { artSize: 96, artX: 12, artY: NAV_H + 12, titleX: 120, titleW: SCREEN_W - 132, titleY: NAV_H + 14, showY: NAV_H + 56, trackX: 16, trackW: SCREEN_W - 32, trackY: NAV_H + 128, controlsY: NAV_H + 160, centered: false };
+    return { artSize: 96, artX: 12, artY: NAV_H + 12, titleX: 120, titleW: SCREEN_W - 132, titleY: NAV_H + 14, showY: NAV_H + 56, trackX: 16, trackW: SCREEN_W - 32, trackY: NAV_H + 122, controlsY: NAV_H + 154, centered: false };
   }
   const artSize = Math.max(96, Math.min(ART_LARGE, SCREEN_W - 48, SCREEN_H - NAV_H - 196));
   const artY = NAV_H + 14;
@@ -743,10 +753,10 @@ export function playerPage(env: PodcastEnv, stack: NavStack): PageSpec {
           {(button) => (
             <>
               <View
-                class={press.is(button.id) ? "absolute rounded-[14] bg-[#ffffff40]" : "absolute rounded-[14] bg-[#ffffff1a]"}
+                class={press.is(button.id) ? "absolute rounded-[17] bg-[#ffffff40]" : "absolute rounded-[17] bg-[#ffffff1a]"}
                 style={{ insetL: button.x, insetT: g.controlsY, width: BUTTON_W, height: BUTTON_H }}
               />
-              <Text class="absolute text-sm text-white font-bold text-center" style={{ insetL: button.x, insetT: g.controlsY + 6, width: BUTTON_W }}>{label(button)}</Text>
+              <Text class="absolute text-sm text-white font-bold text-center" style={{ insetL: button.x, insetT: g.controlsY + 9, width: BUTTON_W }}>{label(button)}</Text>
             </>
           )}
         </For>
@@ -754,10 +764,10 @@ export function playerPage(env: PodcastEnv, stack: NavStack): PageSpec {
           {(button) => (
             <>
               <View
-                class={press.is(button.id) ? "absolute rounded-[6] bg-[#ffffff40]" : "absolute rounded-[6] bg-[#ffffff1a]"}
+                class={press.is(button.id) ? "absolute rounded-[8] bg-[#ffffff40]" : "absolute rounded-[8] bg-[#ffffff1a]"}
                 style={{ insetL: button.x, insetT: g.controlsY + 2, width: VOLUME_W - 4, height: BUTTON_H - 4 }}
               />
-              <Text class="absolute text-sm text-white font-bold text-center" style={{ insetL: button.x, insetT: g.controlsY + 6, width: VOLUME_W - 4 }}>{button.label}</Text>
+              <Text class="absolute text-sm text-white font-bold text-center" style={{ insetL: button.x, insetT: g.controlsY + 9, width: VOLUME_W - 4 }}>{button.label}</Text>
             </>
           )}
         </For>

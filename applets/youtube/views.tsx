@@ -28,6 +28,7 @@ import { COMPACT, SCREEN_H, SCREEN_W, appletSurfaceId, appletTouch } from "../ui
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import type { Press, Target } from "../ui/touch.ts";
+import { SegmentFill } from "../ui/segments.tsx";
 import { SearchField } from "../ui/field.tsx";
 import { durationText, TOPICS, viewsText, type Codec, type PlayInfo, type Video, type YtClient } from "./api.ts";
 import type { YtModel } from "./model.ts";
@@ -94,12 +95,9 @@ function Segments(props: { env: YtEnv }) {
       <For each={SECTIONS}>
         {(section, index) => (
           <>
-            <View
-              class={model.section() === section.id || press.is(`section.${section.id}`)
-                ? "absolute top-[6] h-[24] bg-gradient-to-b from-[#b31217] via-[#d41a1f] to-[#e52d27]"
-                : "hidden"}
-              style={{ insetL: SEG_X + 1 + index() * SEG_W, width: SEG_W - 1 }}
-            />
+            <Show when={model.section() === section.id || press.is(`section.${section.id}`)}>
+              <SegmentFill x={SEG_X + 1 + index() * SEG_W} y={6} w={SEG_W - 1} h={24} first={index() === 0} last={index() === SECTIONS.length - 1} class="absolute bg-gradient-to-b from-[#b31217] via-[#d41a1f] to-[#e52d27]" />
+            </Show>
             <Show when={index() > 0}>
               <View class="absolute top-[6] w-[1] h-[24] bg-[#000000]" style={{ insetL: SEG_X + index() * SEG_W }} />
             </Show>

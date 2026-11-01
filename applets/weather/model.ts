@@ -124,7 +124,8 @@ export function createWeatherModel(client: WeatherClient, options: { editQuery: 
 
   const persist = () => {
     if (store() !== "ready") return;
-    const saved: Saved = { places: [...places()], units: units() };
+    const open = current();
+    const saved: Saved = { places: [...places()], units: units(), ...(open ? { current: open.id } : {}) };
     saving = saving
       .then(() => client.save(saved))
       .then(
@@ -149,6 +150,8 @@ export function createWeatherModel(client: WeatherClient, options: { editQuery: 
           const mine = places().filter((place) => !saved.places.some((kept) => kept.id === place.id));
           setPlaces([...saved.places, ...mine]);
           setUnits(saved.units);
+          // The place open last, else the first, is the one the app opens on.
+          if (!current()) setCurrent(places().find((place) => place.id === saved.current) ?? places()[0] ?? null);
           setStore("ready");
           if (mine.length) persist();
         } else {
@@ -187,6 +190,7 @@ export function createWeatherModel(client: WeatherClient, options: { editQuery: 
       setPlaces(places().filter((kept) => kept.id !== id));
       generations.delete(id);
       drop(id);
+      if (current()?.id === id) setCurrent(places()[0] ?? null);
       if (places().length === 0) setEditing(false);
       persist();
     },
@@ -224,7 +228,10 @@ export function createWeatherModel(client: WeatherClient, options: { editQuery: 
     },
     current,
     open(place) {
-      setCurrent(place);
+      if (current()?.id !== place.id) {
+        setCurrent(place);
+        persist();
+      }
       load(place);
     },
   };

@@ -7,7 +7,7 @@
 // opens the search. Open-Meteo answers the geocodes and forecasts through
 // omarchy-pocketd; the places and the units live in its store service.
 
-import { createSignal } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { AppletSurface } from "@pocketjs/framework/applet";
 import { View } from "@pocketjs/framework/components";
 import { onButtonPress } from "@pocketjs/framework/lifecycle";
@@ -60,6 +60,14 @@ export default function Weather() {
     },
   });
   if (stack.entries().length === 0) stack.reset("places");
+  // The first mount opens on the forecast of the place open last, once the
+  // store has answered; a later mount (a resize) keeps the pages it had.
+  const opened = keep("opened", () => ({ done: false }));
+  createEffect(() => {
+    if (opened.done || model.store() !== "ready") return;
+    opened.done = true;
+    if (model.current() && stack.entries().length === 1) stack.push("forecast");
+  });
 
   createTouchRouter({
     surface: appletSurfaceId(),

@@ -116,9 +116,39 @@ function Frame(props: { win: Win }) {
           ) : null}
         </View>
       </View>
+      <For each={CORNERS}>
+        {(corner) => (
+          <View
+            class="absolute"
+            style={{
+              insetL: corner.left ? 0 : rect().w - 2 * RADIUS,
+              insetT: corner.top ? 0 : rect().h - 2 * RADIUS,
+              width: 2 * RADIUS,
+              height: 2 * RADIUS,
+              arcStart: corner.start,
+              arcSweep: 90,
+              arcWidth: BORDER,
+              bgColor: color(isFocused() ? "accent" : "muted"),
+            }}
+          />
+        )}
+      </For>
     </View>
   );
 }
+
+/** The frame's corner radius (rounded-md). */
+const RADIUS = 6;
+/** The content is a rectangle (a texture, a glyph grid) and the core clips
+ *  by rectangles, so its corners covered the frame's corner arcs. Four arc
+ *  strokes of the frame's colour drawn over the content keep the arcs whole:
+ *  each a quarter ring, 12 o'clock clockwise, in a 2r box at its corner. */
+const CORNERS = [
+  { left: true, top: true, start: 270 },
+  { left: false, top: true, start: 0 },
+  { left: false, top: false, start: 90 },
+  { left: true, top: false, start: 180 },
+] as const;
 
 export function Windows() {
   return (

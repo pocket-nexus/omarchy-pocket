@@ -17,16 +17,17 @@
 // The controls at the right edge zoom about the centre and recentre on the
 // device's position; the field at the top opens the keyboard.
 
-import { createEffect, createMemo, For, onMount, Show, type Accessor, type JSX } from "solid-js";
+import { createEffect, createMemo, For, onCleanup, onMount, Show, type Accessor, type JSX } from "solid-js";
 import { jump } from "@pocketjs/framework/animation";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
 import { Image, Text, View } from "@pocketjs/framework/components";
+import { createGesture } from "@pocketjs/framework/gesture";
 import { getOps } from "@pocketjs/framework/host";
 import { BTN } from "@pocketjs/framework/input";
 import type { NodeMirror } from "@pocketjs/framework/renderer";
 import { NAV_H } from "../ui/bar.tsx";
 import { viewHeight, type LayerContext, type NavStack, type PageContent, type PageSpec } from "../ui/nav.tsx";
-import { COMPACT, SCREEN_H, SCREEN_W, appletTouch } from "../ui/screen.ts";
+import { COMPACT, SCREEN_H, SCREEN_W, appletSurfaceId, appletTouch } from "../ui/screen.ts";
 import { ellipsize, FONT, measure, toAscii, wrap } from "../ui/text.ts";
 import type { Press, Target, TargetDrag } from "../ui/touch.ts";
 import { TILE, tileKey, type MapsClient, type Place } from "./api.ts";
@@ -43,6 +44,8 @@ export interface MapsEnv {
 
 /** Px the d-pad moves the centre a press. */
 const KEY_STEP = 96;
+/** The span ratio between zoom levels under a pinch. */
+const PINCH_STEP = 1.35;
 const FIELD_H = 26;
 /** The scale bar's longest length. */
 const SCALE_MAX_PX = 90;
@@ -240,6 +243,31 @@ export function mapPage(env: MapsEnv, _stack: NavStack): PageSpec {
     model.panBy(dx, dy);
     model.settle();
   };
+  // Two contacts spreading or squeezing (the deck's pinch, a touch screen's
+  // two fingers): a level in or out each time the span grows or shrinks by
+  // PINCH_STEP from where the last step was taken.
+  let pinchSpan = 0;
+  const pinch = createGesture({
+    surface: appletSurfaceId(),
+    pinchSlop: 6,
+    onPinchStart: (p) => {
+      pinchSpan = p.span;
+    },
+    onPinchMove: (p) => {
+      if (pinchSpan <= 0) pinchSpan = p.span;
+      if (p.span >= pinchSpan * PINCH_STEP) {
+        model.zoomBy(1);
+        pinchSpan = p.span;
+      } else if (p.span <= pinchSpan / PINCH_STEP) {
+        model.zoomBy(-1);
+        pinchSpan = p.span;
+      }
+    },
+    onPinchEnd: () => {
+      pinchSpan = 0;
+    },
+  });
+  onCleanup(() => pinch.dispose());
 
   const FIELD_X = 8;
   const FIELD_Y = MAP_Y + 8;

@@ -45,6 +45,8 @@ export type Units = "c" | "f";
 export interface Saved {
   places: Place[];
   units: Units;
+  /** The place open last (its id), so the app opens on its forecast. */
+  current?: number;
 }
 
 export interface Current {
@@ -170,7 +172,8 @@ export function parseSaved(value: unknown): Saved | null {
       if (place && !places.some((p) => p.id === place.id)) places.push(place);
     }
   }
-  return { places, units: v.units === "f" ? "f" : "c" };
+  const current = typeof (v as { current?: unknown }).current === "number" && places.some((p) => p.id === (v as { current: number }).current) ? (v as { current: number }).current : undefined;
+  return { places, units: v.units === "f" ? "f" : "c", ...(current !== undefined ? { current } : {}) };
 }
 
 /** Open-Meteo's forecast answer as a Forecast; the current conditions are

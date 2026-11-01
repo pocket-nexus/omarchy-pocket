@@ -21,6 +21,7 @@ import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
 import { tableContent, type Cell, type Section } from "../ui/table.tsx";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import type { Press, Target } from "../ui/touch.ts";
+import { SegmentFill } from "../ui/segments.tsx";
 import { TABS, type Entity, type TabId } from "./api.ts";
 import { POLL_FRAMES, type HaModel } from "./model.ts";
 
@@ -236,12 +237,9 @@ function Segments(props: { env: HaEnv }) {
       <For each={TABS}>
         {(tab, index) => (
           <>
-            <View
-              class={model.tab() === tab.id || press.is(`tab.${tab.id}`)
-                ? "absolute top-[6] h-[24] bg-gradient-to-b from-[#1e3a8a] via-[#1d4ed8] to-[#2563eb]"
-                : "hidden"}
-              style={{ insetL: SEG_X + 1 + index() * SEG_W, width: SEG_W - 1 }}
-            />
+            <Show when={model.tab() === tab.id || press.is(`tab.${tab.id}`)}>
+              <SegmentFill x={SEG_X + 1 + index() * SEG_W} y={6} w={SEG_W - 1} h={24} first={index() === 0} last={index() === TABS.length - 1} class="absolute bg-gradient-to-b from-[#1e3a8a] via-[#1d4ed8] to-[#2563eb]" />
+            </Show>
             <Show when={index() > 0}>
               <View class="absolute top-[6] w-[1] h-[24] bg-[#1d4ed8]" style={{ insetL: SEG_X + index() * SEG_W }} />
             </Show>

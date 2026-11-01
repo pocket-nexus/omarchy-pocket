@@ -15,7 +15,7 @@ import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/componen
 import { getOps } from "@pocketjs/framework/host";
 import { C } from "../classes.ts";
 import { appTextures } from "../packages.ts";
-import { click, hold, movePointer, scrollBy } from "../stage/pointer.tsx";
+import { click, hold, movePointer, pinchTo, scrollBy } from "../stage/pointer.tsx";
 import { color } from "../theme.ts";
 import { settled, type TouchFrame } from "../touch.ts";
 import { focused, type Win } from "../workspaces.ts";
@@ -53,6 +53,9 @@ let primary: number | null = null;
 let dragged = false;
 let scrolled = false;
 const waiting = { dx: 0, dy: 0 };
+/** The fingers' distance when the second one counted: a spread or a squeeze
+ *  from it is a pinch on the applet (stage/pointer.tsx pinchTo). */
+let span = 0;
 
 function move(dx: number, dy: number) {
   const speed = Math.hypot(dx, dy);
@@ -95,11 +98,15 @@ export function touchpadTouch(frame: TouchFrame): number[] {
   }
   if (next) dragged = true;
   if (next === "scroll") scrolled = true;
+  if (next !== "scroll") span = 0;
   if (first) {
     if (next === "scroll") {
       // both fingers' mean, with what the first one travelled while the second was settling
       scrollBy((first.dx + second!.dx) / 2 + waiting.dx, (first.dy + second!.dy) / 2 + waiting.dy);
       waiting.dx = waiting.dy = 0;
+      const apart = Math.hypot(second!.x - first.x, second!.y - first.y);
+      if (span === 0) span = apart;
+      pinchTo(apart / span);
     } else if (others.length && !keyDown) {
       waiting.dx += first.dx;
       waiting.dy += first.dy;
@@ -155,7 +162,7 @@ function Pad() {
           {"move the pointer · tap to click"}
         </Text>
         <Text class="absolute left-0 text-center font-mono text-xs leading-[14]" style={{ insetT: PAD.h / 2 + 20, width: PAD.w, textColor: color("dark_foreground") }}>
-          {"two fingers scroll"}
+          {"two fingers scroll or pinch"}
         </Text>
       </View>
       <View class="absolute rounded-md" style={{ insetL: KEY.x, insetT: KEY.y, width: KEY.w, height: KEY.h, bgColor: color(mode() === "drag" ? "accent" : "dark_background") }}>

@@ -19,6 +19,7 @@ import { COMPACT, SCREEN_W } from "../ui/screen.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import type { Press, Target } from "../ui/touch.ts";
+import { SegmentFill } from "../ui/segments.tsx";
 import { FEEDS, type Item } from "./api.ts";
 import { ageText, domainOf, htmlToText } from "./html.ts";
 import { flattenThread, MAX_COMMENTS, type HnModel } from "./model.ts";
@@ -92,12 +93,9 @@ export function Segments(props: { env: HnEnv }) {
       <For each={FEEDS}>
         {(feed, index) => (
           <>
-            <View
-              class={model.feed() === feed.id || press.is(`feed.${feed.id}`)
-                ? "absolute top-[6] h-[24] bg-gradient-to-b from-[#b84d00] via-[#cf5f0a] to-[#e07018]"
-                : "hidden"}
-              style={{ insetL: SEG_X + 1 + index() * SEG_W, width: SEG_W - 1 }}
-            />
+            <Show when={model.feed() === feed.id || press.is(`feed.${feed.id}`)}>
+              <SegmentFill x={SEG_X + 1 + index() * SEG_W} y={6} w={SEG_W - 1} h={24} first={index() === 0} last={index() === FEEDS.length - 1} class="absolute bg-gradient-to-b from-[#b84d00] via-[#cf5f0a] to-[#e07018]" />
+            </Show>
             <Show when={index() > 0}>
               <View class="absolute top-[6] w-[1] h-[24] bg-[#9a3d00]" style={{ insetL: SEG_X + index() * SEG_W }} />
             </Show>

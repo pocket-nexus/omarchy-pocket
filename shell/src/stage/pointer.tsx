@@ -21,7 +21,8 @@ import { BORDER } from "../wm.ts";
 import { focus, focusWindow, placements, windowAt, windowById, WORKSPACES } from "../workspaces.ts";
 import { card, cardTouch, closeCard, onCard } from "./card.tsx";
 import { CARD_X, CARD_Y } from "./geometry.ts";
-import { showPanel, type PanelName } from "./panels.tsx";
+import { barIndicators } from "./bar.tsx";
+import { showPanel } from "./panels.tsx";
 import { HEADER_H } from "./windows.tsx";
 
 const BAR_H = 18;
@@ -71,13 +72,13 @@ function appletPoint(px: number, py: number): { app: number; x: number; y: numbe
 }
 
 /** the bar's indicators from the right edge, as stage/bar.tsx lays them out */
-const INDICATORS: PanelName[] = ["power", "audio", "network", "bluetooth", "proxy"];
 const SLOT = 20;
 
 function barClick(px: number) {
   for (let n = 0; n < WORKSPACES; n++) if (px >= 22 + n * 14 && px < 36 + n * 14) return focus(n);
+  const indicators = barIndicators(state());
   const at = Math.floor((512 - 8 - px) / SLOT);
-  if (px < 512 - 8 && at >= 0 && at < INDICATORS.length) showPanel(INDICATORS[at]!);
+  if (px < 512 - 8 && at >= 0 && at < indicators.length) showPanel(indicators[at]!.name);
 }
 
 /** A touch the pointer holds on an applet at stage point `at`: down while
@@ -106,6 +107,21 @@ export function scrollBy(dx: number, dy: number) {
   }
 }
 
+/** A pinch's state: the fingers' distance as a ratio of what it was when
+ *  the pair formed. Past PINCH_SLOP either way a second contact appears on
+ *  the applet, SPREAD * ratio points right of the held one, and follows the
+ *  ratio until the fingers lift; the applet's pinch recognizer reads the
+ *  span (maps). The held contact stays put, so a pure pinch pans nothing. */
+const PINCH_SLOP = 1.15;
+const SPREAD = 80;
+let spread = 0;
+
+export function pinchTo(ratio: number) {
+  if (!touch?.held || touch.follow) return;
+  if (spread === 0 && ratio < PINCH_SLOP && ratio > 1 / PINCH_SLOP) return;
+  spread = Math.max(12, Math.min(360, SPREAD * ratio));
+}
+
 /** A click at the pointer. */
 export function click() {
   if (card()) {
@@ -125,6 +141,7 @@ export function click() {
 /** A drag (`follow`: the touch moves with the pointer) or a scroll (the
  *  fingers move it) starts at the pointer (true), or ends. */
 export function hold(down: boolean, follow = true) {
+  spread = 0;
   if (!down) {
     if (touch?.held) touch = null;
     return;
@@ -147,6 +164,7 @@ export function pointerContacts(app: number): number[] {
   if (!s) return [];
   const sx = Math.max(0, Math.min(s.w - 1, (touch.at.x - s.ox) / s.k));
   const sy = Math.max(0, Math.min(s.h - 1, (touch.at.y - s.oy) / s.k));
+  if (spread > 0 && touch.held) return [1, sx, sy, 2, Math.max(0, Math.min(s.w - 1, sx + spread / s.k)), sy];
   return [1, sx, sy];
 }
 
