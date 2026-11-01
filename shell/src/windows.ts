@@ -10,6 +10,7 @@ import "./applets/activity.tsx";
 import "./applets/clock.tsx";
 import "./applets/notes.tsx";
 import "./applets/pictures.tsx";
+import { request } from "./bridge.ts";
 import { openPackage } from "./packages.ts";
 import { serve } from "./system.ts";
 import { openTerminal } from "./term/store.ts";
@@ -19,8 +20,22 @@ export function openWindow(name: string): boolean {
   if (name === "terminal") openTerminal();
   else if (name === "agent") openTerminal(["omarchy-agent", "--inline", "--pick"], "Agent");
   else if (appletById(name)) openApplet(name);
+  else if (name) openPackageNamed(name);
   else return false;
   return true;
+}
+
+/** A package from the daemon's list by its file, its file's stem or its name
+ *  (`pocket.window open youtube`); the menu's Apps rows open the same way. */
+function openPackageNamed(name: string) {
+  const wanted = name.toLowerCase();
+  void request<{ id: string; name: string; applet?: string; aux?: boolean; appletSurface?: boolean }[]>({ method: "apps" }).then((apps) => {
+    const app = apps.find((a) => {
+      const id = a.id.toLowerCase();
+      return id === wanted || id === `${wanted}.pocket` || a.name.toLowerCase() === wanted;
+    });
+    if (app?.applet) openPackage(app.applet, app.name, app.aux === true, app.appletSurface === true);
+  });
 }
 
 serve("pocket.window", {

@@ -48,7 +48,7 @@ import { closeMenu } from "./stage/menu.tsx";
 import { cycleLayout, layout } from "./focus.ts";
 import { setHeldLayer } from "./held.ts";
 import { buttonKey, fieldSink } from "./keys.ts";
-import { appletRefused, feedPackage, showPackage } from "./packages.ts";
+import { appletRefused, feedPackage, showPackage, mediaPlaying } from "./packages.ts";
 import { remoteButtons } from "./remote-input.ts";
 import { Bar } from "./stage/bar.tsx";
 import { Card } from "./stage/card.tsx";
@@ -128,6 +128,8 @@ export default function Shell() {
     after(1, idleTick);
     const settings = state()?.idle;
     if (!settings) return;
+    // a package playing media counts as input: no screensaver or lock over a film
+    if (mediaPlaying()) lastInput = Date.now();
     const idle = (Date.now() - lastInput) / 1000;
     if (saverDue && settings.screensaver > 0 && idle >= settings.screensaver) {
       saverDue = false;

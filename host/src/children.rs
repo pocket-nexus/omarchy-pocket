@@ -15,14 +15,15 @@
 //! and `{"event":"appExit","id":1,"error":"..."}` when a running app fails.
 //!
 //! An app's realm has `globalThis.net` (net.rs): HTTP and the companion's
-//! services, which omarchy-pocketd performs.
+//! services, which omarchy-pocketd performs, and `globalThis.media`
+//! (media.rs): the playback plane fed by a companion media stream.
 //!
 //! The shell sizes an app's touch surface to the tile its window has
 //! (`openApp(path, w, h)`, `resizeApp`): the host gives the surface's texture
 //! the new size, the Runtime takes it (`resize_auxiliary`), and the app's
 //! realm hears `__omarchyResized(w, h)` before its next frame, where an
 //! applet lays itself out again for the new size.
-use crate::net;
+use crate::{media, net};
 use pocket_drivers::{Contact, InputClasses, InputFrameBuilder, InputSource};
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_linux_hooks::FileSource;
@@ -73,6 +74,9 @@ struct App {
     #[cfg(target_os = "linux")]
     surface: crate::gpu::AppSize,
     resized: Rc<Cell<Option<[u32; 2]>>>,
+    media: Rc<RefCell<Option<media::Handle>>>,
+    /// its media player streams: the shell keeps the device awake
+    playing: bool,
 }
 
 enum Request {
@@ -85,6 +89,8 @@ enum Request {
 struct AppGuest {
     inner: RquickjsGuest,
     net: net::Shared,
+    /// the app's media player, made when the realm initializes
+    media: Rc<RefCell<Option<media::Handle>>>,
     app: u32,
     /// a new touch-surface size the realm has not heard of yet
     resized: Rc<Cell<Option<[u32; 2]>>>,
@@ -92,9 +98,15 @@ struct AppGuest {
 
 impl Guest for AppGuest {
     fn initialize(&mut self, ops: OpContext, environment: &GuestEnvironment<'_>) -> Result<(), RuntimeError> {
+        let player = media::Player::new(ops.clone());
+        *self.media.borrow_mut() = Some(player.clone());
         self.inner.initialize(ops, environment)?;
         // `__omarchyWindow`: the shell sizes this app's touch surface before it lays out
-        let installed = self.inner.with(|ctx| net::install(&ctx, &self.net, self.app).and_then(|()| ctx.globals().set("__omarchyWindow", true)));
+        let installed = self.inner.with(|ctx| {
+            net::install(&ctx, &self.net, self.app)
+                .and_then(|()| media::install(&ctx, &player))
+                .and_then(|()| ctx.globals().set("__omarchyWindow", true))
+        });
         match installed {
             Some(Ok(())) => Ok(()),
             Some(Err(error)) => {
@@ -217,11 +229,21 @@ impl Children {
         }
         let mut rendered = false;
         let mut failed = Vec::new();
+        let mut playing = Vec::new();
         for app in self.apps.iter_mut().filter(|a| a.visible) {
             match frame(app) {
                 Ok(drew) => rendered |= drew,
                 Err(failure) => failed.push((app.id, failure.to_string())),
             }
+            let now = app.media.borrow().as_ref().is_some_and(|player| player.borrow().playing());
+            if now != app.playing {
+                app.playing = now;
+                playing.push((app.id, now));
+            }
+        }
+        // `{"event":"app","id":N,"media":true}`: a stream plays in the app's window
+        for (id, now) in playing {
+            self.event(id, "media", now.to_string());
         }
         for (id, failure) in failed {
             eprintln!("omarchy-pocket-host: app {id} stopped: {failure}");
@@ -257,7 +279,8 @@ impl Children {
         runtime.add_input_source(Box::new(FedInput(feed.clone()))).map_err(error)?;
         self.net.borrow_mut().add_app(id, path.display().to_string());
         let resized = Rc::new(Cell::new(None));
-        let guest = AppGuest { inner: RquickjsGuest::default(), net: self.net.clone(), app: id, resized: resized.clone() };
+        let media = Rc::new(RefCell::new(None));
+        let guest = AppGuest { inner: RquickjsGuest::default(), net: self.net.clone(), media: media.clone(), app: id, resized: resized.clone() };
         runtime.set_guest(Box::new(guest)).map_err(error)?;
         if let Err(failure) = runtime.boot() {
             self.net.borrow_mut().remove_app(id);
@@ -277,7 +300,7 @@ impl Children {
         }
         let mut sizes = gpu.sizes;
         let surface = sizes.pop().ok_or("the app has no touch surface")?;
-        self.apps.push(App { id, runtime, feed, handles: handles.clone(), visible: true, primary: Vec::new(), auxiliary: Vec::new(), surface, resized });
+        self.apps.push(App { id, runtime, feed, handles: handles.clone(), visible: true, primary: Vec::new(), auxiliary: Vec::new(), surface, resized, media, playing: false });
         Ok(handles)
     }
 
@@ -315,15 +338,19 @@ impl Children {
             compositor.bind(*handle, None);
             let _ = ops.dispatch(op::FREE_TEXTURE as u16, &[OpArg::Integer(*handle as i64)]);
         }
+        if let Some(player) = app.media.borrow().as_ref() {
+            player.borrow_mut().shutdown();
+        }
         let _ = app.runtime.shutdown();
         self.net.borrow_mut().remove_app(id);
     }
 }
 
 /// One frame of an app: its guest and core advance, and its displays render
-/// when either draw list changed.
+/// when either draw list changed or the media plane took a frame.
 fn frame(app: &mut App) -> Result<bool, Box<dyn Error>> {
     let error = |e: pocket_runtime::RuntimeError| format!("{e:?}");
+    let media_frame = app.media.borrow().as_ref().is_some_and(|player| player.borrow_mut().tick());
     app.runtime.advance().map_err(error)?;
     let changed = {
         let ops = app.runtime.op_context();
@@ -341,11 +368,11 @@ fn frame(app: &mut App) -> Result<bool, Box<dyn Error>> {
         }
         changed
     };
-    if changed {
+    if changed || media_frame {
         app.runtime.present().map_err(error)?;
     } else {
         app.runtime.skip_presentation().map_err(error)?;
     }
-    Ok(changed)
+    Ok(changed || media_frame)
 }
 

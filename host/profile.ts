@@ -11,6 +11,6 @@ export default defineProfile({
     physicalViewport: [1024, 768], logicalViewports: [[512, 384]], rasterDensity: 2, presentations: ["native"],
     auxiliary: { physicalViewport: [1024, 768], logicalViewports: [[512, 384]], rasterDensity: 2, presentations: ["native"] },
   },
-  capabilities: ["input.buttons", "input.touch.auxiliary", "display.auxiliary", "text.glyphs.baked", "net.http"],
+  capabilities: ["input.buttons", "input.touch.auxiliary", "display.auxiliary", "text.glyphs.baked", "net.http", "media.playback"],
   roleCapabilities: {},
 });

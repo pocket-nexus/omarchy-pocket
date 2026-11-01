@@ -25,7 +25,7 @@ export interface Video {
   views: number;
 }
 
-export type Codec = "h264" | "pal8";
+export type Codec = "h264" | "pal8" | "rgb565";
 
 export interface PlayInfo {
   source: { host: string; port: number; token: string };

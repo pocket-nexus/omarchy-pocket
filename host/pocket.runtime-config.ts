@@ -5,7 +5,7 @@ import profile from "./profile.ts";
  * and touch on the lower panel, baked glyphs, and apps' HTTP through
  * omarchy-pocketd. */
 export const HOST_CAPABILITIES: readonly string[] = [
-  "input.buttons", "input.touch.auxiliary", "display.auxiliary", "text.glyphs.baked", "net.http",
+  "input.buttons", "input.touch.auxiliary", "display.auxiliary", "text.glyphs.baked", "net.http", "media.playback",
 ];
 
 const absent = profile.capabilities.filter((capability) => !HOST_CAPABILITIES.includes(capability));

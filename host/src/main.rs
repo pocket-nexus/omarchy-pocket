@@ -27,6 +27,7 @@ mod floor;
 #[cfg(target_os = "linux")]
 mod gpu;
 mod guest;
+mod media;
 mod net;
 mod shot;
 

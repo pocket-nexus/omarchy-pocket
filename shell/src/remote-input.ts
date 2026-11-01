@@ -5,12 +5,15 @@
 // finger across it (after holding it still for `hold` frames),
 // `omarchy-shell pocket.input drag2 <x> <y> <x2> <y2> [frames] [apart]` drags
 // two fingers `apart` points side by side (default 80), and
-// `omarchy-shell pocket.input type <text>` types on the touch keyboard. They drive the shell
+// `omarchy-shell pocket.input type <text>` types on the touch keyboard, and
+// `omarchy-shell pocket.input pointer <x> <y>` puts the stage pointer at a
+// point and `click` clicks there. They drive the shell
 // over SSH for testing; the names are BTN's (UP, CIRCLE, START, ...).
 import { BTN } from "@pocketjs/framework/input";
 import { serve } from "./system.ts";
 import { sendKey } from "./term/keyboard.tsx";
 import { chooseLayout, type Layout } from "./focus.ts";
+import { click, movePointer, pointer } from "./stage/pointer.tsx";
 import { watchFor, watchTick, watching } from "./watch.ts";
 export { watching };
 
@@ -28,6 +31,8 @@ serve("pocket.input", {
     return "ok";
   },
   tap: (x, y) => (taps.push({ x: Number(x), y: Number(y), frames: TAP_FRAMES + 1 }), "ok"),
+  pointer: (x, y) => (movePointer(Number(x) - pointer().x, Number(y) - pointer().y), "ok"),
+  click: () => (click(), "ok"),
   drag: (x, y, x2, y2, frames = "20", hold = "0") => {
     const total = Math.max(4, Number(frames) || 20);
     const still = Math.max(0, Number(hold) || 0);

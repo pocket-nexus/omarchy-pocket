@@ -23,6 +23,10 @@ const host = (globalThis as { omarchyBridge?: Partial<AppBridge> }).omarchyBridg
 /** each package window's textures, top display then touch surface, once booted */
 const [textures, setTextures] = createSignal<Record<number, number[]>>({});
 export const appTextures = (id: number) => textures()[id] ?? null;
+/** packages whose media player streams (`{"event":"app","media":true}`) */
+const [playing, setPlaying] = createSignal<Set<number>>(new Set());
+/** A package plays media: the idle timer holds, as for a film on a desktop. */
+export const mediaPlaying = () => playing().size > 0;
 
 /** An applet's touch surface in its window: its size in logical points and
  *  the scale the window draws it at. */
@@ -96,7 +100,14 @@ export function feedPackage(id: number, buttons: number, contacts: number[]) {
 onEvent((event) => {
   if (event.event === "app") {
     if (event.textures) setTextures((t) => ({ ...t, [event.id]: event.textures! }));
-    else {
+    else if (typeof event.media === "boolean") {
+      setPlaying((set) => {
+        const next = new Set(set);
+        if (event.media) next.add(event.id);
+        else next.delete(event.id);
+        return next;
+      });
+    } else {
       const w = find(isApp(event.id));
       toast({ icon: ERROR, title: w?.kind === "app" ? w.title : "Package", body: event.error ?? "did not start", tone: "error" });
       if (w) closeWindow(w.id);
@@ -106,5 +117,10 @@ onEvent((event) => {
     toast({ icon: ERROR, title: w?.kind === "app" ? `${w.title} stopped` : "Package stopped", body: event.error, tone: "error" });
     if (w) closeWindow(w.id);
     setTextures(({ [event.id]: _, ...rest }) => rest);
+    setPlaying((set) => {
+      const next = new Set(set);
+      next.delete(event.id);
+      return next;
+    });
   }
 });

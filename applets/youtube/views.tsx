@@ -369,6 +369,7 @@ interface MediaSnapshot {
   receivedBytes: number;
   audioUnderruns: number;
   h264?: boolean;
+  rgb565?: boolean;
   /** False when the console's sound could not start (no DSP firmware). */
   audio?: boolean;
   error: string;
@@ -392,7 +393,7 @@ export function playerPage(env: YtEnv, stack: NavStack): PageSpec {
   const video = model.current();
   const media = (globalThis as { media?: unknown }).media ? mediaPlayer() : null;
   const snapshot = () => (media ? (media.status() as unknown as MediaSnapshot) : null);
-  let codec: Codec = snapshot()?.h264 ? "h264" : "pal8";
+  let codec: Codec = snapshot()?.rgb565 ? "rgb565" : snapshot()?.h264 ? "h264" : "pal8";
   const [info, setInfo] = createSignal<PlayInfo | null>(null);
   const [phase, setPhase] = createSignal<PlayerPhase>("starting");
   const [position, setPosition] = createSignal(0);
