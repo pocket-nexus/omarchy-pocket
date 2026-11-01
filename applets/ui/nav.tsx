@@ -65,7 +65,7 @@ export interface PageSpec {
   /** Keys the page handles before the stack (true = consumed). */
   key?: (pressed: number) => boolean;
   /** Bar tint (default iOS 6 blue; black over the camera). */
-  tint?: "blue" | "black" | "orange";
+  tint?: "blue" | "black" | "orange" | "flat";
   /** Drawn in the bar instead of the title. */
   titleView?: () => JSX.Element;
   /** No page background (options.background): fixed content paints its own,

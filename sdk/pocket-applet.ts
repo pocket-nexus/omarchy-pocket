@@ -284,9 +284,16 @@ switch (argv[0]) {
     // the pad's two fingers scroll what the pointer is over
     input("pointer", String(Number(argv[1] ?? 0) / 2), String(Number(argv[2] ?? 0) / 2));
     input("layout", "pad");
-    await Bun.sleep(150);
-    const dy = Number(argv[3] ?? 100);
-    input("drag2", "512", String(384 + dy / 2), "512", String(384 - dy / 2), "16");
+    await Bun.sleep(600);
+    // the pad's surface is y 36..324 of the deck's 384 points, and a stroke
+    // that starts outside it is not a scroll; a longer scroll is several strokes
+    let dy = Number(argv[3] ?? 200);
+    while (Math.abs(dy) > 0) {
+      const stroke = Math.max(-240, Math.min(240, dy));
+      input("drag2", "196", String(180 + stroke / 2), "196", String(180 - stroke / 2), "60", "120");
+      dy -= stroke;
+      await Bun.sleep(1200);
+    }
     await Bun.sleep(600);
     input("layout", "keys");
     break;
