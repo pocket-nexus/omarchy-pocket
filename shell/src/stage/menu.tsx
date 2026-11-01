@@ -1,8 +1,10 @@
 // Omarchy's menu in the stage's card (L1 + A, the dock's first cell, or
 // `omarchy-shell shell summon omarchy.menu`). It has the keys while it is
-// up: typing filters the level's rows as Omarchy's walker menu does, the
-// arrows move, Enter (or Right) opens, Backspace takes a filter character
-// back and then a level, Escape clears the filter and then closes the menu.
+// up: typing filters the level's rows as Omarchy's walker menu does, and at
+// the root also looks through every app, best match first, so a name and Enter
+// open it. The arrows move, Enter (or Right) opens, Backspace takes a filter
+// character back and then a level, Escape clears the filter and then closes
+// the menu.
 // Opening a level asks omarchy-pocketd for every `when`, `checked` and
 // `disabled` command of its rows; a row with a `when` appears once its
 // command exits 0. A row's action closes the menu, as Omarchy's menu exits
@@ -66,7 +68,10 @@ export { menuOpen };
 
 /** Shows the menu at its root, or closes it. */
 export function toggleMenu() {
-  if (!menuOpen()) setStack((s) => s.slice(0, 1));
+  if (!menuOpen()) {
+    setStack((s) => s.slice(0, 1));
+    refreshApps();
+  }
   setMenuOpen(!menuOpen());
 }
 
@@ -77,12 +82,33 @@ export function closeMenu() {
 }
 const [truth, setTruth] = createSignal<Truth>({});
 const level = () => stack()[stack().length - 1]!;
-/** The level's rows: those their `when` admits, then those the filter keeps. */
+/** Every app, as Apps lists it, for the root's search. */
+const [allApps, setAllApps] = createSignal<MenuItem[]>([]);
+
+/** How well `label` answers `needle`: the label itself, its start, a word's
+ *  start, anywhere in it; null for no match. */
+function matchRank(label: string, needle: string): number | null {
+  const text = label.toLowerCase();
+  if (text === needle) return 0;
+  if (text.startsWith(needle)) return 1;
+  const at = text.indexOf(needle);
+  if (at < 0) return null;
+  return /[\s._-]/.test(text[at - 1] ?? "") ? 2 : 3;
+}
+
+/** The level's rows: those their `when` admits, then those the filter keeps.
+ *  The root's filter takes in every app as well: a better match goes first,
+ *  and at the same rank an app goes before a row of the menu. */
 const rows = (l: MenuLevel) => {
   const admitted = shown(l.items, truth());
   if (!l.filter) return admitted;
   const needle = l.filter.toLowerCase();
-  return admitted.filter((item) => item.label.toLowerCase().includes(needle));
+  const apps = l.title === ROOT_TITLE ? allApps() : [];
+  const ranked = [...apps, ...admitted].flatMap((item, order) => {
+    const rank = matchRank(item.label, needle);
+    return rank === null ? [] : [{ item, rank, order }];
+  });
+  return ranked.sort((a, b) => a.rank - b.rank || a.order - b.order).map((entry) => entry.item);
 };
 const indexIn = (l: MenuLevel) => Math.max(0, rows(l).findIndex((item) => item.id === l.selected));
 
@@ -165,6 +191,26 @@ function lastLine(text: string): string {
   return lines[lines.length - 1] ?? "";
 }
 
+const iconOf = (app: App) => (app.applet ? APPLET : APP);
+
+/** The shell's own windows first (Terminal, Agent, the applets), then packages and terminal programs. */
+const appRows = (): Promise<MenuItem[]> => {
+  const windows: MenuItem[] = [
+    { ...row("apps.terminal", TERMINAL, "Terminal", ""), open: "terminal" },
+    { ...row("apps.agent", AGENT, "Agent", ""), open: "agent" },
+    ...applets().map((a) => ({ ...row(`apps.${a.id}`, a.icon, a.title, ""), open: a.id })),
+  ];
+  return request<App[]>({ method: "apps" }).then(
+    (apps) => [...windows, ...apps.map((a) => ({ ...row(`apps.${a.id}`, iconOf(a), a.name, a.command), applet: a.applet, aux: a.aux, appletSurface: a.appletSurface }))],
+    () => windows,
+  );
+};
+
+/** The search's apps, read again each time the menu opens: one may have been installed. */
+function refreshApps() {
+  void appRows().then(setAllApps);
+}
+
 /** A provider's rows as a new level: Omarchy's bash providers, or the
  *  daemon's terminal applications for Apps. */
 function openProvider(item: MenuItem) {
@@ -176,16 +222,7 @@ function openProvider(item: MenuItem) {
   };
   const failed = (error: unknown) => toast({ icon: ERROR, title: item.label, body: String(error), tone: "error" });
   if (item.provider === "apps") {
-    // the shell's own windows first (Terminal, Agent, the applets), then packages and terminal programs
-    const windows: MenuItem[] = [
-      { ...row("apps.terminal", TERMINAL, "Terminal", ""), open: "terminal" },
-      { ...row("apps.agent", AGENT, "Agent", ""), open: "agent" },
-      ...applets().map((a) => ({ ...row(`apps.${a.id}`, a.icon, a.title, ""), open: a.id })),
-    ];
-    request<App[]>({ method: "apps" }).then(
-      (apps) => fill([...windows, ...apps.map((a) => ({ ...row(`apps.${a.id}`, a.applet ? APPLET : APP, a.name, a.command), applet: a.applet, aux: a.aux, appletSurface: a.appletSurface }))]),
-      () => fill(windows),
-    );
+    void appRows().then(fill);
   } else if (PROVIDERS[item.provider]) {
     run(PROVIDERS[item.provider]!.script).then((result) => fill(providerRows(item.id, item.provider, result.stdout)), failed);
   } else toast({ icon: INFO, title: item.label, body: `The ${item.provider} list is not in Omarchy Pocket`, tone: "info" });
@@ -243,6 +280,7 @@ function summonPlugin(id: string, payloadJson: string) {
       menu = JSON.parse(payloadJson || "{}").menu || "root";
     } catch {}
     summon(menu);
+    refreshApps();
     setMenuOpen(true);
     return "ok";
   }
@@ -267,6 +305,7 @@ function summonPlugin(id: string, payloadJson: string) {
 serve("shell", { summon: summonPlugin, toggle: summonPlugin });
 
 evaluate(MENU);
+refreshApps();
 
 /** A key at the menu. */
 export function menuKey(name: string) {
