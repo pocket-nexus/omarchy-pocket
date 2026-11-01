@@ -320,6 +320,11 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
     let mut clock = MonotonicClock::default();
     let mut schedule = TickSchedule::new(profile.tick_hz, clock.now(), 1).map_err(error)?;
     let mut presented = Presented::default();
+    // The panels show the buffer of the flip before the last: a flip puts the
+    // previous frame on the panel, and the frame it carries waits for the
+    // next flip. A panel that flipped is flipped once more the next tick,
+    // with the same list, so its last frame shows.
+    let mut again = (false, false);
     // the clock floors: up at input or a present, down after two idle seconds
     #[cfg(target_os = "linux")]
     let mut floors = (shot.is_none()).then(floor::Floors::new);
@@ -354,7 +359,10 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
         // --shot frames, GPU readbacks, a new glyph atlas and an app's new
         // frame need every panel presented
         let forced = shot.is_some() || presented.readback_due() || repaint.replace(false) || app_frames;
-        let (top, bottom) = presented.changed(&runtime)?;
+        let (changed_top, changed_bottom) = presented.changed(&runtime)?;
+        let top = changed_top || forced || again.0;
+        let bottom = changed_bottom || forced || again.1;
+        again = (changed_top || forced, changed_bottom || forced);
         let changed = top || bottom;
         let drawn = timing.as_ref().map(|_| std::time::Instant::now());
         // the daemon's traffic keeps the clocks up too: a terminal printing,
