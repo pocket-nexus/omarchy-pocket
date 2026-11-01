@@ -17,6 +17,7 @@ import { View } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
 import { onButtonPress } from "@pocketjs/framework/lifecycle";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
+import { keep } from "../ui/keep.ts";
 import { createNavStack } from "../ui/nav.tsx";
 import { SCREEN_H, SCREEN_W, appletTouch, appletSurfaceId } from "../ui/screen.ts";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
@@ -28,7 +29,7 @@ import { Legend, legendWhileTyping } from "../ui/legend.tsx";
 const ALL_BUTTONS = 0xffff;
 
 export default function YouTube() {
-  const client = createYtClient();
+  const client = keep("client", () => createYtClient());
   const press = createPress();
   // Without touch (a PSP) the d-pad focus shows from the start.
   const [keys, setKeys] = createSignal(!appletTouch());
@@ -42,15 +43,17 @@ export default function YouTube() {
     },
   });
   legendWhileTyping(osk.isOpen, "Search");
-  const model = createYtModel(client, {
-    editQuery() {
-      setDraft(model.query());
-      osk.open();
-    },
-  });
+  // the model outlives a remount; its hook into this mount's keyboard is set each time
+  const hooks = keep("hooks", () => ({ editQuery: () => {} }));
+  hooks.editQuery = () => {
+    setDraft(model.query());
+    osk.open();
+  };
+  const model = keep("model", () => createYtModel(client, hooks));
   const env: YtEnv = { model, client, press, keys };
 
   const stack = createNavStack({
+    restore: "youtube",
     press,
     keys,
     setKeys,
@@ -60,7 +63,7 @@ export default function YouTube() {
       return id === "player" ? playerPage(env, nav) : listPage(env, nav, layer);
     },
   });
-  stack.reset("list");
+  if (stack.entries().length === 0) stack.reset("list");
   model.setSection("tech");
 
   createTouchRouter({

@@ -16,6 +16,7 @@ import { View } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
 import { onButtonPress, onFrame } from "@pocketjs/framework/lifecycle";
 import { companionNow } from "../lib/net.ts";
+import { keep } from "../ui/keep.ts";
 import { createNavStack } from "../ui/nav.tsx";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
 import { createHnModel } from "./model.ts";
@@ -26,7 +27,7 @@ import { appletTouch, appletSurfaceId } from "../ui/screen.ts";
 const ALL_BUTTONS = 0xffff;
 
 export default function HackerNews() {
-  const model = createHnModel();
+  const model = keep("model", () => createHnModel());
   const press = createPress();
   // Without touch (a PSP) the d-pad focus shows from the start.
   const [keys, setKeys] = createSignal(!appletTouch());
@@ -40,6 +41,7 @@ export default function HackerNews() {
   const env: HnEnv = { model, press, keys, now };
 
   const stack = createNavStack({
+    restore: "hn",
     press,
     keys,
     setKeys,
@@ -49,7 +51,7 @@ export default function HackerNews() {
       return id === "comments" ? commentsPage(env, nav, layer) : listPage(env, nav, layer);
     },
   });
-  stack.reset("list");
+  if (stack.entries().length === 0) stack.reset("list");
   model.setFeed("top");
 
   createTouchRouter({

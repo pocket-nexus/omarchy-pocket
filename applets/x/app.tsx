@@ -20,6 +20,7 @@ import { onButtonPress, onFrame } from "@pocketjs/framework/lifecycle";
 import { companionNow } from "../lib/net.ts";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
 import { createGlyphs, GLYPH_BOLD, GLYPH_TEXT } from "../ui/glyphs.ts";
+import { keep } from "../ui/keep.ts";
 import { createNavStack } from "../ui/nav.tsx";
 import { SCREEN_H, SCREEN_W, appletTouch, appletSurfaceId } from "../ui/screen.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
@@ -40,7 +41,7 @@ export default function X() {
   const W = SCREEN_W;
   const KEYBOARD_TOP = SCREEN_H - oskHeight(appletSurfaceId(), "light");
   const DRAFT_LINES = Math.max(1, Math.floor((KEYBOARD_TOP - COMPOSE_BAR - 26) / 16));
-  const model = createXModel();
+  const model = keep("model", () => createXModel());
   const press = createPress();
   // Without touch (a PSP) the d-pad focus shows from the start.
   const [keys, setKeys] = createSignal(!appletTouch());
@@ -103,6 +104,7 @@ export default function X() {
   };
 
   const stack = createNavStack({
+    restore: "x",
     press,
     keys,
     setKeys,
@@ -112,7 +114,7 @@ export default function X() {
       return id === "post" ? postPage(env, nav, layer) : timelinePage(env, nav, layer);
     },
   });
-  stack.reset("timeline");
+  if (stack.entries().length === 0) stack.reset("timeline");
   model.setKind("following");
 
   createTouchRouter({

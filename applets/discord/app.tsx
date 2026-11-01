@@ -17,6 +17,7 @@ import { createGesture } from "@pocketjs/framework/gesture";
 import { onButtonPress } from "@pocketjs/framework/lifecycle";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
 import { createGlyphs, GLYPH_BOLD, GLYPH_TEXT } from "../ui/glyphs.ts";
+import { keep } from "../ui/keep.ts";
 import { createNavStack } from "../ui/nav.tsx";
 import { SCREEN_H, SCREEN_W, appletTouch, appletSurfaceId } from "../ui/screen.ts";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
@@ -33,7 +34,7 @@ export default function Discord() {
   const W = SCREEN_W;
   const KEYBOARD_TOP = SCREEN_H - oskHeight(appletSurfaceId(), "dark");
   const DRAFT_LINES = Math.max(1, Math.floor((KEYBOARD_TOP - COMPOSE_BAR - 26) / 16));
-  const model = createDiscordModel();
+  const model = keep("model", () => createDiscordModel());
   const press = createPress();
   // Without touch (a PSP) the d-pad focus shows from the start.
   const [keys, setKeys] = createSignal(!appletTouch());
@@ -72,6 +73,7 @@ export default function Discord() {
 
   const env: DiscordEnv = { model, press, keys, compose, text: createGlyphs(GLYPH_TEXT, model.client.atlas), bold: createGlyphs(GLYPH_BOLD, model.client.atlas) };
   const stack = createNavStack({
+    restore: "discord",
     press,
     keys,
     setKeys,
@@ -83,7 +85,7 @@ export default function Discord() {
       return serversPage(env, nav, layer);
     },
   });
-  stack.reset("servers");
+  if (stack.entries().length === 0) stack.reset("servers");
   model.loadGuilds();
 
   // Leaving a channel (B or the back button) stops its live poll.
