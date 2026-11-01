@@ -7,9 +7,7 @@
 //! previous front buffer to GBM), not inside the present that queued it: a
 //! present costs its rendering, and the flip lands while the next tick runs.
 //! A panel whose draw list did not change (`hold`) is rendered but neither
-//! swapped nor flipped, so it keeps showing its frame. A panel's next flip
-//! is queued no sooner than 2 ms after its last one landed: the VOP2 drops
-//! a config-done written in the lines after its frame start.
+//! swapped nor flipped, so it keeps showing its frame.
 //!
 //! EGL, GLES and GBM all come from libmali.so.1, which the program links
 //! directly: libmali's libEGL/libGLESv2/libgbm are small wrappers that export
@@ -65,12 +63,6 @@ mod ffi {
         unsafe extern "C" fn(u32, *mut c_void, *const isize) -> EGLDisplay;
     pub type CreatePlatformWindowSurface =
         unsafe extern "C" fn(EGLDisplay, EGLConfig, *mut c_void, *const isize) -> EGLSurface;
-    pub type EGLSyncKHR = *mut c_void;
-    pub const EGL_SYNC_FENCE_KHR: u32 = 0x30f9;
-    pub const EGL_CONDITION_SATISFIED_KHR: EGLint = 0x30f6;
-    pub type CreateSync = unsafe extern "C" fn(EGLDisplay, u32, *const EGLint) -> EGLSyncKHR;
-    pub type ClientWaitSync = unsafe extern "C" fn(EGLDisplay, EGLSyncKHR, EGLint, u64) -> EGLint;
-    pub type DestroySync = unsafe extern "C" fn(EGLDisplay, EGLSyncKHR) -> EGLBoolean;
     #[link(name = "mali")]
     unsafe extern "C" {
         pub fn eglGetProcAddress(name: *const c_char) -> *mut c_void;
@@ -192,9 +184,8 @@ fn egl_error(what: &str) -> io::Error {
 
 struct Card {
     file: File,
-    /// Flips completed for CRTCs whose panel was not the one reading events,
-    /// with the vblank time of each.
-    completed: RefCell<Vec<(crtc::Handle, Duration)>>,
+    /// Flips completed for CRTCs whose panel was not the one reading events.
+    completed: RefCell<Vec<crtc::Handle>>,
 }
 impl AsFd for Card {
     fn as_fd(&self) -> BorrowedFd<'_> {
@@ -241,8 +232,6 @@ struct Panel {
     pending: Option<*mut gbm_bo>,
     /// OMARCHY_POCKET_TIMING=content: a hash of rows of the frame last swapped
     drawn: u64,
-    /// when the last flip landed (the vblank time of its event, CLOCK_MONOTONIC)
-    landed: Duration,
     /// The first frame sets the CRTC and produces no flip event.
     flip_expected: bool,
     target: u64,
@@ -369,10 +358,6 @@ impl Shared {
             return Ok(());
         }
         let drawn = content_hash_gl(self.panels[index].size);
-        // OMARCHY_POCKET_TIMING=fence: a fence in this frame's stream, polled
-        // after the swap without a flush: when the GPU finishes the frame, or
-        // never, if the swap did not submit it
-        let fence = fence_calls().map(|calls| unsafe { (calls.0)(display, EGL_SYNC_FENCE_KHR, ptr::null()) });
         let swap_started = Instant::now();
         if unsafe { eglSwapBuffers(display, surface) } != 1 {
             return Err(egl_error("eglSwapBuffers"));
@@ -384,28 +369,7 @@ impl Shared {
                 "gbm_surface_lock_front_buffer returned no buffer",
             ));
         }
-        if let (Some(calls), Some(sync)) = (fence_calls(), fence) {
-            let waited = Instant::now();
-            let mut outcome = "TIMEOUT 1000 ms";
-            while waited.elapsed() < Duration::from_millis(1000) {
-                if unsafe { (calls.1)(display, sync, 0, 0) } == EGL_CONDITION_SATISFIED_KHR {
-                    outcome = "done";
-                    break;
-                }
-                std::thread::sleep(Duration::from_micros(200));
-            }
-            eprintln!("omarchy-pocket-host: panel {index} gpu {outcome} {:.1} ms after swap", waited.elapsed().as_secs_f64() * 1000.0);
-            unsafe { (calls.2)(display, sync) };
-        }
         let fb = self.framebuffer(index, bo)?;
-        // The VOP2 consumes a config-done written in the first lines after
-        // the port's frame start without taking the configuration: a flip
-        // queued as soon as the previous one's event arrived was lost, and
-        // the panel stayed a change behind. The write waits out that window.
-        let since = monotonic().saturating_sub(self.panels[index].landed);
-        if since < FLIP_GAP {
-            std::thread::sleep(FLIP_GAP - since);
-        }
         let panel = &mut self.panels[index];
         if let Some(drawn) = drawn {
             panel.drawn = drawn;
@@ -436,8 +400,8 @@ impl Shared {
             loop {
                 {
                     let mut completed = self.card.completed.borrow_mut();
-                    if let Some(at) = completed.iter().position(|c| c.0 == crtc) {
-                        self.panels[index].landed = completed.swap_remove(at).1;
+                    if let Some(at) = completed.iter().position(|c| *c == crtc) {
+                        completed.swap_remove(at);
                         break;
                     }
                 }
@@ -466,7 +430,7 @@ impl Shared {
                 if ready > 0 {
                     for event in self.card.receive_events()? {
                         if let Event::PageFlip(event) = event {
-                            self.card.completed.borrow_mut().push((event.crtc, event.duration));
+                            self.card.completed.borrow_mut().push(event.crtc);
                         }
                     }
                 }
@@ -488,33 +452,9 @@ impl Shared {
                     panel.drawn
                 );
             }
-            if late_on() {
-                // the buffer as the flip landed, and again later: a change means
-                // the GPU wrote it after the panel started showing it
-                let first = content_hash_bo(bo, panel.size);
-                std::thread::sleep(Duration::from_millis(150));
-                let later = content_hash_bo(bo, panel.size);
-                let verdict = if first == later { "same" } else { "CHANGED after the flip" };
-                eprintln!(
-                    "omarchy-pocket-host: panel {index} landed {:016x} later {:016x} {verdict}",
-                    first.unwrap_or(0),
-                    later.unwrap_or(0)
-                );
-            }
         }
         Ok(())
     }
-}
-
-/// How long after a panel's flip lands its next flip may be queued: the
-/// frame start's first 16 lines are 0.33 ms, the commit runs on a worker.
-const FLIP_GAP: Duration = Duration::from_millis(2);
-
-/// CLOCK_MONOTONIC, the clock of the flip events.
-fn monotonic() -> Duration {
-    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
-    unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut ts) };
-    Duration::new(ts.tv_sec as u64, ts.tv_nsec as u32)
 }
 
 /// OMARCHY_POCKET_TIMING=frames: a presentation step over 4 ms, as it happens.
@@ -535,37 +475,6 @@ fn probe(index: usize, what: &str, started: Instant) {
 fn content_on() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var_os("OMARCHY_POCKET_TIMING").is_some_and(|v| v == "content"))
-}
-/// OMARCHY_POCKET_TIMING=late: each landed frame's buffer hashed at the flip
-/// event and 150 ms later, with no readback before the swap.
-fn late_on() -> bool {
-    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var_os("OMARCHY_POCKET_TIMING").is_some_and(|v| v == "late"))
-}
-/// OMARCHY_POCKET_TIMING=fence: EGL_KHR_fence_sync's entry points.
-fn fence_calls() -> Option<&'static (CreateSync, ClientWaitSync, DestroySync)> {
-    static CALLS: std::sync::OnceLock<Option<(CreateSync, ClientWaitSync, DestroySync)>> = std::sync::OnceLock::new();
-    CALLS
-        .get_or_init(|| {
-            if !std::env::var_os("OMARCHY_POCKET_TIMING").is_some_and(|v| v == "fence") {
-                return None;
-            }
-            unsafe {
-                let create = eglGetProcAddress(c"eglCreateSyncKHR".as_ptr());
-                let wait = eglGetProcAddress(c"eglClientWaitSyncKHR".as_ptr());
-                let destroy = eglGetProcAddress(c"eglDestroySyncKHR".as_ptr());
-                if create.is_null() || wait.is_null() || destroy.is_null() {
-                    eprintln!("omarchy-pocket-host: EGL lacks KHR_fence_sync");
-                    return None;
-                }
-                Some((
-                    std::mem::transmute::<*mut c_void, CreateSync>(create),
-                    std::mem::transmute::<*mut c_void, ClientWaitSync>(wait),
-                    std::mem::transmute::<*mut c_void, DestroySync>(destroy),
-                ))
-            }
-        })
-        .as_ref()
 }
 /// Every fourth row: a line of text is at least four rows tall.
 fn content_rows(height: u32) -> impl Iterator<Item = u32> {
@@ -911,7 +820,6 @@ pub fn open(
             front: None,
             pending: None,
             drawn: 0,
-            landed: Duration::ZERO,
             flip_expected: false,
             target: 0,
         });
