@@ -6,6 +6,7 @@
 //   bun tools/build.ts shell             the shell package (run tools/omarchy-assets.ts first)
 //   bun tools/build.ts daemon            omarchy-pocketd as one Bun script
 //   bun tools/build.ts applets [names]   applets/<name>/pocket.json as .cache/applets/<name>.pocket
+//   bun tools/build.ts sdk               what pocket-applet needs on the device, as .cache/sdk
 //   bun tools/build.ts all               host, shell and daemon
 //   bun tools/build.ts shot --script "30:shot 40:DOWN 50:shot" [--out <dir>]
 //
@@ -136,6 +137,42 @@ async function applets(names: string[]) {
   if (failed.length) throw new Error(`applets that did not compile: ${failed.join(" ")}`);
 }
 
+/** The compiler, the UI kit and the examples for making applets on the device
+ *  (sdk/pocket-applet.ts), laid out as this repository is. The packages are
+ *  installed for the device's platform: the Vue compiler's one native module. */
+async function sdk() {
+  const out = join(CACHE, "sdk");
+  const vendor = join(out, "vendor", "pocketjs");
+  const lock = join(CACHE, "sdk-node_modules");
+  const packageJson = JSON.parse(readFileSync(join(POCKETJS, "package.json"), "utf8"));
+  for (const key of ["devDependencies", "workspaces", "scripts"]) delete packageJson[key];
+  const manifest = JSON.stringify(packageJson, null, 1);
+  if (!existsSync(join(lock, "package.json")) || readFileSync(join(lock, "package.json"), "utf8") !== manifest) {
+    rmSync(lock, { recursive: true, force: true });
+    mkdirSync(lock, { recursive: true });
+    writeFileSync(join(lock, "package.json"), manifest);
+    await $`bun install --production --linker hoisted --os linux --cpu arm64`.cwd(lock).quiet();
+  }
+  rmSync(out, { recursive: true, force: true });
+  mkdirSync(vendor, { recursive: true });
+  await $`COPYFILE_DISABLE=1 tar cf - framework contracts tools assets microts profiles docs/HIG.md docs/APPLETS.md | tar xf - -C ${vendor}`.cwd(POCKETJS).nothrow();
+  writeFileSync(join(vendor, "package.json"), manifest);
+  await $`cp -R ${join(lock, "node_modules")} ${join(vendor, "node_modules")}`;
+  await $`rm -rf ${join(vendor, "node_modules/@vue-jsx-vapor/compiler-rs-linux-arm64-musl")}`;
+  mkdirSync(join(out, "host"));
+  for (const file of ["pocket.runtime-config.ts", "profile.ts"]) await $`cp ${join(ROOT, "host", file)} ${join(out, "host")}`;
+  mkdirSync(join(out, "applets"));
+  for (const name of ["ui", "lib", "weather", "hn", "podcasts", "maps", "store"]) await $`cp -R ${join(ROOT, "applets", name)} ${join(out, "applets")}`;
+  mkdirSync(join(out, "store", "src"), { recursive: true });
+  await $`cp ${join(ROOT, "store", "src", "shared.ts")} ${join(out, "store", "src")}`;
+  await $`cp -R ${join(ROOT, "sdk")} ${out}`;
+  await $`chmod 755 ${join(out, "sdk", "pocket-applet.ts")}`;
+  mkdirSync(join(out, "node_modules", "@pocketjs"), { recursive: true });
+  symlinkSync("../../vendor/pocketjs", join(out, "node_modules", "@pocketjs", "framework"));
+  for (const name of ["solid-js", "typescript", "opentype.js"]) symlinkSync(`../vendor/pocketjs/node_modules/${name}`, join(out, "node_modules", name));
+  console.log(`sdk: ${out} ${(await $`du -sh ${out}`.text()).split("\t")[0]}`);
+}
+
 async function shot() {
   const script = option("--script");
   if (!script) throw new Error("shot needs --script");
@@ -182,6 +219,9 @@ if (import.meta.main) {
       break;
     case "applets":
       await applets(process.argv.slice(3));
+      break;
+    case "sdk":
+      await sdk();
       break;
     case "all":
       await host();

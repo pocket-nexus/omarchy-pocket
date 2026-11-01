@@ -16,6 +16,10 @@
 // lists it in `applet.services`. Any other URL is fetched with
 // performNet: redirects checked hop by hop, private addresses refused, and
 // HTTPS_PROXY honoured (the omarchy-pocketd unit's environment).
+//
+// An app installed from the store by anyone but the official key runs apart
+// (appstore.ts): it gets only the services that act for nobody, its `store`
+// names are its own, and it fetches only the hosts it declared.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { NET_ERROR } from "../vendor/pocketjs/contracts/spec/net.ts";
@@ -23,6 +27,7 @@ import { NetFailure, normalizeNetRequest, performNet, type NetResponse } from ".
 import { bytesResponse, jsonResponse, readJson, SERVICE_FACTORIES, ServiceHost, type ServiceProvider } from "../vendor/pocketjs/tools/companion/services.ts";
 import { createXService } from "../vendor/pocketjs/tools/companion/services/x.ts";
 import { manifest } from "./apps.ts";
+import { createAppStoreService, installedApp, isolatedRequest, isolatedServices, STORE_PACKAGE } from "./appstore.ts";
 import { AtlasBaker } from "./glyphs.ts";
 
 /** This host's whole-response limit: a glyph atlas at raster density 2 holds
@@ -82,9 +87,9 @@ export class AppNet {
   private readonly services: ServiceHost;
   private readonly baker: AtlasBaker;
   private readonly open = new Map<number, AbortController>();
-  private readonly callers = new Map<string, { app: string; services: string[] }>();
+  private readonly callers = new Map<string, { app: string; services: string[]; isolated: boolean; hosts: string[] }>();
 
-  constructor(home: string, runtime: string, private readonly log: (...parts: unknown[]) => void) {
+  constructor(private readonly home: string, runtime: string, private readonly log: (...parts: unknown[]) => void) {
     const storeDir = join(home, ".local", "share", "omarchy-pocket", "companion");
     mkdirSync(join(storeDir, "services"), { recursive: true, mode: 0o700 });
     this.baker = new AtlasBaker(join(runtime, "omarchy-pocket", "applet-glyphs"));
@@ -92,6 +97,8 @@ export class AppNet {
     // the device's glyphs, the other providers as PocketJS has them
     SERVICE_FACTORIES.glyphs = () => deviceGlyphs(baker);
     SERVICE_FACTORIES.x = (context) => createXService(context, { decodeAvatar: ffmpegAvatar, decodeMedia: ffmpegImage });
+    // what an install or a removal changes is read again at the next request
+    SERVICE_FACTORIES.appstore = () => createAppStoreService(home, () => this.callers.clear());
     this.services = new ServiceHost({ storeDir, log: (line) => log(line) });
   }
 
@@ -99,9 +106,14 @@ export class AppNet {
   private caller(path: string) {
     let caller = this.callers.get(path);
     if (!caller) {
-      const m = manifest(path) as { id?: string; applet?: { services?: unknown } };
-      const services = Array.isArray(m.applet?.services) ? m.applet.services.filter((s): s is string => typeof s === "string") : [];
-      caller = { app: m.id ?? path, services };
+      const m = manifest(path) as { id?: string; applet?: { services?: unknown; hosts?: unknown } };
+      const strings = (value: unknown) => (Array.isArray(value) ? value.filter((s): s is string => typeof s === "string") : []);
+      const declared = strings(m.applet?.services);
+      const record = installedApp(this.home, path);
+      const isolated = record !== null && !record.official;
+      // Only the store's own package, from the system's directory, installs anything.
+      const services = (isolated ? isolatedServices(declared) : declared).filter((s) => s !== "appstore" || path === STORE_PACKAGE);
+      caller = { app: m.id ?? path, services, isolated, hosts: strings(m.applet?.hosts) };
       this.callers.set(path, caller);
     }
     return caller;
@@ -126,6 +138,11 @@ export class AppNet {
       const meta = { ...normalizeNetRequest({ ...message, maxBytes: undefined, bytes: body.length }), ...(maxBytes === undefined ? {} : { maxBytes }) };
       label = `${meta.method} ${new URL(meta.url).host}${new URL(meta.url).pathname.slice(0, 40)}`;
       const caller = this.caller(request.package);
+      if (caller.isolated) {
+        const decision = isolatedRequest(caller.app, caller.hosts, meta.url);
+        if (typeof decision !== "string") throw new NetFailure(NET_ERROR.other, decision.refused);
+        meta.url = decision;
+      }
       const local = { name: "rg-ds-plus", address: "127.0.0.1", localAddress: "127.0.0.1" };
       let response: NetResponse | null = await this.services.handle({ ...meta, body }, local, caller, abort.signal);
       response ??= await performNet({ ...meta, body }, { signal: abort.signal });

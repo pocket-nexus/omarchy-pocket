@@ -218,6 +218,11 @@ impl Player {
     /// MediaOps.open: ends the stream playing and starts this one. False when
     /// the plane texture cannot be made.
     fn open(&mut self, host: String, port: u16, token: String) -> bool {
+        // The streams come from omarchy-pocketd on this device; a package does
+        // not get a TCP connection to anywhere else.
+        if host != "127.0.0.1" {
+            return false;
+        }
         self.close();
         if self.texture < 0 {
             let Ok(mut core) = self.ops.core_mut() else { return false };

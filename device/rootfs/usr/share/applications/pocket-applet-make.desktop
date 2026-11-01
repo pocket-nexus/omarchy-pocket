@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Make an Applet
+Comment=Describe an applet and let the coding agent build it on this device
+Exec=pocket-applet make
+Terminal=true
+Categories=Development;

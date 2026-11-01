@@ -11,10 +11,10 @@ import "./applets/clock.tsx";
 import "./applets/notes.tsx";
 import "./applets/pictures.tsx";
 import { request } from "./bridge.ts";
-import { openPackage } from "./packages.ts";
+import { closePackage, openPackage } from "./packages.ts";
 import { serve } from "./system.ts";
 import { openTerminal } from "./term/store.ts";
-import { current, focus, focused, setSlowMotion, WORKSPACES, windowsOn } from "./workspaces.ts";
+import { current, find, focus, focused, setSlowMotion, WORKSPACES, windowsOn } from "./workspaces.ts";
 
 export function openWindow(name: string): boolean {
   if (name === "terminal") openTerminal();
@@ -51,5 +51,11 @@ serve("pocket.window", {
   /** every transition `factor` times slower, 1 to restore */
   slow: (factor) => (setSlowMotion(Number(factor) || 1), "ok"),
   /** a package in a window: `app <path.pocket> [title] [aux|applet]` */
-  app: (path, title, aux) => (openPackage(path ?? "", title || (path ?? "").split("/").pop()!.replace(/\.pocket$/, ""), aux === "aux" || aux === "applet", aux === "applet"), "ok"),
+  app: (path, title, aux) => {
+    // a package opened again starts over: `pocket-applet run` after a build
+    const running = find((w) => w.kind === "app" && w.path === path);
+    if (running?.kind === "app") closePackage(running.app);
+    openPackage(path ?? "", title || (path ?? "").split("/").pop()!.replace(/\.pocket$/, ""), aux === "aux" || aux === "applet", aux === "applet");
+    return "ok";
+  },
 });

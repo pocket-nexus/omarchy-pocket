@@ -127,6 +127,9 @@ install -Dm755 /repo/.cache/host/cargo/aarch64-unknown-linux-gnu/release/omarchy
 install -Dm644 /repo/.cache/shell/omarchy-pocket.pocket /usr/share/pocketjs/omarchy-pocket.pocket
 install -d /usr/share/omarchy-pocket/applets
 cp /repo/.cache/applets/*.pocket /usr/share/omarchy-pocket/applets/ 2>/dev/null || true
+# what pocket-applet makes applets with
+cp -a /repo/.cache/sdk /usr/share/omarchy-pocket/sdk
+ln -sfn /usr/share/omarchy-pocket/sdk/sdk/pocket-applet.ts /usr/local/bin/pocket-applet
 install -Dm644 /repo/.cache/daemon/omarchy-pocketd.js /usr/lib/omarchy-pocket/omarchy-pocketd.js
 install -Dm644 /repo/.cache/daemon/ghostty-vt.wasm /usr/lib/omarchy-pocket/ghostty-vt.wasm
 # Chinese input: PocketJS's Rime helper over librime, and its pinyin schema

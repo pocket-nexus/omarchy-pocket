@@ -16,7 +16,7 @@ import { OUTPUTS, SHIM_NAMES } from "./build.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
 const ROOTFS = join(ROOT, "device", "rootfs");
-const PARTS = ["host", "shell", "daemon", "applets", "files"] as const;
+const PARTS = ["host", "shell", "daemon", "applets", "sdk", "files"] as const;
 type Part = (typeof PARTS)[number];
 
 const [target, ...named] = process.argv.slice(2);
@@ -66,4 +66,11 @@ if (parts.has("host") || parts.has("shell") || parts.has("files")) restart.push(
 const ssh = (process.env.SSH_OPTS ?? "").split(" ").filter(Boolean);
 const remote = ["tar -C / -xpf -", ...restart].join(" && ");
 await $`cd ${stage} && COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -cf - ${list} | ssh ${ssh} ${target} ${remote}`;
+// the SDK whole: it has symlinks, and what it no longer holds must go
+if (parts.has("sdk")) {
+  const sdk = join(ROOT, ".cache", "sdk");
+  if (!existsSync(sdk)) throw new Error(`${sdk} is missing; run: bun tools/build.ts sdk`);
+  const install = "rm -rf /usr/share/omarchy-pocket/sdk && mkdir -p /usr/share/omarchy-pocket/sdk && tar -C /usr/share/omarchy-pocket/sdk -xpf - && ln -sfn /usr/share/omarchy-pocket/sdk/sdk/pocket-applet.ts /usr/local/bin/pocket-applet";
+  await $`COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -cf - -C ${sdk} . | ssh ${ssh} ${target} ${install}`;
+}
 console.log(`deployed ${[...parts].join(", ")} to ${target}`);
