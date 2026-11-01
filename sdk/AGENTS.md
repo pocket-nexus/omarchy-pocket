@@ -10,6 +10,7 @@ Work in this order, and repeat until it looks right:
 2. `pocket-applet run <name>`: compiles (about a minute), installs and opens it in a window, replacing the old one. A compile error prints here; fix it and run again.
 3. `pocket-applet shot <name>`: writes `shot.png` here, the device's two panels stacked, windows on the top one. **Look at the image.** Check that the text fits, nothing overlaps and the page does what was asked. Do not call the work done without having looked.
 4. `pocket-applet log`: the last lines of the host and the daemon, where an exception from the app or a refused request shows.
+5. Use it as a person would: `pocket-applet tap <x> <y>` clicks at a place you read off the top panel of the shot (1024 x 768), `pocket-applet scroll <x> <y> <dy>` scrolls what is there, `pocket-applet key Enter|Escape|Up|Down`, `pocket-applet type <text>`. Open every page you made this way and take a shot of it.
 
 Only `pocket-applet publish <name>` sends anything out, and only the owner decides that. Do not run it unless asked.
 
@@ -29,7 +30,9 @@ Only `pocket-applet publish <name>` sends anything out, and only the owner decid
 - Images are textures with power-of-two sides up to 512. Text is drawn from baked glyphs: `toAscii` a string from the network before drawing it, or use `../ui/glyphs.ts` for anything else.
 - The network is `fetch` from `../lib/net.ts`. List every host you fetch in `applet.hosts` in `pocket.json`; once published, the device refuses any other and shows the list before an install. Private addresses are refused.
 - Settings outlive the window in the `store` service: `companionService("store", "/get?name=x")`, `/set?name=x` with a JSON body. Add `"store"` to `applet.services`.
-- A published app may use the services `store`, `glyphs` and `maps`. `x`, `discord`, `homeassistant`, `podcasts` and `youtube` are for the device's own applets.
+- A picture from the network goes through the `images` service, because QuickJS has no image decoder: `companionService("images", "/fetch?url=" + encodeURIComponent(url) + "&w=64&h=64")` answers an IMG entry (power-of-two sides up to 512; add `&alpha=1` to keep transparency) for `getOps().uploadImgEntry(await response.bytes())`, which returns a texture handle for `getOps().setImage(image.id, handle)`. See how `examples/store/api.ts` keeps its icons. Add `"images"` to `applet.services`, and the picture's host to `applet.hosts`.
+- A published app may use the services `store`, `glyphs`, `maps` and `images`. `x`, `discord`, `homeassistant`, `podcasts` and `youtube` are for the device's own applets.
+- Never send anything to a real service while testing: no comments, posts, merges or other writes unless the owner asks for that one. Read-only requests are fine.
 - QuickJS runs the code: there is no `TextDecoder`, `setTimeout` is `after()` from `@pocketjs/framework/clock`, and a frame is 16 ms, so do not do per-frame work in signals you can avoid.
 - The deck's keyboard types into a field: see `SearchField` in `../ui/field.tsx` and how `examples/weather/app.tsx` uses `createOsk`.
 

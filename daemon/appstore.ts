@@ -78,6 +78,14 @@ export function isolatedRequest(app: string, hosts: readonly string[], raw: stri
   const url = new URL(raw);
   if (url.hostname === "companion.pocket") {
     const [, service, action] = url.pathname.split("/");
+    // the images service fetches for an app: the same hosts hold
+    if (service === "images") {
+      let host = "";
+      try {
+        host = new URL(url.searchParams.get("url") ?? "").hostname;
+      } catch {}
+      return hosts.includes(host) ? raw : { refused: `${host || "that image"} is not among the hosts this app declared` };
+    }
     if (service !== "store") return raw;
     if (action === "list") return { refused: "an app from the store does not list other apps' settings" };
     const name = url.searchParams.get("name") ?? "";

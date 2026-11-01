@@ -12,6 +12,7 @@ An applet is a PocketJS package in a window of the shell. The toolchain to make 
 | `pocket-applet run <name>` | compiles, installs to `~/.local/share/omarchy-pocket/applets/` and opens the window, replacing a running one |
 | `pocket-applet shot <name>` | both panels as `<name>/shot.png`, for the agent to look at |
 | `pocket-applet log` | the last lines of the host and the daemon |
+| `pocket-applet tap <x> <y>`, `scroll`, `key`, `type` | input to the shell, so an agent can open each page it made |
 | `pocket-applet publish <name> --author <handle>` | signs it and sends it to the store |
 
 `~/Applets` is laid out as this repository's `applets/` are, with symlinks into the SDK at `/usr/share/omarchy-pocket/sdk`: `ui`, `lib`, `vendor`, `host`, `node_modules`, and `examples` (the finished applets). `sdk/AGENTS.md` is what the agent reads. `bun tools/build.ts sdk` builds the SDK (89 MiB, installed for linux-arm64) and `bun tools/deploy.ts <host> sdk` installs it.
@@ -50,9 +51,9 @@ The device's own applets hold the owner's X, Discord and Home Assistant sign-ins
 
 | Reach | System apps, official apps, apps built on this device | Apps from the store |
 |---|---|---|
-| Services | what `applet.services` lists | only `store`, `glyphs`, `maps`, of what it lists |
+| Services | what `applet.services` lists | only `store`, `glyphs`, `maps`, `images`, of what it lists |
 | `store` names | shared | its own: names get a prefix from its id, and `/list` is refused |
-| The internet | any public address | only the hosts in `applet.hosts`, shown before the install |
+| The internet, and pictures through `images` | any public address | only the hosts in `applet.hosts`, shown before the install |
 | Media streams | 127.0.0.1 | 127.0.0.1 |
 | The `appstore` service | the store's own package, from `/usr/share` only | no |
 

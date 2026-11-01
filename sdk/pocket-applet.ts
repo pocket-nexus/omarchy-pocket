@@ -10,6 +10,10 @@
 //   pocket-applet run <name>        compile, install and open it in a window
 //   pocket-applet shot [name]       the two panels as <name>/shot.png
 //   pocket-applet log               the host's and the daemon's last lines
+//   pocket-applet tap <x> <y>       click at a place on the top panel, as read off a shot
+//   pocket-applet scroll <x> <y> <dy>   two fingers at that place, dy px up
+//   pocket-applet key <name>        Enter, Escape, Up, ... to the focused window
+//   pocket-applet type <text>       text to the focused window
 //   pocket-applet publish <name> [--author handle]   sign it and send it to the store
 import { generateKeyPairSync, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -152,6 +156,11 @@ async function shot(name?: string) {
   console.log(out);
 }
 
+const input = (...args: string[]) => {
+  const done = Bun.spawnSync(["omarchy-shell", "pocket.input", ...args], { stdout: "pipe", stderr: "pipe" });
+  if (done.exitCode !== 0) fail(`the shell did not take it: ${done.stderr.toString().trim()}`);
+};
+
 function log() {
   const show = (args: string[]) => {
     const child = Bun.spawnSync(["journalctl", "--no-pager", "-o", "cat", ...args], { stdout: "pipe", stderr: "pipe" });
@@ -265,10 +274,33 @@ switch (argv[0]) {
   case "log":
     log();
     break;
+  case "tap":
+    // a shot's pixels; the stage's pointer moves in points, two pixels each
+    input("pointer", String(Number(argv[1] ?? 0) / 2), String(Number(argv[2] ?? 0) / 2));
+    await Bun.sleep(150);
+    input("click");
+    break;
+  case "scroll": {
+    // the pad's two fingers scroll what the pointer is over
+    input("pointer", String(Number(argv[1] ?? 0) / 2), String(Number(argv[2] ?? 0) / 2));
+    input("layout", "pad");
+    await Bun.sleep(150);
+    const dy = Number(argv[3] ?? 100);
+    input("drag2", "512", String(384 + dy / 2), "512", String(384 - dy / 2), "16");
+    await Bun.sleep(600);
+    input("layout", "keys");
+    break;
+  }
+  case "key":
+    input("key", argv[1] ?? "");
+    break;
+  case "type":
+    input("type", argv.slice(1).join(" "));
+    break;
   case "publish":
     await publish(name ?? fail("usage: pocket-applet publish <name> [--author handle]"));
     break;
   default:
-    console.log(readFileSync(import.meta.path, "utf8").split("\n").slice(1, 12).filter((line) => line.startsWith("//")).map((line) => line.slice(3)).join("\n"));
+    console.log(readFileSync(import.meta.path, "utf8").split("\n").slice(1, 17).filter((line) => line.startsWith("//")).map((line) => line.slice(3)).join("\n"));
     if (argv[0]) process.exit(1);
 }

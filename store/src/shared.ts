@@ -35,7 +35,7 @@ export const RESERVED_HANDLE = /^(pocket-?nexus|omarchy|official|admin|store)/;
  *  credentials and fetch no URL an app names. x, discord and homeassistant act
  *  as the device's owner; podcasts and youtube fetch for it, which would pass
  *  around the hosts it declares. */
-export const OPEN_SERVICES = ["store", "glyphs", "maps"] as const;
+export const OPEN_SERVICES = ["store", "glyphs", "maps", "images"] as const;
 
 /** A version's order: 1.2.3 as one number. */
 export function versionOrder(version: string): number | null {

@@ -6,7 +6,14 @@ import { join } from "node:path";
 import { installedApp, isolatedRequest, isolatedServices } from "./appstore.ts";
 
 test("an isolated app keeps only the services that act for nobody", () => {
-  expect(isolatedServices(["store", "x", "discord", "homeassistant", "podcasts", "youtube", "maps", "glyphs", "appstore"])).toEqual(["store", "maps", "glyphs"]);
+  expect(isolatedServices(["store", "x", "discord", "homeassistant", "podcasts", "youtube", "maps", "glyphs", "images", "appstore"])).toEqual(["store", "maps", "glyphs", "images"]);
+});
+
+test("the images service fetches only what the app's hosts allow", () => {
+  const ask = (image: string) => `https://companion.pocket/images/fetch?w=64&h=64&url=${encodeURIComponent(image)}`;
+  expect(isolatedRequest("oma.a.app", ["img.example.com"], ask("https://img.example.com/a.png"))).toBe(ask("https://img.example.com/a.png"));
+  expect(isolatedRequest("oma.a.app", ["img.example.com"], ask("https://evil.net/a.png"))).toEqual({ refused: expect.stringContaining("evil.net") });
+  expect(isolatedRequest("oma.a.app", ["img.example.com"], "https://companion.pocket/images/fetch?w=64&h=64")).toEqual({ refused: expect.any(String) });
 });
 
 test("its store names are its own, however it spells them, and it cannot list others'", () => {

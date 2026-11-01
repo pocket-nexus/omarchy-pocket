@@ -26,6 +26,8 @@ import { NET_ERROR } from "../vendor/pocketjs/contracts/spec/net.ts";
 import { NetFailure, normalizeNetRequest, performNet, type NetResponse } from "../vendor/pocketjs/tools/companion/fetch.ts";
 import { bytesResponse, jsonResponse, readJson, SERVICE_FACTORIES, ServiceHost, type ServiceProvider } from "../vendor/pocketjs/tools/companion/services.ts";
 import { createXService } from "../vendor/pocketjs/tools/companion/services/x.ts";
+import { encodeImageEntry } from "../vendor/pocketjs/framework/compiler/pak.ts";
+import { IMG_FLAG_LINEAR, PSM } from "../vendor/pocketjs/contracts/spec/spec.ts";
 import { manifest } from "./apps.ts";
 import { createAppStoreService, installedApp, isolatedRequest, isolatedServices, STORE_PACKAGE } from "./appstore.ts";
 import { AtlasBaker } from "./glyphs.ts";
@@ -80,6 +82,30 @@ async function ffmpegImage(bytes: Uint8Array, width: number, height: number) {
   const [rgba, code] = await Promise.all([new Response(child.stdout).bytes(), child.exited]);
   return code === 0 && rgba.length === width * height * 4 ? { width, height, rgba } : null;
 }
+/** The `images` service: GET /fetch?url=<image>&w=<pow2>&h=<pow2>[&alpha=1] is
+ *  a JPEG, PNG or WebP from the network as an IMG entry the app uploads, scaled
+ *  to cover the box and cropped at its centre. QuickJS has no image decoder. */
+function imagesService(): ServiceProvider {
+  const POW2 = new Set([8, 16, 32, 64, 128, 256, 512]);
+  return {
+    name: "images",
+    async handle(request) {
+      if (request.path !== "/fetch") return jsonResponse(404, { error: `no images endpoint ${request.path}` });
+      const url = request.query.get("url") ?? "";
+      const w = Number(request.query.get("w"));
+      const h = Number(request.query.get("h"));
+      if (!/^https:\/\//.test(url)) return jsonResponse(400, { error: "fetch needs an https url" });
+      if (!POW2.has(w) || !POW2.has(h)) return jsonResponse(400, { error: "w and h are powers of two from 8 to 512" });
+      const fetched = await performNet({ url, method: "GET", headers: {}, body: new Uint8Array(0), timeoutMs: 30_000, maxBytes: 8 * 1024 * 1024 }, { signal: request.signal });
+      if (fetched.status !== 200) return jsonResponse(502, { error: `the image's server answered ${fetched.status}` });
+      const image = await ffmpegImage(fetched.body, w, h);
+      if (!image) return jsonResponse(415, { error: "that image cannot be read" });
+      const alpha = request.query.get("alpha") === "1";
+      return bytesResponse(encodeImageEntry(image, alpha ? PSM.PSM_8888 : PSM.PSM_5650, IMG_FLAG_LINEAR), "application/x-pocket-img");
+    },
+  };
+}
+
 /** An avatar as `size` x `size` RGBA. */
 const ffmpegAvatar = (bytes: Uint8Array, size: number) => ffmpegImage(bytes, size, size);
 
@@ -98,6 +124,7 @@ export class AppNet {
     SERVICE_FACTORIES.glyphs = () => deviceGlyphs(baker);
     SERVICE_FACTORIES.x = (context) => createXService(context, { decodeAvatar: ffmpegAvatar, decodeMedia: ffmpegImage });
     // what an install or a removal changes is read again at the next request
+    SERVICE_FACTORIES.images = () => imagesService();
     SERVICE_FACTORIES.appstore = () => createAppStoreService(home, () => this.callers.clear());
     this.services = new ServiceHost({ storeDir, log: (line) => log(line) });
   }
