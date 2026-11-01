@@ -294,7 +294,7 @@ export interface ListOptions {
   width: number;
   /** The list's visible height. */
   view: number;
-  /** Nothing to draw yet: a spinner in the middle. */
+  /** A page with no rows shows a spinner in the middle while this holds (always, without it). */
   loading?: Accessor<boolean>;
   /** The reader is near the end: ask for more. */
   onEnd?: () => void;
@@ -337,7 +337,7 @@ export function listContent(options: ListOptions): PageContent {
         <For each={pool.slots}>
           {(slot) => <Slot pool={pool} slot={slot} images={options.images} press={press} focused={focused} width={options.width} />}
         </For>
-        <Show when={options.loading?.() && placed().length === 0}>
+        <Show when={placed().length === 0 && (options.loading?.() ?? true)}>
           <View class="absolute" style={{ insetL: options.width / 2 - 11, insetT: Math.max(40, options.view / 2 - 30) }}>
             <ClassicSpinner size={22} color={T.muted} />
           </View>

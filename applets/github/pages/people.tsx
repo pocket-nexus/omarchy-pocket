@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// pocket-applet: draws its own pixels because the sign-in page shows a QR code.
 // applets/github/pages/people.tsx — search, a user, gists and signing in.
 import { createSignal, For, type Accessor } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { ICONS, linesPage, listPage, type SourceLine } from "../../kit/app.tsx";
 import { S, T } from "../../kit/theme.ts";
-import { encodeQr } from "../../../vendor/pocketjs/tools/companion/qr.ts";
+import { encodeQr } from "../../vendor/pocketjs/tools/companion/qr.ts";
 import { keep } from "../../ui/keep.ts";
 import type { LayerContext, PageSpec } from "../../ui/nav.tsx";
 import { NAV_H } from "../../ui/bar.tsx";
@@ -114,6 +115,7 @@ export function gistFilePage(env: Env, layer: LayerContext, id: string, name: st
   return linesPage(app, layer, { title: name, lines });
 }
 
+// shown, not fetched
 const TOKEN_URL = "https://github.com/settings/tokens/new?scopes=repo,notifications,workflow,gist,read:user,read:org&description=Omarchy%20Pocket";
 
 /** A QR code as one view per dark run. */

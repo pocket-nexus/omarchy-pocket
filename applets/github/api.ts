@@ -165,16 +165,5 @@ export function createGitHub(): GitHub {
 }
 
 /** "3h" from an ISO time. */
-export function age(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const s = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 1000));
-  if (s < 60) return "now";
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  if (s < 86400 * 30) return `${Math.floor(s / 86400)}d`;
-  if (s < 86400 * 365) return `${Math.floor(s / (86400 * 30))}mo`;
-  return `${Math.floor(s / (86400 * 365))}y`;
-}
-
-export const count = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}k` : String(n));
+export { age, count } from "../kit/page.ts";
 export const bytes = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.ceil(n / 1024)} KB` : `${n} B`);

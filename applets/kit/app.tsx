@@ -365,5 +365,6 @@ export function linesPage(app: App, layer: LayerContext, options: { title: Acces
 }
 
 export type { SourceLine };
+export type { LayerContext } from "../ui/nav.tsx";
 export { markdownRows } from "./markdown.ts";
 export { ICONS } from "./icons.ts";

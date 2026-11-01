@@ -6,8 +6,9 @@
 //
 //   pocket-applet make              ask what to make, then start the coding agent on it
 //   pocket-applet new <name> [--title T]
-//   pocket-applet build <name>      compile
-//   pocket-applet run <name>        compile, install and open it in a window
+//   pocket-applet check <name>      the rules an applet is held to, with what to do instead
+//   pocket-applet build <name>      check and compile
+//   pocket-applet run <name>        check, compile, install and open it in a window
 //   pocket-applet shot [name]       the two panels as <name>/shot.png
 //   pocket-applet log               the host's and the daemon's last lines
 //   pocket-applet tap <x> <y>       click at a place on the top panel, as read off a shot
@@ -21,6 +22,7 @@ import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { bakeSvg } from "../vendor/pocketjs/framework/compiler/bake-svg.ts";
 import { encodePNG } from "../vendor/pocketjs/tools/png.ts";
+import { checkApplet, printFindings } from "./check.ts";
 import { base64url, HANDLE, ICON_SIDE, packageFacts, sha256, signedMessage, SUMMARY_MAX } from "../store/src/shared.ts";
 
 const SDK = resolve(import.meta.dir, "..");
@@ -58,6 +60,7 @@ function workspace() {
   mkdirSync(WORK, { recursive: true });
   link(join(SDK, "applets", "ui"), join(WORK, "ui"));
   link(join(SDK, "applets", "lib"), join(WORK, "lib"));
+  link(join(SDK, "applets", "kit"), join(WORK, "kit"));
   link(join(SDK, "applets"), join(WORK, "examples"));
   link(join(SDK, "vendor"), join(WORK, "vendor"));
   link(join(SDK, "host"), join(WORK, "host"));
@@ -84,12 +87,12 @@ function create(name: string, title: string, summary: string) {
   symlinkSync("../ui/art", join(dir, "art"));
   symlinkSync("../AGENTS.md", join(dir, "AGENTS.md"));
   symlinkSync("../AGENTS.md", join(dir, "CLAUDE.md"));
-  const manifest = JSON.parse(readFileSync(join(SDK, "applets", "weather", "pocket.json"), "utf8"));
+  const manifest = JSON.parse(readFileSync(join(SDK, "applets", "github", "pocket.json"), "utf8"));
   manifest.id = `oma.${publisher()?.handle ?? "me"}.${name}`;
   manifest.name = `pocket-${name}`;
   manifest.title = title;
   manifest.version = "0.1.0";
-  manifest.applet = { version: 1, summary, services: ["store"], hosts: [] };
+  manifest.applet = { version: 1, summary, services: ["store", "images", "glyphs"], hosts: [] };
   manifest.app.entry = `${name}/main.tsx`;
   manifest.app.output = `${name}-main`;
   writeFileSync(join(dir, "pocket.json"), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -98,10 +101,20 @@ function create(name: string, title: string, summary: string) {
   console.log(dir);
 }
 
+/** The rules, printed. An error stops a build; with `strict` so does a warning. */
+function check(name: string, strict = false) {
+  const dir = dirOf(name);
+  if (!existsSync(join(dir, "pocket.json"))) fail(`no applet at ${dir}`);
+  const findings = checkApplet(dir, join(SDK, "sdk", "template"));
+  printFindings(findings);
+  if (findings.some((finding) => finding.level === "error" || strict)) fail(`${name} does not meet the rules: see ../kit/README.md`);
+}
+
 async function compile(name: string): Promise<string> {
   const dir = dirOf(name);
   if (!existsSync(join(dir, "pocket.json"))) fail(`no applet at ${dir}`);
   workspace();
+  check(name);
   const out = join(name, ".build");
   const child = Bun.spawn(
     ["bun", join("vendor", "pocketjs", "tools", "pocket.ts"), "compile", "--manifest", join(name, "pocket.json"), "--project-root", ".", "--runtime-config", join("host", "pocket.runtime-config.ts"),
@@ -214,6 +227,7 @@ async function publish(name: string) {
   const summary = String(manifest.applet?.summary ?? "").trim();
   if (!summary || summary.length > SUMMARY_MAX) fail(`applet.summary in pocket.json must be 1 to ${SUMMARY_MAX} characters`);
   const icon = iconPng(dir);
+  check(name, true);
   const built = await compile(name);
   const bytes = new Uint8Array(readFileSync(built));
   const facts = packageFacts(bytes);
@@ -247,7 +261,7 @@ async function make() {
   const named = String((await lines.next()).value ?? "").trim().toLowerCase();
   const name = named || suggested;
   create(name, titleOf(name), want.slice(0, SUMMARY_MAX));
-  const prompt = `Make this Pocket applet, called ${titleOf(name)}, in this directory: ${want}\n\nRead AGENTS.md first. Draw its icon.svg. Work until pocket-applet run shows it working and you have looked at pocket-applet shot ${name}.`;
+  const prompt = `Make this Pocket applet, called ${titleOf(name)}, in this directory: ${want}\n\nRead AGENTS.md and ../kit/README.md first, and build every page from the kit's rows. Draw its icon.svg. Work until pocket-applet run shows it working and you have looked at pocket-applet shot ${name}.`;
   const agent = Bun.which("codex") ?? fail("no coding agent here: install Codex first");
   const child = Bun.spawn([agent!, prompt], { cwd: dirOf(name), stdio: ["inherit", "inherit", "inherit"] });
   process.exit(await child.exited);
@@ -261,6 +275,10 @@ switch (argv[0]) {
   case "new":
     if (!name) fail("usage: pocket-applet new <name> [--title T]");
     create(name!, option("--title") ?? titleOf(name!), `${titleOf(name!)} for Omarchy Pocket.`);
+    break;
+  case "check":
+    workspace();
+    check(name ?? fail("usage: pocket-applet check <name>"));
     break;
   case "build":
     console.log(await compile(name ?? fail("usage: pocket-applet build <name>")));
@@ -308,6 +326,6 @@ switch (argv[0]) {
     await publish(name ?? fail("usage: pocket-applet publish <name> [--author handle]"));
     break;
   default:
-    console.log(readFileSync(import.meta.path, "utf8").split("\n").slice(1, 17).filter((line) => line.startsWith("//")).map((line) => line.slice(3)).join("\n"));
+    console.log(readFileSync(import.meta.path, "utf8").split("\n").slice(1, 18).filter((line) => line.startsWith("//")).map((line) => line.slice(3)).join("\n"));
     if (argv[0]) process.exit(1);
 }

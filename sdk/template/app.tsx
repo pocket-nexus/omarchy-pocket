@@ -1,59 +1,72 @@
-// __TITLE__: one page of a grouped table to start from. Replace it.
-import { createSignal } from "solid-js";
-import { AppletSurface } from "@pocketjs/framework/applet";
-import { View } from "@pocketjs/framework/components";
-import { onButtonPress } from "@pocketjs/framework/lifecycle";
-import { Pinstripes } from "../ui/chrome.tsx";
-import { keep } from "../ui/keep.ts";
-import { Legend } from "../ui/legend.tsx";
-import { createNavStack, type LayerContext, type NavStack, type PageSpec } from "../ui/nav.tsx";
-import { SCREEN_H, SCREEN_W, appletSurfaceId, appletTouch } from "../ui/screen.ts";
-import { tableContent } from "../ui/table.tsx";
-import { createPress, createTouchRouter, type Press } from "../ui/touch.ts";
+// TEMPLATE: __TITLE__ as a list and a detail page. Replace this with what the app
+// does, and delete this line. ../kit/README.md has every row and a recipe for each
+// common page; ../examples/github is a large app built the same way.
+import { createApp, ICONS, listPage, type App, type LayerContext } from "../kit/app.tsx";
+import { pageId, pageParts, plural, queryRows } from "../kit/page.ts";
 
-const ALL_BUTTONS = 0xffff;
-
-function homePage(press: Press, keys: () => boolean, _nav: NavStack, layer: LayerContext): PageSpec {
-  const count = keep("count", () => createSignal(0));
-  return {
-    title: () => "__TITLE__",
-    content: tableContent({
-      sections: () => [
-        {
-          header: "Start here",
-          footer: "Edit __NAME__/app.tsx, then run pocket-applet run __NAME__.",
-          cells: [{ id: "home.count", label: "Tapped", value: String(count[0]()), accessory: "chevron", run: () => count[1](count[0]() + 1) }],
-        },
-      ],
-      width: SCREEN_W,
-      press,
-      focus: layer.focus,
-      keys,
-    }),
-  };
+interface Thing {
+  id: string;
+  name: string;
+  about: string;
+  parts: number;
 }
 
-export default function App() {
-  const press = createPress();
-  // Without touch the d-pad focus shows from the start.
-  const [keys, setKeys] = createSignal(!appletTouch());
-  const stack = createNavStack({
-    restore: "__NAME__",
-    press,
-    keys,
-    setKeys,
-    onExit: () => undefined,
-    rootBack: null,
-    background: () => <Pinstripes width={SCREEN_W} height={SCREEN_H} />,
-    page: (_id, nav, layer) => homePage(press, keys, nav, layer),
+/** Data comes from here. From the network:
+ *    const reply = await fetch("https://api.example.com/things"); // fetch from ../lib/net.ts
+ *    return reply.json<Thing[]>();
+ *  and add the host to applet.hosts in pocket.json. */
+async function loadThings(): Promise<Thing[]> {
+  return [
+    { id: "one", name: "First thing", about: "What a row says about it, in a line or two.", parts: 1 },
+    { id: "two", name: "Second thing", about: "A longer detail wraps, and is cut at the lines the row allows.", parts: 12 },
+  ];
+}
+
+function homePage(app: App, layer: LayerContext) {
+  const things = app.queries.query("things", loadThings);
+  return listPage(app, layer, {
+    title: "__TITLE__",
+    rows: (rows) => queryRows(rows, "things", things, (list) => [
+      rows.section("Things"),
+      ...list.map((thing) => rows.cell({
+        key: thing.id,
+        icon: ICONS.file.muted,
+        title: thing.name,
+        detail: thing.about,
+        trailing: String(thing.parts),
+        run: () => app.stack.push(pageId("thing", thing.id)),
+      })),
+    ]),
   });
-  if (stack.entries().length === 0) stack.reset("home");
-  createTouchRouter({ surface: appletSurfaceId(), press, page: () => stack.touch(), active: () => !stack.busy(), onTouch: () => setKeys(false) });
-  onButtonPress(ALL_BUTTONS, (pressed) => void stack.key(pressed));
-  return (
-    <AppletSurface>
-      <View class="relative w-full h-full bg-[#c9d0d8] overflow-hidden">{stack.view()}</View>
-      <Legend home />
-    </AppletSurface>
-  );
 }
+
+function thingPage(app: App, layer: LayerContext, id: string) {
+  const things = app.queries.query("things", loadThings);
+  return listPage(app, layer, {
+    title: "Thing",
+    rows: (rows) => queryRows(rows, "thing", things, (list) => {
+      const thing = list.find((entry) => entry.id === id);
+      if (!thing) return rows.message({ key: "gone", title: "This is gone" });
+      return [
+        rows.cell({ key: "head", big: true, icon: ICONS.file.muted, title: thing.name, detail: plural(thing.parts, "part") }),
+        ...rows.strip([
+          { id: "thing.note", label: "Add Note", icon: ICONS.plus.text, tone: "button", run: () => app.compose({ title: "Note", placeholder: "Your note", action: "Save", send: async () => app.say("Saved") }) },
+        ], "actions"),
+        rows.section("About"),
+        ...rows.text(thing.about, "body", "about"),
+      ];
+    }),
+  });
+}
+
+export default createApp({
+  name: "__NAME__",
+  root: "home",
+  page(id, app, layer) {
+    const [kind, a = ""] = pageParts(id);
+    switch (kind) {
+      case "thing": return thingPage(app, layer, a);
+      default: return homePage(app, layer);
+    }
+  },
+});

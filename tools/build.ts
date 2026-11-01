@@ -162,7 +162,9 @@ async function sdk() {
   mkdirSync(join(out, "host"));
   for (const file of ["pocket.runtime-config.ts", "profile.ts"]) await $`cp ${join(ROOT, "host", file)} ${join(out, "host")}`;
   mkdirSync(join(out, "applets"));
-  for (const name of ["ui", "lib", "weather", "hn", "podcasts", "maps", "store"]) await $`cp -R ${join(ROOT, "applets", name)} ${join(out, "applets")}`;
+  for (const name of ["ui", "lib", "kit", "github", "weather", "hn", "podcasts", "maps", "store"]) await $`cp -R ${join(ROOT, "applets", name)} ${join(out, "applets")}`;
+  // ../lib's imports of the framework's internals, seen from the file's real path
+  symlinkSync("../vendor", join(out, "applets", "vendor"));
   mkdirSync(join(out, "store", "src"), { recursive: true });
   await $`cp ${join(ROOT, "store", "src", "shared.ts")} ${join(out, "store", "src")}`;
   await $`cp -R ${join(ROOT, "sdk")} ${out}`;
