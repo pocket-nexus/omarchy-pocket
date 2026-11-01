@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Omarchy Pocket</title>
+<meta name="description" content="A lightweight Linux experience for handhelds and unconventional computers, built on Omarchy.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+:root{--ink:#fff5ee;--ink-2:#e7d6e4;--muted:#b9a5c6;--gold:#ffc46b;--rose:#ff6f91;--violet:#b28cff;--line:rgba(255,245,238,.16);
+  --grot:"Space Grotesk",system-ui,sans-serif;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;--gutter:clamp(18px,5vw,72px)}
+*{box-sizing:border-box;margin:0}
+html{background:#07050e}
+body{color:var(--ink);font:18px/1.55 var(--sans);overflow-x:hidden}
+a{color:inherit}
+#sky{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,var(--a,#07050e),var(--b,#07050e) 62%,var(--c,#07050e))}
+#glow{position:fixed;inset:-12%;z-index:0;pointer-events:none}
+#glow img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(90px) saturate(1.4);opacity:0;transition:opacity .8s}
+#dev{position:fixed;inset:0;z-index:1}
+#study-title{position:absolute;left:0;right:0;top:clamp(84px,13vh,132px);z-index:0;text-align:center;font:700 clamp(46px,10.6vw,176px)/.94 var(--grot);letter-spacing:-.045em;pointer-events:none}
+#study-title span{display:block}
+#study-title em{font-style:normal;background:linear-gradient(92deg,var(--violet),var(--rose) 45%,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.bar{position:fixed;left:0;right:0;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:18px var(--gutter);font:500 15px/1 var(--grot)}
+.bar a{text-decoration:none}
+.bar nav{display:flex;gap:22px;align-items:center}
+.ghost{padding:10px 14px;border:1px solid var(--line);border-radius:999px;backdrop-filter:blur(12px)}
+.logo{display:flex;gap:9px;align-items:center;font-weight:700}
+.logo i{width:14px;height:20px;border-radius:3px;border:2px solid currentColor;display:block;position:relative}
+.logo i::after{content:"";position:absolute;left:-2px;right:-2px;top:7px;height:2px;background:currentColor}
+
+main{position:relative;z-index:2;pointer-events:none}
+main a,main button{pointer-events:auto}
+.beat{min-height:128vh;display:flex;align-items:center;padding:0 var(--gutter)}
+.beat.short{min-height:100vh}
+.beat.hero{min-height:100vh;align-items:flex-end;justify-content:center;padding-bottom:clamp(26px,5vh,56px);text-align:center;position:relative}
+.beat.right{justify-content:flex-end}
+.beat.center{justify-content:center;text-align:center}
+.copy{width:min(100%,29rem)}
+.beat.center .copy{width:min(100%,40rem)}
+h2{font:700 clamp(36px,4.5vw,66px)/1.02 var(--grot);letter-spacing:-.03em;text-wrap:balance}
+h2 em{font-style:normal;color:var(--gold)}
+h3{font:700 clamp(24px,2.5vw,36px)/1.08 var(--grot);letter-spacing:-.02em}
+p{margin-top:16px;color:var(--ink-2);text-wrap:pretty}
+p.lead{font:500 clamp(19px,1.6vw,23px)/1.32 var(--grot);color:var(--ink);margin-top:20px}
+.lede{max-width:40rem;font:500 clamp(16px,1.45vw,20px)/1.38 var(--grot);color:var(--ink);margin:0 auto}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;justify-content:center}
+.btn{display:inline-flex;align-items:center;height:50px;padding:0 24px;border-radius:999px;background:linear-gradient(180deg,#ffd68c,var(--gold));color:#2a1229;font:700 16px/1 var(--grot);text-decoration:none;transition:transform .2s}
+.btn:hover{transform:translateY(-2px)}
+.btn.alt{background:rgba(255,245,238,.1);color:var(--ink);border:1px solid var(--line);backdrop-filter:blur(10px)}
+.note{font:400 14px/1.45 var(--mono);color:var(--muted);margin-top:18px}
+.bars{margin-top:24px;display:grid;gap:14px}
+.bars div{font:400 14px/1.3 var(--mono);color:var(--ink-2)}
+.bars i{display:block;height:10px;margin-top:6px;border-radius:6px;background:linear-gradient(90deg,var(--c1),var(--c2));width:var(--w)}
+.bars .track{background:rgba(255,245,238,.1);border-radius:6px;display:block}
+#orbit{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0}
+#orbit figure{position:absolute;width:clamp(170px,20vw,300px);border-radius:12px;overflow:hidden;box-shadow:0 26px 60px -18px rgba(0,0,0,.85);transform:translate(-50%,-50%) rotate(var(--r));outline:1px solid rgba(255,255,255,.14)}
+#orbit img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+#orbit figcaption{position:absolute;left:8px;bottom:8px;padding:3px 8px;border-radius:6px;background:rgba(8,5,16,.82);font:500 12px/1.2 var(--mono)}
+#say{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:4;max-width:min(92vw,500px);padding:9px 15px;border-radius:12px;background:rgba(14,8,24,.84);border:1px solid var(--line);font:400 13.5px/1.36 var(--mono);color:var(--ink-2);opacity:0;transition:opacity .25s;pointer-events:none;text-align:center}
+#say.on{opacity:1}
+.applist{display:none}
+footer{position:relative;z-index:2;display:flex;justify-content:space-between;padding:22px var(--gutter);font:400 13.5px/1.4 var(--mono);color:var(--muted)}
+@media (max-width:820px){
+  .beat,.beat.right,.beat.center{align-items:flex-end;justify-content:center;padding-bottom:7vh;min-height:125vh;text-align:left}
+  .beat.short{min-height:125vh}
+  .copy,.beat.center .copy{width:100%;padding:20px;border-radius:18px;background:rgba(12,6,22,.74);backdrop-filter:blur(14px);border:1px solid var(--line)}
+  #study-title{top:76px}
+  .bar nav a:not(.ghost){display:none}
+  #orbit{display:none}
+  [data-beat="9"],[data-beat="10"]{padding-top:13vh!important;min-height:135vh!important}
+  .applist{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+  .applist img{width:100%;border-radius:8px;display:block}
+}
+</style>
+</head>
+<body>
+<div id="sky"></div>
+<div id="glow"><img id="g0" alt=""><img id="g1" alt=""></div>
+<div id="study-title" aria-hidden="true"><span>Omarchy,</span><span><em>beyond the desktop.</em></span></div>
+<div id="dev"></div>
+<div id="orbit" aria-hidden="true"></div>
+<p id="say" aria-live="polite"></p>
+<header class="bar">
+  <a class="logo" href="#top"><i></i>Omarchy Pocket</a>
+  <nav><a href="#shapes">Interaction</a><a href="#heart">Omarchy</a><a href="#apps">Applets</a><a class="ghost" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a></nav>
+</header>
+<main id="top">
+  <section class="beat hero" data-beat="0">
+    <div>
+      <h1 style="position:absolute;width:1px;height:1px;overflow:hidden">Omarchy, beyond the desktop.</h1>
+      <p class="lede">A lightweight Linux experience for handhelds and unconventional computers. Built on Omarchy, designed for modest hardware, and adapted to the screens and controls you actually use.</p>
+      <div class="btns"><a class="btn" href="#shapes">See it in action</a><a class="btn alt" href="https://github.com/pocket-nexus/omarchy-pocket">Explore on GitHub</a></div>
+    </div>
+  </section>
+  <section class="beat short" data-beat="1"></section>
+  <section class="beat" id="shapes" data-beat="2">
+    <div class="copy">
+      <h2>Computers come in all shapes. <em>So should Linux.</em></h2>
+      <p class="lead">Not every computer has a keyboard, mouse, or desktop-sized screen.</p>
+      <p>Omarchy Pocket reimagines the Linux experience for devices with touchscreens, gamepads, physical buttons, and entirely different ways to interact.</p>
+      <p>Instead of shrinking a desktop, we design around the hardware.</p>
+    </div>
+  </section>
+  <section class="beat" data-beat="3"><div class="copy"><h3>The top screen is the monitor.</h3><p>It takes no touch. It shows the wallpaper, the windows tiled the way Omarchy tiles Hyprland, Omarchy's bar and its menu.</p></div></section>
+  <section class="beat" data-beat="4"><div class="copy"><h3>The bottom screen is the keyboard.</h3><p>Like a keyboard, it changes with what it types into: keys for a terminal, a trackpad for a touch app, your workspaces when nothing has focus.</p></div></section>
+  <section class="beat" data-beat="5"><div class="copy"><h3>The gamepad is SUPER.</h3><p>Omarchy binds every window action to SUPER and one key. Here the shoulders are SUPER, and a layer lasts as long as the shoulder is down. Hold one for a quarter second and its bindings appear on the stage.</p></div></section>
+  <section class="beat right" data-beat="6">
+    <div class="copy">
+      <h2>Small footprint. <em>Big possibilities.</em></h2>
+      <p class="lead">Great software shouldn't require powerful hardware.</p>
+      <p>Omarchy Pocket replaces the traditional desktop graphics stack with a lightweight, GPU-accelerated interface designed for resource-constrained devices.</p>
+      <p>Less overhead. More room for what matters.</p>
+      <div class="bars">
+        <div>Free memory with Hyprland: 435 of 976 MB<span class="track"><i style="--w:44.6%;--c1:#7a6b8c;--c2:#a593b8"></i></span></div>
+        <div>Free memory with this shell: 759 of 953 MB<span class="track"><i style="--w:79.6%;--c1:var(--rose);--c2:var(--gold)"></i></span></div>
+      </div>
+    </div>
+  </section>
+  <section class="beat" id="heart" data-beat="7">
+    <div class="copy">
+      <h2>Still Omarchy <em>at heart.</em></h2>
+      <p class="lead">Your terminal. Your tools. Your workflows.</p>
+      <p>Built on Arch Linux and Omarchy, with familiar commands, themes, system services, and development tools, brought into a different kind of computing environment.</p>
+      <p class="note">omarchy agent opens Codex in a window, on the device.</p>
+    </div>
+  </section>
+  <section class="beat right" data-beat="8"><div class="copy"><h3>Omarchy's menu, and its themes.</h3><p>The same menu tree in a card on the stage, filtered by typing on the deck. A theme changes the wallpaper, the windows, the bar and the keyboard, as it does on the desktop.</p></div></section>
+  <section class="beat center" id="apps" data-beat="9" style="min-height:150vh;align-items:flex-start;padding-top:32vh">
+    <div class="copy">
+      <h2>Small apps. <em>Every screen.</em></h2>
+      <p class="lead">Discover a growing collection of lightweight apps, from everyday utilities to connected services.</p>
+      <p>Powered by PocketJS, Applets are designed to work across different devices, screen sizes, and input methods, without being tied to a single form factor.</p>
+      <div class="applist" id="applist"></div>
+    </div>
+  </section>
+  <section class="beat center" data-beat="10" style="min-height:118vh;align-items:flex-start;padding-top:27vh">
+    <div class="copy">
+      <h2>Your hardware <em>deserves more.</em></h2>
+      <p class="lead">We're starting with the RG DS Plus, but the vision goes much further.</p>
+      <p>Different screens. Different controls. Different capabilities. One idea: make more of the computers we already have.</p>
+      <div class="btns"><a class="btn" href="https://github.com/pocket-nexus/omarchy-pocket">Explore Omarchy Pocket on GitHub</a></div>
+    </div>
+  </section>
+</main>
+<footer><span>Omarchy Pocket, built on Omarchy and PocketJS.</span><a href="https://github.com/pocket-nexus/omarchy-pocket">Source</a></footer>
+<script type="module">
+import { createDevice, lerpPose } from "/kit/rgds.js";
+import { shot, show, attachButtons } from "/kit/scenes.js";
+
+const device = createDevice(document.getElementById("dev"), {
+  color: "black", drag: false, margin: 1.02,
+  env: { sky: 0x4a3060, floor: 0x1a0a1c, key: 0xffe9d6, fill: 0xb28cff, accent: 0xff6f91, strength: 1.35, front: 1.15 },
+});
+
+// One row per [data-beat]: where the device is when that beat sits mid-screen.
+const BEATS = [
+  { pose: { pitch: -70, yaw: -14, lid: 27, zoom: .72, ox: 0, oy: .1, cy: 0, cz: 0 }, scene: "home", sky: ["#0b0716", "#1b0d30", "#4a1c48"], glow: 0 },
+  { pose: { pitch: -54, yaw: -6, lid: 122, zoom: .98, ox: 0, oy: .05, cy: 0, cz: 0 }, scene: "home", sky: ["#180c30", "#59204f", "#c5546a"], glow: .55 },
+  { pose: { pitch: -8, yaw: -13, lid: 174, zoom: 1.0, ox: .21, oy: 0, cy: 0, cz: 0 }, scene: "home", sky: ["#180c30", "#4a1c48", "#8a3360"], glow: .5 },
+  { pose: { pitch: -6, yaw: -20, lid: 176, zoom: 1.34, ox: .2, oy: .0, cy: 47, cz: 6 }, scene: "tile4", sky: ["#100a26", "#2a1642", "#47204f"], glow: .5 },
+  { pose: { pitch: -34, yaw: -20, lid: 150, zoom: 1.3, ox: .23, oy: 0, cy: -40, cz: -4 }, scene: "split", sky: ["#100a26", "#241444", "#3a2058"], glow: .45 },
+  { pose: { pitch: -74, yaw: -158, lid: 70, zoom: 1.32, ox: .2, oy: .02, cy: -2, cz: -4 }, scene: "legend", sky: ["#0e0920", "#1f1140", "#2f1a55"], glow: .3 },
+  { pose: { pitch: -56, yaw: 24, lid: 96, zoom: 1.02, ox: -.2, oy: .02, cy: 0, cz: 0 }, scene: "tile3", sky: ["#0a0a1e", "#151633", "#292a58"], glow: .4 },
+  { pose: { pitch: -22, yaw: -18, lid: 156, zoom: 1.02, ox: .22, oy: 0, cy: 14, cz: 0 }, scene: "agent", sky: ["#0a0a18", "#16182c", "#1e2140"], glow: .4 },
+  { pose: { pitch: -32, yaw: 20, lid: 132, zoom: 1.1, ox: -.2, oy: 0, cy: 12, cz: 0 }, scene: "blossom", sky: ["#1a2a48", "#3a5e88", "#d7a7b3"], glow: .75 },
+  { pose: { pitch: -50, yaw: 0, lid: 118, zoom: .62, ox: 0, oy: .19, cy: 0, cz: 0 }, scene: "weather", sky: ["#121236", "#2a1c56", "#552a6a"], glow: .5 },
+  { pose: { pitch: -60, yaw: -8, lid: 118, zoom: .64, ox: 0, oy: .27, cy: 0, cz: 0 }, scene: "home", sky: ["#1a0c30", "#6d2452", "#ef7a64"], glow: .7 },
+];
+
+const beats = [...document.querySelectorAll("[data-beat]")];
+const sky = document.getElementById("sky"), title = document.getElementById("study-title"), orbit = document.getElementById("orbit");
+const g = [document.getElementById("g0"), document.getElementById("g1")];
+let glowFront = 0, sceneNow = null, glowLevel = 0;
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const mix = (a, b, t) => { const x = hex(a), y = hex(b); return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(",")})`; };
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const mobile = () => innerWidth <= 820;
+const fit = (p) => (mobile() ? { ...p, ox: 0, oy: p.oy - .19, zoom: p.zoom * .9 } : p);
+
+function setScene(id) {
+  if (id === sceneNow) return;
+  sceneNow = id;
+  if (device) { show(device, id, { ms: 340 }); device.press("L1", id === "legend"); }
+  const next = 1 - glowFront;
+  g[next].src = shot(id)[0];
+  g[next].style.opacity = glowLevel;
+  g[glowFront].style.opacity = 0;
+  glowFront = next;
+}
+
+let centers = [];
+const measure = () => { centers = beats.map((b) => { const r = b.getBoundingClientRect(); return r.top + scrollY + r.height / 2; }); centers[0] = innerHeight / 2; };
+function update() {
+  const y = scrollY + innerHeight / 2;
+  let i = 0;
+  while (i < centers.length - 2 && y >= centers[i + 1]) i++;
+  const raw = Math.min(1, Math.max(0, (y - centers[i]) / (centers[i + 1] - centers[i])));
+  const t = smooth(.14, .86, raw);
+  if (device) device.set(fit(lerpPose(BEATS[i].pose, BEATS[i + 1].pose, t)));
+  const a = BEATS[i].sky, b = BEATS[i + 1].sky;
+  sky.style.setProperty("--a", mix(a[0], b[0], t));
+  sky.style.setProperty("--b", mix(a[1], b[1], t));
+  sky.style.setProperty("--c", mix(a[2], b[2], t));
+  glowLevel = BEATS[i].glow + (BEATS[i + 1].glow - BEATS[i].glow) * t;
+  g[glowFront].style.opacity = glowLevel;
+  setScene(t < .5 ? BEATS[i].scene : BEATS[i + 1].scene);
+  // the title stays behind the device and slides up as the lid opens
+  const h = scrollY / innerHeight;
+  title.style.transform = `translateY(${-h * 42}vh)`;
+  title.style.opacity = 1 - smooth(.25, .85, h);
+  title.style.position = "fixed";
+  // applets gather around the device
+  const nine = centers[9];
+  const d = Math.abs(y - nine) / innerHeight;
+  orbit.style.opacity = i >= 8 && !mobile() ? 1 - smooth(.42, .78, d) : 0;
+}
+measure();
+addEventListener("resize", () => { measure(); update(); });
+addEventListener("scroll", () => requestAnimationFrame(update), { passive: true });
+document.fonts?.ready.then(() => { measure(); update(); });
+update();
+
+const APPS = [
+  ["weather", "Weather", 14, 62, -5], ["maps", "Maps", 86, 62, 5], ["podcast", "Podcasts", 9, 34, 3],
+  ["hnfull", "Hacker News", 91, 34, -3], ["video", "YouTube", 22, 87, 3], ["tailscale", "Tailscale", 78, 87, -3],
+];
+orbit.innerHTML = APPS.map(([id, name, x, y, r]) => `<figure style="left:${x}%;top:${y}%;--r:${r}deg"><img src="/shots/${id}-top.webp" alt=""><figcaption>${name}</figcaption></figure>`).join("");
+document.getElementById("applist").innerHTML = APPS.map(([id, name]) => `<img loading="lazy" src="/shots/${id}-top.webp" alt="${name} on the device">`).join("");
+
+const say = document.getElementById("say");
+if (device) {
+  let hide;
+  attachButtons(device, { rest: "home", say: (text) => { say.textContent = text; say.classList.add("on"); clearTimeout(hide); hide = setTimeout(() => say.classList.remove("on"), 3400); } });
+  device.preload(BEATS.map((b) => b.scene).flatMap(shot)).then(update);
+}
+</script>
+<script src="/kit/study.js" defer></script>
+</body>
+</html>

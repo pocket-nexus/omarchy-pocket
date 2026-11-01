@@ -1,0 +1,12 @@
+{
+  // omapocket.org: static files only. oma.pocket.nexus and its store API stay on
+  // the omarchy-pocket-store Worker in store/.
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "omapocket",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./public", "not_found_handling": "404-page", "html_handling": "auto-trailing-slash" },
+  "routes": [
+    { "pattern": "omapocket.org", "custom_domain": true },
+    { "pattern": "www.omapocket.org", "custom_domain": true }
+  ]
+}

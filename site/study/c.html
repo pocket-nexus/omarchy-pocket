@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en" data-theme="tokyo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Omarchy Pocket</title>
+<meta name="description" content="A lightweight Linux experience for handhelds and unconventional computers, built on Omarchy.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap">
+<style>
+:root{--gap:10px;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+[data-theme=tokyo]{--bg:#1a1b26;--win:rgba(26,27,38,.95);--title:rgba(36,40,59,.96);--fg:#a9b1d6;--hi:#c0caf5;--dim:#565f89;--line:#3b4261;--accent:#7aa2f7;--a2:#bb9af7;--a3:#ff9e64;--a4:#9ece6a;--wall:url(/shots/wall-tokyo.webp)}
+[data-theme=lupine]{--bg:#fafafa;--win:rgba(250,250,250,.96);--title:rgba(232,235,246,.97);--fg:#3d3d3d;--hi:#14141a;--dim:#8a8d99;--line:#ccd0dd;--accent:#3264eb;--a2:#b03c8c;--a3:#c4561c;--a4:#2c8a4a;--wall:url(/shots/wall-lupine.webp)}
+*{box-sizing:border-box;margin:0}
+html{background:var(--bg);scroll-padding-top:34px;transition:background .3s}
+body{min-height:100vh;color:var(--fg);font:400 15px/1.55 var(--mono);overflow-x:hidden}
+#wall{position:fixed;inset:0;z-index:-1;background:var(--wall) center/cover no-repeat;transition:background-image .3s}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
+.top{position:fixed;left:0;right:0;top:0;z-index:20;height:30px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 10px;background:var(--bg);color:var(--fg);font-size:13px;border-bottom:1px solid transparent}
+.top>div{display:flex;align-items:center;gap:10px}
+.top>div:last-child{justify-content:flex-end}
+.sq{width:15px;height:15px;border:2px solid var(--fg);border-radius:3px;position:relative;display:block}
+.sq::after{content:"";position:absolute;inset:2px;background:var(--fg)}
+.wsn{display:flex;gap:1px}
+.wsn a{display:block;width:21px;text-align:center;line-height:21px;text-decoration:none;color:var(--dim);border-radius:3px}
+.wsn a.on{background:var(--hi);color:var(--bg);font-weight:700}
+.top a.t,.top button{color:var(--fg);text-decoration:none}
+.top button:hover,.top a.t:hover{color:var(--accent)}
+.hint{color:var(--dim)}
+
+main{padding-top:30px}
+.ws{min-height:calc(100vh - 30px);padding:var(--gap);display:grid;gap:var(--gap);scroll-margin-top:30px}
+.win{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--win);border:2px solid var(--line);border-radius:7px;overflow:hidden;transition:border-color .12s}
+.win:hover,.win.on{border-color:var(--accent)}
+.win>header{flex:none;display:flex;justify-content:space-between;gap:10px;padding:3px 10px;background:var(--title);font-size:12.5px;color:var(--fg)}
+.win>header span:last-child{color:var(--dim)}
+.body{flex:1;min-height:0;padding:clamp(14px,1.8vw,26px);overflow:hidden}
+.body.flush{padding:0;position:relative}
+.reveal{animation:pop .2s cubic-bezier(.2,.8,.2,1) both}
+@keyframes pop{from{transform:scale(.87);opacity:0}}
+@media (prefers-reduced-motion:reduce){.reveal{animation:none}}
+
+.prompt{color:var(--accent)}.prompt b{color:var(--a4);font-weight:500}
+h1{margin:clamp(14px,2.2vh,26px) 0;font:800 clamp(38px,6.1vw,104px)/.98 var(--mono);letter-spacing:-.055em;color:var(--hi)}
+h1 em,h2 em{font-style:normal;color:var(--accent)}
+h2{font:800 clamp(25px,3.1vw,50px)/1.05 var(--mono);letter-spacing:-.045em;color:var(--hi);text-wrap:balance}
+.lead{margin-top:14px;font-size:clamp(15px,1.3vw,19px);line-height:1.42;color:var(--hi);font-weight:500}
+p+p{margin-top:12px}
+p{text-wrap:pretty}
+.acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.key{display:inline-flex;align-items:center;height:42px;padding:0 15px;border-radius:7px;border:2px solid var(--accent);color:var(--hi);text-decoration:none;font-weight:500}
+.key.fill{background:var(--accent);color:var(--bg);font-weight:700}
+.key:hover{filter:brightness(1.15)}
+.clock{font-weight:800;color:var(--hi);font-size:clamp(34px,4.6vw,74px);line-height:1;letter-spacing:-.05em;text-align:center}
+.clocksub{text-align:center;color:var(--accent);margin-top:6px;font-size:13px}
+.body.mid{display:flex;flex-direction:column;justify-content:center}
+table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.35}
+th{color:var(--a2);font-weight:500;text-align:left;padding:3px 10px 3px 0;white-space:nowrap}
+td{padding:3px 10px 3px 0;vertical-align:top}
+tr+tr td,tr+tr th{border-top:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
+.tabs{flex:none;display:flex;gap:2px;justify-content:flex-end;padding:4px 8px;background:var(--title)}
+.tabs button{padding:3px 12px;border-radius:4px;font-size:12.5px;color:var(--dim)}
+.tabs button.on{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}
+.cap{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;background:#0b0b10}
+.shoulder{position:absolute;left:0;top:0;z-index:3;width:38px;height:27px;padding:0;border-radius:8px;font:600 12px/1 var(--chipfont,ui-monospace,Menlo,monospace);cursor:pointer;touch-action:none;transition:filter .1s,background .1s;background:var(--accent);color:var(--bg);border:0}
+.shoulder.down{filter:brightness(.7)}
+.dev{position:absolute;inset:0}
+.say{flex:none;padding:7px 10px;font-size:12.5px;line-height:1.35;color:var(--fg);border-top:1px solid var(--line);min-height:47px;background:var(--win)}
+.free{font-size:13px;line-height:1.4;color:var(--fg);white-space:pre-wrap}
+.bar{display:block;height:14px;margin:7px 0 14px;background:color-mix(in srgb,var(--line) 50%,transparent);border-radius:2px}
+.bar i{display:block;height:100%;background:var(--c);width:var(--w);border-radius:2px}
+.stacklist li{list-style:none;padding:5px 0;border-top:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
+.stacklist li:first-child{border:0}
+.stacklist s{color:var(--dim)}
+.stacklist b{color:var(--a4);font-weight:500}
+ul{padding:0}
+.themes{font-size:13px;line-height:1.75}
+.themes button{display:block;width:100%;text-align:left;padding:0 6px;border-radius:3px;color:var(--fg)}
+.themes button[disabled]{color:var(--dim);cursor:default}
+.themes button.on{background:var(--accent);color:var(--bg);font-weight:700}
+
+#ws1{grid-template-columns:repeat(12,minmax(0,1fr));grid-template-rows:minmax(0,1fr) auto}
+#ws1 .pitch{grid-column:1/8;grid-row:1}
+#ws1 .device{grid-column:8/13;grid-row:1/3}
+#ws1 .clockw{grid-column:1/4;grid-row:2}
+#ws1 .chords{grid-column:4/8;grid-row:2}
+#ws2{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,.95fr);grid-template-rows:minmax(0,1.08fr) minmax(0,1fr)}
+#ws2 .a{grid-column:1;grid-row:1}
+#ws2 .b{grid-column:2;grid-row:1/3}
+#ws2 .c{grid-column:3;grid-row:1}
+#ws2 .d{grid-column:1;grid-row:2}
+#ws2 .e{grid-column:3;grid-row:2}
+#ws3{grid-template-columns:minmax(0,1fr) minmax(0,.9fr) minmax(0,1.1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
+#ws3 .a{grid-row:1/3}
+#ws3 .x{grid-column:3;grid-row:1/3}
+#ws4{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,.62fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
+#ws4 .a{grid-column:1;grid-row:1}
+#ws4 .b{grid-column:2;grid-row:1}
+#ws4 .c{grid-column:1;grid-row:2}
+#ws4 .d{grid-column:2;grid-row:2}
+#ws4 .e{grid-column:3;grid-row:1/3}
+#ws5{grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:auto repeat(2,calc((100vw - 40px)/3*.75 + 26px))}
+#ws5 .a{grid-column:1/4;grid-row:1}
+#ws5 .z{grid-column:4/7;grid-row:1}
+#ws5 .i1{grid-column:1/3;grid-row:2}#ws5 .i2{grid-column:3/5;grid-row:2}#ws5 .i3{grid-column:5/7;grid-row:2}
+#ws5 .i4{grid-column:1/3;grid-row:3}#ws5 .i5{grid-column:3/5;grid-row:3}#ws5 .i6{grid-column:5/7;grid-row:3}
+
+#legend{position:fixed;left:50%;bottom:14px;transform:translate(-50%,10px);z-index:30;width:min(96vw,760px);padding:9px 13px;background:var(--win);border:2px solid var(--accent);border-radius:7px;font-size:13px;line-height:1.5;opacity:0;pointer-events:none;transition:.12s}
+#legend.on{opacity:1;transform:translate(-50%,0)}
+#legend b{color:var(--a2);font-weight:500}
+
+footer{padding:10px;font-size:12.5px;color:var(--hi);text-shadow:0 1px 2px rgba(0,0,0,.6)}
+@media (max-width:980px){
+  .ws{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:none!important;min-height:0}
+  .ws>.win{grid-column:1!important;grid-row:auto!important}
+  .device .body,.dev3{height:92vw;max-height:600px;flex:none}
+  .capw{height:72vw;max-height:520px}
+  .hint{display:none}
+  .top{grid-template-columns:auto 1fr auto}
+  #clockTop{display:none}
+}
+</style>
+</head>
+<body>
+<div id="wall"></div>
+<div class="top">
+  <div><a href="#ws1" aria-label="Omarchy Pocket"><span class="sq"></span></a>
+    <nav class="wsn" id="wsn" aria-label="Chapters"><a class="on" href="#ws1">1</a><a href="#ws2">2</a><a href="#ws3">3</a><a href="#ws4">4</a><a href="#ws5">5</a></nav>
+  </div>
+  <div id="clockTop"></div>
+  <div><span class="hint">dwindle · hold L for the legend</span><button id="themeBtn">Lupine</button><a class="t" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a></div>
+</div>
+<main>
+<section class="ws" id="ws1">
+  <div class="win on pitch reveal"><header><span>bash</span><span>~</span></header><div class="body mid">
+    <div class="prompt">~ ) <b>cat</b> README</div>
+    <h1>Omarchy, <em>beyond the desktop.</em></h1>
+    <p class="lead">A lightweight Linux experience for handhelds and unconventional computers. Built on Omarchy, designed for modest hardware, and adapted to the screens and controls you actually use.</p>
+    <div class="acts"><a class="key fill" href="#ws2">See it in action</a><a class="key" href="https://github.com/pocket-nexus/omarchy-pocket">Explore on GitHub</a></div>
+  </div></div>
+  <div class="win device reveal"><header><span>RG DS Plus</span><span>drag · press its buttons</span></header><div class="body flush"><div class="dev" id="dev1"></div></div></div>
+  <div class="win clockw reveal"><header><span>Clock</span></header><div class="body mid"><div class="clock" id="clock">00:00</div><div class="clocksub" id="date"></div></div></div>
+  <div class="win chords reveal"><header><span>Keys</span><span>L1 window · R1 move</span></header><div class="body" style="padding:10px 14px"><table>
+    <tr><th>L1 + A</th><td>Omarchy's menu</td><th>R1 + D-pad</th><td>swap</td></tr>
+    <tr><th>L1 + X</th><td>fullscreen</td><th>R1 + B</th><td>reopen closed</td></tr>
+    <tr><th>L1 + B</th><td>close</td><th>L1 + R1</th><td>workspace</td></tr>
+  </table></div></div>
+</section>
+
+<section class="ws" id="ws2">
+  <div class="win a"><header><span>shapes</span></header><div class="body mid">
+    <h2>Computers come in all shapes. <em>So should Linux.</em></h2>
+    <p class="lead">Not every computer has a keyboard, mouse, or desktop-sized screen.</p>
+  </div></div>
+  <div class="win b"><header><span>RG DS Plus</span><span id="focusName">bash</span></header>
+    <div class="tabs" id="tabs"><button data-scene="split" class="on">Keys</button><button data-scene="pad">Pad</button><button data-scene="home">Home</button><button data-scene="ime">中</button></div>
+    <div class="body flush dev3" style="flex:1"><div class="dev" id="dev2"></div></div>
+    <p class="say" id="say2" aria-live="polite">Press SELECT on the model, or hold L1.</p>
+  </div>
+  <div class="win c capw"><header><span>stage</span><span>the monitor</span></header><div class="body flush"><img class="cap" loading="lazy" src="/shots/tile4-top.webp" alt="Four tiled windows on the device"></div></div>
+  <div class="win d"><header><span>hardware</span></header><div class="body mid">
+    <p>Omarchy Pocket reimagines the Linux experience for devices with touchscreens, gamepads, physical buttons, and entirely different ways to interact.</p>
+    <p style="color:var(--hi);font-weight:500">Instead of shrinking a desktop, we design around the hardware.</p>
+  </div></div>
+  <div class="win e"><header><span>rule</span><span>shell/src/focus.ts</span></header><div class="body" style="padding:14px"><table>
+    <tr><th>The stage</th><td>is the monitor. It takes no touch.</td></tr>
+    <tr><th>The deck</th><td>is the keyboard. It changes with what it types into.</td></tr>
+    <tr><th>The gamepad</th><td>is SUPER. A layer lasts as long as the shoulder is down.</td></tr>
+  </table></div></div>
+</section>
+
+<section class="ws" id="ws3">
+  <div class="win a"><header><span>footprint</span></header><div class="body mid">
+    <h2>Small footprint. <em>Big possibilities.</em></h2>
+    <p class="lead">Great software shouldn't require powerful hardware.</p>
+    <p style="margin-top:14px">Omarchy Pocket replaces the traditional desktop graphics stack with a lightweight, GPU-accelerated interface designed for resource-constrained devices.</p>
+    <p style="color:var(--hi);font-weight:500">Less overhead. More room for what matters.</p>
+  </div></div>
+  <div class="win"><header><span>free -m</span><span>both on this device</span></header><div class="body mid">
+    <div class="free">Hyprland, foot, Xwayland: 435 MB free of 976<span class="bar" style="--w:44.6%;--c:var(--a3)"><i></i></span>PocketJS shell: 759 MB free of 953<span class="bar" style="--w:79.6%;--c:var(--a4)"><i></i></span></div>
+  </div></div>
+  <div class="win"><header><span>stack</span></header><div class="body mid"><ul class="stacklist">
+    <li><s>SDDM, Quickshell, Hyprland</s></li>
+    <li><b>PocketJS shell on the GPU</b></li>
+    <li>Omarchy's CLI, themes, config and services</li>
+    <li>Arch Linux</li>
+  </ul></div></div>
+  <div class="win x capw"><header><span>Activity</span><span>three windows, idle</span></header><div class="body flush"><img class="cap" loading="lazy" src="/shots/tile3-top.webp" alt="A terminal, Activity and a clock tiled on the device"></div></div>
+</section>
+
+<section class="ws" id="ws4">
+  <div class="win a"><header><span>heart</span></header><div class="body mid">
+    <h2>Still Omarchy <em>at heart.</em></h2>
+    <p class="lead">Your terminal. Your tools. Your workflows.</p>
+    <p style="margin-top:12px">Built on Arch Linux and Omarchy, with familiar commands, themes, system services, and development tools, brought into a different kind of computing environment.</p>
+  </div></div>
+  <div class="win b capw"><header><span>Agent</span><span>omarchy agent</span></header><div class="body flush"><img class="cap" loading="lazy" src="/shots/agent-top.webp" alt="A terminal beside Codex on the device"></div></div>
+  <div class="win c capw"><header><span>btop</span></header><div class="body flush"><img class="cap" loading="lazy" src="/shots/btop-top.webp" alt="btop on the device"></div></div>
+  <div class="win d capw"><header><span>Menu</span></header><div class="body flush"><img class="cap" loading="lazy" src="/shots/menu-top.webp" alt="Omarchy's menu on the device"></div></div>
+  <div class="win e"><header><span>Theme</span><span>23 installed</span></header><div class="body" style="padding:10px"><div class="themes" id="themes"></div></div></div>
+</section>
+
+<section class="ws" id="ws5">
+  <div class="win a"><header><span>applets</span></header><div class="body mid">
+    <h2>Small apps. <em>Every screen.</em></h2>
+    <p class="lead">Discover a growing collection of lightweight apps, from everyday utilities to connected services.</p>
+    <p style="margin-top:12px">Powered by PocketJS, Applets are designed to work across different devices, screen sizes, and input methods, without being tied to a single form factor.</p>
+  </div></div>
+  <div class="win z"><header><span>what's next</span></header><div class="body mid">
+    <h2>Your hardware <em>deserves more.</em></h2>
+    <p class="lead">We're starting with the RG DS Plus, but the vision goes much further.</p>
+    <p style="margin-top:12px">Different screens. Different controls. Different capabilities. One idea: make more of the computers we already have.</p>
+    <div class="acts"><a class="key fill" href="https://github.com/pocket-nexus/omarchy-pocket">Explore Omarchy Pocket on GitHub</a></div>
+  </div></div>
+  <div class="win i1 capw"><header><span>Weather</span></header><div class="body flush"><img class="cap" loading="lazy" src="/shots/weather-top.webp" alt="Weather on the device"></div></div>
+  <div class="win i2 capw"><header><span>Maps</span></header><div class="body flush"><img class="cap" loading="lazy" src="/shots/maps-top.webp" alt="Maps on the device"></div></div>
+  <div class="win i3 capw"><header><span>Podcasts</span></header><div class="body flush"><img class="cap" loading="lazy" src="/shots/podcast-top.webp" alt="Podcasts on the device"></div></div>
+  <div class="win i4 capw"><header><span>YouTube</span></header><div class="body flush"><img class="cap" loading="lazy" src="/shots/video-top.webp" alt="YouTube playing on the device"></div></div>
+  <div class="win i5 capw"><header><span>Hacker News</span></header><div class="body flush"><img class="cap" loading="lazy" src="/shots/hnfull-top.webp" alt="Hacker News on the device"></div></div>
+  <div class="win i6 capw"><header><span>Tailscale</span></header><div class="body flush"><img class="cap" loading="lazy" src="/shots/tailscale-top.webp" alt="The Tailscale panel on the device"></div></div>
+</section>
+</main>
+<footer>Omarchy Pocket, built on Omarchy and PocketJS.</footer>
+<div id="legend" role="status"><b>L1 window</b> &nbsp; D-pad focus &nbsp; L2/R2 shrink, grow &nbsp; A menu &nbsp; B close &nbsp; X fullscreen &nbsp; Y toggle split &nbsp; START layout &nbsp; SELECT key sheet</div>
+
+<script type="module">
+import { createDevice } from "/kit/rgds.js";
+import { show, attachButtons } from "/kit/scenes.js";
+
+const LUPINE = { home: "blossom", split: "white", pad: "white", ime: "white", legend: "white" };
+let theme = "tokyo";
+const map = (id) => (theme === "lupine" ? LUPINE[id] ?? "blossom" : id);
+const envs = { sky: 0x2f3550, floor: 0x10121c, fill: 0x7aa2f7, accent: 0xbb9af7, strength: 1.4, front: 1.15 };
+const d1 = createDevice(document.getElementById("dev1"), { color: "black", env: envs, margin: 1.0 });
+const d2 = createDevice(document.getElementById("dev2"), { color: "black", env: envs, margin: 1.0 });
+let d1scene = "home", d2scene = "split";
+if (d1) { show(d1, d1scene, { ms: 0 }); d1.set({ pitch: -42, yaw: -20, lid: 132 }); attachButtons(d1, { rest: "home", shoulders: document.getElementById("dev1"), say: () => {} }); }
+if (d2) {
+  show(d2, d2scene, { ms: 0 });
+  d2.set({ pitch: -26, yaw: 14, lid: 164, zoom: 1 });
+  attachButtons(d2, { rest: "split", shoulders: document.getElementById("dev2"), say: (t) => (document.getElementById("say2").textContent = t), onScene: (id) => setTab(id) });
+}
+const tabs = document.getElementById("tabs");
+const setTab = (id) => tabs.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.scene === id));
+tabs.addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  d2scene = b.dataset.scene; setTab(d2scene);
+  if (d2) show(d2, map(d2scene));
+});
+
+// the theme: both captures and the page
+const NAMES = ["Catppuccin Latte", "Catppuccin", "Ethereal", "Everforest", "Flexoki Light", "Gruvbox", "Hackerman", "Jade Horse", "Kanagawa", "Last Horizon", "Lumon", "Lupine", "Matte Black", "Miasma", "Nord", "Retro 82", "Ristretto", "Rose Pine", "Solitude", "Starship", "Tokyo Night", "Vantablack", "White"];
+const LIVE = { "Lupine": "lupine", "Tokyo Night": "tokyo" };
+const themes = document.getElementById("themes");
+themes.innerHTML = NAMES.map((n) => `<button ${LIVE[n] ? `data-t="${LIVE[n]}"` : "disabled"}>${n}</button>`).join("");
+function setTheme(t) {
+  theme = t;
+  document.documentElement.dataset.theme = t;
+  document.getElementById("themeBtn").textContent = t === "tokyo" ? "Lupine" : "Tokyo Night";
+  themes.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.t === t));
+  for (const [d, id] of [[d1, d1scene], [d2, d2scene]]) if (d) { d.setColor(t === "lupine" ? "pink" : "black"); show(d, map(id)); }
+}
+themes.addEventListener("click", (e) => { const t = e.target.closest("[data-t]")?.dataset.t; if (t) setTheme(t); });
+document.getElementById("themeBtn").addEventListener("click", () => setTheme(theme === "tokyo" ? "lupine" : "tokyo"));
+setTheme("tokyo");
+
+// clocks
+const tick = () => {
+  const now = new Date();
+  const hm = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  document.getElementById("clock").textContent = hm;
+  document.getElementById("date").textContent = now.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  document.getElementById("clockTop").textContent = `${now.toLocaleDateString("en-GB", { weekday: "long" })} ${hm}`;
+};
+tick(); setInterval(tick, 10000);
+
+// workspaces follow the scroll; 1 to 5 go to one
+const sections = [...document.querySelectorAll(".ws")];
+const links = [...document.querySelectorAll("#wsn a")];
+const io = new IntersectionObserver((es) => {
+  for (const e of es) if (e.isIntersecting) {
+    const i = sections.indexOf(e.target);
+    links.forEach((l, j) => l.classList.toggle("on", i === j));
+    e.target.querySelectorAll(".win").forEach((w, j) => { w.classList.remove("reveal"); void w.offsetWidth; w.style.animationDelay = `${j * 28}ms`; w.classList.add("reveal"); });
+  }
+}, { threshold: .42 });
+sections.forEach((s) => io.observe(s));
+const legend = document.getElementById("legend");
+addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (/^[1-5]$/.test(e.key)) sections[+e.key - 1].scrollIntoView({ behavior: "smooth" });
+  if (e.key.toLowerCase() === "l") legend.classList.add("on");
+  if (e.key.toLowerCase() === "t") setTheme(theme === "tokyo" ? "lupine" : "tokyo");
+});
+addEventListener("keyup", (e) => { if (e.key.toLowerCase() === "l") legend.classList.remove("on"); });
+</script>
+<script src="/kit/study.js" defer></script>
+</body>
+</html>

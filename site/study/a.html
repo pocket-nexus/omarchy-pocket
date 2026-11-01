@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Omarchy Pocket</title>
+<meta name="description" content="A lightweight Linux experience for handhelds and unconventional computers, built on Omarchy.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Fredoka:wght@500;600&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#171226;--bg-2:#1c1630;--panel:#231b3b;--panel-2:#2b2148;--shade:#0e091a;
+  --ink:#fcf6ff;--ink-2:#cbbde2;--muted:#8e80ac;
+  --yellow:#ffd23f;--pink:#ff5f9e;--cyan:#3fd0e8;--lilac:#a98bff;--orange:#ffb45c;
+  --out:#221338;--drop:#0a0614;--rule:rgba(203,189,226,.14);
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --round:"Fredoka","IBM Plex Sans",system-ui,sans-serif;
+  --display:"Press Start 2P",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --gutter:clamp(16px,4vw,48px);
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth;background:var(--bg)}
+body{min-height:100vh;color:var(--ink);font:17px/1.55 var(--sans);overflow-x:hidden;
+  background:
+    radial-gradient(1000px 640px at 78% 4%,rgba(169,139,255,.17),transparent 70%),
+    radial-gradient(800px 600px at 8% 30%,rgba(255,95,158,.08),transparent 70%),
+    var(--bg)}
+a{color:inherit}
+img{display:block;max-width:100%}
+.wrap{width:100%;max-width:1320px;margin:0 auto;padding:0 var(--gutter)}
+
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px var(--gutter)}
+.links{display:flex;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:9px;height:44px;padding:0 17px;border-radius:999px;border:2px solid var(--out);background:var(--panel);color:var(--ink);font:600 15px/1 var(--round);text-decoration:none;box-shadow:0 4px 0 var(--drop);transition:transform .2s cubic-bezier(.3,1.6,.5,1)}
+.pill:hover{transform:translateY(-2px) rotate(-1.5deg)}
+.pill.ico{width:44px;padding:0;justify-content:center;color:var(--ink-2)}
+.pill svg{width:20px;height:20px}
+.mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(180deg,#ffdc63,#ffc01f);display:grid;grid-template-rows:1fr 1fr;gap:2px;padding:4px 5px;box-shadow:inset 0 -2px 0 rgba(214,134,0,.5)}
+.mark i{background:#221338;border-radius:1px}
+
+.hero{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,1fr);gap:clamp(12px,3vw,40px);align-items:center;min-height:min(calc(100vh - 76px),860px);padding-bottom:24px}
+.plate{--u:min(3px,.125em);position:relative;display:block;padding:1.05em 1.1em 1.9em;border-radius:26px;border:4px solid var(--yellow);font:400 clamp(17px,2.9vw,38px)/1.6 var(--display);text-transform:uppercase;
+  background:radial-gradient(ellipse 70% 90% at 25% 30%,rgba(255,95,158,.15),transparent 70%),#120c21;
+  box-shadow:inset 0 0 0 4px #1a1130,inset 0 5px 0 4px rgba(0,0,0,.35),0 8px 0 #c99400,0 8px 0 3px var(--drop),0 30px 50px -20px rgba(0,0,0,.8)}
+.plate::after{content:"";position:absolute;inset:8px;border-radius:18px;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(10,6,20,.24) 0 1px,transparent 1px 4px)}
+.rail{position:absolute;left:24px;right:24px;bottom:15px;height:6px;opacity:.8;background:repeating-linear-gradient(90deg,#ffd23f 0 6px,transparent 6px 12px,#ff5f9e 12px 18px,transparent 18px 24px,#3fd0e8 24px 30px,transparent 30px 36px,#a98bff 36px 42px,transparent 42px 48px)}
+.ln{display:block;white-space:nowrap}
+.ch{--f:#ffd23f;--fd:#c99400;display:inline-block;color:var(--f);
+  text-shadow:0 var(--u) 0 var(--fd),0 calc(var(--u)*2) 0 var(--fd),var(--u) 0 0 var(--out),calc(var(--u)*-1) 0 0 var(--out),0 calc(var(--u)*-1) 0 var(--out),var(--u) calc(var(--u)*-1) 0 var(--out),calc(var(--u)*-1) calc(var(--u)*-1) 0 var(--out),var(--u) var(--u) 0 var(--out),calc(var(--u)*-1) var(--u) 0 var(--out),var(--u) calc(var(--u)*2) 0 var(--out),calc(var(--u)*-1) calc(var(--u)*2) 0 var(--out),var(--u) calc(var(--u)*3) 0 var(--out),calc(var(--u)*-1) calc(var(--u)*3) 0 var(--out),0 calc(var(--u)*3) 0 var(--out),calc(var(--u)*-1) calc(var(--u)*4) 0 var(--drop),0 calc(var(--u)*4) 0 var(--drop),var(--u) calc(var(--u)*4) 0 var(--drop)}
+.ch.p{--f:#ff5f9e;--fd:#c23a73}.ch.c{--f:#3fd0e8;--fd:#1b93a8}.ch.l{--f:#a98bff;--fd:#7155d8}.ch.o{--f:#ffb45c;--fd:#cf7d1c}
+.lede{margin-top:28px;font:500 clamp(17px,1.55vw,21px)/1.42 var(--round);color:var(--ink-2);max-width:31em;text-wrap:pretty}
+.ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.btn{display:inline-flex;align-items:center;gap:10px;height:52px;padding:0 22px;border-radius:999px;background:linear-gradient(180deg,#ffdc63,#ffc01f);color:#221338;border:3px solid var(--out);box-shadow:0 6px 0 var(--drop),inset 0 2px 0 rgba(255,255,255,.6),inset 0 -4px 0 rgba(214,134,0,.32);font:600 17px/1 var(--round);text-decoration:none;transition:transform .3s cubic-bezier(.28,2.2,.45,1)}
+.btn:hover{transform:translateY(-2px) rotate(-1.6deg) scale(1.03)}
+.btn.alt{background:var(--panel);color:var(--ink);box-shadow:0 6px 0 var(--drop),inset 0 2px 0 rgba(255,255,255,.07)}
+.stagebox{position:relative;height:min(78vh,760px);min-height:420px}
+.stagebox>.dev{position:absolute;inset:-4% -10% -4% -4%}
+.shoulder{position:absolute;left:0;top:0;z-index:3;width:38px;height:27px;padding:0;border-radius:8px;font:600 12px/1 var(--chipfont,ui-monospace,Menlo,monospace);cursor:pointer;touch-action:none;transition:filter .1s,background .1s;background:var(--yellow);color:#221338;border:2px solid var(--out);box-shadow:0 3px 0 var(--drop)}
+.shoulder.down{background:var(--pink);box-shadow:none}
+.say{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,430px);min-height:64px;padding:11px 16px;text-align:center;font:500 14.5px/1.35 var(--round);color:var(--ink-2);background:rgba(28,22,48,.86);border:2px solid var(--out);border-radius:14px;box-shadow:0 4px 0 var(--drop);pointer-events:none}
+
+section.ch-sec{padding:clamp(56px,9vh,110px) 0}
+.head{--c:var(--yellow);--c2:#c99400;max-width:48rem}
+.head h2{--u:min(3px,.125em);font:400 clamp(17px,2.25vw,29px)/1.6 var(--display);text-transform:uppercase;color:var(--c);
+  text-shadow:0 var(--u) 0 var(--c2),0 calc(var(--u)*2) 0 var(--c2),var(--u) 0 0 var(--out),calc(var(--u)*-1) 0 0 var(--out),0 calc(var(--u)*-1) 0 var(--out),var(--u) calc(var(--u)*-1) 0 var(--out),calc(var(--u)*-1) calc(var(--u)*-1) 0 var(--out),var(--u) var(--u) 0 var(--out),calc(var(--u)*-1) var(--u) 0 var(--out),var(--u) calc(var(--u)*2) 0 var(--out),calc(var(--u)*-1) calc(var(--u)*2) 0 var(--out),var(--u) calc(var(--u)*3) 0 var(--out),calc(var(--u)*-1) calc(var(--u)*3) 0 var(--out),0 calc(var(--u)*3) 0 var(--out)}
+.kick{margin-top:22px;font:600 clamp(19px,1.8vw,23px)/1.3 var(--round)}
+.why{margin-top:10px;color:var(--ink-2);max-width:42em}
+.why+.why{margin-top:12px}
+.tip{position:relative;border-bottom:2px dotted var(--lilac);cursor:help}
+.bubble{position:absolute;left:-8px;bottom:calc(100% + 10px);width:260px;padding:10px 13px;background:var(--ink);color:#4a3b68;border:3px solid var(--out);border-radius:13px;box-shadow:0 5px 0 var(--drop);font:500 14px/1.35 var(--round);opacity:0;pointer-events:none;transform:translateY(6px) scale(.97);transition:.16s;z-index:9}
+.tip:hover .bubble,.tip:focus .bubble{opacity:1;transform:none}
+
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.06fr);gap:clamp(20px,4vw,56px);align-items:center;margin-top:34px}
+.trio{display:grid;gap:12px}
+.line{display:block;width:100%;text-align:left;padding:15px 18px;border-radius:18px;border:2.5px solid var(--out);background:var(--bg-2);color:var(--ink-2);box-shadow:0 5px 0 var(--drop);font:inherit;cursor:pointer;transition:transform .22s cubic-bezier(.3,1.6,.5,1),background .2s}
+.line b{display:block;font:600 18px/1.25 var(--round);color:var(--ink)}
+.line span{display:block;margin-top:4px;font-size:15px;line-height:1.42}
+.line[aria-pressed=true]{background:var(--ink);color:#55467a;transform:translateX(8px)}
+.line[aria-pressed=true] b{color:#221338}
+.devbox{position:relative;height:clamp(420px,62vh,640px)}
+.devbox>div{position:absolute;inset:0}
+.layouts{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chip{height:38px;padding:0 15px;border-radius:999px;border:2px solid var(--out);background:var(--panel);color:var(--ink-2);font:600 14.5px/1 var(--round);cursor:pointer;box-shadow:0 3px 0 var(--drop)}
+.chip[aria-pressed=true]{background:var(--cyan);color:#07303a}
+
+.frames{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:34px}
+.frame{border:3px solid var(--out);border-radius:18px;overflow:hidden;background:#000;box-shadow:0 7px 0 var(--drop)}
+.frame img{width:100%;aspect-ratio:4/3;object-fit:cover}
+.frame.pair img+img{border-top:3px solid var(--out)}
+.frame figcaption{padding:10px 13px;background:var(--bg-2);font-size:14px;line-height:1.38;color:var(--ink-2)}
+.frame figcaption b{display:block;color:var(--ink);font:600 15.5px/1.25 var(--round);margin-bottom:2px}
+
+.stack{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:6px}
+.tower{position:relative;padding:18px;border-radius:20px;background:var(--bg-2);border:3px solid var(--out);box-shadow:0 6px 0 var(--drop)}
+.tower h3{font:600 17px/1.2 var(--round)}
+.tower.ours{border-color:var(--cyan)}
+.layers{display:grid;gap:5px;margin:14px 0}
+.layers i{display:block;font:500 13px/1 var(--mono);padding:9px 10px;border-radius:8px;background:var(--panel-2);color:var(--ink-2);font-style:normal}
+.layers i.gone{background:none;border:1.5px dashed rgba(203,189,226,.28);color:var(--muted);text-decoration:line-through}
+.layers i.new{background:var(--cyan);color:#07303a}
+.meter{height:12px;border-radius:7px;background:#0e091a;overflow:hidden;border:1.5px solid var(--out)}
+.meter b{display:block;height:100%;background:var(--c,var(--yellow))}
+.tower p{margin-top:8px;font-size:14px;line-height:1.4;color:var(--ink-2)}
+
+.wall{position:relative;margin-top:34px;height:520px;overflow:hidden;border-radius:26px;border:3px solid var(--out);background:var(--shade);-webkit-mask:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);mask:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
+.lane{position:absolute;left:0;display:flex;gap:14px;width:max-content;animation:lane 70s linear infinite}
+.lane:nth-child(1){top:16px}
+.lane:nth-child(2){top:268px;animation-direction:reverse;animation-duration:84s}
+.lane figure{position:relative;width:312px;border-radius:13px;overflow:hidden;border:2px solid var(--out)}
+.lane img{width:312px;height:234px;object-fit:cover}
+.lane figcaption{position:absolute;left:8px;bottom:8px;padding:4px 9px;border-radius:7px;background:rgba(14,9,26,.88);font:500 12.5px/1.2 var(--mono);color:var(--ink)}
+@keyframes lane{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.lane{animation:none}}
+
+.close{text-align:center;padding:clamp(70px,12vh,130px) var(--gutter)}
+.close .head{margin:0 auto}
+.close .why{margin-inline:auto}
+.close .ctas{justify-content:center}
+.foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:24px var(--gutter);color:var(--muted);font-size:14px;border-top:1px solid var(--rule)}
+.foot a{text-decoration:none}
+
+@media (max-width:980px){
+  .hero{grid-template-columns:1fr;min-height:0}
+  .stagebox{height:92vw;max-height:620px}
+  .stagebox>.dev{inset:0}
+  .split{grid-template-columns:1fr}
+  .frames{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .plate{font-size:clamp(12px,4vw,30px)}
+}
+@media (max-width:560px){
+  .stack{grid-template-columns:1fr}
+  .links .pill:not(.ico){display:none}
+  .bubble{left:0;width:220px}
+  .wall{height:400px}
+  .lane figure,.lane img{width:230px}.lane img{height:172px}
+  .lane:nth-child(2){top:206px}
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="pill" href="#top"><span class="mark"><i></i><i></i></span>Omarchy Pocket</a>
+  <nav class="links">
+    <a class="pill ico" href="https://x.com/pocket_js" aria-label="X"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+    <a class="pill ico" href="https://discord.gg/cTce4eXzSK" aria-label="Discord"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.54 5.34A17.75 17.75 0 0 0 15.07 4c-.19.35-.41.82-.56 1.19a16.5 16.5 0 0 0-5.02 0A12.1 12.1 0 0 0 8.92 4c-1.55.27-3.06.73-4.47 1.34C1.62 9.54.86 13.64 1.24 17.68A17.9 17.9 0 0 0 6.72 20.4c.44-.59.83-1.22 1.16-1.89-.64-.24-1.25-.54-1.83-.89.15-.11.3-.23.44-.35a12.68 12.68 0 0 0 11.02 0c.15.12.29.24.44.35-.58.35-1.2.65-1.84.89.34.67.72 1.3 1.16 1.89a17.85 17.85 0 0 0 5.49-2.72c.45-4.69-.75-8.75-3.22-12.34ZM8.7 15.19c-1.07 0-1.95-.98-1.95-2.18s.86-2.18 1.95-2.18c1.08 0 1.96.98 1.95 2.18 0 1.2-.87 2.18-1.95 2.18Zm6.6 0c-1.07 0-1.95-.98-1.95-2.18s.86-2.18 1.95-2.18c1.08 0 1.96.98 1.95 2.18 0 1.2-.87 2.18-1.95 2.18Z"/></svg></a>
+    <a class="pill" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <h1 aria-label="Omarchy, beyond the desktop.">
+        <span class="plate" aria-hidden="true">
+          <span class="ln" data-letters>Omarchy,</span>
+          <span class="ln" data-letters>beyond the</span>
+          <span class="ln" data-letters>desktop.</span>
+          <span class="rail"></span>
+        </span>
+      </h1>
+      <p class="lede">A lightweight Linux experience for handhelds and unconventional computers. Built on Omarchy, designed for modest hardware, and adapted to the screens and controls you actually use.</p>
+      <div class="ctas">
+        <a class="btn" href="#shapes">See it in action <span aria-hidden="true">↓</span></a>
+        <a class="btn alt" href="https://github.com/pocket-nexus/omarchy-pocket">Explore on GitHub</a>
+      </div>
+    </div>
+    <div class="stagebox">
+      <div class="dev" id="hero-dev"></div>
+      <p class="say" id="hero-say" aria-live="polite">Every button works. Hold L1 on the far edge, press SELECT, close the lid from the hinge.</p>
+    </div>
+  </div>
+
+  <section class="ch-sec" id="shapes"><div class="wrap">
+    <div class="head" style="--c:var(--pink);--c2:#c23a73">
+      <h2>Computers come in all shapes. So should Linux.</h2>
+      <p class="kick">Not every computer has a keyboard, mouse, or desktop-sized screen.</p>
+      <p class="why">Omarchy Pocket reimagines the Linux experience for devices with touchscreens, gamepads, physical buttons, and entirely different ways to interact.</p>
+      <p class="why">Instead of shrinking a desktop, we design around the hardware.</p>
+    </div>
+    <div class="split">
+      <div class="trio" id="trio">
+        <button class="line" aria-pressed="true" data-part="stage"><b>The top screen is the monitor.</b><span>It takes no touch. It shows the wallpaper, the windows tiled the way Omarchy tiles Hyprland, Omarchy's bar and its menu.</span></button>
+        <button class="line" aria-pressed="false" data-part="deck"><b>The bottom screen is the keyboard.</b><span>Like a keyboard, it changes with what it types into: keys for a terminal, a trackpad for a touch app, your workspaces when nothing has focus.</span></button>
+        <button class="line" aria-pressed="false" data-part="pad"><b>The gamepad is SUPER.</b><span>Omarchy binds every window action to SUPER and one key. Here the shoulders are SUPER, and a layer lasts as long as the shoulder is down.</span></button>
+        <div class="layouts" id="layouts" hidden>
+          <button class="chip" data-scene="split" aria-pressed="true">Keys, in a terminal</button>
+          <button class="chip" data-scene="pad" aria-pressed="false">Pad, in a touch app</button>
+          <button class="chip" data-scene="home" aria-pressed="false">Home, with nothing open</button>
+          <button class="chip" data-scene="ime" aria-pressed="false">中, pinyin into a window</button>
+        </div>
+      </div>
+      <div class="devbox"><div id="parts-dev"></div></div>
+    </div>
+    <div class="frames">
+      <figure class="frame"><img loading="lazy" src="/shots/tile4-top.webp" alt="Four tiled windows on the device: a terminal, Activity, Notes and a clock"><figcaption><b>Tiled like Hyprland</b>Dwindle and scrolling layouts on five workspaces, with Omarchy's gaps and borders.</figcaption></figure>
+      <figure class="frame"><img loading="lazy" src="/shots/legend-top.webp" alt="The window layer's bindings along the stage's bottom edge"><figcaption><b>A legend when you pause</b>Hold a shoulder for a quarter second and its bindings appear. A chord pressed at once never sees it.</figcaption></figure>
+      <figure class="frame"><img loading="lazy" src="/shots/menu-top.webp" alt="Omarchy's menu on the stage, in its Apps level"><figcaption><b>Omarchy's menu</b>The same menu tree in a card on the stage. Typing on the deck filters each level.</figcaption></figure>
+      <figure class="frame"><img loading="lazy" src="/shots/ime-bottom.webp" alt="The deck's keyboard with pinyin candidates"><figcaption><b>Pinyin on the keyboard</b>Rime runs on the device and its candidates sit in the strip above the keys.</figcaption></figure>
+    </div>
+  </div></section>
+
+  <section class="ch-sec" id="footprint" style="background:linear-gradient(180deg,transparent,rgba(14,9,26,.55) 18%,rgba(14,9,26,.55) 82%,transparent)"><div class="wrap split" style="margin-top:0;align-items:start">
+    <div class="head" style="--c:var(--cyan);--c2:#1b93a8">
+      <h2>Small footprint. Big possibilities.</h2>
+      <p class="kick">Great software shouldn't require powerful hardware.</p>
+      <p class="why">Omarchy Pocket replaces the traditional desktop graphics stack with a lightweight, GPU-accelerated interface designed for resource-constrained devices.</p>
+      <p class="why">Less overhead. More room for what matters.</p>
+    </div>
+    <div class="stack">
+      <div class="tower">
+        <h3>Omarchy's desktop</h3>
+        <div class="layers"><i class="gone">SDDM</i><i class="gone">Quickshell</i><i class="gone">Hyprland</i><i>Omarchy's CLI, themes, services</i><i>Arch Linux</i></div>
+        <div class="meter" style="--c:var(--pink)"><b style="width:44.6%"></b></div>
+        <p>435 MB of 976 MB free with Hyprland, foot and Xwayland running on this device.</p>
+      </div>
+      <div class="tower ours">
+        <h3>Omarchy Pocket</h3>
+        <div class="layers"><i class="new">PocketJS shell on the GPU</i><i>Omarchy's CLI, themes, services</i><i>Arch Linux</i></div>
+        <div class="meter" style="--c:var(--cyan)"><b style="width:79.6%"></b></div>
+        <p>759 MB of 953 MB free with the shell running on this device.</p>
+      </div>
+    </div>
+  </div></section>
+
+  <section class="ch-sec" id="heart"><div class="wrap">
+    <div class="head" style="--c:var(--yellow);--c2:#c99400">
+      <h2>Still Omarchy at heart.</h2>
+      <p class="kick">Your terminal. Your tools. Your workflows.</p>
+      <p class="why">Built on Arch Linux and Omarchy, with familiar commands, themes, system services, and development tools, brought into a different kind of computing environment.</p>
+    </div>
+    <div class="frames">
+      <figure class="frame pair"><img loading="lazy" src="/shots/agent-top.webp" alt="A terminal beside Codex's terminal interface on the device"><figcaption><b>A coding agent, on the device</b><code>omarchy agent</code> opens Codex in a window.</figcaption></figure>
+      <figure class="frame pair"><img loading="lazy" src="/shots/btop-top.webp" alt="btop filling the stage"><figcaption><b>btop</b>The terminal is libghostty in a window, sized to its tile.</figcaption></figure>
+      <figure class="frame pair"><img loading="lazy" src="/shots/rocket-top.webp" alt="Omarchy notifications over the Tokyo Night liftoff wallpaper"><figcaption><b>Omarchy's notices</b>The same notifications, over the same wallpapers.</figcaption></figure>
+      <figure class="frame pair"><img loading="lazy" src="/shots/blossom-top.webp" alt="The Lupine theme applied to the device"><figcaption><b>Lupine, one of 23 themes</b>A theme changes the wallpaper, the windows, the bar and the keyboard.</figcaption></figure>
+    </div>
+  </div></section>
+
+  <section class="ch-sec" id="applets" style="padding-bottom:40px"><div class="wrap">
+    <div class="head" style="--c:var(--lilac);--c2:#7155d8">
+      <h2>Small apps. Every screen.</h2>
+      <p class="kick">Discover a growing collection of lightweight apps, from everyday utilities to connected services.</p>
+      <p class="why">Powered by <span class="tip" tabindex="0">PocketJS<span class="bubble" role="tooltip">A UI runtime: JSX and SolidJS components on QuickJS, drawn by a Rust core on the GPU. It runs on a PSP and on this device.</span></span>, Applets are designed to work across different devices, screen sizes, and input methods, without being tied to a single form factor.</p>
+    </div>
+    <div class="wall" id="wall" aria-label="Applets captured on the device"></div>
+  </div></section>
+
+  <section class="close">
+    <div class="head" style="--c:var(--orange);--c2:#cf7d1c">
+      <h2>Your hardware deserves more.</h2>
+      <p class="kick">We're starting with the RG DS Plus, but the vision goes much further.</p>
+      <p class="why">Different screens. Different controls. Different capabilities. One idea: make more of the computers we already have.</p>
+    </div>
+    <div class="ctas"><a class="btn" href="https://github.com/pocket-nexus/omarchy-pocket">Explore Omarchy Pocket on GitHub</a></div>
+  </section>
+</main>
+<footer class="foot"><span>Omarchy Pocket, built on Omarchy and PocketJS.</span><a href="https://github.com/pocket-nexus/omarchy-pocket">Source</a></footer>
+
+<script type="module">
+import { createDevice } from "/kit/rgds.js";
+import { show, attachButtons } from "/kit/scenes.js";
+
+const CYCLE = ["y", "p", "c", "l", "o"];
+let n = 0;
+document.querySelectorAll("[data-letters]").forEach((el) => {
+  el.innerHTML = [...el.textContent].map((c) => (c === " " ? " " : `<span class="ch ${CYCLE[n++ % 5]}">${c}</span>`)).join("");
+});
+
+const env = { sky: 0x3a2a5c, floor: 0x120a22, fill: 0x9a7cff, accent: 0xff5f9e, strength: 1.5, front: 1.2 };
+const hero = createDevice(document.getElementById("hero-dev"), { color: "blue", env, tilt: 3.5, margin: 1.02 });
+window.__device = hero;
+const say = document.getElementById("hero-say");
+if (hero) {
+  show(hero, "home", { ms: 0 });
+  hero.set({ pitch: -58, yaw: -24, lid: 0 });
+  setTimeout(() => hero.pose({ lid: 118, yaw: -20 }, { ms: 1500 }), 350);
+  const b = attachButtons(hero, { rest: "home", shoulders: document.getElementById("hero-dev"), say: (t) => (say.textContent = t) });
+  // a press on the knuckles closes the lid: the Hall switch sleeps the device
+  let closed = false;
+  hero.canvas.addEventListener("dblclick", () => {
+    closed = !closed;
+    hero.pose({ lid: closed ? 0 : 118 }, { ms: 900 });
+    say.textContent = closed ? "Closing the lid suspends the device. It stays suspended while the lid stays shut." : "Opening it wakes the device on the lock screen, which logind asked for before it slept.";
+    if (!closed) show(hero, "lock", { ms: 0 });
+    else setTimeout(() => show(hero, b.current, { ms: 0 }), 950);
+  });
+}
+say.textContent = "Drag to turn it. Hold L1 for its legend, press SELECT on the model to turn the deck, double-click to close the lid.";
+
+const parts = createDevice(document.getElementById("parts-dev"), { color: "black", env: { ...env, sky: 0x4a3a70, strength: 1.9 }, margin: 1.04 });
+if (parts) {
+  show(parts, "split", { ms: 0 });
+  parts.set({ pitch: -30, yaw: 16, lid: 170, zoom: 1.0 });
+  const POSES = {
+    stage: { pitch: -12, yaw: 16, lid: 170, zoom: 1.2, cy: 34, cz: 6 },
+    deck: { pitch: -40, yaw: -14, lid: 148, zoom: 1.22, cy: -28, cz: 0 },
+    pad: { pitch: -68, yaw: 152, lid: 110, zoom: 1.12, cy: 0, cz: 0 },
+  };
+  parts.pose(POSES.stage, { ms: 0 });
+  const trio = document.getElementById("trio"), layouts = document.getElementById("layouts");
+  trio.addEventListener("click", (e) => {
+    const line = e.target.closest(".line");
+    if (line) {
+      trio.querySelectorAll(".line").forEach((l) => l.setAttribute("aria-pressed", l === line));
+      const part = line.dataset.part;
+      parts.pose(POSES[part], { ms: 1100 });
+      layouts.hidden = part !== "deck";
+      if (part === "stage") show(parts, "tile4");
+      if (part === "deck") show(parts, "split");
+      if (part === "pad") { parts.press("L1", true); setTimeout(() => parts.press("L1", false), 1800); show(parts, "legend"); setTimeout(() => show(parts, "tile4"), 1800); }
+    }
+    const chip = e.target.closest(".chip");
+    if (chip) {
+      layouts.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", c === chip));
+      show(parts, chip.dataset.scene);
+    }
+  });
+  show(parts, "tile4", { ms: 0 });
+}
+
+const APPLETS = [
+  ["weather", "Weather"], ["maps", "Maps"], ["podcast", "Podcasts"], ["hnfull", "Hacker News"],
+  ["video", "YouTube, with sound"], ["tailscale", "Tailscale"], ["power", "Power"], ["tile3", "Clock and Activity"],
+];
+const figure = ([id, name]) => `<figure><img loading="lazy" src="/shots/${id}-top.webp" alt="${name} on the device"><figcaption>${name}</figcaption></figure>`;
+const lane = (rows) => `<div class="lane">${[...rows, ...rows, ...rows, ...rows].map(figure).join("")}</div>`;
+document.getElementById("wall").innerHTML = lane(APPLETS.slice(0, 4)) + lane(APPLETS.slice(4));
+</script>
+<script src="/kit/study.js" defer></script>
+</body>
+</html>

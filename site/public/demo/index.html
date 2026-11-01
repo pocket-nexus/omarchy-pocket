@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Live demo · Omarchy Pocket</title>
+<meta name="description" content="Omarchy Pocket's real shell, running in your browser on WebAssembly. Tile windows, open Omarchy's menu and switch themes with the RG DS Plus's two screens and gamepad.">
+<link rel="canonical" href="https://omapocket.org/demo/">
+<meta name="theme-color" content="#180c30">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Omarchy Pocket">
+<meta property="og:title" content="Omarchy Pocket, live in your browser">
+<meta property="og:description" content="The real shell on WebAssembly: tile windows, open Omarchy's menu and switch themes with two screens and a gamepad.">
+<meta property="og:url" content="https://omapocket.org/demo/">
+<meta property="og:image" content="https://omapocket.org/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://omapocket.org/og-image.png">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+:root{--ink:#fff5ee;--ink-2:#e7d6e4;--muted:#b9a5c6;--gold:#ffc46b;--line:rgba(255,245,238,.16);--panel:rgba(16,9,30,.62);
+  --grot:"Space Grotesk",system-ui,sans-serif;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{color:var(--ink);font:15px/1.5 var(--sans);background:linear-gradient(180deg,#0f0a22,#241340 58%,#5a2150)}
+a{color:inherit}
+#glow{position:fixed;inset:-12%;background:url(/shots/home-top.webp) center/cover;filter:blur(90px) saturate(1.3);opacity:.34;pointer-events:none}
+#view{position:fixed;inset:0}
+#stage,#deck{display:none}
+.side{position:fixed;top:50%;transform:translateY(-50%);width:clamp(206px,18.5vw,280px);max-height:calc(100dvh - 24px);overflow:auto;z-index:2;scrollbar-width:none}
+.side.l{left:clamp(14px,2vw,30px)}.side.r{right:clamp(14px,2vw,30px)}
+h1{font:700 clamp(25px,2.3vw,33px)/1.05 var(--grot);letter-spacing:-.025em}
+h1 em{font-style:normal;color:var(--gold)}
+h2{font:500 12.5px/1 var(--mono);color:var(--muted);margin:20px 0 8px}
+.side p{margin-top:10px;color:var(--ink-2);font-size:14px;line-height:1.45;text-wrap:pretty}
+.back{font:500 14px/1 var(--grot);text-decoration:none;color:var(--muted);display:inline-block;margin-bottom:16px}
+.back:hover{color:var(--ink)}
+table{border-collapse:collapse;width:100%;font:400 12.5px/1.3 var(--mono)}
+td{padding:3px 8px 3px 0;vertical-align:top;color:var(--ink-2)}
+td:first-child{white-space:nowrap;color:var(--ink)}
+.tasks{display:grid;gap:5px}
+.tasks button,select{width:100%;text-align:left;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--panel);backdrop-filter:blur(10px);color:var(--ink);font:500 13.5px/1.2 var(--grot);cursor:pointer}
+.tasks button:hover,select:hover{background:rgba(70,45,105,.7)}
+.tasks small{display:block;margin-top:2px;font:400 11.5px/1.2 var(--mono);color:var(--muted)}
+select option{background:#1a1030}
+.btn{display:inline-flex;align-items:center;height:40px;padding:0 15px;border-radius:999px;background:linear-gradient(180deg,#ffd68c,var(--gold));color:#2a1229;font:700 13.5px/1 var(--grot);text-decoration:none;margin:0 5px 6px 0}
+.btn.alt{background:rgba(255,245,238,.1);color:var(--ink);border:1px solid var(--line)}
+.tiny{font:400 11px/1.4 var(--mono)!important;color:var(--muted)!important;margin-top:4px!important}
+
+.views{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;display:flex;gap:2px;padding:3px;border-radius:11px;background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(10px)}
+.views button{padding:6px 12px;border:0;border-radius:8px;background:none;color:var(--muted);font:500 12.5px/1 var(--mono);cursor:pointer}
+.views button[aria-pressed=true]{background:rgba(255,245,238,.16);color:var(--ink)}
+.loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;padding:9px 15px;border-radius:11px;background:var(--panel);border:1px solid var(--line);font:500 13px/1.3 var(--mono);color:var(--ink-2);pointer-events:none;text-align:center}
+.say{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:3;max-width:min(92vw,470px);padding:7px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font:400 12.5px/1.35 var(--mono);color:var(--ink-2);opacity:0;transition:opacity .2s;pointer-events:none;text-align:center;backdrop-filter:blur(10px)}
+.say.on{opacity:1}
+.chip{position:fixed;left:0;top:0;z-index:2;width:42px;height:29px;padding:0;border-radius:8px;background:rgba(22,20,30,.92);color:#fff;border:1px solid rgba(255,255,255,.28);font:600 12px/1 var(--mono);cursor:pointer;touch-action:none;box-shadow:0 3px 10px rgba(0,0,0,.5);will-change:transform}
+.on.chip,.pad button.on,.abxy button.on,.mini button.on{background:var(--gold);color:#2a1229;border-color:var(--gold)}
+.side{transition:opacity .25s}
+body.close .side{opacity:0;pointer-events:none}
+.sheetbtn{display:none}
+.gamepad{display:none}
+
+@media (max-width:1180px){
+  .side{display:none;position:fixed;left:10px!important;right:10px!important;top:54px;bottom:10px;width:auto;transform:none;max-height:none;padding:16px;border-radius:16px;background:rgba(16,9,30,.95);border:1px solid var(--line);z-index:6}
+  body.sheet .side{display:block;opacity:1;pointer-events:auto}
+  body.sheet .side.l{bottom:auto;max-height:42dvh}
+  body.sheet .side.r{top:auto;height:calc(58dvh - 76px);bottom:10px}
+  .sheetbtn{display:flex;position:fixed;right:10px;top:10px;z-index:7;gap:6px}
+  .sheetbtn a,.sheetbtn button{height:36px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 13.5px/34px var(--grot);text-decoration:none;cursor:pointer;backdrop-filter:blur(10px)}
+}
+@media (max-width:760px){
+  .gamepad{display:grid;position:fixed;left:0;right:0;bottom:0;z-index:4;grid-template-columns:auto 1fr auto;align-items:end;padding:6px 12px calc(44px + env(safe-area-inset-bottom));gap:4px;pointer-events:none}
+  .gamepad>*{pointer-events:auto}
+  .pad{position:relative;width:112px;height:112px}
+  .pad button{position:absolute;background:#17181c;border:1px solid #33363f;color:var(--muted);padding:0;touch-action:none;font:500 13px/1 var(--mono)}
+  .pad .u,.pad .d{left:33%;width:34%;height:37%}.pad .u{top:0;border-radius:6px 6px 0 0}.pad .d{bottom:0;border-radius:0 0 6px 6px}
+  .pad .le,.pad .ri{top:33%;height:34%;width:37%}.pad .le{left:0;border-radius:6px 0 0 6px}.pad .ri{right:0;border-radius:0 6px 6px 0}
+  .abxy{position:relative;width:112px;height:112px}
+  .abxy button{position:absolute;width:38%;height:38%;border-radius:50%;background:#17181c;color:#dfe2ea;border:1px solid #33363f;font:500 14px/1 var(--grot);padding:0;touch-action:none}
+  .abxy .x{left:31%;top:0}.abxy .b{left:31%;bottom:0}.abxy .y{left:0;top:31%}.abxy .a{right:0;top:31%}
+  .mini{display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:6px}
+  .mini div{display:flex;gap:4px}
+  .mini button{height:28px;padding:0 9px;border-radius:999px;background:#2a2c33;color:#e6e8ee;border:1px solid #454852;font:500 10.5px/1 var(--mono);touch-action:none}
+  .chip{display:none}
+  .sheetbtn{left:10px;right:10px;top:auto;bottom:calc(10px + env(safe-area-inset-bottom));justify-content:space-between;pointer-events:none}
+  .sheetbtn a,.sheetbtn button{pointer-events:auto;height:33px;line-height:31px;font-size:12.5px;padding:0 11px}
+  .views button{padding:6px 8px}
+  body.sheet .side.l{top:10px}
+  body.sheet .side.r{bottom:52px;height:calc(58dvh - 62px)}
+}
+.no3d #view{display:none}
+.no3d #stage,.no3d #deck{display:block;width:min(92vw,62vh);margin:6px auto 0;border-radius:6px}
+</style>
+</head>
+<body>
+<div id="glow"></div>
+<div id="view" aria-label="The RG DS Plus: the bottom screen takes touch, every button can be pressed"></div>
+<canvas id="stage" width="1024" height="768" aria-label="The top screen"></canvas>
+<canvas id="deck" width="1024" height="768" aria-label="The bottom screen"></canvas>
+<div class="loading" id="loading">Loading the shell</div>
+<p class="say" id="say" aria-live="polite"></p>
+
+<div class="sheetbtn"><a href="/">Home</a><button id="sheetToggle">Try this</button></div>
+
+<aside class="side l">
+  <a class="back" href="/">← Omarchy Pocket</a>
+  <h1>The real shell, <em>in your browser.</em></h1>
+  <p>This is the same bundle the RG DS Plus runs, on PocketJS's core compiled to WebAssembly. The top screen is the monitor, the bottom screen is the keyboard, the gamepad is SUPER.</p>
+  <p>The daemon under it is a stand-in: the terminal is a small script, the panels show sample data, and applets that need a network run on the device.</p>
+  <h2>On a keyboard</h2>
+  <table>
+    <tr><td>Option</td><td>hold for L1</td></tr>
+    <tr><td>Shift</td><td>hold for R1</td></tr>
+    <tr><td>Arrows</td><td>D-pad</td></tr>
+    <tr><td>Enter · Esc</td><td>A · START</td></tr>
+    <tr><td>Tab · Bksp</td><td>X · B</td></tr>
+    <tr><td>Letters</td><td>type</td></tr>
+    <tr><td>Option + A</td><td>Omarchy's menu</td></tr>
+  </table>
+</aside>
+
+<aside class="side r">
+  <h2 style="margin-top:0">Try this</h2>
+  <div class="tasks" id="tasks">
+    <button data-do="tile">Tile three windows<small>terminal, clock, activity</small></button>
+    <button data-do="focus">Move the selection<small>L1 + →</small></button>
+    <button data-do="swap">Swap two windows<small>R1 + →</small></button>
+    <button data-do="menu">Omarchy's menu<small>L1 + A, type to filter</small></button>
+    <button data-do="sheet">Every chord<small>L1 + SELECT</small></button>
+    <button data-do="tailscale">Tailscale panel</button>
+    <button data-do="proxy">Proxy panel<small>mihomo, Clash Verge's core</small></button>
+    <button data-do="saver">Screensaver</button>
+    <button data-do="lid">Close the lid<small>it sleeps, and wakes on the lock</small></button>
+  </div>
+  <h2>Theme</h2>
+  <select id="theme" aria-label="Omarchy theme"></select>
+  <h2>The real thing</h2>
+  <a class="btn" href="https://anbernic.com/products/rg-ds-plus?sca_ref=12680456.0FG7ivC2oS" rel="sponsored noopener" target="_blank">Get an RG DS Plus ↗</a><a class="btn alt" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a>
+  <p class="tiny">The RG DS Plus link is an affiliate link: a purchase through it supports this project.</p>
+</aside>
+
+<div class="views" id="views" role="group" aria-label="Camera">
+  <button data-view="both" aria-pressed="true">Both</button><button data-view="top" aria-pressed="false">Top</button><button data-view="bottom" aria-pressed="false">Bottom</button>
+</div>
+
+<div class="gamepad" aria-label="Gamepad">
+  <div class="pad"><button class="u" data-b="UP" aria-label="Up"></button><button class="d" data-b="DOWN" aria-label="Down"></button><button class="le" data-b="LEFT" aria-label="Left"></button><button class="ri" data-b="RIGHT" aria-label="Right"></button></div>
+  <div class="mini"><div><button data-b="L2">L2</button><button data-b="L1">L1</button><button data-b="R1">R1</button><button data-b="R2">R2</button></div><div><button data-b="START">START</button><button data-b="SELECT">SELECT</button></div></div>
+  <div class="abxy"><button class="x" data-b="X">X</button><button class="b" data-b="B">B</button><button class="y" data-b="Y">Y</button><button class="a" data-b="A">A</button></div>
+</div>
+
+<script type="module">
+import { createDevice } from "/kit/rgds.js";
+import { boot } from "./host.js";
+
+const recording = location.search.includes("record");
+const stage = document.getElementById("stage"), deck = document.getElementById("deck"), loading = document.getElementById("loading"), view = document.getElementById("view");
+const phone = () => innerWidth <= 760;
+
+const device = recording ? null : createDevice(view, {
+  color: "black", deckTouch: true, drag: true, springBack: true, margin: .97, fov: 19, tilt: 1.6, glassLevel: .04,
+  env: { sky: 0x352448, floor: 0x1a0a1c, key: 0x6e6468, fill: 0xb28cff, accent: 0xff6f91, strength: 1.25, front: 1.05 },
+});
+if (!device && !recording) document.body.classList.add("no3d");
+
+// Both: a held device, lid and base each 7 degrees off the screen's plane.
+// Top and Bottom bring one panel square to the camera.
+const LID = 166;
+const VIEWS = {
+  both: () => (phone() ? { pitch: -2, yaw: 0, lid: 176, zoom: 1.84, cy: 0, cz: 0, oy: -.1 } : { pitch: -7, yaw: 0, lid: LID, zoom: 1, cy: 0, cz: 0, oy: 0 }),
+  top: () => (phone() ? { pitch: -3, yaw: 0, lid: 176, zoom: 2.05, cy: 47, cz: 7, oy: -.14 } : { pitch: -14, yaw: 0, lid: LID, zoom: 2.14, cy: 45, cz: 16, oy: 0 }),
+  bottom: () => (phone() ? { pitch: 0, yaw: 0, lid: 176, zoom: 2.05, cy: -45, cz: -5, oy: -.14 } : { pitch: 0, yaw: 0, lid: LID, zoom: 2.14, cy: -45, cz: -5, oy: 0 }),
+};
+let viewNow = "both";
+const applyView = (ms = 700) => device?.pose(VIEWS[viewNow](), { ms });
+if (device) {
+  device.set({ ...VIEWS.both(), lid: 14 });
+  let last = phone();
+  addEventListener("resize", () => { if (phone() !== last) { last = phone(); applyView(0); } });
+}
+
+let refresh = () => {};
+let sim;
+try {
+  sim = await boot({ stage, deck, base: ".", onProgress: (t) => (loading.textContent = t), onPaint: (a, b) => refresh(a, b) });
+} catch (error) {
+  loading.textContent = "This browser could not start the demo.";
+  throw error;
+}
+loading.remove();
+window.sim = sim;
+window.device = device;
+if (device) {
+  refresh = device.useCanvases(stage, deck);
+  refresh(true, true);
+  device.pose(VIEWS.both(), { ms: 1300 });
+}
+
+const BTN = sim.BTN;
+const say = document.getElementById("say");
+let sayTimer;
+const tell = (text) => { say.textContent = text; say.classList.add("on"); clearTimeout(sayTimer); sayTimer = setTimeout(() => say.classList.remove("on"), 3000); };
+const DPAD = new Set(["UP", "DOWN", "LEFT", "RIGHT"]);
+const SHOULDER = new Set(["L1", "R1", "L2", "R2"]);
+
+// the DOM's chips and gamepad, one list per button
+const controls = {};
+const addControl = (el, name) => (controls[name] ??= []).push(el);
+for (const el of document.querySelectorAll(".gamepad [data-b]")) addControl(el, el.dataset.b);
+const chips = ["L2", "L1", "R1", "R2"].map((name) => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.textContent = name; b.dataset.b = name; b.setAttribute("aria-label", `Hold ${name}`);
+  document.body.appendChild(b);
+  addControl(b, name);
+  return b;
+});
+const placeChips = () => {
+  if (!device) return;
+  for (const b of chips) {
+    const p = device.anchor(b.dataset.b);
+    const out = b.dataset.b === "L2" ? -44 : b.dataset.b === "R2" ? 44 : 0;
+    b.style.transform = `translate(${p.x + out - 21}px,${p.y - 14}px)`;
+  }
+};
+if (device) { device.on("frame", placeChips); placeChips(); } else chips.forEach((c) => (c.style.display = "none"));
+
+function set(name, down) {
+  sim.press(BTN[name], down);
+  for (const el of controls[name] ?? []) el.classList.toggle("on", down);
+  if (!device) return;
+  if (DPAD.has(name)) { device.press("DPAD", down); device.dpad(down ? name : null); }
+  else device.press(name, down);
+}
+
+// A shoulder pressed and released quickly stays down for the next button: a
+// mouse has one pointer, and L1 + → needs two. A long press holds, as a thumb does.
+const latched = new Set();
+const startedAt = new Map();
+function buttonDown(name) {
+  startedAt.set(name, performance.now());
+  if (latched.delete(name)) { set(name, false); startedAt.set(name, -1); return; }
+  set(name, true);
+}
+function buttonUp(name) {
+  const at = startedAt.get(name);
+  if (at === -1) return;
+  if (SHOULDER.has(name) && performance.now() - at < 300) { latched.add(name); tell(`${name} stays down for the next button.`); return; }
+  set(name, false);
+  if (!SHOULDER.has(name)) setTimeout(() => { for (const s of latched) set(s, false); latched.clear(); }, 90);
+}
+for (const [name, els] of Object.entries(controls)) for (const el of els) {
+  el.addEventListener("pointerdown", (e) => { e.preventDefault(); el.setPointerCapture(e.pointerId); buttonDown(name); });
+  el.addEventListener("pointerup", () => buttonUp(name));
+  el.addEventListener("pointercancel", () => buttonUp(name));
+}
+
+// the model's own buttons
+if (device) {
+  let dpadName = null;
+  device.on("press", (name, local) => {
+    if (name === "DPAD") {
+      dpadName = Math.abs(local?.x ?? 0) > Math.abs(local?.y ?? 0) ? (local.x < 0 ? "LEFT" : "RIGHT") : ((local?.y ?? 0) < 0 ? "DOWN" : "UP");
+      buttonDown(dpadName);
+    } else if (BTN[name]) buttonDown(name);
+    else if (name === "STICK") tell("The stick is for games: a package gets the buttons the window manager does not take.");
+  });
+  device.on("release", (name) => {
+    if (name === "DPAD") { if (dpadName) buttonUp(dpadName); dpadName = null; }
+    else if (BTN[name]) buttonUp(name);
+  });
+  // the deck takes touch; the stage takes none, as on the device
+  const ids = new Map();
+  let nextId = 1;
+  device.on("touch", (phase, pointer, uv) => {
+    if (phase === "up") { if (ids.has(pointer)) sim.lift(ids.get(pointer)); ids.delete(pointer); return; }
+    if (phase === "down") ids.set(pointer, nextId++ % 200);
+    sim.touch(ids.get(pointer), Math.min(511, uv.x * 512), Math.min(383, (1 - uv.y) * 384));
+  });
+  device.on("panel", (panel) => { if (panel === "stage") tell("The top screen takes no touch: it is the monitor. Use the bottom screen and the buttons."); });
+} else if (!recording) {
+  const place = (e) => { const r = deck.getBoundingClientRect(); return [Math.max(0, Math.min(511, ((e.clientX - r.left) / r.width) * 512)), Math.max(0, Math.min(383, ((e.clientY - r.top) / r.height) * 384))]; };
+  deck.style.touchAction = "none";
+  deck.addEventListener("pointerdown", (e) => { deck.setPointerCapture(e.pointerId); sim.touch(e.pointerId % 200, ...place(e)); });
+  deck.addEventListener("pointermove", (e) => { if (e.buttons) sim.touch(e.pointerId % 200, ...place(e)); });
+  deck.addEventListener("pointerup", (e) => sim.lift(e.pointerId % 200));
+}
+
+const CODES = { ArrowUp: "UP", ArrowDown: "DOWN", ArrowLeft: "LEFT", ArrowRight: "RIGHT", Enter: "A", Escape: "START", Backspace: "B", Tab: "X", AltLeft: "L1", AltRight: "L1", ShiftLeft: "R1", ShiftRight: "R1" };
+const FACE = { KeyA: "A", KeyB: "B", KeyX: "X", KeyY: "Y" };
+const isField = (t) => t instanceof HTMLSelectElement || t instanceof HTMLInputElement;
+addEventListener("keydown", (e) => {
+  if (isField(e.target) || e.metaKey || e.ctrlKey) return;
+  const name = CODES[e.code] ?? (e.altKey && FACE[e.code]) ?? null;
+  if (name) { e.preventDefault(); if (!e.repeat) set(name, true); return; }
+  if (e.altKey) { e.preventDefault(); return; }
+  if (e.key.length === 1) { e.preventDefault(); sim.call("pocket.input", "type", e.key); }
+});
+addEventListener("keyup", (e) => {
+  const name = CODES[e.code] ?? FACE[e.code];
+  if (name && sim.input.buttons & BTN[name]) set(name, false);
+});
+addEventListener("blur", () => { for (const name of Object.keys(BTN)) set(name, false); latched.clear(); });
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const chord = async (shoulder, button) => { set(shoulder, true); await wait(180); set(button, true); await wait(90); set(button, false); await wait(260); set(shoulder, false); };
+const open = (name) => sim.call("pocket.window", "open", name);
+let lidShut = false;
+const lidButton = document.querySelector('[data-do="lid"]');
+const TASKS = {
+  async tile() { open("terminal"); await wait(250); open("clock"); await wait(250); open("activity"); },
+  focus: () => chord("L1", "RIGHT"),
+  swap: () => chord("R1", "RIGHT"),
+  menu: () => chord("L1", "A"),
+  sheet: () => chord("L1", "SELECT"),
+  tailscale: () => sim.call("shell", "summon", "omarchy.tailscale"),
+  proxy: () => sim.call("shell", "summon", "omarchy.proxy"),
+  saver: () => sim.call("pocket.screensaver", "start"),
+  lid() {
+    lidShut = !lidShut;
+    lidButton.firstChild.textContent = lidShut ? "Open the lid" : "Close the lid";
+    if (lidShut) { sim.call("lock", "lock"); device?.pose({ lid: 0, pitch: -52, yaw: -14, zoom: .8, cy: 0, cz: 0, oy: 0 }, { ms: 1000 }); tell("Closing the lid suspends the device. Any password opens the lock here."); }
+    else applyView(1000);
+  },
+};
+document.getElementById("tasks").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-do]");
+  if (b) { TASKS[b.dataset.do](); document.body.classList.remove("sheet"); }
+});
+
+document.getElementById("views").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-view]");
+  if (!b) return;
+  viewNow = b.dataset.view;
+  document.body.classList.toggle("close", viewNow !== "both");
+  document.querySelectorAll("[data-view]").forEach((v) => v.setAttribute("aria-pressed", v === b));
+  if (lidShut) { lidShut = false; lidButton.firstChild.textContent = "Close the lid"; }
+  applyView();
+});
+document.getElementById("sheetToggle").addEventListener("click", () => document.body.classList.toggle("sheet"));
+
+const themes = await fetch("./themes.json").then((r) => r.json());
+const pick = document.getElementById("theme");
+pick.innerHTML = Object.entries(themes).map(([slug, t]) => `<option value="${slug}"${slug === "tokyo-night" ? " selected" : ""}>${t.name}</option>`).join("");
+pick.addEventListener("change", () => { sim.daemon.setTheme(pick.value); pick.blur(); });
+
+if (!recording) { await wait(900); open("terminal"); tell("Press the buttons on the model, touch the bottom screen, or use your keyboard."); }
+</script>
+</body>
+</html>
