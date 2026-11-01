@@ -697,8 +697,9 @@ fn play_audio(state: &Arc<Mutex<State>>, controls: &Arc<Controls>) {
                 break;
             }
             if !started {
-                let ready = s.phase == Phase::Buffering && !s.frames.is_empty() && (s.has_audio && s.prebuffered() || !s.has_audio && s.ended);
-                let silent = s.phase == Phase::Buffering && !s.has_audio && s.frames.len() >= 2;
+                // sound and a picture, sound alone (a podcast: the plane stays black), or a silent picture
+                let ready = s.phase == Phase::Buffering && s.has_audio && s.prebuffered();
+                let silent = s.phase == Phase::Buffering && !s.has_audio && (s.frames.len() >= 2 || s.ended && !s.frames.is_empty());
                 if ready || silent {
                     started = true;
                     s.phase = Phase::Playing;
