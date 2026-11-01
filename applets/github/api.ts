@@ -3,12 +3,12 @@
 // token from the store service, ETags so a repeat read costs no rate limit, and
 // the Link header's next page.
 import { createSignal } from "solid-js";
-import { companionService, fetch } from "../lib/net.ts";
+import { companionService, fetch, NET_MAX_RESPONSE_BYTES } from "../kit/platform.tsx";
 
 const API = "https://api.github.com";
 const AT_ONCE = 4;
-const MAX_BYTES = 2 * 1024 * 1024;
-const CACHE = 300;
+const MAX_BYTES = NET_MAX_RESPONSE_BYTES;
+const CACHE = NET_MAX_RESPONSE_BYTES >= 1024 * 1024 ? 300 : 12;
 const STORE_NAME = "github";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,6 +37,12 @@ export interface GitHub {
   /** Whether a request answers 2xx: "am I starring this?". */
   check(path: string): Promise<boolean>;
 }
+
+/** A page of a list has to fit one response: a search result is up to 10 KB. */
+const PER_PAGE = NET_MAX_RESPONSE_BYTES >= 1024 * 1024 ? 30 : 20;
+
+const DROPPED = /_url$|^node_id$|^gravatar_id$|^url$/;
+const KEPT_URLS = new Set(["url", "avatar_url", "html_url", "repository_url", "browser_download_url", "download_url"]);
 
 export function createGitHub(): GitHub {
   const [token, setToken] = createSignal("");
@@ -70,7 +76,8 @@ export function createGitHub(): GitHub {
     return new Error(detail || `GitHub answered ${status}.`);
   };
 
-  const request = (method: string, url: string, options: { accept?: string; body?: unknown; soft?: boolean } = {}) =>
+  // A read that lost its connection is asked once more before the reader sees it.
+  const request = (method: string, url: string, options: { accept?: string; body?: unknown; soft?: boolean } = {}, retries = method === "GET" ? 1 : 0): Promise<Reply> =>
     new Promise<Reply>((resolve, reject) => {
       queue.push(() => {
         const cached = method === "GET" && !options.accept ? cache.get(url) : undefined;
@@ -94,7 +101,7 @@ export function createGitHub(): GitHub {
             const next = /<([^>]+)>;\s*rel="next"/.exec(response.headers["link"] ?? "")?.[1] ?? null;
             const reply: Reply = { status: response.status, text, next };
             const etag = response.headers["etag"];
-            if (method === "GET" && !options.accept && etag && response.status === 200) {
+            if (method === "GET" && !options.accept && etag && response.status === 200 && text.length < MAX_BYTES / 4) {
               if (cache.size >= CACHE) cache.delete(cache.keys().next().value as string);
               cache.set(url, { etag, reply });
             }
@@ -103,17 +110,21 @@ export function createGitHub(): GitHub {
           (error: unknown) => {
             running--;
             pump();
-            reject(error instanceof Error ? error : new Error(String(error)));
+            if (retries > 0) return resolve(request(method, url, options, retries - 1));
+            const reason = error instanceof Error ? error.message : String(error);
+            reject(new Error(`Could not reach GitHub. ${reason.split(". ")[0]}.`));
           },
         );
       });
       pump();
     });
   const absolute = (path: string) => (path.startsWith("http") ? path : `${API}${path}`);
-  const parse = (text: string) => (text ? JSON.parse(text) : null);
+  // A GitHub object is mostly URLs of its other endpoints: a kept page of them is
+  // a large part of the heap, so a value is read without those.
+  const parse = (text: string) => (text ? JSON.parse(text, (key, value) => (DROPPED.test(key) && !KEPT_URLS.has(key) ? undefined : value)) : null);
 
   const whoAmI = () => request("GET", `${API}/user`).then((reply) => setMe(parse(reply.text)), () => setMe(null));
-  fetch(companionService("store", `/get?name=${STORE_NAME}`), { timeoutMs: 10_000, maxBytes: 4096 }).then(
+  fetch(companionService("store", `/get?name=${STORE_NAME}`), { timeoutMs: 10_000, maxBytes: NET_MAX_RESPONSE_BYTES }).then(
     async (response) => {
       const saved = JSON.parse(await response.text()) as { value?: { token?: unknown } };
       if (typeof saved.value?.token === "string") {
@@ -139,11 +150,11 @@ export function createGitHub(): GitHub {
         throw new Error(reply.status === 401 ? "GitHub does not accept that token." : `GitHub answered ${reply.status}.`);
       }
       setMe(parse(reply.text));
-      await fetch(companionService("store", `/set?name=${STORE_NAME}`), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: next }), timeoutMs: 10_000, maxBytes: 4096 });
+      await fetch(companionService("store", `/set?name=${STORE_NAME}`), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: next }), timeoutMs: 10_000, maxBytes: NET_MAX_RESPONSE_BYTES });
       cache.clear();
     },
     async signOut() {
-      await fetch(companionService("store", `/delete?name=${STORE_NAME}`), { method: "POST", timeoutMs: 10_000, maxBytes: 4096 });
+      await fetch(companionService("store", `/delete?name=${STORE_NAME}`), { method: "POST", timeoutMs: 10_000, maxBytes: NET_MAX_RESPONSE_BYTES });
       setToken("");
       setMe(null);
       cache.clear();
@@ -151,7 +162,7 @@ export function createGitHub(): GitHub {
     get: async (path) => parse((await request("GET", absolute(path))).text),
     raw: async (path) => (await request("GET", absolute(path), { accept: "application/vnd.github.raw+json" })).text,
     async page(path, next, key) {
-      const url = next ?? absolute(`${path}${path.includes("?") ? "&" : "?"}per_page=30`);
+      const url = next ?? absolute(`${path}${path.includes("?") ? "&" : "?"}per_page=${PER_PAGE}`);
       const reply = await request("GET", url);
       const body = parse(reply.text);
       return { items: (key ? body[key] : body) ?? [], next: reply.next };

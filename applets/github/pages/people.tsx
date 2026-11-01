@@ -5,7 +5,7 @@ import { createSignal, For, type Accessor } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { ICONS, linesPage, listPage, type SourceLine } from "../../kit/app.tsx";
 import { S, T } from "../../kit/theme.ts";
-import { encodeQr } from "../../vendor/pocketjs/tools/companion/qr.ts";
+import { encodeQr } from "../../kit/qr.ts";
 import { keep } from "../../ui/keep.ts";
 import type { LayerContext, PageSpec } from "../../ui/nav.tsx";
 import { NAV_H } from "../../ui/bar.tsx";

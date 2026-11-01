@@ -32,8 +32,14 @@ export interface Queries {
   invalidate(prefix: string): void;
 }
 
-export function createQueries(): Queries {
+/** Answers kept for going back to, oldest forgotten first. A page still open
+ *  holds its own; one forgotten loads again when it is next asked for. */
+export function createQueries(keep = 64): Queries {
   const queries = new Map<string, { reload(): void }>();
+  const remember = (key: string, query: { reload(): void }) => {
+    queries.set(key, query);
+    if (queries.size > keep) queries.delete(queries.keys().next().value as string);
+  };
   return {
     query<T>(key: string, load: () => Promise<T>): Query<T> {
       const known = queries.get(key) as Query<T> | undefined;
@@ -56,7 +62,7 @@ export function createQueries(): Queries {
         );
       };
       const made: Query<T> = { data, error, loading, reload };
-      queries.set(key, made);
+      remember(key, made);
       reload();
       return made;
     },
@@ -114,7 +120,7 @@ export function createQueries(): Queries {
         },
         reload,
       };
-      queries.set(key, made);
+      remember(key, made);
       reload();
       return made;
     },

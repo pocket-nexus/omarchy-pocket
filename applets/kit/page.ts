@@ -3,6 +3,7 @@
 // a query's loading, empty and failed states, a write that says how it went, and
 // short forms of times and counts.
 import type { App } from "./app.tsx";
+import { now } from "./platform.tsx";
 import type { Paged, Query } from "./query.ts";
 import type { Row, Rows } from "./rows.ts";
 
@@ -48,7 +49,7 @@ export function write(app: App, job: Promise<unknown>, done: string, then?: () =
 /** How long ago, in one short word: "now", "5m", "3h", "2d", "4mo", "1y". */
 export function age(iso: string | null | undefined): string {
   if (!iso) return "";
-  const s = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 1000));
+  const s = Math.max(0, Math.floor((now() - Date.parse(iso)) / 1000));
   if (s < 60) return "now";
   if (s < 3600) return `${Math.floor(s / 60)}m`;
   if (s < 86400) return `${Math.floor(s / 3600)}h`;

@@ -206,6 +206,12 @@ export interface NavBarProps {
   titleView?: () => JSX.Element;
 }
 
+/** The kit names its back icon, so an app without the kit bakes no image for it. */
+let flatBack = "";
+export const setFlatBackIcon = (src: string) => {
+  flatBack = src;
+};
+
 /** The bar of the kit (applets/kit): one flat colour, a hairline under it, the
  *  title in the middle and text buttons at the sides. */
 function FlatBar(props: NavBarProps) {
@@ -227,7 +233,7 @@ function FlatBar(props: NavBarProps) {
       <Show when={props.left}>
         {(left) => (
           <>
-            <Image class="absolute w-[16] h-[16]" src="art/kit/back-accent.svg" style={{ insetL: 3, insetT: 10 }} />
+            <Image class="absolute w-[16] h-[16]" src={flatBack} style={{ insetL: 3, insetT: 10 }} />
             {button(measure(left().label, FONT.smBold) > props.width * 0.26 ? { ...left(), label: "Back" } : left(), 19)}
           </>
         )}

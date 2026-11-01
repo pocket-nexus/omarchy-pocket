@@ -13,7 +13,7 @@
 //   pocket-applet log               the host's and the daemon's last lines
 //   pocket-applet tap <x> <y>       click at a place on the top panel, as read off a shot
 //   pocket-applet scroll <x> <y> <dy>   two fingers at that place, dy px up
-//   pocket-applet key <name>        Enter, Escape, Up, ... to the focused window
+//   pocket-applet key <name>        Enter, Backspace (back), Up, ... to the focused window
 //   pocket-applet type <text>       text to the focused window
 //   pocket-applet publish <name> [--author handle]   sign it and send it to the store
 import { generateKeyPairSync, createPrivateKey, createPublicKey, sign } from "node:crypto";
@@ -137,7 +137,12 @@ async function run(name: string) {
   copyFileSync(built, installed);
   const title = JSON.parse(readFileSync(join(dirOf(name), "pocket.json"), "utf8")).title as string;
   const opened = Bun.spawnSync(["omarchy-shell", "pocket.window", "app", installed, title, "applet"], { stdout: "pipe", stderr: "pipe" });
-  if (opened.exitCode !== 0) fail(`the shell did not open it: ${opened.stderr.toString().trim()}`);
+  if (opened.exitCode !== 0) {
+    // the shell answers late while it loads a package: the window says whether it opened
+    await Bun.sleep(2000);
+    const windows = Bun.spawnSync(["omarchy-shell", "pocket.window", "list"], { stdout: "pipe", stderr: "pipe" });
+    if (!windows.stdout.toString().includes(title)) fail(`the shell did not open it: ${opened.stderr.toString().trim()}`);
+  }
   console.log(`running ${installed}`);
 }
 

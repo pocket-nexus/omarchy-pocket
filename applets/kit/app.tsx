@@ -10,14 +10,13 @@
 //     page(id, app, layer) { return listPage(app, layer, { title: "Notes", rows: () => [...] }); },
 //   });
 import { createMemo, createSignal, For, Show, type Accessor, type JSX } from "solid-js";
-import { AppletSurface } from "@pocketjs/framework/applet";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
 import { after } from "@pocketjs/framework/clock";
 import { Image, Text, View } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
 import { onButtonPress } from "@pocketjs/framework/lifecycle";
-import { createOsk, keyboardElsewhere, Osk, oskHeight } from "@pocketjs/framework/osk";
-import { barButtonWidth, NAV_H, type NavButton } from "../ui/bar.tsx";
+import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
+import { barButtonWidth, NAV_H, setFlatBackIcon, type NavButton } from "../ui/bar.tsx";
 import { keep } from "../ui/keep.ts";
 import { Legend, legendWhileTyping } from "../ui/legend.tsx";
 import { createNavStack, viewHeight, type LayerContext, type NavStack, type PageSpec } from "../ui/nav.tsx";
@@ -25,7 +24,8 @@ import { SCREEN_H, SCREEN_W, appletSurfaceId, appletTouch } from "../ui/screen.t
 import { FONT, wrap } from "../ui/text.ts";
 import { createPress, createTouchRouter, type Press, type Target } from "../ui/touch.ts";
 import { createImages, type Images } from "./images.ts";
-import type { IconSrc } from "./icons.ts";
+import { ICONS, type IconSrc } from "./icons.ts";
+import { keyboardElsewhere, QUERIES_KEPT, Surface } from "./platform.tsx";
 import { linesContent, type SourceLine } from "./lines.tsx";
 import { listContent } from "./list.tsx";
 import { createQueries, type Queries } from "./query.ts";
@@ -85,9 +85,10 @@ interface Kept {
 
 export function createApp(options: AppOptions): () => JSX.Element {
   return function KitApp() {
+    setFlatBackIcon(ICONS.back.accent);
     const press = createPress();
     const [keys, setKeys] = createSignal(!appletTouch());
-    const kept = keep<Kept>("kit", () => ({ images: createImages(), queries: createQueries() }));
+    const kept = keep<Kept>("kit", () => ({ images: createImages(), queries: createQueries(QUERIES_KEPT) }));
     const faces = createFaces();
     const [confirmation, setConfirmation] = createSignal<Confirm | null>(null);
     const [sheet, setSheet] = createSignal<Compose | null>(null);
@@ -234,7 +235,7 @@ export function createApp(options: AppOptions): () => JSX.Element {
     const keyboardTop = SCREEN_H - oskHeight(appletSurfaceId(), "light");
 
     return (
-      <AppletSurface>
+      <Surface>
         <View class="relative w-full h-full overflow-hidden" style={{ bgColor: T.bg }}>
           {stack.view()}
           <Show when={notice()}>
@@ -283,7 +284,7 @@ export function createApp(options: AppOptions): () => JSX.Element {
           </View>
         </View>
         <Legend home />
-      </AppletSurface>
+      </Surface>
     );
   };
 }
@@ -367,4 +368,4 @@ export function linesPage(app: App, layer: LayerContext, options: { title: Acces
 export type { SourceLine };
 export type { LayerContext } from "../ui/nav.tsx";
 export { markdownRows } from "./markdown.ts";
-export { ICONS } from "./icons.ts";
+export { ICONS };

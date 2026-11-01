@@ -23,7 +23,7 @@ export default createApp({
 });
 ```
 
-`main.tsx` stays as the template writes it. `app.stack.push(pageId("note", id))` opens a page; the bar's back button and Escape pop it.
+`main.tsx` stays as the template writes it. `app.stack.push(pageId("note", id))` opens a page; the bar's back button and the Cross button (Backspace on a keyboard) pop it.
 
 ## A page
 

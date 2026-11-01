@@ -9,6 +9,7 @@ import type { Row, Rows } from "./rows.ts";
 export function inline(text: string): string {
   return text
     .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/\[!\[[^\]]*\]\([^)]*\)\]\([^)]*\)/g, "")
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, (_, alt: string) => (alt ? `[${alt}]` : ""))
     .replace(/<img[^>]*alt="([^"]*)"[^>]*>/gi, (_, alt: string) => (alt ? `[${alt}]` : ""))
     .replace(/<[^>]+>/g, "")

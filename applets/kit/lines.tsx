@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // applets/kit/lines.tsx — thousands of lines of code or diff in monospace, a
 // fixed pool of three-node slots. A long line wraps to a following row.
-import { createEffect, createMemo, createSignal, For, onMount, type Accessor } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onMount, Show, untrack, type Accessor } from "solid-js";
 import { jump } from "@pocketjs/framework/animation";
 import { Text, View } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework/host";
@@ -100,9 +100,12 @@ export function linesContent(options: LinesOptions): PageContent {
     }
     return out;
   });
-  const pool = createSlotPool<LineRow>(rows, options.layer.offset, { view: options.view, overscan: OVERSCAN, minRowH: LINE_H });
+  const slots = () => {
+    const pool = createSlotPool<LineRow>(rows, options.layer.offset, { view: options.view, overscan: OVERSCAN, minRowH: LINE_H });
+    return <For each={pool.slots}>{(slot) => <LineSlot pool={pool} slot={slot} width={options.width} faces={options.faces} />}</For>;
+  };
   return {
-    view: () => <For each={pool.slots}>{(slot) => <LineSlot pool={pool} slot={slot} width={options.width} faces={options.faces} />}</For>,
+    view: () => <Show when={options.layer.near()}>{untrack(slots)}</Show>,
     height: () => rows().length * LINE_H + 16,
     focusOrder: () => [],
     targets: () => [],

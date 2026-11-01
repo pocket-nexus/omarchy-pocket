@@ -12,7 +12,7 @@ Repeat until every page looks right:
 2. `pocket-applet run <name>`: checks the rules, compiles (about a minute), installs and opens it in a window, replacing the old one. Fix what it prints and run again.
 3. `pocket-applet shot <name>`: writes `shot.png` here, the device's two panels stacked, windows on the top one. **Open the image and look at it.**
 4. `pocket-applet log`: the host's and the daemon's last lines. An exception from the app shows as `app N threw: ...`.
-5. Use it as a person would. `pocket-applet tap <x> <y>` clicks at a place read off the top panel of the shot (1024 x 768, so a row at y = 400 in the image is tapped at y = 400). `pocket-applet scroll <x> <y> <dy>` scrolls what is there, up by dy. `pocket-applet key Enter|Escape|Up|Down`, `pocket-applet type <text>`. Wait for the network before the next shot: `sleep 3`.
+5. Use it as a person would. `pocket-applet tap <x> <y>` clicks at a place read off the top panel of the shot (1024 x 768, so a row at y = 400 in the image is tapped at y = 400). `pocket-applet scroll <x> <y> <dy>` scrolls what is there, up by dy. `pocket-applet key Enter|Backspace|Up|Down` (Backspace goes back), `pocket-applet type <text>`. Wait for the network before the next shot: `sleep 3`.
 
 ## Plan the pages first
 

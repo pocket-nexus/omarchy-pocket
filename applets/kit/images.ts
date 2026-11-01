@@ -4,7 +4,7 @@
 // first, the least recently drawn freed past LIMIT.
 import { createSignal } from "solid-js";
 import { getOps } from "@pocketjs/framework/host";
-import { companionService, fetch } from "../lib/net.ts";
+import { companionService, fetch } from "./platform.tsx";
 
 const LIMIT = 64;
 const AT_ONCE = 4;
