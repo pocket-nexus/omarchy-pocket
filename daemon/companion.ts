@@ -6,7 +6,8 @@
 //
 // A URL on companion.pocket goes to the service it names, as Pocket Companion
 // answers a console's request on a Mac: PocketJS's own providers
-// (vendor/pocketjs/tools/companion/services: x, discord, youtube), their
+// (vendor/pocketjs/tools/companion/services: x, discord, youtube, store,
+// reddit, podcasts, maps, homeassistant), their
 // files under ~/.local/share/omarchy-pocket/companion/services/<name>/ (the
 // Mac's `services/x/session.json`, `services/discord/token` copied there
 // sign this device in), glyphs from this daemon's own baker at the device's
