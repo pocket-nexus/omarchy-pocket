@@ -17,6 +17,7 @@ import { View } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
 import { onButtonPress } from "@pocketjs/framework/lifecycle";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
+import { draftOf } from "../ui/field.tsx";
 import { keep } from "../ui/keep.ts";
 import { createNavStack } from "../ui/nav.tsx";
 import { SCREEN_H, SCREEN_W, appletTouch, appletSurfaceId } from "../ui/screen.ts";
@@ -50,7 +51,7 @@ export default function YouTube() {
     osk.open();
   };
   const model = keep("model", () => createYtModel(client, hooks));
-  const env: YtEnv = { model, client, press, keys };
+  const env: YtEnv = { model, client, press, keys, draft: draftOf(osk) };
 
   const stack = createNavStack({
     restore: "youtube",

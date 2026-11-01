@@ -28,6 +28,7 @@ import { COMPACT, SCREEN_H, SCREEN_W, appletSurfaceId, appletTouch } from "../ui
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import type { Press, Target } from "../ui/touch.ts";
+import { SearchField } from "../ui/field.tsx";
 import { durationText, TOPICS, viewsText, type Codec, type PlayInfo, type Video, type YtClient } from "./api.ts";
 import type { YtModel } from "./model.ts";
 import { yourComputer } from "../ui/companion.ts";
@@ -52,6 +53,8 @@ export interface YtEnv {
   client: YtClient;
   press: Press;
   keys: Accessor<boolean>;
+  /** The keyboard's text with its caret while it is open, else null. */
+  draft: Accessor<string | null>;
 }
 
 // ---- the segmented control -------------------------------------------------------
@@ -264,10 +267,7 @@ export function listPage(env: YtEnv, stack: NavStack, layer: LayerContext): Page
     view: () => (
       <>
         <Show when={searching()}>
-          <View class="absolute left-[8] top-[8] h-[26] rounded-[13] border border-[#b8bec6] bg-[#ffffff]" style={{ width: W - 16 }} />
-          <Text class={model.query() ? "absolute left-[22] top-[13] text-sm text-[#111111]" : "absolute left-[22] top-[13] text-sm text-[#a0a6ae]"} style={{ width: W - 40 }}>
-            {model.query() ? ellipsize(toAscii(model.query()), FONT.sm, W - 40) : "Search YouTube"}
-          </Text>
+          <SearchField id="search.field" x={8} y={8} w={W - 16} h={26} press={press} draft={env.draft} value={model.query} placeholder="Search YouTube" />
         </Show>
         <For each={pool.slots}>{(slot) => <VideoSlot env={env} pool={pool} slot={slot} lit={lit} />}</For>
         <Show when={!listed()}>
