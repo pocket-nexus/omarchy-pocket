@@ -200,6 +200,7 @@ export function sendKey(key: string, shifted?: string) {
 const keyAt = (keys: Placed[], x: number, y: number) => keys.find((k) => x >= k.x && x < k.x + k.w && y >= k.y && y < k.y + k.h) ?? null;
 
 function press(key: Placed) {
+  if (watching()) console.log(`key ${key.label} press`);
   if (key.modifier) latch(key.modifier);
   else if (key.layer) setLayer(key.layer);
   else if (key.ime) toggleChinese();

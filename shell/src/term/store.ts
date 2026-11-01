@@ -58,6 +58,7 @@ export const activeSession = () => sessions().find((s) => s.sid === active()) ??
 export const terminalSink: KeySink = {
   text: (text) => {
     const sid = active();
+    if (watching()) console.log(`term ${sid} input ${JSON.stringify(text)}`);
     if (sid !== null) void request({ method: "termInput", sid, text });
   },
   key: (key, m) => {
