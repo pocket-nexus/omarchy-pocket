@@ -18,17 +18,26 @@
 //! services, which omarchy-pocketd performs, and `globalThis.media`
 //! (media.rs): the playback plane fed by a companion media stream.
 //!
+//! Typing: the shell's keyboard on the deck types into an app as a hardware
+//! keyboard does (`appText`): text events go into the app's next input frame
+//! (`input.text`), where the framework's open keyboard session takes them,
+//! the IME's commits included. The app says when a field's session opens
+//! and closes through `ui.textSession(open)` (framework osk-controller.ts),
+//! which reaches the shell as `{"event":"app","id":N,"typing":true}`, so
+//! the deck shows the keyboard while it is open.
+//!
 //! The shell sizes an app's touch surface to the tile its window has
 //! (`openApp(path, w, h)`, `resizeApp`): the host gives the surface's texture
 //! the new size, the Runtime takes it (`resize_auxiliary`), and the app's
 //! realm hears `__omarchyResized(w, h)` before its next frame, where an
 //! applet lays itself out again for the new size.
 use crate::{media, net};
-use pocket_drivers::{Contact, InputClasses, InputFrameBuilder, InputSource};
+use pocket_drivers::{Contact, InputClasses, InputFrameBuilder, InputSource, TextEvent};
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_linux_hooks::FileSource;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, Profile, Runtime, RuntimeConfig, RuntimeError};
 use pocket_spec::op;
+use rquickjs::{Function, Object};
 use std::{
     cell::{Cell, RefCell},
     error::Error,
@@ -42,6 +51,8 @@ struct Feed {
     buttons: u32,
     /// contacts on the app's auxiliary surface: (id, x, y) in its logical points
     contacts: Vec<(u32, f32, f32)>,
+    /// text events for the next frame, from the shell's keyboard
+    text: Vec<TextEvent>,
 }
 
 /// The input source an app's Runtime polls: whatever the shell fed it.
@@ -49,14 +60,15 @@ struct FedInput(Rc<RefCell<Feed>>);
 
 impl InputSource for FedInput {
     fn classes(&self) -> InputClasses {
-        InputClasses::BUTTONS | InputClasses::CONTACT
+        InputClasses::BUTTONS | InputClasses::CONTACT | InputClasses::TEXT
     }
     fn poll(&mut self, frame: &mut InputFrameBuilder) {
-        let feed = self.0.borrow();
+        let mut feed = self.0.borrow_mut();
         frame.buttons |= feed.buttons;
         for &(id, x, y) in &feed.contacts {
             frame.contacts.push(Contact { surface: 1, id, x, y, cancelled: false });
         }
+        frame.text.append(&mut feed.text);
     }
 }
 
@@ -77,6 +89,8 @@ struct App {
     media: Rc<RefCell<Option<media::Handle>>>,
     /// its media player streams: the shell keeps the device awake
     playing: bool,
+    /// a text field's keyboard session opened (true) or closed, not yet told
+    typing: Rc<Cell<Option<bool>>>,
 }
 
 enum Request {
@@ -91,6 +105,8 @@ struct AppGuest {
     net: net::Shared,
     /// the app's media player, made when the realm initializes
     media: Rc<RefCell<Option<media::Handle>>>,
+    /// `ui.textSession(open)` from the realm, for the shell
+    typing: Rc<Cell<Option<bool>>>,
     app: u32,
     /// a new touch-surface size the realm has not heard of yet
     resized: Rc<Cell<Option<[u32; 2]>>>,
@@ -102,9 +118,15 @@ impl Guest for AppGuest {
         *self.media.borrow_mut() = Some(player.clone());
         self.inner.initialize(ops, environment)?;
         // `__omarchyWindow`: the shell sizes this app's touch surface before it lays out
+        let typing = self.typing.clone();
         let installed = self.inner.with(|ctx| {
             net::install(&ctx, &self.net, self.app)
                 .and_then(|()| media::install(&ctx, &player))
+                .and_then(|()| {
+                    // the framework's keyboard controller tells the host of its sessions
+                    let ui: Object = ctx.globals().get("ui")?;
+                    ui.set("textSession", Function::new(ctx.clone(), move |open: bool| typing.set(Some(open)))?)
+                })
                 .and_then(|()| ctx.globals().set("__omarchyWindow", true))
         });
         match installed {
@@ -194,6 +216,13 @@ impl Children {
         }
     }
 
+    /// Text events for the app's next input frame.
+    pub fn text(&mut self, id: u32, events: Vec<TextEvent>) {
+        if let Some(app) = self.apps.iter().find(|a| a.id == id) {
+            app.feed.borrow_mut().text.extend(events);
+        }
+    }
+
     /// Bridge lines for the shell's next guest turn.
     pub fn take_events(&mut self) -> Vec<String> {
         std::mem::take(&mut self.events)
@@ -230,6 +259,7 @@ impl Children {
         let mut rendered = false;
         let mut failed = Vec::new();
         let mut playing = Vec::new();
+        let mut typing = Vec::new();
         for app in self.apps.iter_mut().filter(|a| a.visible) {
             match frame(app) {
                 Ok(drew) => rendered |= drew,
@@ -240,10 +270,17 @@ impl Children {
                 app.playing = now;
                 playing.push((app.id, now));
             }
+            if let Some(open) = app.typing.take() {
+                typing.push((app.id, open));
+            }
         }
         // `{"event":"app","id":N,"media":true}`: a stream plays in the app's window
         for (id, now) in playing {
             self.event(id, "media", now.to_string());
+        }
+        // `{"event":"app","id":N,"typing":true}`: a text field's keyboard session is open
+        for (id, open) in typing {
+            self.event(id, "typing", open.to_string());
         }
         for (id, failure) in failed {
             eprintln!("omarchy-pocket-host: app {id} stopped: {failure}");
@@ -280,7 +317,8 @@ impl Children {
         self.net.borrow_mut().add_app(id, path.display().to_string());
         let resized = Rc::new(Cell::new(None));
         let media = Rc::new(RefCell::new(None));
-        let guest = AppGuest { inner: RquickjsGuest::default(), net: self.net.clone(), media: media.clone(), app: id, resized: resized.clone() };
+        let typing = Rc::new(Cell::new(None));
+        let guest = AppGuest { inner: RquickjsGuest::default(), net: self.net.clone(), media: media.clone(), typing: typing.clone(), app: id, resized: resized.clone() };
         runtime.set_guest(Box::new(guest)).map_err(error)?;
         if let Err(failure) = runtime.boot() {
             self.net.borrow_mut().remove_app(id);
@@ -300,7 +338,7 @@ impl Children {
         }
         let mut sizes = gpu.sizes;
         let surface = sizes.pop().ok_or("the app has no touch surface")?;
-        self.apps.push(App { id, runtime, feed, handles: handles.clone(), visible: true, primary: Vec::new(), auxiliary: Vec::new(), surface, resized, media, playing: false });
+        self.apps.push(App { id, runtime, feed, handles: handles.clone(), visible: true, primary: Vec::new(), auxiliary: Vec::new(), surface, resized, media, playing: false, typing });
         Ok(handles)
     }
 

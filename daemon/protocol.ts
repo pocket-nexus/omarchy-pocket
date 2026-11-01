@@ -331,7 +331,7 @@ export type Event =
   | { event: "termExit"; sid: number; code: number | null }
   /** from the host program, not the daemon: a package window's app booted
    *  (its displays' texture handles, top then touch surface) or failed */
-  | { event: "app"; id: number; textures?: number[]; error?: string; /** its media player streams */ media?: boolean }
+  | { event: "app"; id: number; textures?: number[]; error?: string; /** its media player streams */ media?: boolean; /** a text field's keyboard session is open */ typing?: boolean }
   /** a package window's app stopped */
   | { event: "appExit"; id: number; error: string }
   /** New run-time glyph atlases to load (omarchyBridge.loadFontAtlas). */

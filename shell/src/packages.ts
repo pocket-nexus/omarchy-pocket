@@ -8,6 +8,8 @@
 // current workspace is paused.
 import { createSignal } from "solid-js";
 import { onEvent } from "./bridge.ts";
+import type { KeySink } from "./keys.ts";
+import { watching } from "./watch.ts";
 import { toast } from "./stage/toasts.tsx";
 import { closeWindow, find, open, type Win } from "./workspaces.ts";
 
@@ -17,6 +19,8 @@ interface AppBridge {
   closeApp(id: number): void;
   showApp(id: number, visible: boolean): void;
   appInput(id: number, buttons: number, contacts: number[]): void;
+  /** text (a typed character, an IME commit) or an editing key name for a package's open field */
+  appText(id: number, kind: "text" | "key", text: string): void;
 }
 const host = (globalThis as { omarchyBridge?: Partial<AppBridge> }).omarchyBridge;
 
@@ -27,6 +31,26 @@ export const appTextures = (id: number) => textures()[id] ?? null;
 const [playing, setPlaying] = createSignal<Set<number>>(new Set());
 /** A package plays media: the idle timer holds, as for a film on a desktop. */
 export const mediaPlaying = () => playing().size > 0;
+/** packages with a text field's keyboard session open (`{"event":"app","typing":true}`) */
+const [typing, setTyping] = createSignal<Set<number>>(new Set());
+export const appletTyping = (id: number) => typing().has(id);
+const ARROWS: Record<string, string> = { Up: "ArrowUp", Down: "ArrowDown", Left: "ArrowLeft", Right: "ArrowRight" };
+/** The keys of a package whose field is open: characters and the IME's
+ *  commits go in as text, editing keys by KeyboardEvent.key names. */
+export function appletKeys(id: number): KeySink {
+  return {
+    text: (ch) => {
+      if (watching()) console.log(`app ${id} text ${JSON.stringify(ch)}`);
+      host?.appText?.(id, "text", ch);
+    },
+    key: (name) => {
+      if (watching()) console.log(`app ${id} key ${ARROWS[name] ?? name}`);
+      host?.appText?.(id, "key", ARROWS[name] ?? name);
+    },
+    close: () => host?.appText?.(id, "key", "Escape"),
+    hint: () => "types into the window above · × closes its field",
+  };
+}
 
 /** An applet's touch surface in its window: its size in logical points and
  *  the scale the window draws it at. */
@@ -107,6 +131,13 @@ onEvent((event) => {
         else next.delete(event.id);
         return next;
       });
+    } else if (typeof event.typing === "boolean") {
+      setTyping((set) => {
+        const next = new Set(set);
+        if (event.typing) next.add(event.id);
+        else next.delete(event.id);
+        return next;
+      });
     } else {
       const w = find(isApp(event.id));
       toast({ icon: ERROR, title: w?.kind === "app" ? w.title : "Package", body: event.error ?? "did not start", tone: "error" });
@@ -118,6 +149,11 @@ onEvent((event) => {
     if (w) closeWindow(w.id);
     setTextures(({ [event.id]: _, ...rest }) => rest);
     setPlaying((set) => {
+      const next = new Set(set);
+      next.delete(event.id);
+      return next;
+    });
+    setTyping((set) => {
       const next = new Set(set);
       next.delete(event.id);
       return next;

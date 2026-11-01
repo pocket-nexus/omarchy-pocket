@@ -17,6 +17,7 @@
 import { createEffect, createMemo, createRoot, createSignal, on } from "solid-js";
 import { appletOf } from "./applets/applet.ts";
 import { KEY_BUTTONS, NO_SINK, fieldSink, type KeySink, type Mods } from "./keys.ts";
+import { appletKeys, appletTyping } from "./packages.ts";
 import { card, cardSink, cardTitle } from "./stage/card.tsx";
 import { windowTitle } from "./stage/windows.tsx";
 import { terminalSink } from "./term/store.ts";
@@ -33,7 +34,8 @@ export function keySink(): KeySink {
   const w = focused();
   if (!w) return NO_SINK;
   if (w.kind === "terminal") return terminalSink;
-  if (w.kind === "app") return NO_SINK;
+  // a package types while a field's keyboard session is open; a pointer app takes nothing
+  if (w.kind === "app") return appletTyping(w.app) ? appletKeys(w.app) : NO_SINK;
   const applet = appletOf(w);
   if (!applet) return NO_SINK;
   const own = applet.keys?.();
@@ -68,7 +70,7 @@ const rule = createMemo((): Layout => {
   if (card()) return "keys";
   const w = focused();
   if (!w) return "home";
-  return w.kind === "app" ? "pad" : "keys";
+  return w.kind === "app" ? (appletTyping(w.app) ? "keys" : "pad") : "keys";
 });
 
 const [chosen, setChosen] = createSignal<Layout | null>(null);

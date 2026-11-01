@@ -26,6 +26,7 @@ use crate::{children, net};
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, RuntimeError};
 use pocket_spec::op;
+use pocket_drivers::TextEvent;
 use rquickjs::{function::Opt, Coerced, FromJs, Function, Object};
 use std::{
     cell::{Cell, RefCell},
@@ -172,6 +173,23 @@ impl BridgedGuest {
             object.set("closeApp", Function::new(ctx.clone(), move |id: u32| apps.borrow_mut().close(id))?)?;
             let apps = self.children.clone();
             object.set("showApp", Function::new(ctx.clone(), move |id: u32, visible: bool| apps.borrow_mut().show(id, visible))?)?;
+            let apps = self.children.clone();
+            object.set(
+                "appText",
+                // kind "text": typed characters (the IME's commits too); "key": an
+                // editing key as KeyboardEvent.key names it (Enter, Backspace, ArrowLeft, ...)
+                Function::new(ctx.clone(), move |id: u32, kind: String, text: String| {
+                    let events = if kind == "key" {
+                        vec![
+                            TextEvent::Key { key: text.clone(), pressed: true, repeat: false },
+                            TextEvent::Key { key: text, pressed: false, repeat: false },
+                        ]
+                    } else {
+                        vec![TextEvent::Commit(text)]
+                    };
+                    apps.borrow_mut().text(id, events);
+                })?,
+            )?;
             let apps = self.children.clone();
             object.set(
                 "appInput",
