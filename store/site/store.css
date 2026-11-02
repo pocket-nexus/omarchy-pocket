@@ -72,6 +72,24 @@ dd{margin:0;overflow-wrap:anywhere;color:var(--ink-2)}
 pre{margin:12px 0;padding:14px 16px;border-radius:12px;background:rgba(5,3,14,.6);border:1px solid var(--line);font:400 13.5px/1.6 var(--mono);color:var(--ink);overflow-x:auto}
 code{font:400 .9em/1 var(--mono);color:var(--ink)}
 footer{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between;padding:22px var(--gutter);font:400 13px/1.4 var(--mono);color:var(--muted);border-top:1px solid var(--line)}
+.player{margin-bottom:12px}
+.play{position:relative;aspect-ratio:4/3;border-radius:14px;overflow:hidden;background:#0b0b10;border:1px solid var(--line)}
+.play img{display:block;width:100%;height:100%;object-fit:cover;opacity:.55}
+.play img.poster-icon{width:96px;height:96px;position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);opacity:1;border-radius:22px}
+.play iframe{display:block;width:100%;height:100%;border:0}
+.run{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);white-space:nowrap;height:48px;padding:0 22px;border:0;border-radius:999px;background:linear-gradient(180deg,#ffd68c,var(--gold));color:#2a1229;font:700 16px/1 var(--grot);cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.playbar{display:flex;align-items:center;gap:12px;margin:10px 0 6px;font:400 13px/1.4 var(--mono);color:var(--muted)}
+.chip{height:32px;padding:0 13px;border:1px solid var(--line);border-radius:9px;background:rgba(255,245,238,.06);color:var(--ink);font:500 13.5px/1 var(--grot);cursor:pointer}
+.chip:disabled{opacity:.4;cursor:default}
+.player details{margin-top:4px}
+.player summary{cursor:pointer;color:var(--ink-2)}
+.player details p{margin:8px 0;color:var(--muted)}
+.requests{padding-left:22px;display:grid;gap:3px;max-height:220px;overflow:auto;font:400 12px/1.45 var(--mono);color:var(--ink-2)}
+.requests li{overflow-wrap:anywhere}
+.requests span{color:var(--muted)}
+.requests .miss,.requests .miss span{color:var(--rose)}
+.variant{margin-top:12px}
+.variant .rows{margin-top:6px}
 @media (max-width:640px){
   .bar{flex-wrap:wrap;gap:12px}
   .bar nav{gap:14px;width:100%;font-size:14px}

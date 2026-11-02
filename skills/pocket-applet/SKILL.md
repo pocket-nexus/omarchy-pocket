@@ -25,6 +25,8 @@ bun sdk/check-repo.ts applets/<name>                # the rules pocket-applet ch
 
 Copy the package to the device and open it with `omarchy-shell pocket.window app <path> <title> applet`; the input and screenshot commands are the same over SSH.
 
+Sample data for the store's browser player goes in `applets/<name>/mock/mock.json` (format in `sdk/mock.ts`, examples in `applets/weather/mock` and `applets/hn/mock`). `bun store/play/serve.ts .cache/applets/<name>.pocket applets/<name>` runs the app on it at http://127.0.0.1:4310/ and lists every request with what answered it.
+
 ## What makes the result bad, in order of how often
 
 1. Drawing pages from `View` and `Text` instead of rows. `pocket-applet check` stops this; do not work around it with the custom-pixels line unless the page is a game, a map or a canvas.

@@ -7,6 +7,7 @@
 // and the layout rules leave it alone.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { packMock } from "./mock.ts";
 
 export interface Finding {
   level: "error" | "warning";
@@ -91,6 +92,8 @@ export function checkApplet(dir: string, template?: string): Finding[] {
     if (/<text\b/.test(icon)) add("error", "icon.svg", 1, "an icon is a picture of what the app is, never letters");
     if (template && existsSync(join(template, "icon.svg")) && icon === readFileSync(join(template, "icon.svg"), "utf8")) add("warning", "icon.svg", 1, "still the template's icon: draw a concise picture of what the app is");
   }
+  const sample = packMock(dir);
+  if (Array.isArray(sample)) for (const problem of sample) add("error", "mock/mock.json", 1, `${problem} (sdk/mock.ts says what sample data holds)`);
   const summary = String(manifest.applet?.summary ?? "");
   if (/ for Omarchy Pocket\.$/.test(summary)) add("warning", "pocket.json", 1, "applet.summary says nothing yet: say in one line what the app does");
   return out;

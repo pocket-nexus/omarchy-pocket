@@ -168,6 +168,11 @@ async function sdk() {
   symlinkSync("../vendor", join(out, "applets", "vendor"));
   mkdirSync(join(out, "store", "src"), { recursive: true });
   await $`cp ${join(ROOT, "store", "src", "shared.ts")} ${join(out, "store", "src")}`;
+  // the store website's player, for `pocket-applet web`
+  mkdirSync(join(out, "store", "play"), { recursive: true });
+  mkdirSync(join(out, "store", "site"), { recursive: true });
+  await $`cp ${join(ROOT, "store", "play", "serve.ts")} ${join(out, "store", "play")}`;
+  await $`cp -R ${join(ROOT, "store", "site", "play")} ${join(out, "store", "site")}`;
   await $`cp -R ${join(ROOT, "sdk")} ${out}`;
   await $`chmod 755 ${join(out, "sdk", "pocket-applet.ts")}`;
   mkdirSync(join(out, "node_modules", "@pocketjs"), { recursive: true });

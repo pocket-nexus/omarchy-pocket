@@ -1,0 +1,114 @@
+{
+  "store": {
+    "weather": {
+      "places": [
+        {
+          "id": 1850147,
+          "name": "Tokyo",
+          "region": "Tokyo",
+          "country": "Japan",
+          "latitude": 35.6895,
+          "longitude": 139.69171
+        },
+        {
+          "id": 3413829,
+          "name": "Reykjavik",
+          "region": "Capital Region",
+          "country": "Iceland",
+          "latitude": 64.13548,
+          "longitude": -21.89541
+        },
+        {
+          "id": 5391959,
+          "name": "San Francisco",
+          "region": "California",
+          "country": "United States",
+          "latitude": 37.77493,
+          "longitude": -122.41942
+        }
+      ],
+      "units": "c",
+      "current": 1850147
+    }
+  },
+  "routes": [
+    {
+      "url": "https://api.open-meteo.com/v1/forecast?latitude=35.6895&longitude=139.69171&*",
+      "file": "forecast-tokyo.json"
+    },
+    {
+      "url": "https://api.open-meteo.com/v1/forecast?latitude=64.13548&longitude=-21.89541&*",
+      "file": "forecast-reykjavik.json"
+    },
+    {
+      "url": "https://api.open-meteo.com/v1/forecast?latitude=37.77493&longitude=-122.41942&*",
+      "file": "forecast-san-francisco.json"
+    },
+    {
+      "url": "https://api.open-meteo.com/v1/forecast?latitude=51.50853&longitude=-0.12574&*",
+      "file": "forecast-london.json"
+    },
+    {
+      "url": "https://api.open-meteo.com/v1/forecast?latitude=48.85341&longitude=2.3488&*",
+      "file": "forecast-paris.json"
+    },
+    {
+      "url": "https://api.open-meteo.com/v1/forecast?latitude=40.71427&longitude=-74.00597&*",
+      "file": "forecast-new-york.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=Tok*",
+      "file": "geocode-tokyo.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=tok*",
+      "file": "geocode-tokyo.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=Rey*",
+      "file": "geocode-reykjavik.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=rey*",
+      "file": "geocode-reykjavik.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=San*",
+      "file": "geocode-san-francisco.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=san*",
+      "file": "geocode-san-francisco.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=Lon*",
+      "file": "geocode-london.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=lon*",
+      "file": "geocode-london.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=Par*",
+      "file": "geocode-paris.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=par*",
+      "file": "geocode-paris.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=New*",
+      "file": "geocode-new-york.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?name=new*",
+      "file": "geocode-new-york.json"
+    },
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1/search?*",
+      "json": {
+        "generationtime_ms": 0.2
+      }
+    }
+  ]
+}

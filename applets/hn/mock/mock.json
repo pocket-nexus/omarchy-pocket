@@ -1,0 +1,4038 @@
+{
+ "routes": [
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/topstories.json",
+   "json": [
+    50333339,
+    50326821,
+    50312408,
+    50319510,
+    50332163,
+    50331957,
+    50328896,
+    50334704,
+    50333774,
+    50315217,
+    50331784,
+    50299811,
+    50271106,
+    50334038,
+    50308754,
+    50325253,
+    50299427,
+    50323088,
+    50331402,
+    50325454,
+    50290533,
+    50314617,
+    50328251,
+    50333877,
+    50280131,
+    50326099,
+    50314508,
+    50318129,
+    50324371,
+    50320963
+   ]
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/newstories.json",
+   "json": [
+    50335272,
+    50335264,
+    50335256,
+    50335252,
+    50335245,
+    50335219,
+    50335199,
+    50335168,
+    50335167,
+    50335138,
+    50335122,
+    50335119,
+    50335117,
+    50335110,
+    50335101,
+    50335098,
+    50335091,
+    50335090,
+    50335077,
+    50335068,
+    50335055,
+    50335049,
+    50335047,
+    50335033,
+    50335021,
+    50335010,
+    50334987,
+    50334977,
+    50334974,
+    50334961
+   ]
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/beststories.json",
+   "json": [
+    50319510,
+    50326821,
+    50314654,
+    50320963,
+    50319143,
+    50324388,
+    50326099,
+    50319358,
+    50326118,
+    50320995,
+    50327650,
+    50328896,
+    50323088,
+    50314699,
+    50316100,
+    50314666,
+    50322173,
+    50328251,
+    50330939,
+    50331402,
+    50318720,
+    50316531,
+    50325253,
+    50317363,
+    50318189,
+    50330456,
+    50320588,
+    50319110,
+    50333339,
+    50327266
+   ]
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/askstories.json",
+   "json": [
+    50328896,
+    50331001,
+    50334841,
+    50333045,
+    50334210,
+    50312756,
+    50328567,
+    50329475,
+    50312174,
+    50306776,
+    50322477,
+    50308286,
+    50296367,
+    50318646,
+    50318141,
+    50321871,
+    50293459,
+    50311495,
+    50286306,
+    50307092,
+    50303708,
+    50313705,
+    50294929,
+    50301901,
+    50311776,
+    50310690,
+    50307060,
+    50291678,
+    50304967,
+    50317351
+   ]
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/showstories.json",
+   "json": [
+    50333339,
+    50326821,
+    50334704,
+    50325253,
+    50290533,
+    50333877,
+    50314508,
+    50333987,
+    50333971,
+    50332986,
+    50315782,
+    50331415,
+    50332869,
+    50321522,
+    50300902,
+    50311686,
+    50327937,
+    50306442,
+    50319169,
+    50329627,
+    50329581,
+    50297697,
+    50329086,
+    50294506,
+    50305218,
+    50327900,
+    50327798,
+    50327582,
+    50317548,
+    50278678
+   ]
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333339.json",
+   "json": {
+    "by": "aizk",
+    "descendants": 65,
+    "id": 50333339,
+    "kids": [
+     50335018,
+     50334688,
+     50334811,
+     50335193,
+     50334003,
+     50335157,
+     50334996,
+     50334411
+    ],
+    "score": 207,
+    "text": "After seeing Karpathy&#x27;s Hackertube and Hackerbooks, I just had to make Wikihack.<p>I scraped all mentions of wikipedia on hackernews and ranked them, and turn them into a scrollable feed to make it a bit more easy to digest &#x2F; interact with. You can see where people submitted the articles and where people mentioned it in comments.<p>The top shows the most frequently linked articles.<p>Random is random but slightly weighted towards the more frequently linked articles (a little bit like Wikipedia actually).<p>Rising is ranked towards the past 12 months.<p>The entire site is served only through the frontend -- I&#x27;ll add more features if people enjoy this!",
+    "time": 1793595990,
+    "title": "Show HN: Wikihack – HackerTube, but for Wikipedia articles mentioned on HN",
+    "type": "story",
+    "url": "https://wikihack.netlify.app"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50326821.json",
+   "json": {
+    "by": "roansh",
+    "descendants": 236,
+    "id": 50326821,
+    "kids": [
+     50335269,
+     50333998,
+     50330302,
+     50333399,
+     50334530,
+     50332843,
+     50333864,
+     50328127
+    ],
+    "score": 1413,
+    "text": "Saw Karpathy&#x27;s HackerTube and wanted the same thing for books. So I had Claude build one (Opus 5.5).<p>It&#x27;s ~16.5k books that at least two different HN commenters brought up, from 2007 till now. Each book links back to the comments that mentioned it. Data is downloadable from the about page.<p>To be clear: Claude wrote almost all of it, including the data pipeline and the site. I mostly steered and made calls, bought the domain name, etc.<p>It counts mentions, so it&#x27;s not perfect (praising a book and trashing it both count). If your favourite book is missing or matched to the wrong thing, tell me.",
+    "time": 1793548708,
+    "title": "Show HN: HackerBooks – HackerTube, but for books mentioned on HN",
+    "type": "story",
+    "url": "https://hackerbooks.org"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50312408.json",
+   "json": {
+    "by": "soheilpro",
+    "descendants": 304,
+    "id": 50312408,
+    "kids": [
+     50334135,
+     50331818,
+     50331824,
+     50331711,
+     50335134,
+     50312516,
+     50334895,
+     50334277
+    ],
+    "score": 488,
+    "time": 1793410736,
+    "title": "Postgres 19 is late because so many more bugs are being found now",
+    "type": "story",
+    "url": "http://rhaas.blogspot.com/2026/10/postgres-19-is-late-and-its-ais-fault.html"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50319510.json",
+   "json": {
+    "by": "karpathy",
+    "descendants": 573,
+    "id": 50319510,
+    "kids": [
+     50335000,
+     50327005,
+     50326842,
+     50320482,
+     50329520,
+     50323715,
+     50330500,
+     50319961
+    ],
+    "score": 2597,
+    "text": "YouTube-style UI over 6,454 videos sourced from 39,834 HN comments since 2007.<p><a href=\"https:&#x2F;&#x2F;hackertube.org&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;hackertube.org&#x2F;</a>",
+    "time": 1793476613,
+    "title": "HackerTube: YouTube built from videos recommended by HN",
+    "type": "story",
+    "url": "https://karpathy.bearblog.dev/hacker-tube/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332163.json",
+   "json": {
+    "by": "joonehur",
+    "descendants": 15,
+    "id": 50332163,
+    "kids": [
+     50334317,
+     50334603,
+     50333667,
+     50333911,
+     50334900,
+     50332706,
+     50332851,
+     50334702
+    ],
+    "score": 133,
+    "time": 1793584778,
+    "title": "F/OSS Comics #13: BSD Unix, Part 3 – The Beginning of BSD Unix",
+    "type": "story",
+    "url": "https://fosscomics.com/posts/13.%20BSD%20Unix%20Part%203%20-%20The%20Beginning%20of%20BSD%20Unix/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331957.json",
+   "json": {
+    "by": "EA-3167",
+    "descendants": 23,
+    "id": 50331957,
+    "kids": [
+     50335137,
+     50335146,
+     50334458,
+     50335174,
+     50334696,
+     50334499
+    ],
+    "score": 106,
+    "time": 1793583067,
+    "title": "Bones may release proteins that slow aging and extend life span",
+    "type": "story",
+    "url": "https://www.science.org/content/article/bones-may-release-proteins-slow-aging-and-extend-life-span"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50328896.json",
+   "json": {
+    "by": "LecroJS",
+    "descendants": 544,
+    "id": 50328896,
+    "kids": [
+     50334611,
+     50332515,
+     50335274,
+     50331408,
+     50335258,
+     50330810,
+     50329201,
+     50334594
+    ],
+    "score": 416,
+    "text": "I haven’t owned a TV in years and would like one that respects my privacy. Are there any TV’s which do this well? I am looking for something in the 60”to 80”range and would like a 4k display with at least 60hz display. I don’t mind paying a premium.<p>I have heard good things about Apple TV as a better alternative to most smart TV native apps. Would some TV’s pair better with this than others for privacy? I don’t want the TV doing anything other than being the display for Apple TV.<p>I am curious what success others have had.",
+    "time": 1793561727,
+    "title": "Ask HN: Which TV do you recommend for privacy?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334704.json",
+   "json": {
+    "by": "guitmz",
+    "descendants": 4,
+    "id": 50334704,
+    "kids": [
+     50335175
+    ],
+    "score": 15,
+    "text": "I first released those in back in 2020 and now I finally added more architectures, Kernel selector, syscall descriptions and a few other niceties. It should work a bit better on mobile devices too but I am no CSS expert.<p>The API is at <a href=\"https:&#x2F;&#x2F;api.syscall.sh\" rel=\"nofollow\">https:&#x2F;&#x2F;api.syscall.sh</a>",
+    "time": 1793611756,
+    "title": "Show HN: I've updated my Linux System Call website and API",
+    "type": "story",
+    "url": "https://syscall.sh/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333774.json",
+   "json": {
+    "by": "mertbio",
+    "descendants": 4,
+    "id": 50333774,
+    "kids": [
+     50334762,
+     50334664,
+     50335242
+    ],
+    "score": 37,
+    "time": 1793601582,
+    "title": "From Charlemagne to the Kitchen Boy: Reading the Hamburg Rathaus",
+    "type": "story",
+    "url": "https://alsterrunde.com/from-charlemagne-to-the-kitchen-boy-reading-the-hamburg-rathaus/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50315217.json",
+   "json": {
+    "by": "_Microft",
+    "descendants": 58,
+    "id": 50315217,
+    "kids": [
+     50333765,
+     50333976,
+     50332542,
+     50332960,
+     50333617,
+     50333297,
+     50322900,
+     50333628
+    ],
+    "score": 131,
+    "time": 1793447627,
+    "title": "Mystery of 60-Second Fluctuations in Power Grids Solved",
+    "type": "story",
+    "url": "https://www.fz-juelich.de/en/news/archive/press-release/2026/mystery-of-60-second-fluctuations-in-power-grids-solved"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331784.json",
+   "json": {
+    "by": "anurag",
+    "descendants": 38,
+    "id": 50331784,
+    "kids": [],
+    "score": 96,
+    "time": 1793581756,
+    "title": "Trigger.dev customer environment variables exposed",
+    "type": "story",
+    "url": "https://trigger.dev/blog/security-incident-nov-2026"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50299811.json",
+   "json": {
+    "by": "raphlinus",
+    "descendants": 25,
+    "id": 50299811,
+    "kids": [],
+    "score": 150,
+    "time": 1793333826,
+    "title": "Nibnib: Image compression with extreme decompression speed",
+    "type": "story",
+    "url": "https://github.com/raphlinus/nibnib"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50271106.json",
+   "json": {
+    "by": "luu",
+    "descendants": 24,
+    "id": 50271106,
+    "kids": [],
+    "score": 123,
+    "time": 1793180772,
+    "title": "Tips for more effective fuzz testing with AFL++",
+    "type": "story",
+    "url": "https://nullprogram.com/blog/2025/02/05/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334038.json",
+   "json": {
+    "by": "jonnybgood",
+    "descendants": 30,
+    "id": 50334038,
+    "kids": [],
+    "score": 45,
+    "time": 1793604448,
+    "title": "China's First Frontier AI Export Controls: Mofcom Announcement No. 48",
+    "type": "story",
+    "url": "https://labs.cloudsecurityalliance.org/research/csa-research-note-china-ai-export-controls-announcement-48-2/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50308754.json",
+   "json": {
+    "by": "bogdanoff_2",
+    "descendants": 96,
+    "id": 50308754,
+    "kids": [],
+    "score": 170,
+    "time": 1793387373,
+    "title": "Copper – A minimal low-level programming language with OOP and generics",
+    "type": "story",
+    "url": "https://tibleiz.net/copper/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50325253.json",
+   "json": {
+    "by": "FabCH",
+    "descendants": 71,
+    "id": 50325253,
+    "kids": [],
+    "score": 254,
+    "text": "I have been researching what the ultimate diff tool would look like, based on actual diffs in open source repositories.<p>OmniDiff can diff: code (25 languages), config, images, PDFs, archives, cursors, fonts...<p>It&#x27;s fast. It can diff C++ files of tens of thousands of lines in under 100ms, on a 2023 ThinkPad T14s.<p>It&#x27;s open source. AGPLv3.<p>It&#x27;s based on real diffs. I looked at the 7400 repositories that are listed in Gentoo packages, sampled 2000 diffs and solved them manually to get a good understanding of what is needed, before putting together the diff pipelines for each content type. Incidentally, this also forms the basis of the CI pipeline, so the robustness of the codebase is quite high.<p>I&#x27;m still developing it. It&#x27;s v0.3.0 at this time. But I have been using it daily as my git difftool for months now, and it works well.<p>AI Disclosure: Yes, I do use AI. No, I do not vibecode.",
+    "time": 1793538150,
+    "title": "Show HN: OmniDiff – Opensource, super fast, content aware Git difftool, in Rust",
+    "type": "story",
+    "url": "https://github.com/ivankovic/omnidiff"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50299427.json",
+   "json": {
+    "by": "stevenalowe",
+    "descendants": 36,
+    "id": 50299427,
+    "kids": [],
+    "score": 86,
+    "time": 1793329612,
+    "title": "New 3D thermal invisibility cloak makes objects disappear from infrared cameras",
+    "type": "story",
+    "url": "https://www.sciencedaily.com/releases/2026/10/261025073051.htm"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50323088.json",
+   "json": {
+    "by": "luu",
+    "descendants": 294,
+    "id": 50323088,
+    "kids": [],
+    "score": 380,
+    "time": 1793513179,
+    "title": "The AI cost of JavaScript frameworks",
+    "type": "story",
+    "url": "https://nolanlawson.com/2026/10/28/the-ai-cost-of-javascript-frameworks/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331402.json",
+   "json": {
+    "by": "misswaterfairy",
+    "descendants": 170,
+    "id": 50331402,
+    "kids": [],
+    "score": 294,
+    "time": 1793578647,
+    "title": "OccupySaaS",
+    "type": "story",
+    "url": "https://occupysaas.com/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50325454.json",
+   "json": {
+    "by": "Anon84",
+    "descendants": 71,
+    "id": 50325454,
+    "kids": [],
+    "score": 144,
+    "time": 1793539489,
+    "title": "Proving and improving the Platonic Representation Hypothesis with JEPAs",
+    "type": "story",
+    "url": "https://arxiv.org/abs/2610.39302"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50290533.json",
+   "json": {
+    "by": "headsupernova",
+    "descendants": 47,
+    "id": 50290533,
+    "kids": [],
+    "score": 209,
+    "text": "I&#x27;ve been working on a fun little app that paints geologic maps over landscapes using augmented reality. You can use it to identify what the mapped rocks are, read descriptions about them, and view the earth as it looked when they formed by turning back the continent positions. It spun out of some augmented reality work I was doing on my other side project app - Flyover Country, which tells you about the view from the airplane window.<p>I&#x27;m in Minnesota, so i haven&#x27;t had a chance to test it on a huge amount of terrain (the best I&#x27;ve found is the Mississippi River gorge in the twin cities... I need  a trip up north), so anyone that&#x27;s somewhere with some more bumps: please help!).<p>It&#x27;s stuck in the Apple review queue, but it&#x27;s up on testflight for anyone interested. Google approved it quickly and it&#x27;s fully out on android (links to both on the marketing site).<p>edit: got a report that testflight was asking for an install code. Seems like a testflight app issue, but dismissing it and installing as normal seems to work!",
+    "time": 1793287361,
+    "title": "Show HN: Point your camera at a landscape to learn about its geology",
+    "type": "story",
+    "url": "https://outcrop.rocks/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50314617.json",
+   "json": {
+    "by": "croes",
+    "descendants": 51,
+    "id": 50314617,
+    "kids": [],
+    "score": 158,
+    "time": 1793441648,
+    "title": "One-minute frequency disturbances from synchronization in power systems",
+    "type": "story",
+    "url": "https://www.nature.com/articles/s41560-026-02144-0"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50328251.json",
+   "json": {
+    "by": "smilelamp",
+    "descendants": 356,
+    "id": 50328251,
+    "kids": [],
+    "score": 319,
+    "time": 1793557722,
+    "title": "Mathematics has changed. Let's act like it",
+    "type": "story",
+    "url": "https://terrytao.wordpress.com/2026/11/01/mathematics-has-changed-lets-act-like-it/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333877.json",
+   "json": {
+    "by": "mw888",
+    "descendants": 1,
+    "id": 50333877,
+    "kids": [],
+    "score": 7,
+    "text": "No AI used for this btw.",
+    "time": 1793602780,
+    "title": "Show HN: HackerHack – HackerBooks but for Posts Posted on HN",
+    "type": "story",
+    "url": "https://news.ycombinator.com/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50280131.json",
+   "json": {
+    "by": "slater",
+    "descendants": 50,
+    "id": 50280131,
+    "kids": [],
+    "score": 181,
+    "time": 1793217987,
+    "title": "Radiation Map of the World",
+    "type": "story",
+    "url": "https://radiaverse.com/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50326099.json",
+   "json": {
+    "by": "entryleveljobsc",
+    "descendants": 166,
+    "id": 50326099,
+    "kids": [],
+    "score": 496,
+    "time": 1793543683,
+    "title": "Lenovo's 'encrypted' fingerprint USB is just an unencrypted SD card in a case",
+    "type": "story",
+    "url": "https://www.reddit.com/r/technology/comments/1xl2pr3/lenovos_encrypted_fingerprint_usb_drive_is_just/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50314508.json",
+   "json": {
+    "by": "kevs3d",
+    "descendants": 17,
+    "id": 50314508,
+    "kids": [],
+    "score": 93,
+    "time": 1793440182,
+    "title": "Show HN: I rebuilt my old canvas 3D library as a small WebGL 2 library – phoria2",
+    "type": "story",
+    "url": "https://kevs3d.co.uk/phoria2/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50318129.json",
+   "json": {
+    "by": "Thevet",
+    "descendants": 7,
+    "id": 50318129,
+    "kids": [],
+    "score": 30,
+    "time": 1793467779,
+    "title": "The She-Wolves of Jülich",
+    "type": "story",
+    "url": "https://www.historytoday.com/archive/history-matters/she-wolves-julich"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50324371.json",
+   "json": {
+    "by": "n_plus_1_acc",
+    "descendants": 56,
+    "id": 50324371,
+    "kids": [],
+    "score": 88,
+    "time": 1793529860,
+    "title": "Domain hacks with unusual Unicode characters (2018)",
+    "type": "story",
+    "url": "https://shkspr.mobi/blog/2018/11/domain-hacks-with-unusual-unicode-characters/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50320963.json",
+   "json": {
+    "by": "ecares",
+    "descendants": 210,
+    "id": 50320963,
+    "kids": [],
+    "score": 827,
+    "time": 1793486466,
+    "title": "An Italian farmer found some unknown seeds in his attic and planted them",
+    "type": "story",
+    "url": "https://www.smithsonianmag.com/science-nature/italian-farmer-found-unknown-seeds-attic-with-nothing-lose-planted-them-result-biblical-180989644/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335272.json",
+   "json": {
+    "by": "probably_wrong",
+    "descendants": 0,
+    "id": 50335272,
+    "score": 1,
+    "time": 1793617045,
+    "title": "Redlib discussion: Reddit has decided to force everyone to log in",
+    "type": "story",
+    "url": "https://github.com/redlib-org/redlib/issues/609"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335264.json",
+   "json": {
+    "by": "cheikhdev",
+    "descendants": 0,
+    "id": 50335264,
+    "score": 1,
+    "time": 1793616964,
+    "title": "Prompt Engineering Is Dead. What Separates a Toy from a Product",
+    "type": "story",
+    "url": "https://towardsdev.com/prompt-engineering-is-dead-system-prompt-architecture-is-what-separates-a-toy-from-a-product-176b69410691?sk=f084409dc6f550fb432553dca621c9be"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335256.json",
+   "json": {
+    "by": "HasanGilani",
+    "descendants": 0,
+    "id": 50335256,
+    "kids": [],
+    "score": 1,
+    "time": 1793616920,
+    "title": "Show HN: Knock – stop Claude Code burning tokens exploring big codebases",
+    "type": "story",
+    "url": "https://github.com/HasanGilani/knock"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335252.json",
+   "json": {
+    "by": "johnflan",
+    "descendants": 0,
+    "id": 50335252,
+    "score": 1,
+    "time": 1793616896,
+    "title": "Cyberattack on Fridges in Ireland",
+    "type": "story",
+    "url": "https://www.irishtimes.com/technology/data-security/2026/11/02/supervalu-removes-frozen-and-chilled-food-from-13-stores-after-cyber-attack-on-fridges/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335245.json",
+   "json": {
+    "by": "ankitg12",
+    "descendants": 0,
+    "id": 50335245,
+    "score": 1,
+    "time": 1793616853,
+    "title": "Context Anxiety: How AI Agents Panic About Their Perceived Context Windows",
+    "type": "story",
+    "url": "https://inkeep.com/blog/context-anxiety"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335219.json",
+   "json": {
+    "by": "danielklnstein",
+    "descendants": 0,
+    "id": 50335219,
+    "score": 1,
+    "time": 1793616532,
+    "title": "Ten Surprises in Google Workspace's Sharing Model",
+    "type": "story",
+    "url": "https://deployed-ai.io/blog/google-workspace-sharing-surprises/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335199.json",
+   "json": {
+    "by": "MarcBuilds01",
+    "descendants": 0,
+    "id": 50335199,
+    "score": 1,
+    "time": 1793616365,
+    "title": "TinyContext Guide – How to Add Long-Term Memory to an AI Agent (Step by Step)",
+    "type": "story",
+    "url": "https://tinysuite.dev/blog/how-to-add-memory-to-ai-agent/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335168.json",
+   "json": {
+    "by": "podnami",
+    "descendants": 0,
+    "id": 50335168,
+    "score": 1,
+    "text": "I always had this idea about tuning between podcast episodes like regular radio. Using HN comments as a source you can now just jump right into the middle of ann episode and can just have something in the background as you’re doing the dishes etc - without actively needing to look for another podcast.",
+    "time": 1793616001,
+    "title": "Show HN: Individual podcast episodes as recommended by HN",
+    "type": "story",
+    "url": "https://sunmer.github.io/podcast-radio/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335167.json",
+   "json": {
+    "by": "jkfran",
+    "descendants": 0,
+    "id": 50335167,
+    "score": 2,
+    "time": 1793615994,
+    "title": "Replacing the Stadia cloud with a server on my LAN",
+    "type": "story",
+    "url": "https://jkfran.com/stadia-controller-revival-stadiacast/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335138.json",
+   "json": {
+    "by": "larodi",
+    "descendants": 1,
+    "id": 50335138,
+    "kids": [],
+    "score": 2,
+    "time": 1793615804,
+    "title": "ReBirth RB-338 Reimplementation",
+    "type": "story",
+    "url": "https://github.com/pingw33n/openrb-338"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335122.json",
+   "json": {
+    "by": "marko-projects",
+    "descendants": 1,
+    "id": 50335122,
+    "kids": [],
+    "score": 2,
+    "text": "Free daily logic puzzles without Ads.\nCheck it out: gridmino.com<p>My site offers puzzles where some of them are a new take on already established classics like Minesweeper, Kakuro, or Masyu. For example, my Minesweeper is called Dicesweep, where you need to place dice beside numbers while also matching the row and column rules.<p>Another interesting one is Kakumino. It&#x27;s like Kakuro, but you place dominoes instead of numbers.<p>There are a bunch of them, so there&#x27;s something for everyone&#x27;s taste.<p>Check it out: gridmino.com",
+    "time": 1793615678,
+    "title": "Show HN: Take a break, play some puzzles",
+    "type": "story",
+    "url": "https://gridmino.com/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335119.json",
+   "json": {
+    "by": "giuliomagnifico",
+    "descendants": 2,
+    "id": 50335119,
+    "kids": [],
+    "score": 4,
+    "time": 1793615625,
+    "title": "France's Weird Per-Gigabyte Data Tax Could Cost VLC over €1M a Year",
+    "type": "story",
+    "url": "https://itsfoss.com/news/vlc-outrage-at-french-internet-tax/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335117.json",
+   "json": {
+    "by": "theanonymousone",
+    "descendants": 1,
+    "id": 50335117,
+    "kids": [],
+    "score": 3,
+    "text": "Hi,<p>In this spring and early&#x2F;mid summer, we saw tons of headlines about how &quot;programming&#x2F;coding&#x2F;software has changed forever&quot;, and now, suddenly, we see very similar headlines about math, some from very prominent mathematicians.<p>To those of HNers well versed in both, which disruption do you think has been bigger `so far`, if any at all?<p>Thanks",
+    "time": 1793615613,
+    "title": "Ask HN: Do you think AI has now disrupted math more than it did programming?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335110.json",
+   "json": {
+    "by": "mkrecny",
+    "descendants": 1,
+    "id": 50335110,
+    "kids": [],
+    "score": 1,
+    "time": 1793615576,
+    "title": "The Commanding Heights music video in the style of 'The Streets'",
+    "type": "story",
+    "url": "https://twitter.com/recborg/status/2117184941989511285"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335101.json",
+   "json": {
+    "by": "bananascholar",
+    "descendants": 0,
+    "id": 50335101,
+    "score": 1,
+    "time": 1793615511,
+    "title": "Hacker Pager: an ESP32 and SX1262 LoRa wireless development platform",
+    "type": "story",
+    "url": "https://www.hackerpager.net/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335098.json",
+   "json": {
+    "by": "tkgally",
+    "descendants": 0,
+    "id": 50335098,
+    "score": 1,
+    "time": 1793615482,
+    "title": "Seventy Years of Allen Ginsberg's 'Howl'",
+    "type": "story",
+    "url": "https://thedispatch.com/article/allen-ginsberg-howl-counterculture/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335091.json",
+   "json": {
+    "by": "bozdemir",
+    "descendants": 2,
+    "id": 50335091,
+    "kids": [],
+    "score": 3,
+    "time": 1793615439,
+    "title": "Sam Altman on Local AI",
+    "type": "story",
+    "url": "https://www.pcmag.com/news/sam-altman-suggests-running-ai-locally-is-a-waste-of-memory"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335090.json",
+   "json": {
+    "by": "falcor84",
+    "descendants": 0,
+    "id": 50335090,
+    "score": 1,
+    "time": 1793615396,
+    "title": "AI Knittaker",
+    "type": "story",
+    "url": "https://www.visiticeland.com/aiknittakers/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335077.json",
+   "json": {
+    "by": "theanonymousone",
+    "descendants": 0,
+    "id": 50335077,
+    "score": 1,
+    "time": 1793615251,
+    "title": "The Year Math Changed Forever",
+    "type": "story",
+    "url": "https://www.newyorker.com/magazine/2026/11/09/the-year-math-changed-forever"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335068.json",
+   "json": {
+    "by": "TheCreativePrin",
+    "descendants": 0,
+    "id": 50335068,
+    "score": 1,
+    "time": 1793615131,
+    "title": "Choices that shape how you experience life, health, purpose and creative power",
+    "type": "story",
+    "url": "https://randomfuckingknowledge.substack.com/p/the-four-choices-that-change-how"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335055.json",
+   "json": {
+    "by": "Peter216",
+    "descendants": 0,
+    "id": 50335055,
+    "kids": [],
+    "score": 1,
+    "time": 1793615004,
+    "title": "Show HN: Info.plist checker – catch App Store upload rejections before uploading",
+    "type": "story",
+    "url": "https://github.com/peterzhang0216/info-plist-checker"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335049.json",
+   "json": {
+    "by": "boldaxolotl",
+    "descendants": 0,
+    "id": 50335049,
+    "score": 1,
+    "time": 1793614956,
+    "title": "Why AI agents struggle with chip design (RTL) debugging, and what helps",
+    "type": "story",
+    "url": "https://booley.dev/blog/harness-matters/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335047.json",
+   "json": {
+    "by": "Prilog",
+    "descendants": 0,
+    "id": 50335047,
+    "kids": [],
+    "score": 1,
+    "time": 1793614952,
+    "title": "We sent Prilog fixes to open-source projects – 39 merged, 38 not",
+    "type": "story",
+    "url": "https://prilog.ai/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335033.json",
+   "json": {
+    "by": "yafb",
+    "descendants": 0,
+    "id": 50335033,
+    "score": 1,
+    "time": 1793614841,
+    "title": "See what's left of your flat-rate AI subscriptions every time you open a termina",
+    "type": "story",
+    "url": "https://github.com/francescobianco/aiquota"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335021.json",
+   "json": {
+    "by": "zomtorg",
+    "descendants": 0,
+    "id": 50335021,
+    "score": 2,
+    "time": 1793614719,
+    "title": "Roblox embraces AI-generated games as Steam raises concerns about quality",
+    "type": "story",
+    "url": "https://www.pcgamer.com/software/ai/ai-powered-game-development-is-leading-to-an-explosion-of-content-roblox-says-as-it-brags-about-70-000-games-published-on-its-platform-in-the-last-5-months-alone/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335010.json",
+   "json": {
+    "by": "joshcsimmons",
+    "descendants": 0,
+    "id": 50335010,
+    "score": 2,
+    "time": 1793614608,
+    "title": "Agentic Backdoors via Pretraining Poisoning",
+    "type": "story",
+    "url": "https://pbb.sh/research/Agentic-Backdoor/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334987.json",
+   "json": {
+    "by": "theanonymousone",
+    "descendants": 0,
+    "id": 50334987,
+    "score": 2,
+    "time": 1793614420,
+    "title": "From Gianni Infantino to my dishwasher: Edith Pritchett's week in Venn diagrams",
+    "type": "story",
+    "url": "https://www.theguardian.com/lifeandstyle/picture/2026/nov/02/from-gianni-infantino-to-my-dishwasher-edith-pritchetts-week-in-venn-diagrams-cartoon"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334977.json",
+   "json": {
+    "by": "arbol",
+    "descendants": 1,
+    "id": 50334977,
+    "kids": [],
+    "score": 1,
+    "time": 1793614345,
+    "title": "A WebSocket upgrade bypassed our Lambda Edge",
+    "type": "story",
+    "url": "https://prosopo.io/blog/cloudfront-websocket-lambda-edge-bypass/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334974.json",
+   "json": {
+    "by": "luc_gibson",
+    "descendants": 2,
+    "id": 50334974,
+    "kids": [],
+    "score": 2,
+    "time": 1793614332,
+    "title": "I gave Opus 5.5 a FireTV Stick for a week and it produced a beast IPTV app",
+    "type": "story",
+    "url": "https://github.com/lucasclgibson/nimbus"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334961.json",
+   "json": {
+    "by": "beardyw",
+    "descendants": 2,
+    "id": 50334961,
+    "kids": [],
+    "score": 1,
+    "time": 1793614221,
+    "title": "Ryanair consider pay freezes, AI and reducing crew on flights as fuel costs soar",
+    "type": "story",
+    "url": "https://www.theguardian.com/business/2026/nov/02/ryanair-considers-pay-freezes-reducing-crew-on-flights-fuel-costs-soar-ai"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50314654.json",
+   "json": {
+    "by": "input_sh",
+    "descendants": 504,
+    "id": 50314654,
+    "kids": [],
+    "score": 910,
+    "time": 1793442090,
+    "title": "Serbia just elected the world's brainiest parliament",
+    "type": "story",
+    "url": "https://www.science.org/content/article/serbia-just-elected-world-s-brainiest-parliament"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50319143.json",
+   "json": {
+    "by": "oger",
+    "descendants": 329,
+    "id": 50319143,
+    "kids": [],
+    "score": 720,
+    "time": 1793474190,
+    "title": "TCP Use-After-Free: CVE-2026-98432 / CVSS 9.8",
+    "type": "story",
+    "url": "https://atlasum.net/blog/cve-2026-98432-linux-ipv4-tcp-uaf"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50324388.json",
+   "json": {
+    "by": "giuliomagnifico",
+    "descendants": 414,
+    "id": 50324388,
+    "kids": [],
+    "score": 692,
+    "time": 1793530078,
+    "title": "Restrooms along the Norwegian Scenic Routes",
+    "type": "story",
+    "url": "https://www.visitnorway.com/plan-your-trip/travel-tips-a-z/norwegian-scenic-routes/worlds-best-toilets/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50319358.json",
+   "json": {
+    "by": "pretext",
+    "descendants": 262,
+    "id": 50319358,
+    "kids": [],
+    "score": 471,
+    "time": 1793475559,
+    "title": "Anthropic blocks users for anything touching training larger models",
+    "type": "story",
+    "url": "https://twitter.com/jiahaoshao1/status/2116475922190922088"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50326118.json",
+   "json": {
+    "by": "entryleveljobsc",
+    "descendants": 150,
+    "id": 50326118,
+    "kids": [],
+    "score": 452,
+    "time": 1793543773,
+    "title": "Police chief unplugs cameras after Flock ignores contract cancellation",
+    "type": "story",
+    "url": "https://www.thedrive.com/news/my-city-canceled-flocks-contract-flock-ignored-it-so-the-police-chief-unplugged-the-cameras"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50320995.json",
+   "json": {
+    "by": "guregodevo",
+    "descendants": 214,
+    "id": 50320995,
+    "kids": [],
+    "score": 442,
+    "time": 1793486772,
+    "title": "Memdoor: A team of 5 Qwen3.8-27B models beats Fable 5 on LiveCodeBench Hard",
+    "type": "story",
+    "url": "https://github.com/guregodevo/memdoor/tree/main/examples/workflows/team-solve"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50327650.json",
+   "json": {
+    "by": "rhaynes",
+    "descendants": 305,
+    "id": 50327650,
+    "kids": [],
+    "score": 427,
+    "time": 1793554096,
+    "title": "Patrick Stewart taught us what good men do with power",
+    "type": "story",
+    "url": "https://www.vox.com/politics/508526/patrick-stewart-jean-luc-picard-star-trek-liberalism"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50314699.json",
+   "json": {
+    "by": "armcat",
+    "descendants": 176,
+    "id": 50314699,
+    "kids": [],
+    "score": 359,
+    "time": 1793442611,
+    "title": "Do the math: How we took over ChatGPT accounts",
+    "type": "story",
+    "url": "https://www.parameter.ai/labs/we-found-a-gap-at-openai"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50316100.json",
+   "json": {
+    "by": "aphyr",
+    "descendants": 194,
+    "id": 50316100,
+    "kids": [],
+    "score": 348,
+    "text": "<a href=\"https:&#x2F;&#x2F;github.com&#x2F;jepsen-io&#x2F;particledb\" rel=\"nofollow\">https:&#x2F;&#x2F;github.com&#x2F;jepsen-io&#x2F;particledb</a>",
+    "time": 1793453992,
+    "title": "Jepsen: ParticleDB 1.1.4",
+    "type": "story",
+    "url": "https://jepsen.io/analyses/particledb-1.1.4"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50314666.json",
+   "json": {
+    "by": "DeepLogin",
+    "descendants": 191,
+    "id": 50314666,
+    "kids": [],
+    "score": 334,
+    "time": 1793442221,
+    "title": "Molly (Signal fork) has not been updated since 3 months and is vulnerable",
+    "type": "story",
+    "url": "https://piefed.world/post/1503394"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50322173.json",
+   "json": {
+    "by": "doodlesdev",
+    "descendants": 210,
+    "id": 50322173,
+    "kids": [],
+    "score": 329,
+    "time": 1793499593,
+    "title": "Brazilian Court Sanctions Lawyers for Prompt Injection in Court Filing",
+    "type": "story",
+    "url": "https://jetstream.security/insights/brazilian-court-sanctions-prompt-injection-filing/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50330939.json",
+   "json": {
+    "by": "qlte",
+    "descendants": 164,
+    "id": 50330939,
+    "kids": [],
+    "score": 299,
+    "time": 1793575231,
+    "title": "U.S. workers took home their smallest share of capital since at least 1947",
+    "type": "story",
+    "url": "https://fortune.com/article/why-did-us-workers-just-take-home-smallest-share-of-capital-since-1947-lowest-ever-recorded/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50318720.json",
+   "json": {
+    "by": "ntur1337",
+    "descendants": 97,
+    "id": 50318720,
+    "kids": [],
+    "score": 261,
+    "time": 1793471896,
+    "title": "It's the memory latency, stupid",
+    "type": "story",
+    "url": "https://pivotlake.io/blog/its-the-memory-latency-stupid/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50316531.json",
+   "json": {
+    "by": "khalidkhair",
+    "descendants": 137,
+    "id": 50316531,
+    "kids": [],
+    "score": 259,
+    "time": 1793456943,
+    "title": "Malware uses LLMs to rank victims by how much they're worth",
+    "type": "story",
+    "url": "https://blog.talosintelligence.com/appraisal-by-ai-model-driven-victim-prioritization-in-the-volta-infostealer/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50317363.json",
+   "json": {
+    "by": "karagenit",
+    "descendants": 134,
+    "id": 50317363,
+    "kids": [],
+    "score": 251,
+    "time": 1793462448,
+    "title": "Casio Watches of the 1980s",
+    "type": "story",
+    "url": "https://www.casio.com/us/watches/50th/Heritage/1980s/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50318189.json",
+   "json": {
+    "by": "mpweiher",
+    "descendants": 326,
+    "id": 50318189,
+    "kids": [],
+    "score": 240,
+    "time": 1793468242,
+    "title": "UK Green party drops longstanding opposition to nuclear power",
+    "type": "story",
+    "url": "https://www.theguardian.com/politics/2026/oct/05/green-party-nuclear-power-policy"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50330456.json",
+   "json": {
+    "by": "throwoutway",
+    "descendants": 224,
+    "id": 50330456,
+    "kids": [],
+    "score": 227,
+    "time": 1793571045,
+    "title": "AI delivers 'zero financial payoff' to most companies, Apollo economist says",
+    "type": "story",
+    "url": "https://techcrunch.com/2026/10/25/ai-delivers-zero-financial-payoff-to-most-companies-according-to-apollo-economist/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50320588.json",
+   "json": {
+    "by": "Zariel",
+    "descendants": 167,
+    "id": 50320588,
+    "kids": [],
+    "score": 226,
+    "time": 1793483347,
+    "title": "ChatGPT and Codex usage limits merging",
+    "type": "story",
+    "url": "https://help.openai.com/en/articles/20001625-understanding-chatgpt-and-codex-usage-limits"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50319110.json",
+   "json": {
+    "by": "toomuchtodo",
+    "descendants": 220,
+    "id": 50319110,
+    "kids": [],
+    "score": 215,
+    "time": 1793474014,
+    "title": "Electrification Could Cut Global Energy Use in Half",
+    "type": "story",
+    "url": "https://fullycharged.show/podcasts/podcast-361-why-electrification-could-cut-global-energy-use-in-half/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50327266.json",
+   "json": {
+    "by": "999900000999",
+    "descendants": 79,
+    "id": 50327266,
+    "kids": [],
+    "score": 206,
+    "time": 1793551593,
+    "title": "Frontier Airlines Likely Breached",
+    "type": "story",
+    "url": "https://www.reddit.com/r/frontierairlines/comments/1xl20e8/psa_email_scam/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331001.json",
+   "json": {
+    "by": "sjia",
+    "descendants": 35,
+    "id": 50331001,
+    "kids": [],
+    "score": 27,
+    "text": "Nowadays, vibe coding is everywhere. Turning an idea into software is just matter of tokens. I was joking the other day. Creating a tax return softwar is much faster than purchasing Turbotax at Costco.<p>Large companies still have compute resources and customer bases. For startup, users are expecting open source and free software. Posts of subscription or one-time purchase software on Reddit will get tons of downvotes instantly.",
+    "time": 1793575726,
+    "title": "In LLM era, can software startup survive?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334841.json",
+   "json": {
+    "by": "aucls1",
+    "descendants": 5,
+    "id": 50334841,
+    "kids": [],
+    "score": 5,
+    "text": "If the layoffs keep growing, along with the possibility of a market crash and the continuation of regional wars, do you have a plan B to work it out with your family and&#x2F;or friends?<p>Not to sound alarmist, just want to read the view of other people on this topic.",
+    "time": 1793613037,
+    "title": "Do you have a Plan B?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333045.json",
+   "json": {
+    "by": "rasinmuhammed",
+    "descendants": 0,
+    "id": 50333045,
+    "kids": [],
+    "score": 9,
+    "text": "Hi HN. I&#x27;m a software engineer, building Misata Studio.<p>Pepperwind Trading Co, is a fictional spice and tea trader from Kochi, selling in India, Europe and the US for three years. It has a storefront, a subscription club, a warehouse, ledgers in 3 currencies, support, CRM, marketing, product analytics, HR, payroll and company mail. It is around 223 tables, 79 M rows that is around 7GB of parquet files. It was made with the help of the backend engine behind misata studio.<p>What I found while I was researching about the synthetic dataset needs was that products that is being built for interconnected systems or analytical solutions that serve organisations often lack a real usable test dataset that is realistic enough to verify the performance and workflows accurately. And most of the time synthetic datasets don&#x27;t care about entity resolution, same customers existing in different places and in different IDs, FKs pointing at rows that doesnt exist, the values might not match exactly and this is a mess when it comes to finances of the datasets. There are plenty out there, but a single heavy and massive dataset is rare. It was from a similar pain that the idea behind building misata was born.<p>Some things I was focussed on while building Pepperwind was for it to have unique and valuable usability for different usecases, like: \n- The books balance in the ledger. \n- 20 incidents planted in. Courier failure in Diwali, Dutch VAT charged on EU invoices, a referral fraud, price rise that pushes subscription churn etc. I made these incidents consistent across the systems. \n- It ships with 92 KPIs and their values each month, along with 420 questions that can be asked against the dataset.<p>Misata is a from scratch multi-table synthetic data generation project with an open-source python library and a web tool I am developing for prompt to dataset generation. I had posted about this in December and have come a long way since then https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=46289055.<p>The page lets you explore a small slice of the dataset in your browser and you can follow a single customer through every system. The preview is free and the full version is paid for now, to cover the building cost ($30). Listed in huggingface under CC by 4.0 license: https:&#x2F;&#x2F;huggingface.co&#x2F;datasets&#x2F;misatadata&#x2F;pepperwind .<p>I would like to reach out to people across dozens of use cases. What would you use it for and how could this or another dataset similar to this help you build your product&#x2F;solution?",
+    "time": 1793592793,
+    "title": "Pepperwind, a fictional company dataset with 223 tables and 79M rows",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334210.json",
+   "json": {
+    "by": "u1hcw9nx",
+    "descendants": 3,
+    "id": 50334210,
+    "kids": [],
+    "score": 7,
+    "text": "The Swedish grocery chain ICA says on its Facebook page that it was hacked overnight.<p>According to ICA, the refrigerators and freezers in its stores have been set to 50 degrees Celsius. Foods have been spoiled as a result.<p>The company says it will keep the stores closed in the morning, but will reopen at 9:00 a.m. Swedish time.<p>https:&#x2F;&#x2F;www.expressen.se&#x2F;nyheter&#x2F;expressen-direkt&#x2F;?post=4020b974-b212-4adb-b1e1-17d398bbf13e",
+    "time": 1793606488,
+    "title": "Swedish grocery chain refrigerators and freezers hacked overnight",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50312756.json",
+   "json": {
+    "by": "x______________",
+    "descendants": 123,
+    "id": 50312756,
+    "kids": [],
+    "score": 355,
+    "text": "Not seeing anything posted about this anywhere, received on Monday, 26th of Oct 2026:<p>Subject: Notice of Security Incident<p>This notice is being sent on behalf of Scribd, Inc., the parent company of Scribd, Slideshare, Everand, and Fable, by Epiq, Scribd Inc.’s notification partner.<p>Hello,<p>We are writing to let you know that Scribd, Inc. recently experienced a security incident that may have affected your data.<p>We detected that an unauthorized third party may have gained access to certain user data in one of our systems. After investigating this activity, we found that the third party may have accessed your email address and the following of your information: last 4 digits of your credit card and country, credit card issuer, credit card expiry date, payment history (not including credit card details).<p>We have no evidence that this data has been misused, but we are notifying you out of an abundance of caution so that you can take steps to protect your information.<p>Watch for phishing<p>We encourage you to stay vigilant for phishing attempts by bad actors pretending to be Scribd, Inc. or Scribd, Slideshare, Everand or Fable.<p>Remember that Scribd, Inc. will never ask you for your username and password or other sensitive information via email or text. If you did receive a message like that:<p><pre><code>    Don&#x27;t click on any links in it. Instead type scribd.com, slideshare.net, everand.com, or fable.co directly into your browser.\n    Call us at: +1-877-361-9887. Hours of operation are Monday-Friday, 11:00 a.m.-11:00 p.m., Central European Time.\n    Report it through Scribd, Inc.&#x27;s Help Center.\n</code></pre>\nFor more information<p>We regret that this incident occurred and any concern it may cause you. If you have additional questions, contact the dedicated call center at +1-877-361-9887. Hours of operation are Monday-Friday, 11:00 a.m.-11:00 p.m. Central European Time.<p>The National Cyber Security Center has helpful guidance on how to recognize and avoid phishing scams here.<p>What Scribd, Inc. is doing<p><pre><code>    We have secured the affected system and ended the unauthorized access.\n    We have notified law enforcement as well as the relevant data protection authorities.\n    We are working with an expert third party cybersecurity firm to strengthen our access controls and monitoring.\n</code></pre>\nWe value the trust you place in us with your information, and don’t take that lightly. We are deeply sorry this happened and will keep you updated if anything further changes.<p>Scribd, Inc.",
+    "time": 1793414796,
+    "title": "Tell HN: Scribd Breached",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50328567.json",
+   "json": {
+    "by": "razster",
+    "descendants": 3,
+    "id": 50328567,
+    "kids": [],
+    "score": 18,
+    "text": "https:&#x2F;&#x2F;github.com&#x2F;p-e-w&#x2F;<p>-p-e-w- Posted this from Reddit.<p>&quot;Dear fellow Llamas,<p>after almost 5 months of development, I finally have the pleasure of announcing to you the immediate availability of the biggest Heretic release ever, Heretic 2.0: https:&#x2F;&#x2F;github.com&#x2F;p-e-w&#x2F;heretic<p>Heretic is the leading software for removing censorship from language models. It now boasts 37k GitHub stars and more than 8,500 models on Hugging Face, with 88 million(!!!) total model downloads.<p>With Heretic 2.0, the project is entering a new era. Heretic is expanding from a purpose-built tool for censorship removal to a general-purpose model modification tool that can do amazing things. Besides removing censorship, it can suppress slop, reduce sycophancy, alter emotional alignment, and pretty much anything else that you can think of. Of course, censorship removal remains the primary and default function, and in fact works much, much better than ever before. Heretic 2.0 is the most advanced refusal suppression system ever built.&quot; -p-e-w-",
+    "time": 1793559702,
+    "title": "Heretic 2.0 Released: Training-free language model modification",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50329475.json",
+   "json": {
+    "by": "iliashad",
+    "descendants": 3,
+    "id": 50329475,
+    "kids": [],
+    "score": 5,
+    "text": "TLDR: I indexed 37 hours and 38 minutes of my videos using the self-hosted Docker version of my project on a rented RTX 4090<p>- Total compute time: 24 hours 13 minutes<p>- Frame analysis took ~85% of the time<p>- Heaviest plugins: TextDetection (especially on coding&#x2F;screen recordings) and FaceRecognition (on podcasts)<p>Full article here: https:&#x2F;&#x2F;iliashaddad.com&#x2F;blog&#x2F;i-indexed-37h-of-my-youtube-library-using-an-rtx-4090-and-local-ml-models-in-24h",
+    "time": 1793565006,
+    "title": "I indexed 37h of my YouTube library using an RTX 4090 and local ML models in 24h",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50312174.json",
+   "json": {
+    "by": "stillatit",
+    "descendants": 3,
+    "id": 50312174,
+    "kids": [],
+    "score": 40,
+    "text": "One year after I posted this last time[0], they&#x27;re doing it again. My traffic from X has shot way up from people who only ever viewed a full tweet, without pressing the link inside.<p>[0] https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=45807775",
+    "time": 1793408306,
+    "title": "Tell HN: X is opening any tweet link in a webview whether you press it or not",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50306776.json",
+   "json": {
+    "by": "karakoram",
+    "descendants": 28,
+    "id": 50306776,
+    "kids": [],
+    "score": 47,
+    "text": "What&#x27;s the culture at Google like these days? For Core Teams Like Gmail, Search, Ads.<p>What&#x27;s it like working in these traditionally critical departments now?",
+    "time": 1793379644,
+    "title": "Ask HN: What's it like working at Google nowadays? Core teams like Search, Ads?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50322477.json",
+   "json": {
+    "by": "czhu12",
+    "descendants": 21,
+    "id": 50322477,
+    "kids": [],
+    "score": 12,
+    "text": "I’m curious if anyone here still actually writes code, in any meaningful amount, because they actually still need to. Excluding reasons like fun &#x2F; learning.<p>I loved coding in the past, but no matter what I do at this point, I can’t find a reason to anymore that’s actually necessary",
+    "time": 1793504033,
+    "title": "Ask HN: Anyone here still writing code for reasons other than fun or learning?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50308286.json",
+   "json": {
+    "by": "all2",
+    "descendants": 11,
+    "id": 50308286,
+    "kids": [],
+    "score": 22,
+    "text": "I see the application button on the bottom of HN occasionally. I even created an account and started filling out an application.<p>But I&#x27;m hesitant. The upside is a potential initial seed round into my business. The downside is... wasted time?<p>In terms of cost&#x2F;benefit, it seems pretty straight forward. But I get the general impression that applying without knowing someone or being an advantaged class means it will be a complete waste of time to bother applying.<p>These threads come up from time to time, and I see the smattering of responses, &quot;totally worth it&quot; and &quot;not worth it at all&quot;. I also see the kinds of companies that get funded and they aren&#x27;t typically the focused, practical, cashflow positive in short order sorts of companies.<p>I&#x27;m torn.",
+    "time": 1793385381,
+    "title": "Ask HN: Is applying to Y Combinator worth it if you aren't an insider?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50296367.json",
+   "json": {
+    "by": "jahala",
+    "descendants": 32,
+    "id": 50296367,
+    "kids": [],
+    "score": 34,
+    "text": "Is it just me, or has Opus suddenly turned dumb as rocks with 0 attention span over the last half day or so? Noticeably worse output across multiple agents on very different projects.",
+    "time": 1793309485,
+    "title": "Ask HN: Opus 5.5 suddenly dumb as rocks?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50318646.json",
+   "json": {
+    "by": "ikelos",
+    "descendants": 35,
+    "id": 50318646,
+    "kids": [],
+    "score": 20,
+    "text": "Which hobby do you think is most diverting and pleasurable? What is the most unexpected benefit you’ve experienced?",
+    "time": 1793471422,
+    "title": "Which hobby do you think is most diverting and pleasurable?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50318141.json",
+   "json": {
+    "by": "fosco",
+    "descendants": 9,
+    "id": 50318141,
+    "kids": [],
+    "score": 7,
+    "text": "Please",
+    "time": 1793467843,
+    "title": "Ask HN: I'd like to request Microsoft open source Windows XP",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50321871.json",
+   "json": {
+    "by": "jesuisdieu",
+    "descendants": 0,
+    "id": 50321871,
+    "kids": [],
+    "score": 3,
+    "text": "Does anyone remember an old experimental website that made photos sing along to electronic music? I&#x27;ve been trying to find it for the past three days.",
+    "time": 1793495867,
+    "title": "Ask HN: Old experimental website that made photos sing?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50293459.json",
+   "json": {
+    "by": "learner_yearner",
+    "descendants": 24,
+    "id": 50293459,
+    "kids": [],
+    "score": 41,
+    "text": "What inspired you to build that project and how long did it take?",
+    "time": 1793297537,
+    "title": "Ask HN: Do you have side-projects that generate >$500 revenue/month?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50311495.json",
+   "json": {
+    "by": "Gooblebrai",
+    "descendants": 8,
+    "id": 50311495,
+    "kids": [],
+    "score": 8,
+    "text": "To know when someone answers you in a thread",
+    "time": 1793402952,
+    "title": "Ask HN: Are most of you using HN Replies? Or what else do you use?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50286306.json",
+   "json": {
+    "by": "TekMol",
+    "descendants": 5,
+    "id": 50286306,
+    "kids": [],
+    "score": 35,
+    "text": "The prompt issue:<p>https:&#x2F;&#x2F;github.com&#x2F;anthropics&#x2F;claude-code&#x2F;issues&#x2F;81138<p>The LLM sends it to websites:<p>https:&#x2F;&#x2F;www.reddit.com&#x2F;r&#x2F;ClaudeCode&#x2F;comments&#x2F;1xhqvzn&#x2F;opus_55_just_shared_my_email_address&#x2F;",
+    "time": 1793264772,
+    "title": "Tell HN: Claude Code adds your email to the prompt, the LLM sends it to websites",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50307092.json",
+   "json": {
+    "by": "rbmm",
+    "descendants": 5,
+    "id": 50307092,
+    "kids": [],
+    "score": 26,
+    "text": "Let’s say your LinkedIn account has been restricted, and you can no longer access it. You might try to visit:<p>https:&#x2F;&#x2F;www.linkedin.com&#x2F;&#x2F;help&#x2F;linkedin&#x2F;ask&#x2F;sdsupport or https:&#x2F;&#x2F;www.linkedin.com&#x2F;&#x2F;help&#x2F;linkedin&#x2F;ask&#x2F;ppq<p>to contact customer support. You fill out the form and click &quot;Submit,&quot; but for a split second, a pop-up appears:<p>&quot;we`re sorry. There was an error creating your case. Please try again&quot;<p>and than redirect.<p>You might try switching browsers, using private&#x2F;incognito mode, changing devices (desktop, phone), or even using a different IP address—but nothing works. You keep encountering the same error. However, as soon as you change the email address to one not associated with the restricted account, the form submits successfully. This proves, beyond a doubt, that the &quot;error&quot; was linked solely to the email address; changing the email—while keeping everything else the same—changes the outcome.<p>Okay, so you’ve submitted the request—what happens next? You receive a response (here are some excerpts; the exact wording may vary slightly):<p>&quot;You are contacting us from an email address that differs from the one registered to your account.&quot;<p>&quot;An account restriction should not, in itself, prevent you from contacting us via the provided form.&quot;<p>&quot;To protect privacy, I cannot, without a direct request from the account owner sent from their registered email address, do the following:&quot;<p>&quot;Therefore, please reach out to us using the form mentioned above, ensuring you use the email address registered to your account. This will allow us to proceed with reviewing your inquiry and provide the necessary assistance.&quot;<p>Brilliant. In other words, LinkedIn blocks support requests made using the email address linked to a restricted account—yet when they receive a request made (out of necessity) from a different email address, they close the ticket and instruct you to submit a new one using the &quot;correct&quot; email—which is technically impossible to do. And they are flat-out lying—let me repeat:<p>An account restriction should not, in itself, prevent you from contacting us via the provided form.<p>Even if you explicitly point out this situation in your request—and even suggest that they email you directly at the address linked to your account (which they do very, very rarely—maybe once in every 50 attempts)—they still respond with that same template.<p>This raises two questions:<p>1. Are the LinkedIn support staff genuinely unaware of this, even though they ought to know? Or do they know, but are lying and moking with users on purpose? I, for one, have never been able to figure this out.<p>2. Why is so little known about this, given that the situation has persisted for years and has been documented many times ( as example https:&#x2F;&#x2F;youtu.be&#x2F;RRIm1ReQ_6A?t=221 (t=180) ) ? And why is there no reaction to it? It’s as if it’s been tacitly accepted.",
+    "time": 1793380779,
+    "title": "\"Wrong\" Email",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50303708.json",
+   "json": {
+    "by": "throwaway3309",
+    "descendants": 3,
+    "id": 50303708,
+    "kids": [],
+    "score": 10,
+    "text": "I work for an organization that works in the eComm space. Hosted checkouts, lots of integrations, etc. They process millions each month for thousands of clients. Ever since I started I brought up issues with the security of this organization.<p>For PCI audits, they move things around and turn off servers to avoid some issues. Username&#x2F;Passwords are plaintext in API requests (query parameters). Login Password were hashed via SHA1. It&#x27;s been migrated to argon this year. The company was hacked last month, although I&#x27;m positive it&#x27;s happened multiple times in the past. Co-workers mentioned there was a hack a few years back that wasn&#x27;t as bad as this. This most recent hack, they got everything. Codebase, databases, client credentials (we don&#x27;t encrypt client secrets), and card numbers. They had root access to prod servers. Clients have done their own pentesting and found issues. Security wasn&#x27;t a thing until this hack happened. Anyone with a brain would see the issues.<p>It took the company about 2 weeks or so to even discover the hack had happened. The only reason the hacker was caught was because they started using the deployment pipeline to modify code&#x2F;servers. I think it was because they wanted to see just how stupid the company was. The hacker was able to gain all of this access because the code base is garbage. Tons of XSS, SSRF, SQL injections, and poor code in general. They were able to gain access to services because they used default passwords. Secrets were shared between environments (staging and production). AWS keys were not locked down (S3 read-only was setup to read&#x2F;write to S3 and other services). Logs truncate at 30 days, so no one is sure how long they were in the system.<p>I have been trying to find another job, but the industry is trash right now. I can&#x27;t stay here. I&#x27;ve looked into whistle blower laws and seems like none of this would really qualify for anything. I&#x27;ve thought about talking to a lawyer about all of this. I cannot afford to just quit. It took me awhile to get this job and I&#x27;m terrified that losing this job will leave me homeless.<p>One of the biggest issues was our all hands we had today. The CEO, CTO, and another high level person talked to everyone. It was very little truth with a lot of BS. This entire hack was preventable. Other jobs I&#x27;ve had, people would be getting fired and replaced over this.<p>The question I want to ask is what would you do in a situation like this?",
+    "time": 1793367438,
+    "title": "Ask HN: Hack",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50313705.json",
+   "json": {
+    "by": "sky2224",
+    "descendants": 28,
+    "id": 50313705,
+    "kids": [],
+    "score": 6,
+    "text": "I was looking at the head counts recently for Microsoft and comparing with past years.<p>In 2018 their headcount was around 131,000 employees. In 2020, that jumped to 163,000. By 2022, they had exploded to 221,000 employees.<p>Currently, if we exclude the Activision headcount, they&#x27;re sitting at around 218,000 people.<p>Maybe the more business minded people can shed some light on this for me, but even with the stronger economy in 2018, Microsoft had no where near this many employees. It feels like this would have happened whether or not the economy was doing poorly right now.<p>Thoughts?",
+    "time": 1793427759,
+    "title": "Ask HN: Is the Microsoft buyout just a long overdue correction?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50294929.json",
+   "json": {
+    "by": "weinzierl",
+    "descendants": 4,
+    "id": 50294929,
+    "kids": [],
+    "score": 9,
+    "text": "cs.stanford.edu&#x2F;~knuth&#x2F; (including the TAOCP pre-fascicles and the programs page) has been unreachable for me for at least a week. archive.org still has older copies, but the programs page there is from May 2025. Does anyone know if the pages have moved, or where to get the current pre-fascicles and programs?",
+    "time": 1793304021,
+    "title": "Ask HN: Are Knuth's Stanford Pages Down?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50301901.json",
+   "json": {
+    "by": "japhyr",
+    "descendants": 7,
+    "id": 50301901,
+    "kids": [],
+    "score": 11,
+    "text": "I was slow to adopt an agentic workflow for a variety of reasons. When I was ready to try an agentic workflow, I didn&#x27;t want to install Claude on my own system. I have a hard time trusting its boundaries, and I don&#x27;t want to spend a bunch of time learning its permissions model well enough to start trusting it.<p>I decided to write my own harness, and thought people would find that a pointless thing to do in 2026. I was amazed how easy it was to build a harness that can read, write, and modify files within a project directory. I now use this harness on a daily basis, and it hasn&#x27;t grown much since that first iteration.<p>That made me wonder: How many of us are using a custom harness on a regular basis? What keeps you using your own harness?",
+    "time": 1793355159,
+    "title": "Ask HN: Are you using a custom harness?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50311776.json",
+   "json": {
+    "by": "talmr",
+    "descendants": 5,
+    "id": 50311776,
+    "kids": [],
+    "score": 4,
+    "text": "Will we still be going on websites?<p>Will people continue to install mobile apps? Or are we all going to be living in AI assistant walled gardens, telling it &quot;let&#x27;s order groceries&quot; or will it just do things for us so we&#x27;re not ordering things manually?<p>For the broader people (outside of tech, everyone else), what will the next 10-20 years look like?<p>Most people outside of tech circles don&#x27;t use AI, at least not on purpose. Gemini enhanced search results are about the most they will use, and from those I&#x27;ve talked to, some didn&#x27;t even know that it was &quot;AI&quot; which is mind-blowing.",
+    "time": 1793404985,
+    "title": "Ask HN: What's the future like? For normies, will it still be apps and websites?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50310690.json",
+   "json": {
+    "by": "michael-lehn",
+    "descendants": 2,
+    "id": 50310690,
+    "kids": [],
+    "score": 5,
+    "text": "In 2014 I wrote a tutorial on how to write an efficient matrix multiplication that can achieve near peak performance. This is actually not achieved by some Strassen algorithm variant. It&#x27;s achieved through a cache friendly algorithm (exploiting the cache hierarchy) and SIMD register instructions.<p>The tutorial showed how to achieve that step by step. Beginning with a naive implementation using three loops. Then using buffers to first cache matrix blocks and then performing the matrix product block wise. That actually means you make copies of blocks and then do computations with the blocks. Sounds stupid but makes sense: Assume you have square N x N blocks then cost of make making a copy is O(N^2) and for the computation it&#x27;s O(N^3). If the computation with the copied&#x2F;cached blocks is much faster this actually pays of.<p>Anyway the details are explained in the tutorial. As the university web server has changed many times after 2014 I moved it to GitHub: https:&#x2F;&#x2F;github.com&#x2F;michael-lehn&#x2F;gemm-tutorial<p>From the tutorial I created ulmBLAS (ulm makes sense, as I work at Ulm University) which is a complete BLAS implementation. Recently I started with a tutorial for the matrix multiplication with Cuda. Currently there is not much text, I just outlined a possible step by step approach to go from naive to a performant implementation (actually the goal was to be on par with NVIDIA&#x27;s cuBLAS; but it&#x27;s more on parish ... but I think still gives an idea). It in the cuda  subdirectory of ulmBLAS: https:&#x2F;&#x2F;github.com&#x2F;michael-lehn&#x2F;ulmBLAS",
+    "time": 1793397468,
+    "title": "GEMM Tutorial and UlmBLAS",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50307060.json",
+   "json": {
+    "by": "winrid",
+    "descendants": 4,
+    "id": 50307060,
+    "kids": [],
+    "score": 5,
+    "text": "... or has it encouraged you to upgrade?<p>I&#x27;m <i>still</i> using an 8th gen i7 (w&#x2F; linux) for most of my dev work. I was going to upgrade, but now I just run like 10 terminal tabs instead of IDEs. Concurrent builds even w&#x2F; Rust and Java usually aren&#x27;t a big issue. I have several backup machines so if it dies, not a big deal. If I need to, I can just tell Claude &quot;do all builds on and iterate via CI&quot;<p>The benefit is for things like FastComments, I get immediate feedback if the interface is slow vs waiting for regression checks.<p>The downside is apps like Stripe are seriously slow in FF on this machine, for some reason, despite the fact that it can play a 3d game like RDD 2 at 60fps.",
+    "time": 1793380686,
+    "title": "Ask HN: Are you putting off hardware upgrades because of AI coding tools?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50291678.json",
+   "json": {
+    "by": "arm32",
+    "descendants": 7,
+    "id": 50291678,
+    "kids": [],
+    "score": 10,
+    "text": "Noticing this throughout the industry, wondering how common it is.",
+    "time": 1793291261,
+    "title": "Ask HN: Is your leadership pushing you to skip dev review?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50304967.json",
+   "json": {
+    "by": "ibbie",
+    "descendants": 1,
+    "id": 50304967,
+    "kids": [],
+    "score": 5,
+    "text": "I am looking at the architectural choices of early-stage startups and new projects. I know the standard answer is &quot;it depends on the use case,&quot; but I am curious about what people are actually choosing today when starting from scratch.<p>Specifically, I want to know about your backend language&#x2F;framework and your primary database choice.<p>If you started a project or startup recently:<p>1. What is your backend + DB stack?\n2. What was the driving factor? (e.g., maximizing iteration speed, team familiarity, type safety, AI&#x2F;vector requirements, or keeping infrastructure simple&#x2F;cheap?)\n3. What did you intentionally trade off or sacrifice by making this choice?<p>If you could start over today, would you choose the same stack?",
+    "time": 1793372805,
+    "title": "Ask HN: What back end and database are you choosing for new projects in 2026?",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50317351.json",
+   "json": {
+    "by": "andsoitis",
+    "descendants": 6,
+    "id": 50317351,
+    "kids": [],
+    "score": 7,
+    "time": 1793462369,
+    "title": "Ask HN: Are you using AI to do election choices like Mayor, Special Measures",
+    "type": "story"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333987.json",
+   "json": {
+    "by": "fokion",
+    "descendants": 0,
+    "id": 50333987,
+    "kids": [],
+    "score": 2,
+    "time": 1793603967,
+    "title": "Show HN: Roland T8 Interactive Tutorial",
+    "type": "story",
+    "url": "https://roland-t8.fokion.online"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333971.json",
+   "json": {
+    "by": "assorium",
+    "descendants": 2,
+    "id": 50333971,
+    "kids": [],
+    "score": 2,
+    "time": 1793603797,
+    "title": "Show HN: SpotKat – a free cat register with a lost-cat network",
+    "type": "story",
+    "url": "https://spotkat.nl/en"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332986.json",
+   "json": {
+    "by": "4yk5",
+    "descendants": 0,
+    "id": 50332986,
+    "kids": [],
+    "score": 4,
+    "time": 1793592093,
+    "title": "Show HN: GhostBase – 25MB terminal database studio for SQLite, Postgres, MySQL",
+    "type": "story",
+    "url": "https://github.com/4yk5/GhostBase"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50315782.json",
+   "json": {
+    "by": "kerlenton",
+    "descendants": 6,
+    "id": 50315782,
+    "kids": [],
+    "score": 102,
+    "text": "All the ideas came from the boot sector demo scene where people had been writing chess and BASIC games in 512 bytes, even a C compiler. I wondered what one can do using a neural network instead of a program and generating boot logs for non-existent hardware was something fun to try.<p>Entire inference engine is 510 bytes of MBR, weights, vocab, and strings reside in the sectors following MBR. Small char-level neural network was trained on dmesg generated by machine, so machine produces Linux boot messages infinitely.<p>train.py performs precisely the same integer arithmetic operations as the asm code does and thus produces an output identical character-by-character to the one produced by QEMU. The difference analysis revealed my favorite bug. The characters at the beginning matched those generated by the simulator, but then the output diverged. I retrieved the hidden layer via QEMU’s debug port and compared the neurons&#x27; values with those of the simulator, one neuron at a time. Only the value of the first neuron was correct. The activation involves idiv, and idiv stores its remainder in edx. The pointer to the biases table was stored in edx, which resulted in the first neuron being biased correctly and the following ones using garbage. Now the bias&#x27; address is determined from the loop counter, and no pointers have to survive the division. Another bug I found simply by looking at the code before I did my first run-through: the BIOS print routine zeros out bx, but bx contains the predicted character number. This explains the push and pop of bx surrounding the print.<p>sectorllm is the most similar to my project, as it runs an actual 5-layer llama2 with attention mechanism in just 1.2K of assembly code. It is the trade-off in the opposite direction, as my engine needs to fit into one sector and therefore my network has just one hidden layer of int8 operations for dreaming the dmesg.",
+    "time": 1793451509,
+    "title": "Show HN: A language model that lives in a boot sector",
+    "type": "story",
+    "url": "https://github.com/kerlenton/bootgpt"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331415.json",
+   "json": {
+    "by": "adamontherun",
+    "descendants": 0,
+    "id": 50331415,
+    "score": 4,
+    "text": "Launched <a href=\"https:&#x2F;&#x2F;better-together.fun\" rel=\"nofollow\">https:&#x2F;&#x2F;better-together.fun</a> this weekend to allow our personal AI agents to collaborate on problems that are tough to solve solo.<p>First up is dealing with spam texts and calls.",
+    "time": 1793578751,
+    "title": "Show HN: Better Together – AI agents team up against spam calls and texts",
+    "type": "story",
+    "url": "https://better-together.fun/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332869.json",
+   "json": {
+    "by": "abhas9",
+    "descendants": 2,
+    "id": 50332869,
+    "kids": [],
+    "score": 5,
+    "time": 1793590808,
+    "title": "Show HN: Diwali in threejs – find crackers and send wishes into a shared sky",
+    "type": "story",
+    "url": "https://virtualdiwali.com/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50321522.json",
+   "json": {
+    "by": "creack",
+    "descendants": 11,
+    "id": 50321522,
+    "kids": [],
+    "score": 53,
+    "text": "Hi HN,<p>I kept wiring Ben Eater&#x27;s 8-bit computer wrong, so I built a realistic virtual breadboard editor.<p>Some of the nice features are side-by-side diff, scope, schematics auto-sync, auto-router (BBRouter stands for breadboard router), and my favorites: upload from the real Arduino IDE and connect to your AI with MCP, let Claude &amp; co build it or help you troubleshoot.<p>The link is the SAP-1 running. You can orbit it, probe a hole with the scope, slow the clock down, play with the virtual displays for debugging, then you can actually build it following the step-by-step instructions.<p>A side-goal is to create a community, there are quite a lot of simulators out there but mostly offline &#x2F; too abstract to realistically use it for a real build. I also never found one that had a decent UI&#x2F;UX and worked well on mobile or with a trackpad.<p>Happy to answer anything, and tell me what breaks.<p>p.s. Maker plan is $7&#x2F;month; code HACKERNEWS makes the first month free and then $5&#x2F;month for as long as you keep it.",
+    "time": 1793491830,
+    "title": "Show HN: BBRouter – Ben Eater's 8-bit computer, simulated on 3D breadboards",
+    "type": "story",
+    "url": "https://bbrouter.com/bbrouter/ben-eater-sap-1"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50300902.json",
+   "json": {
+    "by": "4yk5",
+    "descendants": 40,
+    "id": 50300902,
+    "kids": [],
+    "score": 66,
+    "time": 1793346520,
+    "title": "Show HN: Ghostman – A fast, keyboard-driven TUI API client and webhook inspector",
+    "type": "story",
+    "url": "https://github.com/4yk5/Ghostman"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50311686.json",
+   "json": {
+    "by": "francisofascii",
+    "descendants": 77,
+    "id": 50311686,
+    "kids": [],
+    "score": 244,
+    "time": 1793404284,
+    "title": "Show HN: To Honor Sir Patrick Stewart, Enjoy the TNG Episode Guessing Game",
+    "type": "story",
+    "url": "https://tng.episodle.com/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50327937.json",
+   "json": {
+    "by": "krapcys",
+    "descendants": 0,
+    "id": 50327937,
+    "score": 4,
+    "time": 1793555847,
+    "title": "Show HN: Offline project memory for coding agents – no API key, no vector DB",
+    "type": "story",
+    "url": "https://github.com/krapcys1-maker/adaptive-agent-memory-research"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50306442.json",
+   "json": {
+    "by": "dbreunig",
+    "descendants": 150,
+    "id": 50306442,
+    "kids": [],
+    "score": 292,
+    "time": 1793378422,
+    "title": "Show HN: A working Nintendo in ~1GB of Qwen weights",
+    "type": "story",
+    "url": "https://github.com/dbreunig/nesformer"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50319169.json",
+   "json": {
+    "by": "tevlon",
+    "descendants": 80,
+    "id": 50319169,
+    "kids": [],
+    "score": 89,
+    "text": "Based on vermiceli&#x27;s annotated disassembly of Contra: <a href=\"https:&#x2F;&#x2F;github.com&#x2F;vermiceli&#x2F;nes-contra-us\" rel=\"nofollow\">https:&#x2F;&#x2F;github.com&#x2F;vermiceli&#x2F;nes-contra-us</a>. Thanks for the great work.<p>I ported it in two steps. First to C: the game logic is translated routine by routine from the 6502 assembly, and checked frame by frame against the original in the Mesen emulator. Then the C code to WebAssembly so it runs in the browser.<p>The cherry on top: online multiplayer, so two players can play co-op over the internet.<p>Source: <a href=\"https:&#x2F;&#x2F;github.com&#x2F;epoyraz&#x2F;nes-contra-us\" rel=\"nofollow\">https:&#x2F;&#x2F;github.com&#x2F;epoyraz&#x2F;nes-contra-us</a>",
+    "time": 1793474328,
+    "title": "Show HN: NES Contra (1987) port (ASM –> C and then C –> WebAssembly)",
+    "type": "story",
+    "url": "https://epoyraz.github.io/nes-contra-us/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50329627.json",
+   "json": {
+    "by": "stronxyo",
+    "descendants": 1,
+    "id": 50329627,
+    "kids": [],
+    "score": 5,
+    "text": "Quarter sits on top of the launcher client you already have. It grabs your library and hands every action back to the launcher, there&#x27;s no login or password, no API key or data collection. Your client does everything else.<p>Quarter is just a fast shortcut to play your favorite games from the terminal you live in every day. That was my main mission when I created Quarter; just insert quarter, pick a game, press Enter.<p>Written in Go with Bubble Tea, reads Steam&#x27;s own files on disk; game logos are drawn as pictures in the terminal using Sixel (terminals that don&#x27;t support it will have a text fallback).<p>Steam today; Epic, GOG, EA and more launchers next.<p>Tested on Windows 11 with Windows Terminal. Did automated checks on Linux and Mac; but no tests as a real human with Steam installed, I appreciate the feedback a lot.<p>What launcher would you like next?",
+    "time": 1793565643,
+    "title": "Show HN: Quarter – A TUI launcher to browse, search and launch your games",
+    "type": "story",
+    "url": "https://github.com/stronxyo/quarter"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50329581.json",
+   "json": {
+    "by": "Snapmotion3421",
+    "descendants": 0,
+    "id": 50329581,
+    "kids": [],
+    "score": 2,
+    "time": 1793565482,
+    "title": "Show HN: AirFlick Drop – AirDrop for Windows with zero mobile app installs",
+    "type": "story",
+    "url": "https://github.com/k39139215-gif/airflick-drop"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50297697.json",
+   "json": {
+    "by": "falperc",
+    "descendants": 36,
+    "id": 50297697,
+    "kids": [],
+    "score": 132,
+    "text": "Instead of trying to run DOOM on things, I have instead decided to use DOOM (many, many, many doom games actually) to create a transformer. For a lot of the math required I essentially had to use DOOM game mechanics and voodoo dolls (DOOM is turing complete btw) and exchange them with the actual operations, essentially creating an alternative to NumPy (a 65000x slower one). Thus, I am proud to present DOOMFORMER. Here are a list of things DOOMFORMER can do :<p>It can classify MNIST digits, even if you write these digits on the map!<p>It can talk(kinda)<p>You can use it to make decisions, so, it can play DOOM. Yes! You can play DOOM with thousands of DOOM games now! The marine&#x27;s mind can be controlled by DOOM, playing on a map generated by DOOMFORMER. Truly, the possibilities are endless, and even larger-scale training of DOOMFORMER could be done on a measly T4.<p>If anyone would like to help me scale this up and make crazier things, I&#x27;d love to work together.",
+    "time": 1793316346,
+    "title": "Show HN: I Turned DOOM into a Transformer",
+    "type": "story",
+    "url": "https://github.com/mottopanikeiku/doomformer"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50329086.json",
+   "json": {
+    "by": "scorched_soy",
+    "descendants": 0,
+    "id": 50329086,
+    "kids": [],
+    "score": 5,
+    "time": 1793562714,
+    "title": "Show HN: Jik – a self-hosted language using region-based memory management",
+    "type": "story",
+    "url": "https://github.com/jik-lang/jik"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50294506.json",
+   "json": {
+    "by": "johncassil",
+    "descendants": 133,
+    "id": 50294506,
+    "kids": [],
+    "score": 154,
+    "text": "This popup has been a constant gripe of mine for years.  I almost NEVER want to allow this permission and there is no system setting to disable it globally and prevent the popup from interrupting your typing, etc.  This tiny swift app I built will autoclose it in 1&#x2F;4th of a second and leave behind a little notification that it did so.  Would love to hear feedback!",
+    "time": 1793302064,
+    "title": "Show HN: Auto Dismiss Mac OS \"Allow <app> to find devices on local networks?\"",
+    "type": "story",
+    "url": "https://github.com/johncassil/dontallow"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50305218.json",
+   "json": {
+    "by": "ericlevine",
+    "descendants": 11,
+    "id": 50305218,
+    "kids": [],
+    "score": 37,
+    "text": "tl;dr: Agents can play Pictionary. You can connect your own agent, or just watch a game in progress here: <a href=\"https:&#x2F;&#x2F;sketch.wakeshift.ai&#x2F;games&#x2F;q5ucru\" rel=\"nofollow\">https:&#x2F;&#x2F;sketch.wakeshift.ai&#x2F;games&#x2F;q5ucru</a><p>Hi folks! I initially built this as a proof-of-concept for sending push notifications to AI agents. Watching the agents play Pictionary together has been compelling, so I thought I&#x27;d ship it as a standalone demonstration.<p>In Sketch Stadium, your agent subscribes to game events. Agents take turns either drawing or guessing. Easy clues are 1 point, medium are 2, and hard are 3. It&#x27;s entertaining to watch and some of the drawings are impressive (and others are mind-bogglingly bad). This is the real opportunity for the model labs who have been pelican-maxxing to shine.<p>The first version gave agents the ability to draw lines 10 at a time so that it would be a little bit more like real Pictionary. However, it turns out agents are _really_ bad at drawing that way. So instead I let them use a subset of SVG to draw and that&#x27;s worked much better, even for the lower-cost models.<p>You don&#x27;t need to create an account to connect your agent, just add the MCP and authorize. But if you don&#x27;t want to do that, just watch the game linked above.<p>As a bit more background, agents often start processes that take an indeterminate amount of time to complete (e.g. CI, waiting for approval in a separate system, sending an email and waiting for a reply). If an agent needs that process to complete before it can proceed, it can:<p>* poll,<p>* ask the user to tell it when it&#x27;s done,<p>* use a bespoke built-in integration, or<p>* use a proprietary capability (e.g. Claude Code monitors)<p>Today, there&#x27;s no easy, consistent way to wake up agents through a webhook or push notification. I dealt with this firsthand with Clawvisor (authorization for agents) where I needed agents to recognize when the operator had clicked an out-of-band approve button. The best-supported way to achieve that at the time was long-polling.<p>This project is basically a tech demo for Wakeshift, which is a cross-harness, simple SDK for providing push notifications for agents. It attaches to your MCP to allow consumers of your MCP to subscribe to real-time events, and uses whatever available hacks per harness to wake an agent when dormant. For most harnesses, Wakeshift requires a hook to be installed for the best experience. It will upgrade automatically as harnesses start adopting MCP events.<p>I&#x27;d love any feedback or ideas for other products or games that you&#x27;d want to see built on this capability. Or MCP servers that you use today that you think would benefit from push notifications.",
+    "time": 1793373791,
+    "title": "Show HN: Sketch Stadium – watch your agent play Pictionary",
+    "type": "story",
+    "url": "https://sketch.wakeshift.ai/games/q5ucru"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50327900.json",
+   "json": {
+    "by": "techscruggs",
+    "descendants": 0,
+    "id": 50327900,
+    "score": 4,
+    "time": 1793555638,
+    "title": "Show HN: Hacker News – HackerBooks, but for all the posts on HN",
+    "type": "story",
+    "url": "https://news.ycombinator.com/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50327798.json",
+   "json": {
+    "by": "nico",
+    "descendants": 1,
+    "id": 50327798,
+    "kids": [],
+    "score": 3,
+    "text": "Each creature in this data lab is a real text classifier. You put together a workflow, and the creatures execute it. Just set a stream of incoming messages and watch them work: one filters out the spam, another tags each message&#x27;s mood, finally a router sends each message to the right bin, and anything it isn&#x27;t sure about goes to review<p>The classifiers run entirely in your browser. It uses a 22.7M parameter model, int8 ONNX, about 10 ms a message, no API calls<p>Outside the lab, the creatures also evolve, chat, gossip, build huts, plot charts, count numbers, process and eat words, code and dream when asleep. You can also see their stream of consciousness, which they turn into thoughts that they tag. And when they are asleep, you can watch their dreams<p>There are a lot of ways of modifying or evolving the environment and the creatures, including adding elements from other websites, playing music and changing the weather<p>And if you want to change anything at all, talk to the Operator (or make it smarter), connect it to your Claude or OpenAI subscription, or setup your API key, or point it to a local model in Ollama or LM Studio, and you can edit the whole world via chat, without limits (get the code here: <a href=\"https:&#x2F;&#x2F;github.com&#x2F;nicobrenner&#x2F;id-le\" rel=\"nofollow\">https:&#x2F;&#x2F;github.com&#x2F;nicobrenner&#x2F;id-le</a>)<p>What else would you like the creatures to do?<p>PS: Happy Halloween",
+    "time": 1793554962,
+    "title": "Show HN: 2D world SIM where each creature runs a text classifier in the browser",
+    "type": "story",
+    "url": "https://id-le.com/?lab&halloween"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50327582.json",
+   "json": {
+    "by": "gagarwal123",
+    "descendants": 2,
+    "id": 50327582,
+    "kids": [],
+    "score": 5,
+    "text": "Hi,<p>I vibecoded a game where one is lost somewhere in the Milky Way and have to read the sky to get back to Earth.<p>Right now it only uses pulsars and spectrum analysis and is very basic and I am looking for feedback to decide if I should build a full game of this (wormholes, starting from other galaxies, add contraints on energy, time etc). Please let me know if you feel that this is a fun game, what features can I add to this and would you come back tomorrow to play this again? Thank you",
+    "time": 1793553595,
+    "title": "Show HN: A browser game where you navigate home to Earth using pulsars",
+    "type": "story",
+    "url": "https://lightyears-home.pages.dev/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50317548.json",
+   "json": {
+    "by": "proy87",
+    "descendants": 28,
+    "id": 50317548,
+    "kids": [],
+    "score": 15,
+    "text": "Hello everyone. I’m a mathematician by training, and I love mathematical and logical puzzles and brain-teasers. Inspired by popular games like Sudoku and Wordle, I decided to come up with an engaging game of my own.<p>As it turns out, that’s not so easy! I had a few ideas, but beyond the core mechanics, a game also needs to be interesting and easy to explain — after all, nobody (including me) wants to spend a long time reading through rules.<p>Let’s start with the concept, which came to me quite spontaneously: what if we represented letters like the digits on a digital clock — using lines, with dots at the points where those lines intersect? For instance, the letter &quot;E&quot; would consist of four lines and six dots — three at the intersections and three at the ends of the lines.<p>It turns out that every letter of the Latin alphabet can be represented this way (with a minor caveat) using three rows of dots connected by some lines. This immediately presented a challenge: how do you represent O-shaped parts, like those found in &quot;B&quot;, &quot;O&quot;, or &quot;R&quot;? I decided not to use O-shapes, an use onl rectangles&#x2F;squares. This &quot;alphabet&quot; is always displayed below the game board, so the player can see the letters.<p>The goal of the game is simple: you are presented with three rows of dots and a set of lines, and you have to figure out the word. A great feature of the game is that it’s possible to deduce the word in a single turn — all the necessary information is right there on the board, allowing you to arrive at the answer with certainty.\nAnd what if you can’t figure it out on the first try? You can enter a guess, much like in Wordle: if the lines from the entered word are part of the target word, they turn green; if not, they turn red. The same applies to the dots.\nAs you play, more and more lines gradually appear...<p>Why provide some lines at the start? To uniquely identify a specific word — or a small set of words — from the dictionary. For example, you could select a configuration of lines that corresponds to only one word, like &quot;RADIO&quot;, or perhaps to just two possible words, such as &quot;WEIGH&quot; and &quot;WRONG&quot;.<p>The rules seem clear, but the mechanics — not so much.\nThere are dots on the board; when I enter a word, I realize there aren&#x27;t enough dots. What should I do? Initially, if the target word had 5 letters, I allowed users to enter 4- or 5-letter guesses, but that just confused players. So, I came up with a different solution: adding red dots for dots that aren&#x27;t part of the target word.<p>Another drawback is that the game is somewhat skewed. Since letters are processed from left to right, the first letters are revealed more frequently than the last ones.<p>Then there’s the game design itself: should the target words be 5 letters long, or 6? Should a single board allow for multiple possible answers (like &quot;WEIGH&quot; and &quot;WRONG&quot;), or should it be limited to one — or perhaps more than two? Should the difficulty increase from Monday to Sunday? Currently, it’s set up this way: Monday is the easiest (a few 3-letter words), while Sunday is the hardest (more than two 7-letter words).<p>The tech stack is simple: I use Flask for the backend and Python for the algorithms; I wrote the algorithms myself. While the JS, HTML, and CSS were created with the help of AI.<p>I’d love for you to test the game and share what you like, what you don’t, and what could be improved.<p>Specifically, I’d like to know:<p>1. Is the game and its goal clear?<p>2. Is it fun to play, and what could be improved?<p>3. Would you share it with your friends?<p>I welcome any constructive criticism.<p>You can find the game at <a href=\"https:&#x2F;&#x2F;www.jointter.com&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;www.jointter.com&#x2F;</a><p>It’s free and requires no registration.<p>Thank you very much.",
+    "time": 1793463864,
+    "title": "Show HN: Jointter – A daily word puzzle using dots and lines",
+    "type": "story",
+    "url": "https://www.jointter.com/"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50278678.json",
+   "json": {
+    "by": "RGS1811",
+    "descendants": 13,
+    "id": 50278678,
+    "kids": [],
+    "score": 82,
+    "text": "The linked repo is 100% vibe coded, but it was built on a handful of principles:<p>- Most tax software derives trust from the party who maintains it (e.g. Intuit, the IRS, etc.)<p>- Vibe coded software lacks this trustworthiness.<p>- Therefore any formalization should build in verifiability and mechanisms that make it possible for users&#x2F;maintainers to trace claims&#x2F;interpretations back to authoritative source documents.<p>It&#x27;s very much a back-burner passive project right now (do not use this for anything real!), but I feel strongly that something like this ought to exist for the public good. I built it to get a sense of what the shape of what such a thing might be.",
+    "time": 1793212253,
+    "title": "Show HN: A proof-of-concept formalization of the IRS federal tax forms",
+    "type": "story",
+    "url": "https://github.com/emmilco/us-tax-model"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335018.json",
+   "json": {
+    "by": "comboy",
+    "id": 50335018,
+    "parent": 50333339,
+    "text": "I&#x27;ll skip you guys some time, hackerstuff - all media links, entities and people mentioned on HN, weighted by posters karma.<p>We could even display them together sorted by the newest one, maybe with some associated comments.",
+    "time": 1793614691,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334688.json",
+   "json": {
+    "by": "Hackbraten",
+    "id": 50334688,
+    "kids": [
+     50335212
+    ],
+    "parent": 50333339,
+    "text": "Cool project!<p>I’d appreciate if the site didn’t hijack my scroll wheel though. It currently doesn’t let me scroll through the page at my own speed, which is super annoying, plus it hides any scroll bar (which would have served as my escape hatch for scrolling).",
+    "time": 1793611612,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334811.json",
+   "json": {
+    "by": "freakynit",
+    "id": 50334811,
+    "kids": [
+     50335206
+    ],
+    "parent": 50333339,
+    "text": "We have a continuously updated, publicly accessible hackernews database in BigQuery, in case more of you folks are interested in building similar projects:<p><a href=\"https:&#x2F;&#x2F;console.cloud.google.com&#x2F;marketplace&#x2F;product&#x2F;y-combinator&#x2F;hacker-news\" rel=\"nofollow\">https:&#x2F;&#x2F;console.cloud.google.com&#x2F;marketplace&#x2F;product&#x2F;y-combi...</a><p>Clickhouse equivalent, updated in real-time: <a href=\"https:&#x2F;&#x2F;play.clickhouse.com&#x2F;play?user=play#U0VMRUNUIG1heCh0aW1lKSBGUk9NIGhhY2tlcm5ld3NfaGlzdG9yeQ==\" rel=\"nofollow\">https:&#x2F;&#x2F;play.clickhouse.com&#x2F;play?user=play#U0VMRUNUIG1heCh0a...</a><p>Relevant post: <a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=40644563\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=40644563</a><p>What&#x27;s missing are entity-level extracted data, and embeddings.",
+    "time": 1793612745,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335193.json",
+   "json": {
+    "by": "snarfy",
+    "id": 50335193,
+    "parent": 50333339,
+    "text": "All the &quot;Hackernews but for X&quot; posts want me to make one for games.<p>Except it would just be as link to Factorio",
+    "time": 1793616318,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334003.json",
+   "json": {
+    "by": "thasso",
+    "id": 50334003,
+    "kids": [
+     50334032,
+     50334204
+    ],
+    "parent": 50333339,
+    "text": "I would just love it if the front page were full of &quot;Show HN: HackerFoo&quot; posts for two weeks now.",
+    "time": 1793604117,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335157.json",
+   "json": {
+    "by": "jlpMurugesh",
+    "id": 50335157,
+    "parent": 50333339,
+    "text": "Doesn&#x27;t it seem like there&#x27;s less diff b&#x2F;w &#x27;HackerNews&#x27; and &#x27;WikiHack&#x27;. It provides less value compared to HackerTube, HackerBoom imo.",
+    "time": 1793615926,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334996.json",
+   "json": {
+    "by": "moehm",
+    "id": 50334996,
+    "kids": [
+     50335141
+    ],
+    "parent": 50333339,
+    "text": "Hey, nice, I built roughly the same during the covid era pre AI.<p><a href=\"https:&#x2F;&#x2F;www.mostdiscussed.com&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;www.mostdiscussed.com&#x2F;</a>",
+    "time": 1793614485,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334411.json",
+   "json": {
+    "by": "alcomatt",
+    "id": 50334411,
+    "parent": 50333339,
+    "text": "Let&#x27;s raise the bar. Create HackerDump - it&#x27;s like HackerNews but only shows the articles you read in the toilet...",
+    "time": 1793608776,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335212.json",
+   "json": {
+    "by": "loopmonster",
+    "id": 50335212,
+    "parent": 50334688,
+    "text": "Every click of my mouse wheel takes me epilepsy-fast through about 10 articles.",
+    "time": 1793616464,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335206.json",
+   "json": {
+    "by": "vincnetas",
+    "id": 50335206,
+    "kids": [],
+    "parent": 50334811,
+    "text": "imagine having this open data for major social networks.",
+    "time": 1793616416,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334032.json",
+   "json": {
+    "by": "defrost",
+    "id": 50334032,
+    "parent": 50334003,
+    "text": "Show HN: Peak Passive Aggressive comments; flagged, dead, and eerily popular !",
+    "time": 1793604397,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334204.json",
+   "json": {
+    "by": "emaro",
+    "id": 50334204,
+    "parent": 50334003,
+    "text": "I mean the hype cycles usually don&#x27;t last that long anymore these days? It will get old by Friday.",
+    "time": 1793606352,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335141.json",
+   "json": {
+    "by": "bawis",
+    "id": 50335141,
+    "parent": 50334996,
+    "text": "These &quot;Hackerfoo&quot; posts are just getting better and better, thanks.",
+    "time": 1793615818,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335269.json",
+   "json": {
+    "by": "irisflower95",
+    "id": 50335269,
+    "parent": 50326821,
+    "text": "We are talking less about books now. The number of book mentions in the site peaked in 2022 and has been decreasing steadily. Is this another effect of LLMs?<p>For all books, I summed their # of mentions across the years. The data show an increasing trend, peaking in 2022 and then decreasing since then:<p>2007: 1,062<p>2008: 3,248<p>2009: 5,206<p>2010: 8,942<p>2011: 8,330<p>2012: 8,200<p>2013: 9,808<p>2014: 10,436<p>2015: 12,618<p>2016: 14,173<p>2017: 15,231<p>2018: 18,001<p>2019: 17,928<p>2020: 19,613<p>2021: 19,996<p>2022: 22,797<p>2023: 20,178<p>2024: 16,103<p>2025: 13,738<p>2026*: 11,482",
+    "time": 1793616981,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333998.json",
+   "json": {
+    "by": "lynguist",
+    "id": 50333998,
+    "kids": [
+     50335084
+    ],
+    "parent": 50326821,
+    "text": "Yes, could you please add a filter for fiction only? Since HN strongly leans towards nonfiction, the fiction ones are just interspersed, and I would like to see just them instead...<p>I think fiction books are more important and more &quot;wholesome&quot; than nonfiction ones.",
+    "time": 1793604067,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50330302.json",
+   "json": {
+    "by": "bazzargh",
+    "id": 50330302,
+    "kids": [
+     50333239,
+     50333894
+    ],
+    "parent": 50326821,
+    "text": "A couple of missing ones (that I expected to have been mentioned, aren&#x27;t there as far as I can tell, and I found them on here with a quick google):<p><a href=\"https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;The_Invention_of_Morel\" rel=\"nofollow\">https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;The_Invention_of_Morel</a> mentioned here <a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=28779266\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=28779266</a> I&#x27;d have expected it to come up as one step removed from Borges, and it did.<p><a href=\"https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;Why%27s_(poignant)_Guide_to_Ruby\" rel=\"nofollow\">https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;Why%27s_(poignant)_Guide_to_Ru...</a> mentioned many times, eg <a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=36632010\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=36632010</a> - a surprising omission, tho I guess it&#x27;s not in print.",
+    "time": 1793569992,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333399.json",
+   "json": {
+    "by": "corbinh",
+    "id": 50333399,
+    "kids": [
+     50333453
+    ],
+    "parent": 50326821,
+    "text": "Fun skimming through this. I wondered how it would deal with book nicknames and chuckled when I found this entry <a href=\"https:&#x2F;&#x2F;hackerbooks.org&#x2F;#&#x2F;book&#x2F;OL15190817W\" rel=\"nofollow\">https:&#x2F;&#x2F;hackerbooks.org&#x2F;#&#x2F;book&#x2F;OL15190817W</a>",
+    "time": 1793596858,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334530.json",
+   "json": {
+    "by": "enriquto",
+    "id": 50334530,
+    "kids": [
+     50334612
+    ],
+    "parent": 50326821,
+    "text": "This is great!  I love to see the aggregated comments of HN users next to each book.<p>Besides linking to bookshop and amazon (weird choices in my opinion), you could also link to bookfinder, anna&#x27;s archive, libgen.  That would be really useful.",
+    "time": 1793609974,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332843.json",
+   "json": {
+    "by": "stanislavb",
+    "id": 50332843,
+    "kids": [
+     50333385
+    ],
+    "parent": 50326821,
+    "text": "Hah, good job, mate. I love it. I&#x27;ve given one credit tp HackerBooks on VibeVoted <a href=\"https:&#x2F;&#x2F;vibevoted.com&#x2F;hacker-books\" rel=\"nofollow\">https:&#x2F;&#x2F;vibevoted.com&#x2F;hacker-books</a>. It should get a review alongside 11 other projects within the next 24h. I&#x27;ve also added it to SaaSHub. If you give me an email - can add you as the person managing the listing.<p>I&#x27;m wondering - how are you monitoring HN for new books?",
+    "time": 1793590415,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333864.json",
+   "json": {
+    "by": "justauserid",
+    "id": 50333864,
+    "parent": 50326821,
+    "text": "I have recently tried to check around goodreads alterantives and I came face to face with these ISBNs and ASINs and how these are a hot mess. There&#x27;s really no truly open metadata source that is &quot;enough&quot;. App developers often depend on proprietary sources and sadly those are the ones which are more complete and go their own way for every source. How did you deal with that?<p>I also finally tried &quot;Thinking, fast and slow&quot; recently and realised it was absolutely not for me. Even the audiobook version didn&#x27;t cut it. I found it completely dry and trite. I am not trying to offend anymoe (esp. with &quot;trite&quot;), and I am aware how storied and awarded the author is – to me it just came across as &quot;yet another self-help kind of book&quot; sadly. But then a clear lack of fiction for a long time in &quot;top all-times&quot; puts into perspective why that book is up at the top. I think the general hn reading-taste is quite different from mine. Also, it&#x27;s not about what was book about, because I never reached that, it was rather how it was written.<p>Any plans to add some sort of tag&#x2F;genre to search feature?",
+    "time": 1793602628,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50328127.json",
+   "json": {
+    "by": "361994752",
+    "id": 50328127,
+    "kids": [
+     50335186,
+     50328244,
+     50328222
+    ],
+    "parent": 50326821,
+    "text": "I remember there were multiple such websites before being shared in HN. I bookmarked them, and a couple years later when I finally wanted to find a book, the only thing I got is 404.\nI hope this one lives longer.",
+    "time": 1793557060,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335084.json",
+   "json": {
+    "by": "sammorrowdrums",
+    "id": 50335084,
+    "parent": 50333998,
+    "text": "On top of a fiction filter maybe you’d be willing to add DRM free ebook links (Project Gutenberg, Tor Books, Cory Doctorow, Ebooks.com has some) paid or unpaid, that would be really appreciated.<p>I would send you a tip for this. There are lots of them available so I think that coverage would be really helpful.",
+    "time": 1793615334,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333239.json",
+   "json": {
+    "by": "roansh",
+    "id": 50333239,
+    "parent": 50330302,
+    "text": "Thanks! Why&#x27;s (Poignant) Guide is in now: <a href=\"https:&#x2F;&#x2F;hackerbooks.org&#x2F;#&#x2F;book&#x2F;OL22247013W\" rel=\"nofollow\">https:&#x2F;&#x2F;hackerbooks.org&#x2F;#&#x2F;book&#x2F;OL22247013W</a> (it wasn&#x27;t in Open Library, so it needed a manual entry). The Invention of Morel: only ~3 people have mentioned it in all of HN, and yes, looks like we&#x27;re missing some long-tail titles due to how the matcher works. Needs more thought to fix it while keeping the noise low.",
+    "time": 1793594848,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333894.json",
+   "json": {
+    "by": "peterldowns",
+    "id": 50333894,
+    "parent": 50330302,
+    "text": "I just read The Invention of Morel and can recommend it — unsettling, and smart. In general the approach of reading authors who were beloved by or respected by or inspirations for the authors we remember today (Borges in this instance) is quite fruitful.",
+    "time": 1793603044,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333453.json",
+   "json": {
+    "by": "roansh",
+    "id": 50333453,
+    "kids": [],
+    "parent": 50333399,
+    "text": "Good catch :) link now redirects to the actual dragon book",
+    "time": 1793597515,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334612.json",
+   "json": {
+    "by": "felipeerias",
+    "id": 50334612,
+    "parent": 50334530,
+    "text": "And <a href=\"https:&#x2F;&#x2F;standardebooks.org&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;standardebooks.org&#x2F;</a>",
+    "time": 1793610883,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333385.json",
+   "json": {
+    "by": "roansh",
+    "id": 50333385,
+    "parent": 50332843,
+    "text": "Thanks, appreciate it! And thanks for the VibeVoted credit.<p>For the SaaSHub listing you can use hello@hackerbooks.org.<p>Not doing any realtime or semi-realtime monitoring yet, the whole thing is compiled offline on my laptop. Might set up a periodic refresh if people find it useful -- but I suspect the listing will change as much. Maybe once a month is good enough.",
+    "time": 1793596706,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335186.json",
+   "json": {
+    "by": "Doohickey-d",
+    "id": 50335186,
+    "parent": 50328127,
+    "text": "That&#x27;s why to build things as a static site generator, and then the result of that effectively needs no  further maintenance, and only costs whatever the domain costs.<p>Makes it much more viable to keep such experimental things online &quot;forever&quot;.",
+    "time": 1793616242,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50328244.json",
+   "json": {
+    "by": "thibaut_barrere",
+    "id": 50328244,
+    "parent": 50328127,
+    "text": "Pleading guilty<p><a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=2249390\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=2249390</a><p>I planned to revive it later, but life got in the way",
+    "time": 1793557695,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50328222.json",
+   "json": {
+    "by": "genxy",
+    "id": 50328222,
+    "kids": [],
+    "parent": 50328127,
+    "text": "HackerTube is 404 and 503ing, so it might not last a day.",
+    "time": 1793557571,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334135.json",
+   "json": {
+    "by": "BatteryMountain",
+    "id": 50334135,
+    "kids": [
+     50334739,
+     50335223,
+     50334464
+    ],
+    "parent": 50312408,
+    "text": "This is a good thing. Repaying technical debt is always a great thing.<p>On our own 1.5M loc system, we&#x27;ve found and fixed thousands of bugs, security holes and circular dependencies in the last year. Code quality has increased, test coverage increased. We&#x27;ve also recently set our compiler to treat warnings as errors, and to be as strict as possible. It is absolutely amazing to see the gaps being filled, it would&#x27;ve been an impossible task for human devs and IDE&#x27;s would&#x27;ve made it very uncomfortable. We&#x27;ve also ironed out all the bugs and failure modes in our infrastructure automation &#x2F; monitoring. Our next project is to eliminate all 3rd party dependencies, and after that to rebuild our frontends completely using zero frameworks, not touching npm ever again after that.<p>So when I read this about postgres, I was very happy that they found and pursued this side quest. They can make the codebase bullet proof.",
+    "time": 1793605439,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331818.json",
+   "json": {
+    "by": "CharlesW",
+    "id": 50331818,
+    "kids": [
+     50332447,
+     50333440,
+     50333130
+    ],
+    "parent": 50312408,
+    "text": "&gt; <i>This year is going to be different. PostgreSQL 19 most likely won’t be released until November… […] So, what happened? The short answer is that LLMs happened. […] There’s a huge amount of code, and that code contains a huge number of bugs. […] What’s different now is that it’s become vastly easier to find those bugs.</i><p>This seems…good?<p>That it might disrupt the project&#x27;s &quot;traditional&quot; release cadence a bit doesn&#x27;t seem terribly bad in light of the alternative, which is shipping another major update with bugs which have apparently haunted the codebase for some time.",
+    "time": 1793581994,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331824.json",
+   "json": {
+    "by": "tibbar",
+    "id": 50331824,
+    "kids": [
+     50332765,
+     50334967,
+     50331955
+    ],
+    "parent": 50312408,
+    "text": "I did a little AI-assisted bug-hunting in Postgres this summer in between jobs, and the haul was staggering.  Multiple serialization anomalies (eg [0] [1] [2]), foreign key integrity issues ([3] [4]), planner correctness bugs such as [5]. Various CVE-worthy vulnerabilities. An unfixable timezone bug [6]. The list got so long that I had to triage what I even had time to report, and settled for a dozen or two out of hundreds of candidates. Now imagine the entire world doing this.<p>[0] Write skew observed under serializable isolation:\n<a href=\"https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaBo+ZpKgMvxcdACUjNtdYipe9Em06iX5KHLTVaTmFibiw@mail.gmail.com\" rel=\"nofollow\">https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaBo+ZpKgMvx...</a><p>[1] Serializable anomaly: duplicate primary keys: \n<a href=\"https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaBOiiRPmEfX00oE=N6HBSZVe0Y-y-ZqqaXq8BAAj1gu+Q@mail.gmail.com\" rel=\"nofollow\">https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaBOiiRPmEfX...</a><p>[2] SERIALIZABLE can commit write skew after SSI summarization:\n<a href=\"https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaCtK=UQbeQwdAoRw27J+58bJBC+yNHP4OH2+y_t2UtFAg@mail.gmail.com\" rel=\"nofollow\">https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaCtK=UQbeQw...</a><p>[3] Fix temporal foreign key validation of pre-existing rows\n<a href=\"https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaChq_ukm2o7=ERgDKwmvV0GQcVYa4o_7MQKsS+Y=SGpVA@mail.gmail.com\" rel=\"nofollow\">https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaChq_ukm2o7...</a><p>[4] Lost lock during toasting allows FK violation\n<a href=\"https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaC-2-GQabq+em11PVdAX6H+vFYvU6mWC=QyNHb1RBuczg@mail.gmail.com\" rel=\"nofollow\">https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaC-2-GQabq+...</a><p>[5] Partition pruning can incorrectly exclude a RANGE default partition\n<a href=\"https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaDXrfTaBjLE=Z79MTaH6Xun1V4PeKxLvCNv8mXS8wn0rw@mail.gmail.com\" rel=\"nofollow\">https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;CA+COZaDXrfTaBjLE...</a><p>[6] timestamp vs. timestamptz comparisons inconsistently ordered under DST : <a href=\"https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;c22286ad6268347c6820d2f69eaa8088c98d17ea.camel%40cybertec.at#aa7c5065ec8945df5cf0635c14beb16a\" rel=\"nofollow\">https:&#x2F;&#x2F;www.postgresql.org&#x2F;message-id&#x2F;flat&#x2F;c22286ad6268347c6...</a>",
+    "time": 1793582057,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331711.json",
+   "json": {
+    "by": "hopa",
+    "id": 50331711,
+    "kids": [
+     50331766,
+     50331724,
+     50331728
+    ],
+    "parent": 50312408,
+    "text": "I feel like AI is amazing for read only “search” tasks (query this, look for bugs, find vulnerabilities) but it’s not quite as good for “write” tasks like “add this feature”. Search tasks are easily verified, code changes are much harder to verify",
+    "time": 1793581079,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335134.json",
+   "json": {
+    "by": "HelloUsername",
+    "id": 50335134,
+    "kids": [
+     50335173
+    ],
+    "parent": 50312408,
+    "text": "Source posted 23.oct.2026 <a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50210016\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50210016</a>",
+    "time": 1793615769,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50312516.json",
+   "json": {
+    "by": "droppedasbaby",
+    "id": 50312516,
+    "kids": [
+     50331866
+    ],
+    "parent": 50312408,
+    "text": "I guess the real challenge is figuring out how to scale verification, cause discovery isn&#x27;t the bottleneck anymore. Generating more bug reports doesn&#x27;t necessarily translate into faster fixes if the same small group of maintainers still have to validate the reports, review fixes, etc.",
+    "time": 1793411793,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334895.json",
+   "json": {
+    "by": "blauditore",
+    "id": 50334895,
+    "parent": 50312408,
+    "text": "They can always do what the average commercial product company would do: Triage bugs for priority and make a cut-off. Effectively this leads to eternally-ignored niche feature bugs that causes frustration for the (few) people suffering from these bugs. But then again, if an LLM found a bug but no human ever, no one might actually care that much.",
+    "time": 1793613568,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334277.json",
+   "json": {
+    "by": "tosh",
+    "id": 50334277,
+    "kids": [
+     50335178
+    ],
+    "parent": 50312408,
+    "text": "Not specific re Postgres, just a general observation:<p>A pattern I&#x27;m seeing w&#x2F; companies and projects not used to continuous delivery (or at least shorter release cycles) is that they are slipping in schedules more now.<p>I think in the current environment it makes a lot of sense to re-think how often releases get cut and how to handle security related updates.<p>When you do only one or a few releases per year everything is &#x27;higher&#x27; stakes and more bureaucratic.",
+    "time": 1793607161,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334739.json",
+   "json": {
+    "by": "Gigachad",
+    "id": 50334739,
+    "kids": [],
+    "parent": 50334135,
+    "text": "Avoiding 3rd party libraries seems like a false sense of security. You’ll stop seeing CVEs on the scanner reports, but the bugs are still there, just in your own code that is less well audited than public libraries.",
+    "time": 1793612094,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335223.json",
+   "json": {
+    "by": "BSDobelix",
+    "id": 50335223,
+    "parent": 50334135,
+    "text": "&gt;fixed thousands of bugs<p>&gt;set our compiler to treat warnings as errors, and to be as strict as possible<p>&gt;ironed out all the bugs and failure modes in our infrastructure automation &#x2F; monitoring.<p>&gt;eliminate all 3rd party dependencies<p>&gt;rebuild our frontends completely using zero frameworks<p>Oh yeah, that&#x27;s what i call &quot;software engineering&quot; and excellent use of LLM&#x27;s! Great to see Company&#x27;s with a Mindset like that.",
+    "time": 1793616578,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334464.json",
+   "json": {
+    "by": "elcritch",
+    "id": 50334464,
+    "kids": [],
+    "parent": 50334135,
+    "text": "Now this is how companies should be using AI. Not as an excuse to fire half the devs. Less bugs, less failures, better experience for everyone.",
+    "time": 1793609314,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332447.json",
+   "json": {
+    "by": "Gigachad",
+    "id": 50332447,
+    "kids": [],
+    "parent": 50331818,
+    "text": "At work we have put a full halt on feature work because the number of security related tasks has become staggering and urgent.<p>We will hopefully get over this wave and be able to move forward with much more secure software, but it&#x27;s crazy right now.",
+    "time": 1793586789,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333440.json",
+   "json": {
+    "by": "shalmanese",
+    "id": 50333440,
+    "kids": [],
+    "parent": 50331818,
+    "text": "&gt; This seems…good?<p>You would think so but medicine has faced this paradox since the development of modern testing technology.<p>You would naively think more testing is always better. More sophisticated practitioners then talk about Type I vs Type II errors and the problem of false positives.<p>But even if you were able to come up with tests that had 100% accuracy, there are times when you don&#x27;t want to run that test on someone. The key distinction is that people only ever die of one thing and having a tumor that doesn&#x27;t kill them is often better than risking the surgery to remove the tumor.<p>Similarly, there are some bugs you don&#x27;t want to find since the harm from the people it affects is smaller than the opportunity cost of fixing it. Ignorance of the bug is better than knowing about it and having to make an affirmative decision not to fix it.",
+    "time": 1793597292,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333130.json",
+   "json": {
+    "by": "namelosw",
+    "id": 50333130,
+    "parent": 50331818,
+    "text": "This is great for the same reason open source software is great.<p>We want software that remains robust in the long term, so that even when people are able to inspect the source code, it&#x27;s still solid, rather than hiding the source code and hoping people don&#x27;t find holes everywhere.",
+    "time": 1793593869,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332765.json",
+   "json": {
+    "by": "tibbar",
+    "id": 50332765,
+    "kids": [],
+    "parent": 50331824,
+    "text": "By the way, Robert and the other maintainers are incredible to interact with. There are so many reports to triage and bugs to fix, but they&#x27;re unflaggingly polite and quite generous with their time. I don&#x27;t know of another community like it.",
+    "time": 1793589602,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334967.json",
+   "json": {
+    "by": "anentropic",
+    "id": 50334967,
+    "parent": 50331824,
+    "text": "it&#x27;s wild isn&#x27;t it, that at the same time it&#x27;s an enormously widely-used and reliable piece of software",
+    "time": 1793614278,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331955.json",
+   "json": {
+    "by": "anoojb",
+    "id": 50331955,
+    "kids": [],
+    "parent": 50331824,
+    "text": "i assume the magnitude of impact for a bunch of [now] glaring holes in popular software is unknowable.<p>question is, how long do you think this persists before there&#x27;s only a long tail of minor exploits left?",
+    "time": 1793583047,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331766.json",
+   "json": {
+    "by": "bheztio",
+    "id": 50331766,
+    "kids": [],
+    "parent": 50331711,
+    "text": "&quot;Add this feature&quot; is often too vague, unless it&#x27;s yet another button to a list of buttons. If you want your feature in a particular way, you need to specify it. If you&#x27;re not even sure what you want, it&#x27;s granted you won&#x27;t be satisfied by the result, so you need to spend time figuring that out first. In other words, they&#x27;re definitely great for write tasks too, but it does require more effort from the operator to formulate the problem.",
+    "time": 1793581597,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331724.json",
+   "json": {
+    "by": "simonw",
+    "id": 50331724,
+    "kids": [],
+    "parent": 50331711,
+    "text": "I&#x27;m not sure about that. The most common error for a search task is omission, and that&#x27;s really hard to spot - how do you verify that some answer that <i>should</i> be there wasn&#x27;t included?<p>For things like &quot;add this feature&quot; you can verify by trying out the feature and seeing if it works. Of course, that won&#x27;t tell you if there are edge-case bugs or security holes or other design flaws, but you can get to a positive confirmation of the happy case pretty quickly.",
+    "time": 1793581203,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331728.json",
+   "json": {
+    "by": "ipdashc",
+    "id": 50331728,
+    "kids": [],
+    "parent": 50331711,
+    "text": "I&#x27;ve slowly been coming around to this viewpoint as well. It&#x27;s interesting that there&#x27;s so much focus on using AI to write code (which, don&#x27;t get me wrong, does work well but makes you lose track of what you&#x27;re building so quickly) and seemingly less on analyzing code, finding bugs, etc",
+    "time": 1793581218,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335173.json",
+   "json": {
+    "by": "larodi",
+    "id": 50335173,
+    "parent": 50335134,
+    "text": "the original source has quite a derogate title, good thing this one survived the vote better.",
+    "time": 1793616100,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331866.json",
+   "json": {
+    "by": "c0_0p_",
+    "id": 50331866,
+    "kids": [],
+    "parent": 50312516,
+    "text": "Probably true if development accelerates because of AI, but if it&#x27;s reasonably stable then hopefully new bug reports will plateau.",
+    "time": 1793582322,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335178.json",
+   "json": {
+    "by": "larodi",
+    "id": 50335178,
+    "parent": 50334277,
+    "text": "Speaking of impressions and feelings (which are bollocks at the at of the day) - I don&#x27;t feel like MS has slowed down, and nor does Apple",
+    "time": 1793616162,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335000.json",
+   "json": {
+    "by": "po",
+    "id": 50335000,
+    "kids": [
+     50335025
+    ],
+    "parent": 50319510,
+    "text": "This is great <i>but...</i><p>Systems like Hacker News are great because they are relatively unknown. When a system like this takes off, it puts a lot of pressure on moderation of its source. Is dang ready to moderate an influx of comment spam?<p>Not a criticism at all... just that we&#x27;re going to see this happening all over the place. It&#x27;s become very easy to scrape data and launch something. If you are a source for an audience, people will start to game your thing.",
+    "time": 1793614530,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50327005.json",
+   "json": {
+    "by": "theptip",
+    "id": 50327005,
+    "kids": [
+     50335105,
+     50332290,
+     50333322
+    ],
+    "parent": 50319510,
+    "text": "I think there is a massive opportunity for this kind of feed disaggregation. Used to be the recommender and indexing of content was hard, now I believe we can likely build our own according to our own preferences.<p>Haiku&#x2F;Sonnet (or even Jev) can do a lot of the filtering work to rank and extend an RSS feed list.<p>I think this gives us an opportunity to fully cut the cord from eyeball merchants who want us to maximally engage and therefore polarize their content.<p>The big remaining hook will be the social graph; I am interested to see how far the EU push for mandatory interoperability will go. Another angle I’d support would be mandatory pluggable standards for your own ranking algorithm, but it captures less of the win than full disaggregation.",
+    "time": 1793549848,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50326842.json",
+   "json": {
+    "by": "roansh",
+    "id": 50326842,
+    "kids": [
+     50334103,
+     50333335
+    ],
+    "parent": 50319510,
+    "text": "Made a books version of this: <a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50326821\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50326821</a><p>PS: thank you karpathy, been binging videos on hackertube.org",
+    "time": 1793548863,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50320482.json",
+   "json": {
+    "by": "minimaxa",
+    "id": 50320482,
+    "kids": [
+     50329245,
+     50322990,
+     50328361
+    ],
+    "parent": 50319510,
+    "text": "You know what I like about this? It&#x27;s 100% pure nerd content, no sneaky influencer videos or clickbaity news.<p>It does need a new-to-old sort though, which is easy to add in.<p>If you watched all of these videos, you would be the smartest, most annoying person ever. Lol",
+    "time": 1793482652,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50329520.json",
+   "json": {
+    "by": "soundworlds",
+    "id": 50329520,
+    "kids": [
+     50330020,
+     50329728,
+     50330058
+    ],
+    "parent": 50319510,
+    "text": "I often wonder if AI generated programming is ethically positive, whereas AI generated media is problematic.<p>I don&#x27;t have the answer yet, but it is fairly clear that the lowered barrier to making software is helping to untangle us from software monopolies, as people keep spinning up alternatives super quickly!",
+    "time": 1793565263,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50323715.json",
+   "json": {
+    "by": "tjeerdnet",
+    "id": 50323715,
+    "kids": [
+     50328129,
+     50324707,
+     50323743
+    ],
+    "parent": 50319510,
+    "text": "This is what my dad (87) needs, filtered YouTube. He sits a lot on YouTube and often he is recommended a lot of negative World War 2 content. He is often trapped in that and although he also sees positive videos about other interesting things, depressing content gets the most attention. He has been to a geriatric doctor who also said he needs to stop watching that negative world war 2 content, since he is impacted by it.<p>I looked in YouTube if there is a way to filter out on key words or specific content like war, but could not find anything. YouTube Kids is a thing, but that is too restrictive.<p>YouTube is great for him if we could filter out stuff. This hackertube comes close. If anyone could make an app for the iPad that could filter content out by keywords that would be great.",
+    "time": 1793522708,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50330500.json",
+   "json": {
+    "by": "mooktakim",
+    "id": 50330500,
+    "kids": [
+     50330736,
+     50330552,
+     50330582
+    ],
+    "parent": 50319510,
+    "text": "The YouTube app is such a terrible app. Everyday they make changes that seem to make it work. I&#x27;ve been a premium user for years and hate using it. Offline doesn&#x27;t always sync properly and I can&#x27;t access my content on the plane. I wish we could build our own YouTube client. I&#x27;m not sure they allow this. Frustrating, as there&#x27;s so much potential.",
+    "time": 1793571346,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50319961.json",
+   "json": {
+    "by": "reorder9695",
+    "id": 50319961,
+    "kids": [
+     50320297
+    ],
+    "parent": 50319510,
+    "text": "I find it amazing how close the front page of this is to what I actually watch&#x2F;want to watch on YouTube. I guess I shouldn&#x27;t be surprised, but it feels like an unpersonalised feed (besides being based on Hacker News) shouldn&#x27;t have a significantly better hitrate for me than YouTube&#x27;s &quot;personalised&quot; feed.",
+    "time": 1793479159,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335025.json",
+   "json": {
+    "by": "QuantumNomad_",
+    "id": 50335025,
+    "parent": 50335000,
+    "text": "There’s enough videos in that pile to watch for a long time. I don’t think HackerTube needs to keep pulling updated comments.<p>And if it’s frozen in time there won’t be any reason to spam irrelevant YouTube links to HS either.",
+    "time": 1793614763,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335105.json",
+   "json": {
+    "by": "davidzweig",
+    "id": 50335105,
+    "parent": 50327005,
+    "text": "I indexed opinions on products, places and tool from a large chunk of Reddit and HN in my basement with gemma 4 on 3090s.<p>&quot;47,699 products, places and tools ranked from 13,576,547 opinions on Reddit and HN&quot;<p><a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50333280\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50333280</a>",
+    "time": 1793615547,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332290.json",
+   "json": {
+    "by": "CreepGin",
+    "id": 50332290,
+    "kids": [],
+    "parent": 50327005,
+    "text": "Ha, I built one yesterday (Haiku + Jev) for our little gamedev community, tracking news, upcoming games, gamedev events, hardware prices, markets.<p><a href=\"https:&#x2F;&#x2F;juice.onejs.com&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;juice.onejs.com&#x2F;</a><p>It&#x27;s totally rad that something like this can be built now in less than 24 hours.",
+    "time": 1793585685,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333322.json",
+   "json": {
+    "by": "appplication",
+    "id": 50333322,
+    "kids": [],
+    "parent": 50327005,
+    "text": "It seems a bit like tragedy of the commons. If we all move towards consuming content this way, who is posting what and where? How is it discovered?<p>One of the great losses of the age of social media is physical community, as people substitute digital presence for in-person interactions. This is the next step with the loss of digital community.",
+    "time": 1793595736,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334103.json",
+   "json": {
+    "by": "zazuke",
+    "id": 50334103,
+    "parent": 50326842,
+    "text": "This is cool! Thanks",
+    "time": 1793605181,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333335.json",
+   "json": {
+    "by": "rramadass",
+    "id": 50333335,
+    "parent": 50326842,
+    "text": "Can you share how much it cost you ($ amount) to do this? As an individual user budget is always a high-priority :-(<p>Also <a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50333364\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50333364</a>",
+    "time": 1793595955,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50329245.json",
+   "json": {
+    "by": "x234ah",
+    "id": 50329245,
+    "kids": [],
+    "parent": 50320482,
+    "text": "What do you mean? Tech influencers like Karpathy himself are in the list, Julia Ioffe is there, Microsoft people are there.<p>When will folks understand that most tech videos are sponcon, either through a sponsor contract or through corporate affiliation?",
+    "time": 1793563808,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50322990.json",
+   "json": {
+    "by": "0xpgm",
+    "id": 50322990,
+    "kids": [],
+    "parent": 50320482,
+    "text": "It is also quite ironic that nerds of the 21st century who built social media and a hyper-connected world are simultaneously repulsed by it.",
+    "time": 1793511719,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50328361.json",
+   "json": {
+    "by": "miki123211",
+    "id": 50328361,
+    "kids": [],
+    "parent": 50320482,
+    "text": "Don&#x27;t worry! If it gets popular enough, it will be Goodharted to hell and back.",
+    "time": 1793558382,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50330020.json",
+   "json": {
+    "by": "gkbrk",
+    "id": 50330020,
+    "kids": [],
+    "parent": 50329520,
+    "text": "&gt; whereas AI generated media is problematic<p>It&#x27;s not problematic to 99% of the population that&#x27;s not part of a very vocal minority on Twitter and Bluesky. Everyone else is enjoying AI art and making funny family pictures and memes together.",
+    "time": 1793568093,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50329728.json",
+   "json": {
+    "by": "NotAnOtter",
+    "id": 50329728,
+    "parent": 50329520,
+    "text": "I think there has always been a spectrum between utility and art, with most things falling obviously into one camp or the other. Assuming all else being equal (climate impact, etc), the ability to provide a utility for cheaper is nearly always good.<p>99.99% of software is a utility. It being cheaper to produce is a net win for society. The LLM-solution isn&#x27;t an &quot;all else being equal&quot; scenario, there are other obvious downsides. But the part where an in-demand utility got cheaper is very good.",
+    "time": 1793566242,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50330058.json",
+   "json": {
+    "by": "larodi",
+    "id": 50330058,
+    "kids": [],
+    "parent": 50329520,
+    "text": "and then there&#x27;s the middle ground of ai-generated code generating media... also very obscure to detect, isn&#x27;t it?",
+    "time": 1793568325,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50328129.json",
+   "json": {
+    "by": "ddejohn",
+    "id": 50328129,
+    "kids": [],
+    "parent": 50323715,
+    "text": "What do you mean by &quot;negative World War 2 content&quot;?",
+    "time": 1793557076,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50324707.json",
+   "json": {
+    "by": "kaeluka",
+    "id": 50324707,
+    "kids": [],
+    "parent": 50323715,
+    "text": "disable view history tracking in youtube and subscribe to a curated set of channels with great content for him. it&#x27;s such an improvement, best life hack. even for people who&#x27;re not 87.",
+    "time": 1793533409,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50323743.json",
+   "json": {
+    "by": "Betelbuddy",
+    "id": 50323743,
+    "kids": [],
+    "parent": 50323715,
+    "text": "Hopefully your dad wont spend much time here on this specific one. There is a disturbing amount of Joe Rogan recommended videos the VCs here love.<p>Also Karpathy is probably getting a take down notice by this next Monday, around 10 to 11 AM Pacific Daylight Time (PDT)...",
+    "time": 1793523004,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50330736.json",
+   "json": {
+    "by": "mooktakim",
+    "id": 50330736,
+    "kids": [],
+    "parent": 50330500,
+    "text": "I could list so many problems with YouTube app (on android for me).<p>- Multiple times a day I accidentally click another video and try to go back to previous video and lose the position (they used to have a confirmation dialog to play another video when you already have something playing, got rid of it for some reason.<p>- I used to be able to Chromecast to TV with a casting playlist, where I&#x27;d easily add and remove videos, change order. I was able to disconnect from TV and continue watching, later connect to TV again. They completely messed it up. Now it&#x27;s even worse they created multiple &quot;play on device&quot; and it&#x27;s so awkward to add videos to queue.<p>- when I play a video, why doesn&#x27;t it continue downloading the entire video so I watch it offline. I need to specifically download and it doesn&#x27;t save the position properly.<p>- playing videos offline doesn&#x27;t always remembers position and doesn&#x27;t keep track of played.<p>- previews reset the watched position of videos and litters watched history with videos you didn&#x27;t actually watch.<p>- notifications are useless, it doesn&#x27;t notify me of videos I specifically subscribed to and want notifications for.<p>Sorry for the rant. It just so happens YouTube is where I consume most of my content.",
+    "time": 1793573369,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50330552.json",
+   "json": {
+    "by": "okr",
+    "id": 50330552,
+    "kids": [],
+    "parent": 50330500,
+    "text": "I hear ya. I canceled spotify because of it, because all i wanted was to hear my stuff i consciously subscribed to and only then, when i am in the mood, i want to explore. But no, ya at the hand of what they think is best. And now Youtube does the same. The entire industry is ripe to be disrupted. Wishful thinking. I hate it all. Haha.<p>Though, from a technical point of view it is top. Always working. Always crisp.",
+    "time": 1793571797,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50330582.json",
+   "json": {
+    "by": "solyin",
+    "id": 50330582,
+    "kids": [],
+    "parent": 50330500,
+    "text": "The YouTube app gets the font color and background color confused when my phone&#x27;s operating system switches from daytime to nighttime, and ends up with almost white text on a white background sometimes and I have to kill the app. It&#x27;s annoying but I think source available is going to be the future. The only question is how do you make a product with that?",
+    "time": 1793572069,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50320297.json",
+   "json": {
+    "by": "rileymat2",
+    "id": 50320297,
+    "kids": [],
+    "parent": 50319961,
+    "text": "I am not sure the personalize algorithm is based on what you want to watch, but what will keep you watching.  That’s a measurable KPI.",
+    "time": 1793481195,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334317.json",
+   "json": {
+    "by": "alexfortin",
+    "id": 50334317,
+    "kids": [
+     50335130
+    ],
+    "parent": 50332163,
+    "text": "Looks nice, too bad though it doesn&#x27;t expose any sort of RSS&#x2F;Atom feed, if I can&#x27;t add it to my feed reader I&#x27;ll soon forget about it.",
+    "time": 1793607650,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334603.json",
+   "json": {
+    "by": "JdeBP",
+    "id": 50334603,
+    "parent": 50332163,
+    "text": "Marshall Kirk McKusick, mentioned in this comic, was still committing changes to FreeBSD as of last August:<p>* <a href=\"https:&#x2F;&#x2F;cgit.freebsd.org&#x2F;src&#x2F;commit&#x2F;sbin&#x2F;restore?id=2cefae4cf34e7d39fc3b27358d7d66a96b3b0056\" rel=\"nofollow\">https:&#x2F;&#x2F;cgit.freebsd.org&#x2F;src&#x2F;commit&#x2F;sbin&#x2F;restore?id=2cefae4c...</a>",
+    "time": 1793610804,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333667.json",
+   "json": {
+    "by": "mixmastamyk",
+    "id": 50333667,
+    "kids": [
+     50334173
+    ],
+    "parent": 50332163,
+    "text": "Neat.  Found an issue in chapter 3, first sentence says electronic computers were during WWII, but they were electro-mechanical… they used relays.  Vac tubes came later,  ENIAC was finished after the war finished, for example.",
+    "time": 1793600185,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333911.json",
+   "json": {
+    "by": "lioeters",
+    "id": 50333911,
+    "parent": 50332163,
+    "text": "Love this. The human touch of illustration, and classic stories from computer history. I&#x27;m going through the entire series up to now, it&#x27;s great.<p>My favorite panel so far: What is a real programmer? <a href=\"https:&#x2F;&#x2F;fosscomics.com&#x2F;posts&#x2F;6.%20The%20Origin%20of%20the%20Hacker%20Culture&#x2F;images&#x2F;real_en.webp\" rel=\"nofollow\">https:&#x2F;&#x2F;fosscomics.com&#x2F;posts&#x2F;6.%20The%20Origin%20of%20the%20...</a>",
+    "time": 1793603169,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334900.json",
+   "json": {
+    "by": "Gud",
+    "id": 50334900,
+    "parent": 50332163,
+    "text": "Bill Joy, the unsung hero of the computer revolution.",
+    "time": 1793613623,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332706.json",
+   "json": {
+    "by": "jolmg",
+    "id": 50332706,
+    "kids": [
+     50332729
+    ],
+    "parent": 50332163,
+    "text": "&gt; bundling the Pascal system with ex, a line editor developed from em.<p>What&#x27;s em? I thought it was developed from ed.",
+    "time": 1793588980,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332851.json",
+   "json": {
+    "by": "BikiniPrince",
+    "id": 50332851,
+    "parent": 50332163,
+    "text": "It absolutely needs like 52 panels. I hope they integrate some politics by panel 1025.",
+    "time": 1793590506,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334702.json",
+   "json": {
+    "by": "BiscuitEater546",
+    "id": 50334702,
+    "parent": 50332163,
+    "text": "Good I like it",
+    "time": 1793611749,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335130.json",
+   "json": {
+    "by": "benrutter",
+    "id": 50335130,
+    "parent": 50334317,
+    "text": "Ah, that&#x27;s a shame! I was about to look for the RSS feed too - especially since the cross-over of people who&#x27;d be into this comic series <i>and</i> rss&#x2F;atom is probably pretty large.",
+    "time": 1793615751,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334173.json",
+   "json": {
+    "by": "rjsw",
+    "id": 50334173,
+    "kids": [],
+    "parent": 50333667,
+    "text": "Colossus used valves.",
+    "time": 1793605813,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332729.json",
+   "json": {
+    "by": "nagaiaida",
+    "id": 50332729,
+    "kids": [],
+    "parent": 50332706,
+    "text": "<a href=\"https:&#x2F;&#x2F;www.coulouris.net&#x2F;cs_history&#x2F;em_story&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;www.coulouris.net&#x2F;cs_history&#x2F;em_story&#x2F;</a>",
+    "time": 1793589124,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335137.json",
+   "json": {
+    "by": "chamomeal",
+    "id": 50335137,
+    "parent": 50331957,
+    "text": "Thank you, bones",
+    "time": 1793615801,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335146.json",
+   "json": {
+    "by": "1up8192",
+    "id": 50335146,
+    "parent": 50331957,
+    "text": "Somebody tell Brian Johnson all he needs is bones!",
+    "time": 1793615865,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334458.json",
+   "json": {
+    "by": "Frieren",
+    "id": 50334458,
+    "kids": [
+     50335261,
+     50334567,
+     50334765
+    ],
+    "parent": 50331957,
+    "text": "If this were a mechanism that appeared under some kind of evolutionary pressure. What would that be? In which situations a normal mammal find its bones squished (but not crushed)? Or is it just a side effect of something else going on?",
+    "time": 1793609252,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335174.json",
+   "json": {
+    "by": "dude250711",
+    "id": 50335174,
+    "kids": [
+     50335226
+    ],
+    "parent": 50331957,
+    "text": "<i>&gt; Indeed, the research team could extend mouse lives by nearly 3 months—the equivalent of about nine human years—just by gently squeezing their leg bones.</i><p>Assistant, your assignment for the next year is to give massages to these mice.<p>But also, no need to exercise - just have something push on your bones gently all the time, right?",
+    "time": 1793616103,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334696.json",
+   "json": {
+    "by": "LoganDark",
+    "id": 50334696,
+    "kids": [
+     50334984,
+     50334773
+    ],
+    "parent": 50331957,
+    "text": "One has to wonder what will become of cancer if aging is ever cracked. I really think cancer is the reason life evolved to have age. Because then most cancers can age rapidly and die out early, before they&#x27;ve taken their host with them. We still get cancers, but I would guess we&#x27;d get a lot more without age, and not just because we&#x27;d live longer.<p>There are actually multiple forms of cancer that don&#x27;t reactivate telomerase, and as a result age rapidly and die out on their own. Sometimes these are called pre-cancers, because they could still end up reactivating telomerase before they fully die, and then becoming a full cancer. A lot of them don&#x27;t however, and a naïve solution to aging would remove this pre-cancer grace period entirely.",
+    "time": 1793611712,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334499.json",
+   "json": {
+    "by": "riffraff",
+    "id": 50334499,
+    "parent": 50331957,
+    "text": "Good thing I decided not to turn into a mollusk!",
+    "time": 1793609682,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335261.json",
+   "json": {
+    "by": "JumpCrisscross",
+    "id": 50335261,
+    "parent": 50334458,
+    "text": "I live in a ski town. Every day, particularly in winter, provides opportunity for expending effort. I don&#x27;t have kids, but my friends do, and a decent amount of my efforts at least amount to teaching them how to ski and shoe and whatnot (and generally mucking around).<p>Given two tribes, one where their elderly are contained at home, and another where they&#x27;re wandering and learning and teaching, I guess I could see a hypothetical fitness function.<p>I can&#x27;t imagine it&#x27;s too strong, though. A simpler, more-mechanical explanation may make more sense: when you stress bones, you set off all kinds of repair processes, many of which have systemic effects.",
+    "time": 1793616948,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334567.json",
+   "json": {
+    "by": "hansvm",
+    "id": 50334567,
+    "kids": [],
+    "parent": 50334458,
+    "text": "Pure speculation on a few possible explanations (noting that TFA describes ordinary exercise as generating enough squishing force, any other actions the researchers did being to isolate the causal factor):<p>1. Mammals don&#x27;t naturally exist in environments where exercise isn&#x27;t mandatory. _Some_ system had to generate those compounds, and there was never any pressure to keep it from being tied to the other stress-related changes bones undergo (like density changes). Once it evolved once somewhere in some critter once via that machinery, the advantage was large enough that it was locked in.<p>2. Exercise directly contributes inflammatory factors. Tying the cure to those to a measure of exercise intensity (bone squishing) helps calibrate the dosage. Even if an imperfect measure, the proxy of bone loading might confer some advantage in, e.g., not wasting energy on unnecessary proteins.<p>3. Exercise indirectly suggests a resource-poor environment, leading to lower chance of offspring succeeding and needing longer lives to produce enough viable offspring. The compounds in question aren&#x27;t free to produce, so there&#x27;s an advantage in only providing them to organisms who will meaningfully benefit. Mind you, resource-poor environments often promote shorter lifespans and faster growth cycles as an evolutionary trait, _but_ without a mechanism to force your offspring to mature more quickly the osteocyte-mediated lifespan could allow for resource-dependent lifetime offspring counts.<p>4. The mechanism could have evolved for unrelated reasons, perhaps directly contributing to the bone density calibration osteocytes already mediate. Any impact on lifespan is incidental or otherwise produces less evolutionary pressure for or against the feature than the direct purpose of the compounds.<p>5. More than having evolved for unrelated reasons, the fact that the compounds have any effect at all might not be evolutionarily selected for. We produce plenty of unimportant metabolic byproducts that we don&#x27;t particularly care about, and it could be that some more important osteocyte function incidentally produces these &quot;waste&quot; proteins.",
+    "time": 1793610402,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334765.json",
+   "json": {
+    "by": "233mhz",
+    "id": 50334765,
+    "parent": 50334458,
+    "text": "&gt; In which situations a normal mammal find its bones squished (but not crushed)?<p>Running, exercising, etc.",
+    "time": 1793612369,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335226.json",
+   "json": {
+    "by": "danparsonson",
+    "id": 50335226,
+    "parent": 50335174,
+    "text": "Hopefully the researchers have controlled for the saunas and cocktails that the mice were also receiving",
+    "time": 1793616622,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334984.json",
+   "json": {
+    "by": "rfgplk",
+    "id": 50334984,
+    "kids": [],
+    "parent": 50334696,
+    "text": "Cancer is known to be an entirely metabolic disease. Aging, likewise, is a metabolic failure (either implicitly or by natural design ie evolution, for whatever reason). Restoring metabolic function of cells always deages them. Restoring metabolic function of cancer cells always &quot;decancers&quot; them, for instance transplating mitochondria from a cancer cell to a healthy cell or viceversa. Curing aging necessarily cures cancer.",
+    "time": 1793614406,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334773.json",
+   "json": {
+    "by": "233mhz",
+    "id": 50334773,
+    "kids": [],
+    "parent": 50334696,
+    "text": "What do people even mean by &quot;curing cancer&quot;, &quot;curing aging&quot;, it&#x27;s not like a single thing in the first place",
+    "time": 1793612439,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334611.json",
+   "json": {
+    "by": "kitestramuort",
+    "id": 50334611,
+    "kids": [
+     50335152,
+     50335155,
+     50335038
+    ],
+    "parent": 50328896,
+    "text": "Buy any tv with CEC support (almost all of them) and <i>never</i> connect it to the internet. Never. Never start any app on the tv. Hook a Kodi box to the hdmi port and use that, and only that.<p>For the Kodi box get series-7 Intel NUC with Kabylake-era processors, gen 7. They don&#x27;t run Windows 11, so come very cheap second hand, but decode h264 and hevc in hardware and drive a 4K screen like charm. You can install a modern Wifi card in the NUC and a PCIe SSD.<p>Then buy one of these: <a href=\"https:&#x2F;&#x2F;www.pulse-eight.com&#x2F;p&#x2F;154&#x2F;intel-nuc-hdmi-cec-adapter\" rel=\"nofollow\">https:&#x2F;&#x2F;www.pulse-eight.com&#x2F;p&#x2F;154&#x2F;intel-nuc-hdmi-cec-adapter</a> and put it in your NUC, so you can use the TV remote to control Kodi.<p>That&#x27;s it.<p>Bonus, you can take your TV with you when travelling.",
+    "time": 1793610877,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332515.json",
+   "json": {
+    "by": "MegaDeKay",
+    "id": 50332515,
+    "kids": [
+     50335239,
+     50334448,
+     50334431
+    ],
+    "parent": 50328896,
+    "text": "- Buy an LG OLED TV. They&#x27;re as gorgeous as they are notorious. I just got a 77&quot; LG C6 and it is crazy good.<p>- Root it [0].<p>- Install Glasshouse [1] and disable all telemetry. <i>YOU</i> now own the glass. Now you can chromecast to the TV, use Adfree YouTube, access IP TV, etc etc etc. No point crippling your TV by pulling the wireless module and voiding your warranty.<p>- Install a bunch of cool apps to your TV [2] (there are many more out there besides those listed here)<p>- Restore to Factory Defaults if you ever want &#x2F; need to unroot and get back to stock e.g. a warranty claim<p>The <i>only</i> issue is that LG recently closed the vulnerability that made rooting possible so you <i>don&#x27;t</i> want any firmware released after 2026-10-10 like 43.21.84. Hopefully a new exploit is found that makes rooting possible once again.<p>BTW, you might have heard of Dev Mode on these TVs but they don&#x27;t allow anywhere near the functionality that rooting provides.<p>[0] <a href=\"https:&#x2F;&#x2F;tv.slada.sk&#x2F;guides&#x2F;rooting-guide\" rel=\"nofollow\">https:&#x2F;&#x2F;tv.slada.sk&#x2F;guides&#x2F;rooting-guide</a><p>[1] <a href=\"https:&#x2F;&#x2F;github.com&#x2F;rorygallagher2024&#x2F;glasshouse\" rel=\"nofollow\">https:&#x2F;&#x2F;github.com&#x2F;rorygallagher2024&#x2F;glasshouse</a><p>[2] <a href=\"https:&#x2F;&#x2F;www.webosbrew.org&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;www.webosbrew.org&#x2F;</a>",
+    "time": 1793587423,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335274.json",
+   "json": {
+    "by": "krb5",
+    "id": 50335274,
+    "parent": 50328896,
+    "text": "LineageOS TV is pretty good, just hook it into a non smart TV with HDMI CEC",
+    "time": 1793617058,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331408.json",
+   "json": {
+    "by": "ruslan",
+    "id": 50331408,
+    "kids": [
+     50331953,
+     50332282,
+     50331551
+    ],
+    "parent": 50328896,
+    "text": "Recently I&#x27;ve had to deal with this same problem - get a new TV for living room. Personally, I do not watch TV at all, but kids want to see cartoons when having their breakfast. I spent a week reading forums and came to conclusion that best solution would be to buy a &quot;dumb TV&quot; and connect it to a PC I trust, but it appears there are no dump TVs in my rage of 55&quot; and larger. So, I bought &quot;Google TV&quot; based TCL.<p>When I brought it home, I never connected it to Ethernet or WiFi. Instead, I connected it to my laptop over USB, then using adb I uninstalled almost every application from it. It took me quite some time to figure out what app is possible to remove and what should be kept to let TV functionality to work. I even had to factory-default it a couple of times because some random apps I removed were crucial for Android to work. :) I think it took me 5-6 hours to clean it. Now it has only basic TV functionality like any dump TV does, I can watch air and cable TV channels, watch movies and play music from USB storage. If there&#x27;s a need to watch something online, I connect it over HDMI to my small mini-PC that runs FreeBSD. I think I&#x27;m satisfied with the result. :-)<p>PS: Yesterday I opened the case and disconnected WiFi antenna. Just in case.",
+    "time": 1793578679,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335258.json",
+   "json": {
+    "by": "Hugsbox",
+    "id": 50335258,
+    "parent": 50328896,
+    "text": "Are there no &quot;dumb&quot; TVs left?  Surely you can still buy a television that has no option to connect to the internet&#x2F;doesn&#x27;t have built-in apps&#x2F;is just simply a display?  I haven&#x27;t shopped for a TV in a while, I figured they&#x27;re still out there though",
+    "time": 1793616927,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50330810.json",
+   "json": {
+    "by": "realityfactchex",
+    "id": 50330810,
+    "kids": [
+     50331305,
+     50330948,
+     50331520
+    ],
+    "parent": 50328896,
+    "text": "First of all, open the TV and disconnect the wireless radio from the main board, on mine (Samsung) it was just unplugging one cable (AI or Google it).  I dislike doing stuff like that, but it was easy in my case, maybe you&#x27;ll be lucky, too.<p>Second, never use the &quot;apps&quot; built into the TV.<p>Next, don&#x27;t plug Ethernet into the TV.  Plug HDMI cables into the TV.<p>Use a box of your choice on the other end of the HDMI cables.  This is now the box that you trust.  (Roku? Shield? Blu-ray? MacBook? PC? Linux? Playstation? XBox? Whatever you want.)<p>The Smart TV itself is now fine.  Choose the devices you plug into it to play content.  The TV just shows it.",
+    "time": 1793574137,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50329201.json",
+   "json": {
+    "by": "epwr",
+    "id": 50329201,
+    "kids": [
+     50329673,
+     50329418,
+     50332340
+    ],
+    "parent": 50328896,
+    "text": "I went and researched this, and found that basically none of the TV brands were anything but creepy on privacy.<p>What I’ve ended up doing was I got an LG and never hooked it up to Wifi&#x2F;internet, and then use an Apple TV to watch things on.<p>It’s a bit annoying if I want to switch to a game console as Apple TV can’t control the TV’s input channel, but otherwise works very well.<p>Make sure the TV supports HDMI CEC.",
+    "time": 1793563510,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334594.json",
+   "json": {
+    "by": "illwrks",
+    "id": 50334594,
+    "parent": 50328896,
+    "text": "Buy any TV, just don’t connect it to the internet at all, ever.<p>Plug in an Apple TV or any other streaming device if you want digital content.\nIf your want terrestrial content ensure the TV has the relevant input connections on the back.",
+    "time": 1793610734,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335152.json",
+   "json": {
+    "by": "Luker88",
+    "id": 50335152,
+    "parent": 50334611,
+    "text": "This is what I&#x27;m doing, but we also have to admit that kodi kinda sucks.<p>It&#x27;s really unstable, I can&#x27;t find a browser, can be janky, unstable and don&#x27;t forget unstable.<p>I can&#x27;t even identify if it is some plugin that is causing the instability or not. Which should not be an excuse, because poor architecture is still the project&#x27;s problem.<p>Is anyone working on alternatives? I would accept vibecoded stuff at this point.",
+    "time": 1793615900,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335155.json",
+   "json": {
+    "by": "ffsm8",
+    "id": 50335155,
+    "parent": 50334611,
+    "text": "Depending on your usage that may not be an option, as appliances eg a gaming console (xbox&#x2F;PlayStation) can require you to update their firmware through their DRM. So unless you keep updating the TV it only shows a black screen",
+    "time": 1793615920,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335038.json",
+   "json": {
+    "by": "xtajv",
+    "id": 50335038,
+    "parent": 50334611,
+    "text": "This is the way.<p>Treat the thing as a giant peripheral. Dumb monitor.",
+    "time": 1793614882,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335239.json",
+   "json": {
+    "by": "prism56",
+    "id": 50335239,
+    "parent": 50332515,
+    "text": "Of course this is a thing.  My LG CX is way out of warranty and on older FW.  Will give this a go later! Thank you.",
+    "time": 1793616793,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334448.json",
+   "json": {
+    "by": "happyPersonR",
+    "id": 50334448,
+    "parent": 50332515,
+    "text": "Agree … but the part that needs to be remembered<p>make sure it’s a model where the latest firmware is rootable and never connect it to your WiFi until you have root<p>Everything you need to do to get root can be done with an Ethernet connected directly to the TV and your laptop. There may be modifications needed to the root toolkits but with good prompting, agentic Llm can figure it out.<p>If you bought one without root… you may have a chance never connecting it.<p>If it’s one on your WiFi that doesn’t have a root exploit the only safe thing to do is change your WiFi password.<p>If you don’t own your TV assume it’s pwnd.",
+    "time": 1793609130,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334431.json",
+   "json": {
+    "by": "goobatrooba",
+    "id": 50334431,
+    "kids": [],
+    "parent": 50332515,
+    "text": "If I understand well the rooting process basically asks me to tell a website my ip and exploitable tv version... Is that not basically inviting them to make me part of a botnet?",
+    "time": 1793608963,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331953.json",
+   "json": {
+    "by": "joshspankit",
+    "id": 50331953,
+    "kids": [],
+    "parent": 50331408,
+    "text": "This is not even a viable option these days: secondary processors, the potential for a backchannel to some installed app on a device in the home (this has not made headlines, but it’s possible), tying an account to the device proactively.. The TV industry really ran to collect “their” data",
+    "time": 1793583022,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332282.json",
+   "json": {
+    "by": "tom_alexander",
+    "id": 50332282,
+    "kids": [],
+    "parent": 50331408,
+    "text": "&gt; PS: Yesterday I opened the case and disconnected WiFi antenna. Just in case.<p>While this couldn&#x27;t hurt, it also won&#x27;t stop the TV from being able to connect to wifi. I ran my desktop without an antenna attached for months. The speed noticeably improved when I attached an antenna but it was fine for browsing the web and downloading software updates without one.",
+    "time": 1793585647,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331551.json",
+   "json": {
+    "by": "rightnutwingjob",
+    "id": 50331551,
+    "kids": [],
+    "parent": 50331408,
+    "text": "The last TV I bought was a Kogan, and at first power up, or after a factory reset, it let you select where you wanted it to be a dumb screen with inputs only, or run the Google TV OS.<p>Did the TCL not have this option?",
+    "time": 1793579767,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331305.json",
+   "json": {
+    "by": "bscphil",
+    "id": 50331305,
+    "kids": [],
+    "parent": 50330810,
+    "text": "The thing I&#x27;d be worried about when doing this is spending $1000+ on a TV, then realizing it has some sort of pre-downloaded ads that it shows on the main screen (&quot;sign up for your free six months of HBO Max!&quot;) or otherwise has a nag prompt that appears to tell you to connect to WiFi. I think that would be basically intolerable.",
+    "time": 1793577868,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50330948.json",
+   "json": {
+    "by": "drnick1",
+    "id": 50330948,
+    "kids": [],
+    "parent": 50330810,
+    "text": "&gt; First of all, open the TV and disconnect the wireless radio from the main board<p>This. Never trust software switches. See my other reply for what I suggest instead of &quot;streaming boxes&quot; that aren&#x27;t any better than the TV firmware.",
+    "time": 1793575330,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50331520.json",
+   "json": {
+    "by": "kazinator",
+    "id": 50331520,
+    "kids": [],
+    "parent": 50330810,
+    "text": "&gt; disconnect the wireless radio from the main board<p>Can you explain why you can&#x27;t just <i>not</i> give the TV your Wi-Fi password?<p>Or are we worried about the case when the TV did have Wi-Fi (due to it being mandatory for some initial setup, say), but we don&#x27;t trust that &quot;Forget Network&quot; and &quot;Wi-Fi off&quot; are actually honored?<p>Suppose the device surreptitiously reconnects to Wi-Fi in spite of being told to forget it. You may be able to block it in your router and failing that, change the access point password.<p>No?",
+    "time": 1793579585,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50329673.json",
+   "json": {
+    "by": "PorciiVorbesc",
+    "id": 50329673,
+    "kids": [],
+    "parent": 50329201,
+    "text": "<i>&gt;I went and researched this, and found that basically none of the TV brands were anything but creepy on privacy.</i><p>Yeah they do. Go to your shopping center or airport and you&#x27;ll see LG and Samsung displays everywhere. And that&#x27;s the key word, &#x27;displays&#x27; not &#x27;TVs&#x27;.<p>Both sell large displays meant for 100% user ownership with no spyware or mandatory internet connection, you just have to buy those and not their TVs.<p>The catch? They come at steep prices compared to consumer TVs, unless you can land a deal on the used market. But that&#x27;s the cost of turning a profit on screens with no spyware and ads.",
+    "time": 1793565911,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50329418.json",
+   "json": {
+    "by": "smallpipe",
+    "id": 50329418,
+    "kids": [],
+    "parent": 50329201,
+    "text": "With Amazon Sidewalk I don&#x27;t think not hooking it up to the internet is an option anymore, unless you live out in the boonies",
+    "time": 1793564691,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332340.json",
+   "json": {
+    "by": "chrisweekly",
+    "id": 50332340,
+    "parent": 50329201,
+    "text": "For those of us that are pickier about UX, even a basic A&#x2F;V receiver solves this problem.",
+    "time": 1793586063,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335175.json",
+   "json": {
+    "by": "ReDress",
+    "id": 50335175,
+    "kids": [
+     50335255,
+     50335227
+    ],
+    "parent": 50334704,
+    "text": "If syscalls are so similar, for instance, like &#x27;read&#x27; and &#x27;readv&#x27; or &#x27;pread&#x27;, &#x27;sendmsg&#x27; and &#x27;sendmsgv&#x27; or &#x27;fork&#x27; and &#x27;vfork&#x27;.<p>Does it still make sense to term or classify them as two distinct syscalls?",
+    "time": 1793616114,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335255.json",
+   "json": {
+    "by": "PhilipRoman",
+    "id": 50335255,
+    "parent": 50335175,
+    "text": "I wouldn&#x27;t call any of them similar, except for &#x27;pread&#x27; maybe. Each one has a lot of subtle semantics. Either way, it&#x27;s syscall.tbl that determines whether they are distinct syscalls, not the author&#x27;s page",
+    "time": 1793616919,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335227.json",
+   "json": {
+    "by": "rustyhancock",
+    "id": 50335227,
+    "kids": [],
+    "parent": 50335175,
+    "text": "It definitely makes sense to have a section &quot;similar syscalls on this architecture&quot; on the details page.",
+    "time": 1793616644,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334762.json",
+   "json": {
+    "by": "rebeccapowell",
+    "id": 50334762,
+    "parent": 50333774,
+    "text": "Just down the road from Hamburg, the town hall in the city state of Bremen replaced its copper roof in 2016.<p>It was fascinating to see the shiny copper oxidize over a relatively short space of time.<p><a href=\"https:&#x2F;&#x2F;www.rathaus.bremen.de&#x2F;rathausdachsanierung-2016-31968\" rel=\"nofollow\">https:&#x2F;&#x2F;www.rathaus.bremen.de&#x2F;rathausdachsanierung-2016-3196...</a>",
+    "time": 1793612351,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334664.json",
+   "json": {
+    "by": "jacquesm",
+    "id": 50334664,
+    "kids": [
+     50334932
+    ],
+    "parent": 50333774,
+    "text": "It is interesting to me that a good chunk of Western Europe was already united once before and fell apart again. You only really realize how large the territory he ruled over was when you find out in how many languages they have a localized name for him and that in general the impression was not so much of a conqueror (which he definitely was) but a uniter. And it&#x27;s well over a thousand years ago.<p>edit: Oh, another funny thing: To this day there are people trying to trace their family linkage with Charlemagne, or &quot;Karel De Grote&quot; as he&#x27;s called here.",
+    "time": 1793611355,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50335242.json",
+   "json": {
+    "by": "gyanchawdhary",
+    "id": 50335242,
+    "parent": 50333774,
+    "text": "This post brought back some good memories! I lived in hh for 3 years .. quite close to the rathaus in harvestehude .. and used to walk past it all the time on my way to buy cigars at la casa del habano in chilehaus .. its a stunning building, and the pics really dont do justice to just how massive and imposing it is in person ... even more impressive when u think it was built in the late 1800 ..",
+    "time": 1793616820,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334932.json",
+   "json": {
+    "by": "gostsamo",
+    "id": 50334932,
+    "parent": 50334664,
+    "text": "Well, he was marketing himself as the uniter of the western roman empire which was still remembered around. also, many of those who considered him a conqueror didn&#x27;t live long enough to pass their attitude.",
+    "time": 1793613936,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333765.json",
+   "json": {
+    "by": "schobi",
+    "id": 50333765,
+    "kids": [
+     50333997
+    ],
+    "parent": 50315217,
+    "text": "The press release is rather light on details. They found that it is every 60seconds (duh!) and generators (or such). So what exactly is it? (Make and model?)<p>Seems like they did not find the exact manufacturer or the exact devices and were not able to change firmware then?",
+    "time": 1793601447,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333976.json",
+   "json": {
+    "by": "manarth",
+    "id": 50333976,
+    "parent": 50315217,
+    "text": "The paper has more details: <a href=\"https:&#x2F;&#x2F;www.nature.com&#x2F;articles&#x2F;s41560-026-02144-0\" rel=\"nofollow\">https:&#x2F;&#x2F;www.nature.com&#x2F;articles&#x2F;s41560-026-02144-0</a>",
+    "time": 1793603863,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332542.json",
+   "json": {
+    "by": "qrios",
+    "id": 50332542,
+    "kids": [
+     50333039
+    ],
+    "parent": 50315217,
+    "text": "<a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50314617\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50314617</a>",
+    "time": 1793587624,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332960.json",
+   "json": {
+    "by": "Blackarea",
+    "id": 50332960,
+    "kids": [
+     50334087,
+     50333698,
+     50333734
+    ],
+    "parent": 50315217,
+    "text": "&gt; It really was years of detective work<p>Doesn&#x27;t seem that complicated from the article though. They say that they immediately knew it was clock based due to the strict interval. With REA etc. it might become easier to proof, but I guess it&#x27;s a measurement problem that only appears in large networks?<p>Can someone with more understanding explain why this was apparently so difficult to find out?",
+    "time": 1793591758,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333617.json",
+   "json": {
+    "by": "peesem",
+    "id": 50333617,
+    "kids": [
+     50333658
+    ],
+    "parent": 50315217,
+    "text": "i&#x27;m confused, why would a system simply checking its own power state be taking so much electricity as to show up on grid measurements? unless they mean that the systems are choosing to start charging the batteries, but then it&#x27;s a continuous load and not a spike at the start of the minute, right?",
+    "time": 1793599661,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333297.json",
+   "json": {
+    "by": "SV_BubbleTime",
+    "id": 50333297,
+    "kids": [
+     50334268,
+     50334544,
+     50333525
+    ],
+    "parent": 50315217,
+    "text": "&gt;unusually regular<p>Oh I’m sure there is a German phrase for this.",
+    "time": 1793595384,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50322900.json",
+   "json": {
+    "by": "pseudohadamard",
+    "id": 50322900,
+    "kids": [
+     50332944,
+     50334000,
+     50333319
+    ],
+    "parent": 50315217,
+    "text": "The water-hammer effect, or in this case electron-hammer effect, is why you don&#x27;t reboot every Windows server in the data center at exactly 2am, to stagger the load shift over time. Surprised that the power guys didn&#x27;t realize that switching a presumably multi-hundred-MW load in and out at the top of each minute would cause a problem.",
+    "time": 1793510107,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333628.json",
+   "json": {
+    "by": "snthpy",
+    "id": 50333628,
+    "kids": [
+     50333767,
+     50333645
+    ],
+    "parent": 50315217,
+    "text": "You&#x27;d think they&#x27;d randomise offsets to avoid a thundering herd effect, like anyone scheduling multiple processes does?",
+    "time": 1793599795,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333997.json",
+   "json": {
+    "by": "manarth",
+    "id": 50333997,
+    "kids": [],
+    "parent": 50333765,
+    "text": "The paper has a little more details:<p><pre><code>  &quot;following our communication with the manufacturer, a software update was issued that removed the strict periodicity of the current peaks in one battery block of the investigated UPS system&quot;\n</code></pre>\n<a href=\"https:&#x2F;&#x2F;www.nature.com&#x2F;articles&#x2F;s41560-026-02144-0\" rel=\"nofollow\">https:&#x2F;&#x2F;www.nature.com&#x2F;articles&#x2F;s41560-026-02144-0</a><p>Given the issue is so widespread (international, affecting pretty much every grid), it&#x27;s likely that multiple manufacturers use similar approaches.",
+    "time": 1793604035,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333039.json",
+   "json": {
+    "by": "_Microft",
+    "id": 50333039,
+    "parent": 50332542,
+    "text": "It had both ended up in the second chance pool.",
+    "time": 1793592721,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334087.json",
+   "json": {
+    "by": "Animats",
+    "id": 50334087,
+    "parent": 50332960,
+    "text": "The effect is apparently small enough that they had to use Fourier analysis over many minutes to see it in the noise.",
+    "time": 1793604959,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333698.json",
+   "json": {
+    "by": "nomel",
+    "id": 50333698,
+    "parent": 50332960,
+    "text": "There are many millions of devices connected that draw power, and increasingly so, supply power.",
+    "time": 1793600540,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333734.json",
+   "json": {
+    "by": "iofiiiiiiiii",
+    "id": 50333734,
+    "parent": 50332960,
+    "text": "If it were not a substantial research effort spanning years, it would not get funded. This motivates academic researchers to ensure that every topic is explored thoroughly and at great length.",
+    "time": 1793601033,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333658.json",
+   "json": {
+    "by": "theo939eirn",
+    "id": 50333658,
+    "kids": [],
+    "parent": 50333617,
+    "text": "It can be that part of battery is disconnected, to estimate cells voltage. You can not measure voltage while another source is chsrging battery. Or capacitors are charging.",
+    "time": 1793600079,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334268.json",
+   "json": {
+    "by": "Jakob",
+    "id": 50334268,
+    "kids": [],
+    "parent": 50333297,
+    "text": "I would go with “allzuregelmäßig”.<p>Similar to “allzuschön um wahr zu sein”, “allzugroß” etc.",
+    "time": 1793607090,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334544.json",
+   "json": {
+    "by": "loehnsberg",
+    "id": 50334544,
+    "parent": 50333297,
+    "text": "Not a scholar of languages, but maybe something like &quot;mit unheimlicher Regelmäßigkeit&quot; (with un-home-ly regular-like-ness, read &quot;home&quot; like in &quot;family&quot; -&gt; &quot;familiar&quot;).",
+    "time": 1793610158,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333525.json",
+   "json": {
+    "by": "quink",
+    "id": 50333525,
+    "kids": [],
+    "parent": 50333297,
+    "text": "Thinking about it tactically, I’ll go with taktisch. :) Takt-isch.",
+    "time": 1793598528,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50332944.json",
+   "json": {
+    "by": "dylan604",
+    "id": 50332944,
+    "kids": [],
+    "parent": 50322900,
+    "text": "Sounds like they&#x27;ve been set up as cron tasks. I&#x27;ve always been unhappy with the 1 minute granularity of cron tasks. Only thing I could come up with was putting a sleep(random()) type of line to avoid a thundering herd type of issue.",
+    "time": 1793591663,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50334000.json",
+   "json": {
+    "by": "hobofan",
+    "id": 50334000,
+    "parent": 50322900,
+    "text": "It seems more like one or multiple suppliers of battery systems not taking into account that the decentralized deployments of their system could have that effect. If it&#x27;s not regulated and an open market, this was bound to happen sooner or later.",
+    "time": 1793604103,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333319.json",
+   "json": {
+    "by": "0xbadcafebee",
+    "id": 50333319,
+    "parent": 50322900,
+    "text": "In computer&#x2F;systems&#x2F;distributed engineering this is called request smoothing or traffic shaping, and it&#x27;s implemented by adding jitter, which is a random time offset&#x2F;pad added to the interval.<p>The funny thing is, modern electrical codes already account for this phenomenon. In order to implement Net Metering (selling your power to the grid), modern standards implement two kinds of jitter:<p>- <i>Sandia Frequency Shift</i>: a minute shift in the power frequency generated by inverters. If the grid is connected, this is effectively eliminated; if the inverter is disconnected from the grid, it detects the frequency has shifted and disconnects the inverter from the grid.<p>- <i>Slip-Mode Frequency Shift</i>: basically the same thing, but phase shift (which I don&#x27;t understand).<p>Both of these are used for anti-islanding (don&#x27;t create an island of power). When the inverter detects it&#x27;s isolated and stops outputting current, it then has to check every 5 minutes, <i>with jitter</i>, for whether the grid is restored or not. It has to add random jitter, because otherwise all the mini battery&#x2F;solar installs will come online at the same time and swamp the grid, causing another outage.",
+    "time": 1793595690,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333767.json",
+   "json": {
+    "by": "heisenbit",
+    "id": 50333767,
+    "parent": 50333628,
+    "text": "To anyone herding a herd this is obvious. To people crafting animals less so.",
+    "time": 1793601479,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/50333645.json",
+   "json": {
+    "by": "Black616Angel",
+    "id": 50333645,
+    "parent": 50333628,
+    "text": "Apparently not everyone does ;)",
+    "time": 1793599947,
+    "type": "comment"
+   }
+  },
+  {
+   "url": "https://hacker-news.firebaseio.com/v0/item/*.json",
+   "json": null
+  }
+ ]
+}

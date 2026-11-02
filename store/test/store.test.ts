@@ -36,8 +36,11 @@ function pocket(manifest: object, profile = PROFILE): Uint8Array {
   view.setUint32(20, target.length, true);
   out.set(json, 32);
   const at = 32 + manifestPad;
-  view.setUint32(at, 0, true);
+  // directory offsets are absolute
+  view.setUint32(at, stringsAt, true);
   view.setUint32(at + 4, target.length, true);
+  view.setUint32(at + 8, 12, true);
+  view.setUint32(at + 16, Math.ceil((stringsAt + target.length) / 16) * 16, true);
   for (let i = 0; i < 32; i++) out[at + 32 + i] = parseInt(profile.slice(i * 2, i * 2 + 2), 16);
   out.set(target, stringsAt);
   return out;
@@ -51,7 +54,7 @@ function icon(side = 128): Uint8Array {
   return out;
 }
 
-async function publish(key: Key, manifest: object, options: { author?: string; summary?: string; side?: number; forge?: boolean } = {}) {
+async function publish(key: Key, manifest: object, options: { author?: string; summary?: string; side?: number; forge?: boolean; mock?: unknown } = {}) {
   const bytes = pocket({ applet: { version: 1 }, ...manifest });
   const png = icon(options.side);
   const author = options.author ?? "maker";
@@ -65,6 +68,7 @@ async function publish(key: Key, manifest: object, options: { author?: string; s
   form.set("signature", options.forge ? newKey().sign(message) : key.sign(message));
   form.set("author", author);
   form.set("summary", summary);
+  if (options.mock !== undefined) form.set("mock", new File([JSON.stringify(options.mock)], "mock.json"));
   const response = await fetch(`${BASE}/v1/publish`, { method: "POST", body: form });
   return { status: response.status, body: (await response.json()) as { error?: string; state?: string }, hash: await sha256(bytes) };
 }
@@ -157,4 +161,33 @@ test("the website's routes answer listed versions only", async () => {
     expect(all.apps.some((a) => a.id === waiting.id && (a as { version?: string }).version === waiting.version)).toBe(false);
   }
   expect((await fetch(`${BASE}/v1/apps/no.such.app/versions`)).status).toBe(404);
+});
+
+test("a listed package's manifest and directory, and a version's sample data", async () => {
+  const sample = { mock: 1, store: { notes: { count: 2 } }, routes: [{ url: "https://example.com/*", text: "hi" }] };
+  expect((await publish(official, manifest("dev.pocket-nexus.sampled", "1.0.0", { engine: { capabilities: { requires: ["net.http"] } } }), { author: "pocket-nexus", mock: { routes: "no" } })).status).toBe(400);
+  const listed = await publish(official, manifest("dev.pocket-nexus.sampled", "1.0.0", { engine: { capabilities: { requires: ["net.http"] } } }), { author: "pocket-nexus", mock: sample });
+  expect(listed.status).toBe(201);
+  const described = (await (await fetch(`${BASE}/v1/manifests/${listed.hash}`)).json()) as { manifest: { engine: unknown }; variants: { target: string; hostAbi: number }[] };
+  expect(described.manifest.engine).toEqual({ capabilities: { requires: ["net.http"] } });
+  expect(described.variants[0]).toMatchObject({ target: "omarchy-pocket", hostAbi: 12 });
+  const entry = (await (await fetch(`${BASE}/v1/apps/dev.pocket-nexus.sampled`)).json()) as { mock: string | null; target: string };
+  expect(entry.target).toBe("omarchy-pocket");
+  expect(entry.mock).toMatch(/^[0-9a-f]{64}$/);
+  expect(await (await fetch(`${BASE}/v1/mocks/${entry.mock}`)).json()).toEqual(sample);
+
+  // an editor gives a version sample data, or takes it away
+  const attach = (mock: unknown, token = ADMIN) =>
+    fetch(`${BASE}/v1/admin/mock`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ id: "dev.pocket-nexus.sampled", version: "1.0.0", mock }) });
+  expect((await attach(sample, "wrong")).status).toBe(401);
+  expect((await attach({ mock: 2, routes: [] })).status).toBe(400);
+  const other = { mock: 1, routes: [] };
+  const attached = (await (await attach(other)).json()) as { mock: string };
+  expect(await (await fetch(`${BASE}/v1/mocks/${attached.mock}`)).json()).toEqual(other);
+  expect(((await (await attach(null)).json()) as { mock: null }).mock).toBeNull();
+  expect(((await (await fetch(`${BASE}/v1/apps/dev.pocket-nexus.sampled`)).json()) as { mock: null }).mock).toBeNull();
+
+  // nothing unlisted is described
+  const pending = await publish(newKey(), manifest("io.github.someone.thing"), { author: "someone" });
+  expect((await fetch(`${BASE}/v1/manifests/${pending.hash}`)).status).toBe(404);
 });
