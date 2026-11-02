@@ -724,7 +724,7 @@ writeFileSync(`${OUT}index.html`, `<!doctype html>
       <div class="only b"><h3>Only on the RG DS Plus</h3><ul><li>D-pad</li><li>Analog stick</li><li>Second screen</li><li>Two microSD slots</li><li>Stylus</li><li>Headphone jack</li></ul></div>
       <ul class="common" aria-label="On both">${icons}</ul>
     </div>
-    <p class="both-note">The iPhone Duo has the App Store. Omarchy Pocket has <a href="https://oma.pocket.nexus/">applets</a> built with <a href="https://pocketjs.dev/">PocketJS</a>.</p>
+    <p class="both-note">The iPhone Duo has the App Store. Omarchy Pocket has <a href="https://applets.pocket.nexus/">applets</a> built with <a href="https://pocketjs.dev/">PocketJS</a>.</p>
   </div>
 </section>
 
@@ -802,6 +802,7 @@ writeFileSync(`${OUT}index.html`, `<!doctype html>
   <h3>Sources</h3>
   <ol>${SOURCE_LIST}</ol>
   <p style="margin-top:18px">iPhone Duo is a trademark of Apple Inc. This page is not affiliated with or endorsed by Apple or Anbernic. The drawing of the iPhone Duo is ours, to scale from published dimensions.</p>
+  <p style="margin-top:12px">© 2026 <a href="https://pocket.nexus/">Pocket Nexus</a></p>
 </footer>
 <script>${SCRIPT}</script>
 </body>

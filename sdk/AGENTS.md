@@ -22,15 +22,15 @@ Write the list of pages at the top of `app.tsx` before the code, with what each 
 
 - Only `../kit`, `../lib/net.ts`, `../ui/window.tsx`, `../ui/keep.ts`, `solid-js` and `@pocketjs/framework/clock` are for app pages. `pocket-applet check` prints what to use instead of anything else.
 - **No colours, sizes or positions of your own.** No `View`, `Text` or `Image`. A game, a map or a canvas is the one exception: see the end of the kit's README.
-- **The network is `fetch` from `../lib/net.ts`, inside a query** (`app.queries.query`, `app.queries.paged`). QuickJS runs the code: there is no `TextDecoder`, no timers (`after()` from `@pocketjs/framework/clock`), no DOM. List every host in `applet.hosts` in `pocket.json`; once published, the device refuses any other.
+- **The network is `fetch` from `../lib/net.ts`, inside a query** (`app.queries.query`, `app.queries.paged`). A request goes to the app's worker, which `pocket.app.json` declares (`domains.worker`; keep the template's): its URL, headers and body together are at most 1020 bytes, and one response at most 256 KiB. QuickJS runs the code: there is no `TextDecoder`, no timers (`after()` from `@pocketjs/framework/clock`), no DOM. List every host in `applet.hosts` in `pocket.app.json`; once published, the device refuses any other.
 - Settings outlive the window in the `store` service: `fetch(companionService("store", "/get?name=x"))`, `/set?name=x` with a JSON body. Pictures are `avatar:` on a cell. `manifest.applet.services` lists what you use; a published app may use `store`, `glyphs`, `maps` and `images`.
-- `pocket.json`: set `applet.summary` to one line saying what the app does. `icon.svg`: 128 px, a concise picture of what the app is, never letters.
+- `pocket.app.json`: set `applet.summary` to one line saying what the app does. `icon.svg`: 128 px, a concise picture of what the app is, never letters.
 - **Never send anything to a real service while testing:** no comments, posts, merges or other writes unless the owner asks for that one. Read-only requests are fine. Keep a sign-in token out of the code; ask for it with `app.compose({ secret: true })` and keep it in the store service.
 - Only `pocket-applet publish <name>` sends the app out, and only the owner decides that. Do not run it unless asked.
 
 ## Sample data
 
-The store's page runs an app in a browser on **sample data** in `mock/mock.json`: what the store service holds (`store`), the answers to its requests (`routes`, each a URL with `*` wildcards and a `file`, `json` or `text` body), and pictures for `avatar:` cells (`images`). `sdk/mock.ts` has the format; `../examples/weather/mock` and `../examples/hn/mock` are complete.
+The store's page runs an app in a browser on **sample data** in `mock/mock.json`: what the store service holds (`store`), the answers to its requests (`routes`, each a URL with `*` wildcards and a `file`, `json` or `text` body), and pictures for `avatar:` cells (`images`). `../examples/tools/mock.ts` has the format; `../examples/weather/mock` and `../examples/hn/mock` are complete.
 
 - Use public data or data you made up. **Never put the owner's own data, a token or anything from a signed-in account in it**: it is published with the app.
 - `pocket-applet web <name>` serves the app on its sample data to a browser on the network, and lists each request with what answered it. A request marked "no sample data" needs a route.

@@ -20,7 +20,7 @@ mkdirSync(join(OUT, "walls"), { recursive: true });
 mkdirSync(CACHE, { recursive: true });
 
 if (!process.argv.includes("--skip-shell")) {
-  await $`${BUN} ${join(POCKETJS, "tools", "pocket.ts")} compile --manifest shell/pocket.json --project-root . --runtime-config host/pocket.runtime-config.ts --outdir ${CACHE}`.cwd(ROOT).quiet();
+  await $`${BUN} ${join(POCKETJS, "tools", "pocket.ts")} compile --manifest shell/pocket.app.json --project-root . --host-config host/pocket.host.config.ts --outdir ${CACHE}`.cwd(ROOT).quiet();
   await $`${BUN} ${join(POCKETJS, "tools", "wasm.ts")}`.cwd(POCKETJS).quiet();
 }
 writeFileSync(join(OUT, "shell.js"), readFileSync(join(CACHE, "omarchy-pocket-main.js")));

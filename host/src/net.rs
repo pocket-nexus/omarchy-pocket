@@ -1,129 +1,139 @@
-//! HTTP for the apps in the shell's windows. Each app's realm gets
-//! `globalThis.net`, the NET ops a PocketJS UI realm had before pocketjs moved
-//! HTTP into worker domains (`start`, `take`, `cancel`, `poll`, `lastError`;
-//! applets/lib/net.ts is the fetch() over them). The host carries a request
-//! to omarchy-pocketd as a bridge line, and the daemon performs it: the
-//! companion's services (`https://companion.pocket/<name>/...`, the X, Discord,
-//! YouTube and glyphs providers) on this device, any other URL fetched.
+//! HTTP for the apps in the shell's windows. An app's network is its worker
+//! domain (pocket-linux-worker): the worker's `http` node hands each request to
+//! [`DaemonExchange`], whose calls wait in an outbox until the shell's thread
+//! carries them to omarchy-pocketd as bridge lines, and the daemon performs
+//! them: the companion's services (`https://companion.pocket/<name>/...`, the
+//! X, Discord, YouTube and glyphs providers) on this device, any other URL
+//! fetched, within what the app's package may reach.
 //!
 //!   host -> daemon  {"method":"appNet","h":7,"package":"/usr/share/.../x.pocket","meta":"{...}","body":"<base64>"}
 //!                   {"method":"appNetCancel","h":7}
 //!   daemon -> host  @net 7 <base64 body | -> {"t":"done","h":7,"status":200,...,"bytes":N}
 //!
-//! QuickJS has no TextDecoder or TextEncoder: `net.decode(buffer)` and
-//! `net.encode(text)` are UTF-8 in Rust, for response.text() and string bodies.
-//!
-//! A reply line starts with `@net ` and never reaches the shell's realm. The
-//! event is the JSON `poll()` hands the app, the body what `take()` copies.
-//! Handles are unique across apps, so a reply finds its app by handle alone.
+//! A reply line starts with `@net ` and never reaches the shell's realm; it
+//! answers the call, and the node turns the answer into the worker's facts.
+//! Handles are unique across apps, so a reply finds its call by handle alone.
 use crate::bridge::Bridge;
-use rquickjs::{ArrayBuffer, Ctx, Function, Object};
+use pocket_linux_worker::{Call, Exchange, Failure, Response};
 use std::{
     cell::RefCell,
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     rc::Rc,
+    sync::{Arc, Mutex},
 };
 
-/// Requests one app may have open at once; past it `start` refuses with `busy`.
+/// Requests one app may have at the daemon at once; the rest wait in the outbox.
 const OPEN_LIMIT: usize = 8;
-/// The largest request body (contracts/spec/net.ts NET_MAX_REQUEST_BYTES).
-const REQUEST_MAX: usize = 64 * 1024;
 
-#[derive(Default)]
-struct AppNet {
-    package: String,
-    /// handles started and not yet settled
-    open: Vec<u32>,
-    /// event objects for the next poll
-    events: Vec<String>,
-    /// bodies of settled requests until take()
-    bodies: HashMap<u32, Vec<u8>>,
-    last_error: String,
+/// Calls from the apps' workers, for the shell's thread.
+type Outbox = Arc<Mutex<Vec<(u32, Call)>>>;
+
+/// An app's exchange: its calls go to the outbox, tagged with the app.
+pub struct DaemonExchange {
+    app: u32,
+    outbox: Outbox,
+}
+
+impl Exchange for DaemonExchange {
+    fn start(&self, call: Call) {
+        self.outbox.lock().unwrap().push((self.app, call));
+    }
+}
+
+struct Open {
+    app: u32,
+    call: Call,
 }
 
 pub struct Hub {
     bridge: Rc<RefCell<Bridge>>,
     next: u32,
-    apps: HashMap<u32, AppNet>,
+    /// app id -> its package's path, which the daemon reads its rights from
+    apps: HashMap<u32, String>,
+    outbox: Outbox,
+    /// calls at the daemon, by handle
+    open: HashMap<u32, Open>,
 }
 
 pub type Shared = Rc<RefCell<Hub>>;
 
 impl Hub {
     pub fn new(bridge: Rc<RefCell<Bridge>>) -> Shared {
-        Rc::new(RefCell::new(Self { bridge, next: 0, apps: HashMap::new() }))
+        Rc::new(RefCell::new(Self { bridge, next: 0, apps: HashMap::new(), outbox: Arc::default(), open: HashMap::new() }))
     }
 
-    pub fn add_app(&mut self, app: u32, package: String) {
-        self.apps.insert(app, AppNet { package, ..Default::default() });
+    /// The exchange for app `app`'s worker.
+    pub fn add_app(&mut self, app: u32, package: String) -> DaemonExchange {
+        self.apps.insert(app, package);
+        DaemonExchange { app, outbox: self.outbox.clone() }
     }
 
-    /// The app ended: its open requests are cancelled at the daemon.
+    /// The app ended: its calls are dropped and cancelled at the daemon.
     pub fn remove_app(&mut self, app: u32) {
-        if let Some(net) = self.apps.remove(&app) {
-            for handle in net.open {
-                self.bridge.borrow_mut().send(&format!("{{\"method\":\"appNetCancel\",\"h\":{handle}}}"));
+        self.apps.remove(&app);
+        self.outbox.lock().unwrap().retain(|(owner, _)| *owner != app);
+        let handles: Vec<u32> = self.open.iter().filter(|(_, open)| open.app == app).map(|(h, _)| *h).collect();
+        for handle in handles {
+            self.open.remove(&handle);
+            self.cancel(handle);
+        }
+    }
+
+    fn cancel(&self, handle: u32) {
+        self.bridge.borrow_mut().send(&format!("{{\"method\":\"appNetCancel\",\"h\":{handle}}}"));
+    }
+
+    /// On the shell's thread, once a tick: calls the workers cancelled are
+    /// cancelled at the daemon, and waiting calls go to it while their app has
+    /// fewer than OPEN_LIMIT there.
+    pub fn pump(&mut self) {
+        let abandoned: Vec<u32> = self.open.iter().filter(|(_, open)| open.call.abandoned()).map(|(h, _)| *h).collect();
+        for handle in abandoned {
+            self.open.remove(&handle);
+            self.cancel(handle);
+        }
+        let waiting = std::mem::take(&mut *self.outbox.lock().unwrap());
+        let mut held = Vec::new();
+        for (app, call) in waiting {
+            if call.abandoned() {
+                continue;
             }
-        }
-    }
-
-    fn start(&mut self, app: u32, meta: &str, body: &[u8]) -> i64 {
-        let Some(net) = self.apps.get_mut(&app) else { return -1 };
-        if net.open.len() >= OPEN_LIMIT {
-            net.last_error = format!("busy: {OPEN_LIMIT} requests are open");
-            return -1;
-        }
-        if body.len() > REQUEST_MAX {
-            net.last_error = "invalid_request: request body exceeds 64 KiB".into();
-            return -1;
-        }
-        self.next += 1;
-        let handle = self.next;
-        net.open.push(handle);
-        let line = format!(
-            "{{\"method\":\"appNet\",\"h\":{handle},\"package\":{},\"meta\":{},\"body\":\"{}\"}}",
-            json_string(&net.package),
-            json_string(meta),
-            base64_encode(body)
-        );
-        self.bridge.borrow_mut().send(&line);
-        handle as i64
-    }
-
-    fn take(&mut self, app: u32, handle: u32, into: &mut [u8]) -> i64 {
-        let Some(net) = self.apps.get_mut(&app) else { return -1 };
-        match net.bodies.remove(&handle) {
-            Some(body) if body.len() == into.len() => {
-                into.copy_from_slice(&body);
-                body.len() as i64
+            let Some(package) = self.apps.get(&app) else { continue };
+            if self.open.values().filter(|open| open.app == app).count() >= OPEN_LIMIT {
+                held.push((app, call));
+                continue;
             }
-            _ => -1,
+            self.next += 1;
+            let handle = self.next;
+            let request = call.request();
+            let mut meta = format!("{{\"url\":{},\"method\":{},\"headers\":{{", json_string(&request.url), json_string(&request.method));
+            for (at, (name, value)) in request.headers.iter().enumerate() {
+                if at > 0 {
+                    meta.push(',');
+                }
+                meta.push_str(&format!("{}:{}", json_string(name), json_string(value)));
+            }
+            meta.push_str(&format!("}},\"timeoutMs\":{},\"maxBytes\":{}}}", request.timeout.as_millis(), request.max_bytes));
+            let line = format!(
+                "{{\"method\":\"appNet\",\"h\":{handle},\"package\":{},\"meta\":{},\"body\":\"{}\"}}",
+                json_string(package),
+                json_string(&meta),
+                base64_encode(&request.body)
+            );
+            self.bridge.borrow_mut().send(&line);
+            self.open.insert(handle, Open { app, call });
+        }
+        if !held.is_empty() {
+            let mut outbox = self.outbox.lock().unwrap();
+            held.append(&mut outbox);
+            *outbox = held;
         }
     }
 
-    fn cancel(&mut self, app: u32, handle: u32) {
-        let Some(net) = self.apps.get_mut(&app) else { return };
-        net.bodies.remove(&handle);
-        if let Some(at) = net.open.iter().position(|h| *h == handle) {
-            net.open.remove(at);
-            self.bridge.borrow_mut().send(&format!("{{\"method\":\"appNetCancel\",\"h\":{handle}}}"));
-        }
-    }
-
-    fn poll(&mut self, app: u32) -> Option<String> {
-        let net = self.apps.get_mut(&app)?;
-        if net.events.is_empty() {
-            return None;
-        }
-        Some(format!("[{}]", std::mem::take(&mut net.events).join(",")))
-    }
-
-    /// The daemon went away: every open request fails with `connect`.
+    /// The daemon went away: every call at it fails.
     pub fn fail_open(&mut self) {
-        for net in self.apps.values_mut() {
-            for handle in std::mem::take(&mut net.open) {
-                net.events.push(format!("{{\"t\":\"error\",\"h\":{handle},\"code\":\"connect\",\"message\":\"omarchy-pocketd restarted\"}}"));
-            }
+        for (_, open) in self.open.drain() {
+            open.call.answer(Err(Failure { reached: true, message: "omarchy-pocketd restarted".into() }));
         }
     }
 
@@ -133,65 +143,42 @@ impl Hub {
         let mut parts = rest.splitn(3, ' ');
         let (Some(handle), Some(body), Some(event)) = (parts.next(), parts.next(), parts.next()) else { return true };
         let Ok(handle) = handle.parse::<u32>() else { return true };
-        // a cancelled request's reply finds no open handle and is dropped
-        let Some(net) = self.apps.values_mut().find(|n| n.open.contains(&handle)) else { return true };
-        net.open.retain(|h| *h != handle);
-        if body != "-" {
-            match base64_decode(body) {
-                Some(bytes) => {
-                    net.bodies.insert(handle, bytes);
-                }
-                None => {
-                    net.events.push(format!("{{\"t\":\"error\",\"h\":{handle},\"code\":\"protocol\",\"message\":\"the daemon's body is not base64\"}}"));
-                    return true;
-                }
-            }
-        }
-        net.events.push(event.to_string());
+        // a cancelled request's reply finds no call and is dropped
+        let Some(open) = self.open.remove(&handle) else { return true };
+        open.call.answer(answer(body, event));
         true
     }
 }
 
-/// Installs `globalThis.net` in an app's realm.
-pub fn install<'js>(ctx: &Ctx<'js>, hub: &Shared, app: u32) -> rquickjs::Result<()> {
-    let object = Object::new(ctx.clone())?;
-    let h = hub.clone();
-    object.set(
-        "start",
-        Function::new(ctx.clone(), move |meta: String, body: ArrayBuffer<'js>| -> i64 {
-            let bytes = body.as_bytes().unwrap_or(&[]);
-            h.borrow_mut().start(app, &meta, bytes)
-        })?,
-    )?;
-    let h = hub.clone();
-    object.set(
-        "take",
-        Function::new(ctx.clone(), move |handle: u32, into: ArrayBuffer<'js>| -> i64 {
-            let Some(raw) = into.as_raw() else { return -1 };
-            // SAFETY: the buffer is alive for this call and nothing else holds its bytes
-            let bytes = unsafe { std::slice::from_raw_parts_mut(raw.ptr.as_ptr(), raw.len) };
-            h.borrow_mut().take(app, handle, bytes)
-        })?,
-    )?;
-    let h = hub.clone();
-    object.set("cancel", Function::new(ctx.clone(), move |handle: u32| h.borrow_mut().cancel(app, handle))?)?;
-    let h = hub.clone();
-    object.set("poll", Function::new(ctx.clone(), move || h.borrow_mut().poll(app))?)?;
-    let h = hub.clone();
-    object.set(
-        "lastError",
-        Function::new(ctx.clone(), move || h.borrow().apps.get(&app).map(|n| n.last_error.clone()).unwrap_or_default())?,
-    )?;
-    object.set(
-        "decode",
-        Function::new(ctx.clone(), |buffer: ArrayBuffer<'js>| String::from_utf8_lossy(buffer.as_bytes().unwrap_or(&[])).into_owned())?,
-    )?;
-    let encoder = ctx.clone();
-    object.set(
-        "encode",
-        Function::new(ctx.clone(), move |text: String| ArrayBuffer::new_copy(encoder.clone(), text.as_bytes()))?,
-    )?;
-    ctx.globals().set("net", object)
+/// A reply's body and event as the worker's answer.
+fn answer(body: &str, event: &str) -> Result<Response, Failure> {
+    let failed = |message: String| Err(Failure { reached: true, message });
+    let Ok(event) = serde_json::from_str::<serde_json::Value>(event) else { return failed("the daemon's event is not JSON".into()) };
+    if event["t"] != "done" {
+        let code = event["code"].as_str().unwrap_or("other");
+        let message = event["message"].as_str().unwrap_or("the request failed");
+        // a request refused before it left the device never reached a server
+        let reached = !matches!(code, "connect" | "invalid_request" | "busy" | "dns");
+        return Err(Failure { reached, message: format!("{code}: {message}") });
+    }
+    let body = if body == "-" {
+        Vec::new()
+    } else {
+        match base64_decode(body) {
+            Some(bytes) => bytes,
+            None => return failed("the daemon's body is not base64".into()),
+        }
+    };
+    let mut headers = BTreeMap::new();
+    if let Some(fields) = event["headers"].as_object() {
+        for (name, value) in fields {
+            if let Some(value) = value.as_str() {
+                headers.insert(name.to_ascii_lowercase(), value.to_string());
+            }
+        }
+    }
+    let status = event["status"].as_u64().filter(|s| (100..=599).contains(s)).unwrap_or(502) as u16;
+    Ok(Response { status, headers, body })
 }
 
 /// A JSON string literal.
@@ -268,21 +255,15 @@ mod tests {
     }
 
     #[test]
-    fn a_reply_settles_its_request_and_a_cancelled_one_is_dropped() {
-        let hub = Hub::new(Rc::new(RefCell::new(Bridge::new(None))));
-        let mut hub = hub.borrow_mut();
-        hub.add_app(1, "/x.pocket".into());
-        let a = hub.start(1, "{}", b"") as u32;
-        let b = hub.start(1, "{}", b"") as u32;
-        hub.cancel(1, b);
-        assert!(hub.reply(&format!("@net {a} aGk= {{\"t\":\"done\",\"h\":{a},\"bytes\":2}}")));
-        assert!(hub.reply(&format!("@net {b} - {{\"t\":\"error\",\"h\":{b}}}")));
-        assert!(!hub.reply("{\"event\":\"state\"}"));
-        assert_eq!(hub.poll(1).unwrap(), format!("[{{\"t\":\"done\",\"h\":{a},\"bytes\":2}}]"));
-        assert!(hub.poll(1).is_none());
-        let mut into = [0u8; 2];
-        assert_eq!(hub.take(1, a, &mut into), 2);
-        assert_eq!(&into, b"hi");
-        assert_eq!(hub.take(1, a, &mut into), -1);
+    fn a_reply_becomes_a_response_or_a_failure() {
+        let done = answer("aGk=", r#"{"t":"done","h":1,"status":200,"headers":{"Content-Type":"text/plain"},"bytes":2}"#).unwrap();
+        assert_eq!((done.status, done.body.as_slice()), (200, &b"hi"[..]));
+        assert_eq!(done.headers.get("content-type").map(String::as_str), Some("text/plain"));
+        let empty = answer("-", r#"{"t":"done","h":1,"status":204,"bytes":0}"#).unwrap();
+        assert!(empty.body.is_empty());
+        let refused = answer("-", r#"{"t":"error","h":1,"code":"connect","message":"no route"}"#).unwrap_err();
+        assert!(!refused.reached);
+        let timeout = answer("-", r#"{"t":"error","h":1,"code":"timeout","message":"late"}"#).unwrap_err();
+        assert!(timeout.reached);
     }
 }

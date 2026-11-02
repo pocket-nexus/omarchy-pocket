@@ -1,46 +1,31 @@
 {
   "$schema": "https://pocketjs.dev/schema/pocket-2.json",
   "pocket": 2,
-  "id": "dev.pocket-nexus.hn",
-  "name": "pocket-hn",
-  "title": "Hacker News",
+  "id": "dev.pocket-nexus.omarchy-pocket",
+  "title": "Omarchy Pocket",
   "version": "0.1.0",
-  "applet": {
-    "version": 1
-  },
   "engine": {
     "capabilities": {
       "requires": [
         "text.glyphs.baked",
         "input.buttons",
         "display.auxiliary",
-        "input.touch.auxiliary",
-        "net.http"
-      ],
-      "enhances": [
-        "input.analog.left",
-        "system.agent"
+        "input.touch.auxiliary"
       ]
     }
   },
   "app": {
-    "entry": "applets/hn/main.tsx",
-    "output": "hn-main",
+    "entry": "shell/src/main.tsx",
+    "output": "omarchy-pocket-main",
     "framework": "solid",
-    "modality": {
-      "touch": "auxiliary"
-    },
     "surfaces": {
       "auxiliary": {
-        "adaptive": {
-          "min": [
-            320,
-            240
+        "fixed": {
+          "logical": [
+            512,
+            384
           ],
-          "max": [
-            640,
-            720
-          ]
+          "presentation": "native"
         }
       }
     },

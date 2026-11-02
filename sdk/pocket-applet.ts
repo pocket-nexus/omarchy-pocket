@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 // pocket-applet: make applets on Omarchy Pocket itself. The SDK at
-// /usr/share/omarchy-pocket/sdk holds the PocketJS compiler, the UI kit and
-// examples; ~/Applets is laid out as the repository's applets/ are, so an
-// applet's `../ui` is the kit.
+// /usr/share/omarchy-pocket/sdk holds the PocketJS compiler and, in
+// vendor/applets, pocket-nexus/applets' kit, rules, template and examples;
+// ~/Applets is laid out as that repository is, so an applet's `../ui` is the kit.
 //
 //   pocket-applet make              ask what to make, then start the coding agent on it
 //   pocket-applet new <name> [--title T]
@@ -19,22 +19,25 @@
 //   pocket-applet web <name> [--port 4310]   it in a browser on its sample data, as the store's page runs it
 //   pocket-applet publish <name> [--author handle]   sign it and send it to the store, with its sample data
 import { generateKeyPairSync, createPrivateKey, createPublicKey, sign } from "node:crypto";
-import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { bakeSvg } from "../vendor/pocketjs/framework/compiler/bake-svg.ts";
 import { encodePNG } from "../vendor/pocketjs/tools/png.ts";
-import { checkApplet, printFindings } from "./check.ts";
-import { packMock } from "./mock.ts";
-import { servePlayer } from "../store/play/serve.ts";
-import { base64url, HANDLE, ICON_SIDE, packageFacts, sha256, signedMessage, SUMMARY_MAX } from "../store/src/shared.ts";
+import { checkApplet, printFindings } from "../vendor/applets/tools/check.ts";
+import { packMock } from "../vendor/applets/tools/mock.ts";
+import { servePlayer } from "../vendor/applets/store/play/serve.ts";
+import { base64url, HANDLE, ICON_SIDE, packageFacts, sha256, signedMessage, SUMMARY_MAX } from "../vendor/applets/store/src/shared.ts";
 
 const SDK = resolve(import.meta.dir, "..");
 const HOME = homedir();
 const WORK = join(HOME, "Applets");
 const INSTALLED = join(HOME, ".local", "share", "omarchy-pocket", "applets");
 const CONFIG = join(HOME, ".config", "omarchy-pocket");
-const STORE = process.env.OMARCHY_POCKET_STORE ?? "https://oma.pocket.nexus";
+const STORE = process.env.POCKET_APPLETS_STORE ?? "https://applets.pocket.nexus";
+/** pocket-nexus/applets, as the SDK carries it */
+const APPLETS = join(SDK, "vendor", "applets");
+const TEMPLATE = join(APPLETS, "template");
 const [W, H] = [1024, 768];
 
 const fail = (message: string): never => {
@@ -52,9 +55,12 @@ const NAME = /^[a-z][a-z0-9-]{0,30}$/;
 const titleOf = (name: string) => name.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 const dirOf = (name: string) => join(WORK, name);
 
+/** `path` as a link to `target`; a link of an older SDK's layout is pointed again. */
 function link(target: string, path: string) {
   try {
-    if (lstatSync(path)) return;
+    const found = lstatSync(path);
+    if (!found.isSymbolicLink() || readlinkSync(path) === target) return;
+    rmSync(path);
   } catch {}
   symlinkSync(target, path);
 }
@@ -62,10 +68,16 @@ function link(target: string, path: string) {
 /** ~/Applets as the repository's applets are laid out, against the SDK. */
 function workspace() {
   mkdirSync(WORK, { recursive: true });
-  link(join(SDK, "applets", "ui"), join(WORK, "ui"));
-  link(join(SDK, "applets", "lib"), join(WORK, "lib"));
-  link(join(SDK, "applets", "kit"), join(WORK, "kit"));
-  link(join(SDK, "applets"), join(WORK, "examples"));
+  link(join(APPLETS, "ui"), join(WORK, "ui"));
+  // lib/ holds the worker entry each applet declares; PocketJS's type check
+  // writes its config beside an entry, so lib is this user's directory of
+  // links to the SDK's files rather than a link to the read-only SDK
+  const lib = join(WORK, "lib");
+  if (lstatSync(lib, { throwIfNoEntry: false })?.isSymbolicLink()) rmSync(lib);
+  mkdirSync(lib, { recursive: true });
+  for (const file of readdirSync(join(APPLETS, "lib"))) link(join(APPLETS, "lib", file), join(lib, file));
+  link(join(APPLETS, "kit"), join(WORK, "kit"));
+  link(APPLETS, join(WORK, "examples"));
   link(join(SDK, "vendor"), join(WORK, "vendor"));
   link(join(SDK, "host"), join(WORK, "host"));
   link(join(SDK, "node_modules"), join(WORK, "node_modules"));
@@ -87,19 +99,14 @@ function create(name: string, title: string, summary: string) {
   if (existsSync(dir)) fail(`${dir} exists`);
   mkdirSync(dir);
   const fill = (text: string) => text.replaceAll("__TITLE__", title).replaceAll("__NAME__", name);
-  for (const file of ["main.tsx", "app.tsx", "icon.svg"]) writeFileSync(join(dir, file), fill(readFileSync(join(SDK, "sdk", "template", file), "utf8")));
+  for (const file of ["main.tsx", "app.tsx", "icon.svg"]) writeFileSync(join(dir, file), fill(readFileSync(join(TEMPLATE, file), "utf8")));
   symlinkSync("../ui/art", join(dir, "art"));
+  symlinkSync("../ui/images.json", join(dir, "images.json"));
   symlinkSync("../AGENTS.md", join(dir, "AGENTS.md"));
   symlinkSync("../AGENTS.md", join(dir, "CLAUDE.md"));
-  const manifest = JSON.parse(readFileSync(join(SDK, "applets", "github", "pocket.json"), "utf8"));
-  manifest.id = `oma.${publisher()?.handle ?? "me"}.${name}`;
-  manifest.name = `pocket-${name}`;
-  manifest.title = title;
-  manifest.version = "0.1.0";
-  manifest.applet = { version: 1, summary, services: ["store", "images", "glyphs"], hosts: [] };
-  manifest.app.entry = `${name}/main.tsx`;
-  manifest.app.output = `${name}-main`;
-  writeFileSync(join(dir, "pocket.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  const id = `oma.${publisher()?.handle ?? "me"}.${name}`;
+  const manifest = JSON.parse(fill(readFileSync(join(TEMPLATE, "pocket.app.template.json"), "utf8")).replaceAll("__ID__", id).replaceAll("__SUMMARY__", summary.replaceAll('"', "'")));
+  writeFileSync(join(dir, "pocket.app.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   writeFileSync(join(dir, ".gitignore"), ".build/\nshot.png\n");
   Bun.spawnSync(["git", "init", "-q"], { cwd: dir });
   console.log(dir);
@@ -108,20 +115,20 @@ function create(name: string, title: string, summary: string) {
 /** The rules, printed. An error stops a build; with `strict` so does a warning. */
 function check(name: string, strict = false) {
   const dir = dirOf(name);
-  if (!existsSync(join(dir, "pocket.json"))) fail(`no applet at ${dir}`);
-  const findings = checkApplet(dir, join(SDK, "sdk", "template"));
+  if (!existsSync(join(dir, "pocket.app.json"))) fail(`no applet at ${dir}`);
+  const findings = checkApplet(dir, TEMPLATE);
   printFindings(findings);
   if (findings.some((finding) => finding.level === "error" || strict)) fail(`${name} does not meet the rules: see ../kit/README.md`);
 }
 
 async function compile(name: string): Promise<string> {
   const dir = dirOf(name);
-  if (!existsSync(join(dir, "pocket.json"))) fail(`no applet at ${dir}`);
+  if (!existsSync(join(dir, "pocket.app.json"))) fail(`no applet at ${dir}`);
   workspace();
   check(name);
   const out = join(name, ".build");
   const child = Bun.spawn(
-    ["bun", join("vendor", "pocketjs", "tools", "pocket.ts"), "compile", "--manifest", join(name, "pocket.json"), "--project-root", ".", "--runtime-config", join("host", "pocket.runtime-config.ts"),
+    ["bun", join("vendor", "pocketjs", "tools", "pocket.ts"), "compile", "--manifest", join(name, "pocket.app.json"), "--project-root", ".", "--host-config", join("host", "pocket.host.config.ts"),
       "--plan-dir", join(out, "plan"), "--outdir", join(out, "out"), "--output", join(out, `${name}.pocket`)],
     { cwd: WORK, stdout: "pipe", stderr: "pipe", env: { ...process.env, POCKETJS_FRAMEWORK_ROOT: join(WORK, "vendor", "pocketjs") } },
   );
@@ -139,7 +146,7 @@ async function run(name: string) {
   mkdirSync(INSTALLED, { recursive: true });
   const installed = join(INSTALLED, `${name}.pocket`);
   copyFileSync(built, installed);
-  const title = JSON.parse(readFileSync(join(dirOf(name), "pocket.json"), "utf8")).title as string;
+  const title = JSON.parse(readFileSync(join(dirOf(name), "pocket.app.json"), "utf8")).title as string;
   const opened = Bun.spawnSync(["omarchy-shell", "pocket.window", "app", installed, title, "applet"], { stdout: "pipe", stderr: "pipe" });
   if (opened.exitCode !== 0) {
     // the shell answers late while it loads a package: the window says whether it opened
@@ -221,7 +228,7 @@ function iconPng(dir: string): Uint8Array {
 
 async function publish(name: string) {
   const dir = dirOf(name);
-  const manifestPath = join(dir, "pocket.json");
+  const manifestPath = join(dir, "pocket.app.json");
   if (!existsSync(manifestPath)) fail(`no applet at ${dir}`);
   const given = option("--author");
   const handle = given ?? publisher()?.handle;
@@ -234,7 +241,7 @@ async function publish(name: string) {
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   }
   const summary = String(manifest.applet?.summary ?? "").trim();
-  if (!summary || summary.length > SUMMARY_MAX) fail(`applet.summary in pocket.json must be 1 to ${SUMMARY_MAX} characters`);
+  if (!summary || summary.length > SUMMARY_MAX) fail(`applet.summary in pocket.app.json must be 1 to ${SUMMARY_MAX} characters`);
   const icon = iconPng(dir);
   check(name, true);
   const built = await compile(name);

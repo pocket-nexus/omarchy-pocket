@@ -14,9 +14,10 @@
 //! `{"event":"app","id":1,"textures":[12,13]}` or `{"event":"app","id":1,"error":"..."}`,
 //! and `{"event":"appExit","id":1,"error":"..."}` when a running app fails.
 //!
-//! An app's realm has `globalThis.net` (net.rs): HTTP and the companion's
-//! services, which omarchy-pocketd performs, and `globalThis.media`
-//! (media.rs): the playback plane fed by a companion media stream.
+//! An app's network is its worker domain (pocket-linux-worker): the worker's
+//! http node hands requests to net.rs, which omarchy-pocketd performs (HTTP
+//! and the companion's services). Its realm has `globalThis.media` (media.rs):
+//! the playback plane fed by a companion media stream.
 //!
 //! Typing: the shell's keyboard on the deck types into an app as a hardware
 //! keyboard does (`appText`): text events go into the app's next input frame
@@ -35,6 +36,7 @@ use crate::{media, net};
 use pocket_drivers::{Contact, InputClasses, InputFrameBuilder, InputSource, TextEvent};
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_linux_hooks::FileSource;
+use pocket_linux_worker::WorkerDomain;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, Profile, Runtime, RuntimeConfig, RuntimeError};
 use pocket_spec::op;
 use rquickjs::{Function, Object};
@@ -99,10 +101,10 @@ enum Request {
     Close(u32),
 }
 
-/// An app's realm: the canonical rquickjs guest with `globalThis.net` in it.
+/// An app's realm: the canonical rquickjs guest beside its worker domain.
 struct AppGuest {
     inner: RquickjsGuest,
-    net: net::Shared,
+    domain: WorkerDomain,
     /// the app's media player, made when the realm initializes
     media: Rc<RefCell<Option<media::Handle>>>,
     /// `ui.textSession(open)` from the realm, for the shell
@@ -126,11 +128,14 @@ impl Guest for AppGuest {
         let player = media::Player::new(ops.clone());
         *self.media.borrow_mut() = Some(player.clone());
         self.inner.initialize(ops, environment)?;
+        if let Err(message) = self.domain.start(&self.inner, environment) {
+            eprintln!("omarchy-pocket-host: app {} worker: {message}", self.app);
+            return Err(RuntimeError::Guest);
+        }
         // `__omarchyWindow`: the shell sizes this app's touch surface before it lays out
         let typing = self.typing.clone();
         let installed = self.inner.with(|ctx| {
-            net::install(&ctx, &self.net, self.app)
-                .and_then(|()| media::install(&ctx, &player))
+            media::install(&ctx, &player)
                 .and_then(|()| {
                     // the framework's keyboard controller tells the host of its sessions
                     let ui: Object = ctx.globals().get("ui")?;
@@ -141,7 +146,7 @@ impl Guest for AppGuest {
         match installed {
             Some(Ok(())) => Ok(()),
             Some(Err(error)) => {
-                eprintln!("omarchy-pocket-host: installing net in app {}: {error}", self.app);
+                eprintln!("omarchy-pocket-host: installing the host's objects in app {}: {error}", self.app);
                 Err(RuntimeError::Guest)
             }
             None => Err(RuntimeError::Guest),
@@ -165,6 +170,10 @@ impl Guest for AppGuest {
                 eprintln!("omarchy-pocket-host: app {} resize: {error}", self.app);
             }
         }
+        if let Err(message) = self.domain.latch(&self.inner) {
+            eprintln!("omarchy-pocket-host: app {} worker: {message}", self.app);
+            return Err(RuntimeError::Guest);
+        }
         let result = self.inner.frame(frame);
         self.report(&result);
         result
@@ -175,6 +184,7 @@ impl Guest for AppGuest {
         result
     }
     fn shutdown(&mut self) {
+        self.domain.stop(&self.inner);
         self.inner.shutdown();
     }
 }
@@ -272,6 +282,8 @@ impl Children {
                 Request::Close(id) => self.end(id, shell, compositor),
             }
         }
+        // the apps' workers' requests made since the last tick go to the daemon
+        self.net.borrow_mut().pump();
         let mut rendered = false;
         let mut failed = Vec::new();
         let mut playing = Vec::new();
@@ -330,11 +342,11 @@ impl Children {
         }
         let feed = Rc::new(RefCell::new(Feed::default()));
         runtime.add_input_source(Box::new(FedInput(feed.clone()))).map_err(error)?;
-        self.net.borrow_mut().add_app(id, path.display().to_string());
+        let exchange = self.net.borrow_mut().add_app(id, path.display().to_string());
         let resized = Rc::new(Cell::new(None));
         let media = Rc::new(RefCell::new(None));
         let typing = Rc::new(Cell::new(None));
-        let guest = AppGuest { inner: RquickjsGuest::default(), net: self.net.clone(), media: media.clone(), typing: typing.clone(), app: id, resized: resized.clone() };
+        let guest = AppGuest { inner: RquickjsGuest::default(), domain: WorkerDomain::new(Box::new(exchange)), media: media.clone(), typing: typing.clone(), app: id, resized: resized.clone() };
         runtime.set_guest(Box::new(guest)).map_err(error)?;
         if let Err(failure) = runtime.boot() {
             self.net.borrow_mut().remove_app(id);

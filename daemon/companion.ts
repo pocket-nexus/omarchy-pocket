@@ -33,10 +33,8 @@ import { manifest } from "./apps.ts";
 import { createAppStoreService, installedApp, isolatedRequest, isolatedServices, STORE_PACKAGE } from "./appstore.ts";
 import { AtlasBaker } from "./glyphs.ts";
 
-/** This host's whole-response limit: a glyph atlas at raster density 2 holds
- *  a quarter of the glyphs one at density 1 does in the same bytes, so the
- *  applets ask for up to 2 MiB (the NET contract's is 256 KiB). */
-export const APP_RESPONSE_MAX = 2 * 1024 * 1024;
+/** The response limit an app's worker may ask for (contracts/spec/net.ts). */
+export const APP_RESPONSE_MAX = 256 * 1024;
 const GLYPH_PX = [8, 32] as const;
 const GLYPH_TEXT_MAX = 20_000;
 const ASCII = Array.from({ length: 0x7f - 0x20 }, (_, i) => 0x20 + i);
@@ -55,7 +53,7 @@ function deviceGlyphs(baker: AtlasBaker): ServiceProvider {
     name: "glyphs",
     async handle(request) {
       if (request.path !== "/atlas" || request.method !== "POST") return jsonResponse(404, { error: `no glyphs endpoint ${request.path}` });
-      const body = readJson<{ px?: unknown; bold?: unknown; slot?: unknown; text?: unknown }>(request, { error: "atlas needs JSON {px, bold, slot, text}" });
+      const body = readJson<{ px?: unknown; bold?: unknown; slot?: unknown; density?: unknown; text?: unknown }>(request, { error: "atlas needs JSON {px, bold, slot, text}" });
       const px = typeof body.px === "number" ? Math.round(body.px) : NaN;
       const slot = typeof body.slot === "number" ? body.slot : NaN;
       const text = typeof body.text === "string" ? body.text : "";
@@ -64,7 +62,7 @@ function deviceGlyphs(baker: AtlasBaker): ServiceProvider {
       }
       if (text.length > GLYPH_TEXT_MAX) return jsonResponse(400, { error: `atlas text is limited to ${GLYPH_TEXT_MAX} characters` });
       const chars = [...new Set([...ASCII, ...[...text].map((c) => c.codePointAt(0)!)])].sort((a, b) => a - b);
-      const atlas = await baker.bake(px, body.bold === true, slot, chars);
+      const atlas = await baker.bake(px, body.bold === true, slot, chars, body.density === 1 ? 1 : undefined);
       if (atlas.length > request.maxBytes) return jsonResponse(413, { error: `the atlas is ${atlas.length} bytes, limit ${request.maxBytes}` });
       return bytesResponse(atlas, "application/x-pocket-font");
     },

@@ -28,7 +28,7 @@ import { encodePNG } from "../vendor/pocketjs/tools/png.ts";
 const ROOT = resolve(import.meta.dir, "..");
 const POCKETJS = join(ROOT, "vendor", "pocketjs");
 const CACHE = join(ROOT, ".cache");
-const CONFIG = "host/pocket.runtime-config.ts";
+const CONFIG = "host/pocket.host.config.ts";
 const PROFILE_RS = join(CACHE, "host", "profile", "pocket_profile.rs");
 const LIBS = join(CACHE, "host", "gl-libs");
 const TARGET = "aarch64-unknown-linux-gnu";
@@ -51,7 +51,7 @@ const option = (name: string) => {
 };
 
 async function profile() {
-  await $`bun ${join(POCKETJS, "tools", "pocket.ts")} profile export --config ${CONFIG} --out ${join(CACHE, "host", "profile")}`.cwd(ROOT).quiet();
+  await $`bun ${join(POCKETJS, "tools", "pocket.ts")} host export --config ${CONFIG} --out ${join(CACHE, "host", "profile")}`.cwd(ROOT).quiet();
 }
 
 async function libs(host: string) {
@@ -73,13 +73,13 @@ async function host() {
   await profile();
   await $`cargo zigbuild --release -p omarchy-pocket-host --target ${TARGET}.2.36 --target-dir ${join(CACHE, "host", "cargo")}`
     .cwd(ROOT)
-    .env({ ...process.env, POCKETJS_PROFILE_RS: PROFILE_RS, OMARCHY_POCKET_GL_LIBS: LIBS });
+    .env({ ...process.env, POCKETJS_PROFILE_RS: PROFILE_RS, OMARCHY_POCKET_GL_LIBS: LIBS, POCKET_WORKER_CARGO_MANIFEST: join(ROOT, "Cargo.toml") });
   console.log(`host: ${OUTPUTS.host}`);
 }
 
 async function shell() {
   if (!existsSync(join(ROOT, "shell", "src", "generated", "menu.ts"))) throw new Error("no generated menu; run: bun tools/omarchy-assets.ts");
-  await $`bun ${join(POCKETJS, "tools", "pocket.ts")} compile --manifest shell/pocket.json --project-root . --runtime-config ${CONFIG} --plan-dir ${join(CACHE, "shell", "plan")} --output ${OUTPUTS.shell}`.cwd(ROOT);
+  await $`bun ${join(POCKETJS, "tools", "pocket.ts")} compile --manifest shell/pocket.app.json --project-root . --host-config ${CONFIG} --plan-dir ${join(CACHE, "shell", "plan")} --output ${OUTPUTS.shell}`.cwd(ROOT);
   console.log(`shell: ${OUTPUTS.shell}`);
 }
 
@@ -117,22 +117,30 @@ async function daemon() {
   console.log(`daemon: ${OUTPUTS.daemon} ${OUTPUTS.shim}`);
 }
 
-/** PocketJS applets: packages for this profile (applets/<name>/pocket.json,
- *  entries anywhere under the repository, the pocketjs apps included), all
- *  of them or the names given. One that fails to compile is reported and the
- *  rest are built. */
+/** The applets this device ships, from pocket-nexus/applets (vendor/applets),
+ *  compiled for this host contract by that repository's build: one package
+ *  each in .cache/applets, named for its directory (the Store client's is
+ *  store.pocket), all of them or the names given. One that fails is reported
+ *  and the rest are built. */
 async function applets(names: string[]) {
-  const dir = join(ROOT, "applets");
+  process.env.OMARCHY_POCKET_ROOT = ROOT;
+  // the applets build with this repository's PocketJS, the same commit theirs pins
+  process.env.POCKETJS_ROOT = POCKETJS;
+  const { APPS } = await import("../vendor/applets/tools/apps.ts");
+  const { buildFor, DEVICES } = await import("../vendor/applets/tools/build.ts");
+  const device = DEVICES.find((d) => d.name === "omarchy-pocket")!;
+  mkdirSync(join(CACHE, "applets"), { recursive: true });
   const failed: string[] = [];
-  for (const name of names.length ? names : readdirSync(dir)) {
-    const manifest = join(dir, name, "pocket.json");
-    if (!existsSync(manifest)) continue;
-    const result = await $`bun ${join(POCKETJS, "tools", "pocket.ts")} compile --manifest ${manifest} --project-root . --runtime-config ${CONFIG} --plan-dir ${join(CACHE, "applets", name, "plan")} --output ${join(CACHE, "applets", `${name}.pocket`)}`.cwd(ROOT).quiet().nothrow();
-    if (result.exitCode === 0) console.log(`applet: ${join(CACHE, "applets", `${name}.pocket`)}`);
-    else {
+  for (const name of names.length ? names : APPS) {
+    try {
+      const result = await buildFor(device, name);
+      if (!("path" in result)) continue; // Camera, Photos and Notes need what this device has not
+      const file = join(CACHE, "applets", `${name === "appstore" ? "store" : name}.pocket`);
+      await $`cp ${result.path} ${file}`;
+      console.log(`applet: ${file}`);
+    } catch (error) {
       failed.push(name);
-      const lines = `${result.stdout}${result.stderr}`.trim().split("\n");
-      console.error(`applet ${name} failed:\n  ${lines.filter((l) => /error|Error/.test(l)).slice(0, 4).join("\n  ") || lines.slice(-4).join("\n  ")}`);
+      console.error(error instanceof Error ? error.message : String(error));
     }
   }
   if (failed.length) throw new Error(`applets that did not compile: ${failed.join(" ")}`);
@@ -156,23 +164,29 @@ async function sdk() {
   }
   rmSync(out, { recursive: true, force: true });
   mkdirSync(vendor, { recursive: true });
-  await $`COPYFILE_DISABLE=1 tar cf - framework contracts tools assets microts profiles docs/HIG.md docs/APPLETS.md | tar xf - -C ${vendor}`.cwd(POCKETJS).nothrow();
+  await $`COPYFILE_DISABLE=1 tar cf - framework contracts tools assets microts hosts docs/HIG.md docs/APPLETS.md | tar xf - -C ${vendor}`.cwd(POCKETJS).nothrow();
   writeFileSync(join(vendor, "package.json"), manifest);
   await $`cp -R ${join(lock, "node_modules")} ${join(vendor, "node_modules")}`;
   await $`rm -rf ${join(vendor, "node_modules/@vue-jsx-vapor/compiler-rs-linux-arm64-musl")}`;
   mkdirSync(join(out, "host"));
-  for (const file of ["pocket.runtime-config.ts", "profile.ts"]) await $`cp ${join(ROOT, "host", file)} ${join(out, "host")}`;
-  mkdirSync(join(out, "applets"));
-  for (const name of ["ui", "lib", "kit", "github", "weather", "hn", "podcasts", "maps", "store"]) await $`cp -R ${join(ROOT, "applets", name)} ${join(out, "applets")}`;
-  // ../lib's imports of the framework's internals, seen from the file's real path
-  symlinkSync("../vendor", join(out, "applets", "vendor"));
-  mkdirSync(join(out, "store", "src"), { recursive: true });
-  await $`cp ${join(ROOT, "store", "src", "shared.ts")} ${join(out, "store", "src")}`;
+  for (const file of ["pocket.host.config.ts", "pocket.host.json"]) await $`cp ${join(ROOT, "host", file)} ${join(out, "host")}`;
+  // pocket-nexus/applets as the device needs it: the kit, the rules, the
+  // template, the player and some finished applets to read
+  const applets = join(out, "vendor", "applets");
+  const from = join(ROOT, "vendor", "applets");
+  mkdirSync(applets, { recursive: true });
+  for (const name of ["ui", "lib", "kit", "template", "github", "weather", "hn", "podcasts", "maps", "appstore", "package.json", "README.md"]) await $`cp -RP ${join(from, name)} ${applets}`;
+  mkdirSync(join(applets, "tools"));
+  for (const name of ["check.ts", "mock.ts"]) await $`cp ${join(from, "tools", name)} ${join(applets, "tools")}`;
+  mkdirSync(join(applets, "store", "src"), { recursive: true });
+  mkdirSync(join(applets, "store", "play"), { recursive: true });
+  mkdirSync(join(applets, "store", "site"), { recursive: true });
+  await $`cp ${join(from, "store", "src", "shared.ts")} ${join(applets, "store", "src")}`;
   // the store website's player, for `pocket-applet web`
-  mkdirSync(join(out, "store", "play"), { recursive: true });
-  mkdirSync(join(out, "store", "site"), { recursive: true });
-  await $`cp ${join(ROOT, "store", "play", "serve.ts")} ${join(out, "store", "play")}`;
-  await $`cp -R ${join(ROOT, "store", "site", "play")} ${join(out, "store", "site")}`;
+  await $`cp ${join(from, "store", "play", "serve.ts")} ${join(applets, "store", "play")}`;
+  await $`cp -R ${join(from, "store", "site", "play")} ${join(applets, "store", "site")}`;
+  // imports of ../vendor/pocketjs from inside vendor/applets resolve to the SDK's
+  symlinkSync("..", join(applets, "vendor"));
   await $`cp -R ${join(ROOT, "sdk")} ${out}`;
   await $`chmod 755 ${join(out, "sdk", "pocket-applet.ts")}`;
   mkdirSync(join(out, "node_modules", "@pocketjs"), { recursive: true });

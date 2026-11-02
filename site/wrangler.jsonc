@@ -1,6 +1,7 @@
 {
-  // omapocket.org: static files only. oma.pocket.nexus and its store API stay on
-  // the omarchy-pocket-store Worker in store/.
+  // omapocket.org: static files only. The applet store is applets.pocket.nexus,
+  // pocket-nexus/applets' Worker, which also answers oma.pocket.nexus (its API,
+  // and a redirect here for every page).
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "omapocket",
   "compatibility_date": "2026-10-01",
