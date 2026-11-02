@@ -16,7 +16,7 @@ import { layout as deckLayout } from "../focus.ts";
 import { inkShift } from "../ink.ts";
 import type { MenuItem } from "../menu.ts";
 import { allApps, openItem, refreshApps, showApps } from "../stage/menu.tsx";
-import { pinIds } from "./pins.ts";
+import { MAX_PINS, pinIds } from "./pins.ts";
 import { flip, TOP_LEFT, type Box } from "../motion.ts";
 import { color } from "../theme.ts";
 import type { TouchFrame } from "../touch.ts";
@@ -59,28 +59,27 @@ const panelGlyph = (p: PanelName) => {
   return p === "tailscale" ? "\u{f0318}" : p === "proxy" ? "\u{f0582}" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
 };
 
-/** the pinned apps' row under the map, and the add cell at its end */
-const PIN_W = 64;
+/** the pinned apps' row under the map, and the add cell at its end: icons
+ *  only, in cells the size of the side columns' */
+const PIN_W = 60;
 const PIN_H = 40;
-const PIN_GAP = 6;
 const PIN_Y = MAP_Y + MAP_H + 7;
 const ADD = "\u{f0415}";
 const pinned = (): MenuItem[] => {
   const apps = allApps();
   return pinIds(apps).flatMap((id) => apps.find((a) => a.id === id) ?? []);
 };
+/** one pitch for every count: a full row (six pins and the add cell) runs
+ *  from the left column's edge to the right column's; a shorter one is centred */
+const PIN_STEP = (RIGHT_X + SIDE_W - LEFT_X - PIN_W) / MAX_PINS;
 /** the cells' left edges: the pins, then the add cell */
 const pinXs = () => {
   const n = pinned().length + 1;
-  const left = 256 - (n * PIN_W + (n - 1) * PIN_GAP) / 2;
-  return Array.from({ length: n }, (_, i) => left + i * (PIN_W + PIN_GAP));
+  const left = 256 - ((n - 1) * PIN_STEP + PIN_W) / 2;
+  return Array.from({ length: n }, (_, i) => left + i * PIN_STEP);
 };
 /** the cell under body point (x, y): a pin's index, the add cell's (pins' count), or -1 */
 const pinAt = (x: number, y: number) => (y >= PIN_Y && y < PIN_Y + PIN_H ? pinXs().findIndex((left) => x >= left && x < left + PIN_W) : -1);
-
-/** A label that fits a cell: up to eight characters, or a longer name's
- *  initials (Hacker News is HN). */
-const shortLabel = (label: string) => (label.length <= 8 || !label.includes(" ") ? label : label.split(/\s+/).map((word) => word[0]).join("").toUpperCase());
 
 /** A pin opens its app, or focuses the package already open in a window. */
 function openPin(item: MenuItem) {
@@ -181,15 +180,12 @@ function Tile(props: { win: Win }) {
   );
 }
 
-/** One cell of the pins' row: an icon over a short label. */
-function PinCell(props: { x: number; icon: string; label: string; target: string; dim?: boolean }) {
+/** One cell of the pins' row: the app's icon, drawn as the side columns draw theirs. */
+function PinCell(props: { x: number; icon: string; target: string; dim?: boolean }) {
   return (
     <View class="absolute rounded-md" style={{ insetL: props.x, insetT: PIN_Y, width: PIN_W, height: PIN_H, bgColor: color(pressed(props.target) ? "selection" : "dark_background") }}>
-      <Text class="absolute left-0 top-[4] h-[18] text-center font-mono text-base leading-[18]" style={{ insetL: -inkShift(props.icon, 16), width: PIN_W, textColor: color(props.dim ? "dark_foreground" : "foreground") }}>
+      <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: PIN_H / 2 - 9, insetL: -inkShift(props.icon, 16), width: PIN_W, textColor: color(props.dim ? "dark_foreground" : "foreground") }}>
         {props.icon}
-      </Text>
-      <Text class="absolute left-[2] top-[23] h-[14] overflow-hidden text-center font-mono text-xs leading-[14]" style={{ width: PIN_W - 4, textColor: color("dark_foreground") }}>
-        {props.label}
       </Text>
     </View>
   );
@@ -212,8 +208,8 @@ export function Home() {
           </Text>
         </Show>
       </View>
-      <For each={pinned()}>{(item, i) => <PinCell x={pinXs()[i()]!} icon={item.icon} label={shortLabel(item.label)} target={`home:pin${i()}`} />}</For>
-      <PinCell x={pinXs()[pinned().length]!} icon={ADD} label="Pin" target={`home:pin${pinned().length}`} dim />
+      <For each={pinned()}>{(item, i) => <PinCell x={pinXs()[i()]!} icon={item.icon} target={`home:pin${i()}`} />}</For>
+      <PinCell x={pinXs()[pinned().length]!} icon={ADD} target={`home:pin${pinned().length}`} dim />
       <For each={Array.from({ length: WORKSPACES }, (_, i) => i)}>
         {(n) => (
           <View

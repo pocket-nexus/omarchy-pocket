@@ -33,7 +33,7 @@ export const ROUNDS = {
   voice: { x: LEFT_X, y: PAD_BOTTOM - 2 * ROUND - ROUND_GAP, w: ROUND, h: ROUND },
   hold: { x: LEFT_X, y: PAD_BOTTOM - ROUND, w: ROUND, h: ROUND },
   toggle: { x: RIGHT_X, y: PAD_BOTTOM - 2 * ROUND - ROUND_GAP, w: ROUND, h: ROUND },
-  more: { x: RIGHT_X, y: PAD_BOTTOM - ROUND, w: ROUND, h: ROUND },
+  close: { x: RIGHT_X, y: PAD_BOTTOM - ROUND, w: ROUND, h: ROUND },
 } satisfies Record<string, Rect>;
 
 export const inRect = (r: Rect, x: number, y: number) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;

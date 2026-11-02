@@ -215,7 +215,7 @@ const MARKS: Record<string, string> = {
   youtube: "\u{f05c3}",
   github: "\u{f02a4}",
   discord: "\u{f066f}",
-  x: "X",
+  x: "\u{f0544}",
   "hacker news": "\u{f1d4}",
   hn: "\u{f1d4}",
   weather: "\u{f0595}",

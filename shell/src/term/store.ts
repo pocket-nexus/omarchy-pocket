@@ -65,10 +65,7 @@ export const terminalSink: KeySink = {
     const sid = active();
     if (sid !== null) void request({ method: "termKey", sid, key, ctrl: m.ctrl, alt: m.alt, shift: m.shift });
   },
-  close: () => {
-    const sid = active();
-    if (sid !== null) closeTerminal(sid);
-  },
+  // the deck's round Close button closes the terminal's window
   hint: () => "A Enter · B Backspace · X Tab · Y Space · START Esc",
 };
 

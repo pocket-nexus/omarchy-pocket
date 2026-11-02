@@ -11900,11 +11900,6 @@
           shift: m.shift
         });
     },
-    close: () => {
-      const sid = active();
-      if (sid !== null)
-        closeTerminal(sid);
-    },
     hint: () => "A Enter · B Backspace · X Tab · Y Space · START Esc"
   };
   var isSession = (sid) => (w) => w.kind === "terminal" && w.sid === sid;
@@ -14205,7 +14200,7 @@
     youtube: "\uDB81\uDDC3",
     github: "\uDB80\uDEA4",
     discord: "\uDB81\uDE6F",
-    x: "X",
+    x: "\uDB81\uDD44",
     "hacker news": "",
     hn: "",
     weather: "\uDB81\uDD95",
@@ -14860,6 +14855,7 @@
   var [open3, setOpen] = createSignal(false);
   var sheetOpen = open3;
   var toggleSheet = () => setOpen((o) => !o);
+  var closeSheet = () => setOpen(false);
   var LINE = 15;
   var COL_W = 236;
   var KEYS_W = 96;
@@ -15244,7 +15240,7 @@
       w: ROUND,
       h: ROUND
     },
-    more: {
+    close: {
       x: RIGHT_X,
       y: PAD_BOTTOM - ROUND,
       w: ROUND,
@@ -15749,24 +15745,23 @@
     const s = state();
     return p === "tailscale" ? "\uDB80\uDF18" : p === "proxy" ? "\uDB81\uDD82" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
   };
-  var PIN_W = 64;
+  var PIN_W = 60;
   var PIN_H = 40;
-  var PIN_GAP = 6;
   var PIN_Y = MAP_Y + MAP_H + 7;
   var ADD = "\uDB81\uDC15";
   var pinned = () => {
     const apps = allApps();
     return pinIds(apps).flatMap((id) => apps.find((a) => a.id === id) ?? []);
   };
+  var PIN_STEP = (RIGHT_X2 + SIDE_W - LEFT_X2 - PIN_W) / MAX_PINS;
   var pinXs = () => {
     const n = pinned().length + 1;
-    const left = 256 - (n * PIN_W + (n - 1) * PIN_GAP) / 2;
+    const left = 256 - ((n - 1) * PIN_STEP + PIN_W) / 2;
     return Array.from({
       length: n
-    }, (_, i) => left + i * (PIN_W + PIN_GAP));
+    }, (_, i) => left + i * PIN_STEP);
   };
   var pinAt = (x, y) => y >= PIN_Y && y < PIN_Y + PIN_H ? pinXs().findIndex((left) => x >= left && x < left + PIN_W) : -1;
-  var shortLabel = (label) => label.length <= 8 || !label.includes(" ") ? label : label.split(/\s+/).map((word) => word[0]).join("").toUpperCase();
   function openPin(item) {
     const open = item.applet ? find((w) => w.kind === "app" && w.path === item.applet) : null;
     if (open)
@@ -15928,10 +15923,11 @@
         };
       },
       get children() {
-        return [createComponent2(Text, {
-          class: "absolute left-0 top-[4] h-[18] text-center font-mono text-base leading-[18]",
+        return createComponent2(Text, {
+          class: "absolute left-0 text-center font-mono text-base leading-[18]",
           get style() {
             return {
+              insetT: PIN_H / 2 - 9,
               insetL: -inkShift(props.icon, 16),
               width: PIN_W,
               textColor: color(props.dim ? "dark_foreground" : "foreground")
@@ -15940,18 +15936,7 @@
           get children() {
             return props.icon;
           }
-        }), createComponent2(Text, {
-          class: "absolute left-[2] top-[23] h-[14] overflow-hidden text-center font-mono text-xs leading-[14]",
-          get style() {
-            return {
-              width: PIN_W - 4,
-              textColor: color("dark_foreground")
-            };
-          },
-          get children() {
-            return props.label;
-          }
-        })];
+        });
       }
     });
   }
@@ -16026,9 +16011,6 @@
         get icon() {
           return item.icon;
         },
-        get label() {
-          return shortLabel(item.label);
-        },
         get target() {
           return `home:pin${i()}`;
         }
@@ -16038,7 +16020,6 @@
         return pinXs()[pinned().length];
       },
       icon: ADD,
-      label: "Pin",
       get target() {
         return `home:pin${pinned().length}`;
       },
@@ -17716,7 +17697,6 @@
   var HOME = "\uDB80\uDEDC";
   var CLOSE = "\uDB80\uDD56";
   var LEFT = "\uDB80\uDD41";
-  var TERMINAL2 = "\uDB80\uDD8D";
   var EDGE2 = 4;
   var GAP3 = 4;
   var CHIP_H = 28;
@@ -17757,11 +17737,6 @@
     const w = focused2();
     if (!w)
       return [{
-        id: "terminal",
-        label: "Terminal",
-        glyph: TERMINAL2,
-        run: () => openTerminal()
-      }, {
         id: "layout",
         label: "Layout",
         run: () => perform("layout")
@@ -18102,10 +18077,17 @@
     name: "toggle",
     glyph: "\uDB80\uDF0C"
   }, {
-    name: "more",
-    glyph: "\uDB80\uDDD8"
+    name: "close",
+    glyph: "\uDB80\uDD56"
   }];
   var roundAt = (x, y) => ROUND_LIST.find((r) => inRect(ROUNDS[r.name], x, y))?.name;
+  function closeFront() {
+    if (sheetOpen())
+      return closeSheet();
+    if (card())
+      return closeCard();
+    closeFocused();
+  }
   function roundTarget(x, y) {
     const name = roundAt(x, y);
     return name ? `round:${name}` : null;
@@ -18155,8 +18137,8 @@
         toggleKeys();
       else if (name === "voice")
         toggleVoice();
-      else if (name === "more")
-        perform("keys");
+      else if (name === "close")
+        closeFront();
     }
     const rect = padFor(l);
     const inPad = (x, y) => !keySink().field && inRect(rect, x, y);
@@ -18343,7 +18325,7 @@
       each: ROUND_LIST,
       children: (r) => {
         const listening = () => r.name === "voice" && voiceState() === "listening";
-        const lit = () => r.name === "voice" ? voiceState() === "decoding" : r.name === "hold" ? mode2() === "drag" : r.name === "toggle" ? layout2() === "keys" : r.name === "more" ? sheetOpen() : false;
+        const lit = () => r.name === "voice" ? voiceState() === "decoding" : r.name === "hold" ? mode2() === "drag" : r.name === "toggle" ? layout2() === "keys" : false;
         const at = ROUNDS[r.name];
         return createComponent2(View, {
           class: "absolute w-[44] h-[44] rounded-full",
@@ -20576,21 +20558,19 @@
     "absolute h-[14] overflow-hidden font-mono text-xs leading-[14]": 112,
     "absolute left-[2] top-[2] overflow-hidden": 113,
     "absolute left-0 text-center font-mono text-base leading-[20]": 114,
-    "absolute left-0 top-[4] h-[18] text-center font-mono text-base leading-[18]": 115,
-    "absolute left-[2] top-[23] h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 116,
-    "absolute overflow-hidden rounded-sm": 117,
-    "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]": 118,
-    "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 119,
-    "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 120,
-    "absolute left-0 top-0 w-[512]": 121,
-    "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]": 122,
-    "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 123,
-    "absolute rounded-lg": 124,
-    "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]": 125,
-    "absolute text-center text-lg leading-[24]": 126,
-    "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 127,
-    "absolute w-[44] h-[44] rounded-full": 128,
-    "absolute left-0 top-0 w-[512] h-[384] overflow-hidden": 129
+    "absolute overflow-hidden rounded-sm": 115,
+    "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]": 116,
+    "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 117,
+    "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 118,
+    "absolute left-0 top-0 w-[512]": 119,
+    "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]": 120,
+    "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 121,
+    "absolute rounded-lg": 122,
+    "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]": 123,
+    "absolute text-center text-lg leading-[24]": 124,
+    "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 125,
+    "absolute w-[44] h-[44] rounded-full": 126,
+    "absolute left-0 top-0 w-[512] h-[384] overflow-hidden": 127
   };
 
   // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/index.ts
