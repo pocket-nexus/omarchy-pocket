@@ -8,21 +8,23 @@ import { mkdirSync } from "node:fs";
 
 const V = new URL("../.pocket-build/validation/", import.meta.url).pathname;
 const OUT = new URL("public/shots/", import.meta.url).pathname;
-const D = "home-restore/device", R = "deck-redesign/device", KEYS = "landing-tour/1/fastfetch-keys.png";
+const D = "home-restore/device", R = "deck-redesign/device";
+// the deck as it is now: a terminal's keys, a touch app's pad, Home with its pins
+const KEYS = "deck-r2/site/keys.png", PAD = "deck-r2/site/pad.png", HOME = "deck-r2/site/home.png";
 
 const SHOTS: Record<string, { top: string; bottom?: string | null }> = {
-  home: { top: "landing-tour/1/home.png" },
-  agent: { top: `${D}/6-agent.png` },
-  split: { top: `${D}/15-keys.png` },
+  home: { top: "landing-tour/1/home.png", bottom: HOME },
+  agent: { top: `${D}/6-agent.png`, bottom: KEYS },
+  split: { top: `${D}/15-keys.png`, bottom: KEYS },
   tile3: { top: `${R}/9-three-windows-clock.png`, bottom: KEYS },
   tile4: { top: `${R}/12-notes-editing.png`, bottom: KEYS },
-  legend: { top: `${R}/2-legend-l1.png`, bottom: KEYS },
-  pad: { top: `${D}/21-pad.png` },
-  hnfull: { top: `${D}/48-hn-full.png` },
-  video: { top: `${D}/38-yt-colour3.png` },
-  weather: { top: "applets-batch/run2/weather-default.png" },
-  maps: { top: "applets-batch/run1/maps2.png" },
-  podcast: { top: "applets-batch/run2/podcasts-player.png" },
+  legend: { top: "deck-r2/site/legend.png", bottom: KEYS },
+  pad: { top: `${D}/21-pad.png`, bottom: PAD },
+  hnfull: { top: `${D}/48-hn-full.png`, bottom: PAD },
+  video: { top: `${D}/38-yt-colour3.png`, bottom: PAD },
+  weather: { top: "applets-batch/run2/weather-default.png", bottom: PAD },
+  maps: { top: "applets-batch/run1/maps2.png", bottom: PAD },
+  podcast: { top: "applets-batch/run2/podcasts-player.png", bottom: PAD },
 };
 
 mkdirSync(OUT, { recursive: true });

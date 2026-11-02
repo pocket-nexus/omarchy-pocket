@@ -229,6 +229,8 @@ export function createDaemon({ emit, themes, wallBase, screensaver, onStorage })
     if (command.trim()) emit({ event: "notify", notice: notice("That runs on the device. This browser demo has no Linux under it.") });
     return ok();
   }
+  /** Home's pinned app ids, or null while nothing has been chosen */
+  let pins = null;
   let noticeId = 1;
   function notice(body) {
     const id = noticeId++;
@@ -313,6 +315,9 @@ export function createDaemon({ emit, themes, wallBase, screensaver, onStorage })
     glyphs: () => false,
     atlases: () => [],
     apps: () => [],
+    // Home's pins live in this page only: nothing chosen until the visitor pins
+    pins: () => pins,
+    pinsSet: (r) => { pins = r.ids; return null; },
     ime: () => { throw new Error("Pinyin runs on the device: Rime is not in this demo."); },
     checkPassword: () => true,
     appNet: () => null,
