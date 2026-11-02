@@ -98,6 +98,9 @@ export type Request =
   | { id: number; method: "atlases" }
   /** Desktop entries that run in a terminal, for the Apps menu. */
   | { id: number; method: "apps" }
+  /** The apps pinned under the Home map (daemon/pins.ts): ids, or null while nothing has been chosen. */
+  | { id: number; method: "pins" }
+  | { id: number; method: "pinsSet"; ids: string[] }
   /** Evaluates a pinyin key transcript (PocketJS IME key codes). */
   | { id: number; method: "ime"; keys: number[] }
   /** The Omarchy user's password, for the lock screen. */

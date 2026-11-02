@@ -38,7 +38,7 @@ mod profile {
 
 /// The gamepad (`ANBERNIC-rk3568-keys`), measured on the device and matching
 /// the stock firmware's SDL mapping: A confirms (CIRCLE, the framework's focus
-/// press), B goes back. The D-pad is a hat; the sticks are not mapped yet.
+/// press), B goes back. The D-pad is a hat; the sticks are GAMEPAD_STICKS.
 #[cfg(target_os = "linux")]
 const GAMEPAD: &[(u16, u32)] = {
     use pocket_spec::btn;
@@ -56,11 +56,17 @@ const GAMEPAD: &[(u16, u32)] = {
         (311, btn::START),    // Start
     ]
 };
+/// The gamepad's two sticks, as the stock SDL entry orders its axes
+/// (leftx:a0, lefty:a1, rightx:a2, righty:a3 over ABS_Z, ABS_RX, ABS_RY,
+/// ABS_RZ, each -4096..4096), and the Pocket axis each one reports.
+#[cfg(target_os = "linux")]
+const GAMEPAD_STICKS: &[(u16, u32)] = &[(2, 0), (3, 1), (4, 2), (5, 3)];
 const PACKAGE_LIMIT: usize = 64 * 1024 * 1024;
 const DEFAULT_PACKAGE: &str = "/usr/share/pocketjs/omarchy-pocket.pocket";
-/// Input classes the evdev drivers deliver here: buttons and touch.
-const INPUT_CLASSES: InputClasses =
-    InputClasses::from_bits(InputClasses::BUTTONS.bits() | InputClasses::CONTACT.bits());
+/// Input classes the evdev drivers deliver here: buttons, touch and the sticks.
+const INPUT_CLASSES: InputClasses = InputClasses::from_bits(
+    InputClasses::BUTTONS.bits() | InputClasses::CONTACT.bits() | InputClasses::AXIS_ABSOLUTE.bits(),
+);
 
 static STOP: AtomicBool = AtomicBool::new(false);
 extern "C" fn stop(_: libc::c_int) {
@@ -470,6 +476,7 @@ fn attach_devices(
         });
         if name.as_deref().map(str::trim) == Some("ANBERNIC-rk3568-keys") {
             device.set_keymap(GAMEPAD);
+            device.set_sticks(GAMEPAD_STICKS);
         }
         runtime.add_input_source(Box::new(device)).map_err(error)?;
     }

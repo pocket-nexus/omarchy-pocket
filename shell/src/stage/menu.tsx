@@ -1,5 +1,6 @@
-// Omarchy's menu in the stage's card (L1 + A, the dock's first cell, or
-// `omarchy-shell shell summon omarchy.menu`). It has the keys while it is
+// Omarchy's menu in the stage's card (L1 + A, the function row's logo, Home's
+// add cell, or `omarchy-shell shell summon omarchy.menu`). An Apps row with a
+// pin at its end is on Home; Y pins and unpins the selected one (deck/pins.ts). It has the keys while it is
 // up: typing filters the level's rows as Omarchy's walker menu does, and at
 // the root also looks through every app, best match first, so a name and Enter
 // open it. The arrows move, Enter (or Right) opens, Backspace takes a filter
@@ -25,6 +26,7 @@ import { openWindow } from "../windows.ts";
 import { openPackage } from "../packages.ts";
 import { CARD_H, CARD_W } from "./geometry.ts";
 import { createList, List, type ListState } from "../deck/list.tsx";
+import { PIN, pinIds } from "../deck/pins.ts";
 import { glide, place } from "../motion.ts";
 import type { TouchFrame } from "../touch.ts";
 import { PANELS, showPanel, type PanelName } from "./panels.tsx";
@@ -82,8 +84,9 @@ export function closeMenu() {
 }
 const [truth, setTruth] = createSignal<Truth>({});
 const level = () => stack()[stack().length - 1]!;
-/** Every app, as Apps lists it, for the root's search. */
+/** Every app, as Apps lists it, for the root's search and Home's pins. */
 const [allApps, setAllApps] = createSignal<MenuItem[]>([]);
+export { allApps };
 
 /** How well `label` answers `needle`: the label itself, its start, a word's
  *  start, anywhere in it; null for no match. */
@@ -170,6 +173,22 @@ function setFilter(filter: string) {
   if (first) update((v) => ({ ...v, selected: first.id }));
 }
 
+/** The menu, open at Apps (Home's add cell). */
+export function showApps() {
+  refreshApps();
+  openAppsList();
+  setMenuOpen(true);
+}
+
+/** The row the menu has selected. */
+export const selectedItem = (): MenuItem | undefined => {
+  const l = level();
+  return rows(l)[indexIn(l)];
+};
+
+/** Opens an Apps row as the menu does (Home's pins). */
+export const openItem = (item: MenuItem) => activate(item);
+
 /** The root level with Apps open. */
 export function openAppsList() {
   entering = 1;
@@ -191,7 +210,21 @@ function lastLine(text: string): string {
   return lines[lines.length - 1] ?? "";
 }
 
-const iconOf = (app: App) => (app.applet ? APPLET : APP);
+/** Packages by name: their marks in the Nerd Font, else the applet glyph. */
+const MARKS: Record<string, string> = {
+  youtube: "\u{f05c3}",
+  github: "\u{f02a4}",
+  discord: "\u{f066f}",
+  x: "X",
+  "hacker news": "\u{f1d4}",
+  hn: "\u{f1d4}",
+  weather: "\u{f0595}",
+  maps: "\u{f034d}",
+  podcasts: "\u{f0994}",
+  "home assistant": "\u{f07d0}",
+  home: "\u{f07d0}",
+};
+const iconOf = (app: App) => (app.applet ? (MARKS[app.name.toLowerCase()] ?? APPLET) : APP);
 
 /** The shell's own windows first (Terminal, Agent, the applets), then packages and terminal programs. */
 const appRows = (): Promise<MenuItem[]> => {
@@ -206,8 +239,8 @@ const appRows = (): Promise<MenuItem[]> => {
   );
 };
 
-/** The search's apps, read again each time the menu opens: one may have been installed. */
-function refreshApps() {
+/** The search's apps, read again each time the menu opens or Home shows: one may have been installed. */
+export function refreshApps() {
   void appRows().then(setAllApps);
 }
 
@@ -355,6 +388,7 @@ export function menuTouch(frame: TouchFrame) {
 function Row(props: { item: () => MenuItem; selected: () => boolean }) {
   const disabled = () => !!props.item().disabled && truth()[props.item().disabled] === true;
   const checked = () => props.item().current === true || (!!props.item().checked && truth()[props.item().checked] === true);
+  const pinned = () => props.item().id.startsWith("apps.") && pinIds(allApps()).includes(props.item().id);
   return (
     <>
       <Text class={C.icon} style={{ textColor: color(props.selected() ? "accent" : "dark_foreground") }}>{props.item().icon}</Text>
@@ -364,9 +398,9 @@ function Row(props: { item: () => MenuItem; selected: () => boolean }) {
       >
         {props.item().label}
       </Text>
-      <Show when={props.item().children.length > 0 || checked()}>
+      <Show when={props.item().children.length > 0 || checked() || pinned()}>
         <Text class={C.chevron} style={{ textColor: color(checked() ? "accent" : "dark_foreground") }}>
-          {props.item().children.length > 0 ? CHEVRON : CHECK}
+          {props.item().children.length > 0 ? CHEVRON : checked() ? CHECK : PIN}
         </Text>
       </Show>
     </>

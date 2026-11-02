@@ -3,19 +3,25 @@
 // Home tab asks for it. A press on a window focuses it, and the deck becomes
 // that window's keyboard or pad; a press on a workspace tab switches to it;
 // the layout badge toggles dwindle and scrolling; a press in the right column
-// opens that panel's card on the stage. Nothing launches from here: the
-// menu's Apps list (L1 + A, the strip's logo) opens Terminal, Agent, the
-// shell's applets and the touch apps. Moving, swapping, resizing and closing
-// windows are the gamepad's chords (chords.ts), not gestures here.
+// opens that panel's card on the stage. Under the map, the pinned apps
+// (deck/pins.ts): a press opens one, or focuses its window when it is a
+// package or applet already open; the last cell opens the menu at Apps, where
+// Y pins and unpins. Moving, swapping, resizing and closing windows are the
+// gamepad's chords (chords.ts), not gestures here.
 import { createEffect, createMemo, For, on, onCleanup, Show } from "solid-js";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { appletOf } from "../applets/applet.ts";
 import { perform } from "../actions.ts";
+import { layout as deckLayout } from "../focus.ts";
+import { inkShift } from "../ink.ts";
+import type { MenuItem } from "../menu.ts";
+import { allApps, openItem, refreshApps, showApps } from "../stage/menu.tsx";
+import { pinIds } from "./pins.ts";
 import { flip, TOP_LEFT, type Box } from "../motion.ts";
 import { color } from "../theme.ts";
 import type { TouchFrame } from "../touch.ts";
 import { BAR_H, sameRect, STAGE_H, STAGE_W } from "../wm.ts";
-import { act, barPosition, current, focus, focused, layout, occupied, placements, visibleWindows, windowAt, WORKSPACES, type Win } from "../workspaces.ts";
+import { act, barPosition, current, find, focus, focused, focusWindow, layout, occupied, placements, visibleWindows, windowAt, WORKSPACES, type Win } from "../workspaces.ts";
 import { audioGlyph, batteryGlyph, bluetoothGlyph, networkGlyph } from "../indicators.ts";
 import { closePanel, openPanel, showPanel, type PanelName } from "../stage/panels.tsx";
 import { state } from "../system.ts";
@@ -53,6 +59,36 @@ const panelGlyph = (p: PanelName) => {
   return p === "tailscale" ? "\u{f0318}" : p === "proxy" ? "\u{f0582}" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
 };
 
+/** the pinned apps' row under the map, and the add cell at its end */
+const PIN_W = 64;
+const PIN_H = 40;
+const PIN_GAP = 6;
+const PIN_Y = MAP_Y + MAP_H + 7;
+const ADD = "\u{f0415}";
+const pinned = (): MenuItem[] => {
+  const apps = allApps();
+  return pinIds(apps).flatMap((id) => apps.find((a) => a.id === id) ?? []);
+};
+/** the cells' left edges: the pins, then the add cell */
+const pinXs = () => {
+  const n = pinned().length + 1;
+  const left = 256 - (n * PIN_W + (n - 1) * PIN_GAP) / 2;
+  return Array.from({ length: n }, (_, i) => left + i * (PIN_W + PIN_GAP));
+};
+/** the cell under body point (x, y): a pin's index, the add cell's (pins' count), or -1 */
+const pinAt = (x: number, y: number) => (y >= PIN_Y && y < PIN_Y + PIN_H ? pinXs().findIndex((left) => x >= left && x < left + PIN_W) : -1);
+
+/** A label that fits a cell: up to eight characters, or a longer name's
+ *  initials (Hacker News is HN). */
+const shortLabel = (label: string) => (label.length <= 8 || !label.includes(" ") ? label : label.split(/\s+/).map((word) => word[0]).join("").toUpperCase());
+
+/** A pin opens its app, or focuses the package already open in a window. */
+function openPin(item: MenuItem) {
+  const open = item.applet ? find((w) => w.kind === "app" && w.path === item.applet) : null;
+  if (open) return focusWindow(open.id);
+  openItem(item);
+}
+
 const toStage = (x: number, y: number) => ({ x: (x - MAP_X) / MAP_SCALE, y: (y - MAP_Y) / MAP_SCALE });
 const onMap = (x: number, y: number) => x >= MAP_X && x < MAP_X + MAP_W && y >= MAP_Y && y < MAP_Y + MAP_H;
 /** a stage rect on the map, in body coordinates */
@@ -68,6 +104,8 @@ export function homeTarget(x: number, y: number): string | null {
   if (onBadge(x, y)) return "home:layout";
   const p = panelAt(x, y);
   if (p) return `home:${p}`;
+  const pin = pinAt(x, y);
+  if (pin >= 0) return `home:pin${pin}`;
   if (onMap(x, y)) {
     const at = toStage(x, y);
     const id = windowAt(at.x, at.y);
@@ -82,6 +120,11 @@ function tap(x: number, y: number) {
   if (onBadge(x, y)) return perform("layout");
   const p = panelAt(x, y);
   if (p) return openPanel() === p ? closePanel() : showPanel(p);
+  const pin = pinAt(x, y);
+  if (pin >= 0) {
+    const item = pinned()[pin];
+    return item ? openPin(item) : showApps();
+  }
   if (onMap(x, y)) {
     const at = toStage(x, y);
     const id = windowAt(at.x, at.y);
@@ -138,8 +181,24 @@ function Tile(props: { win: Win }) {
   );
 }
 
+/** One cell of the pins' row: an icon over a short label. */
+function PinCell(props: { x: number; icon: string; label: string; target: string; dim?: boolean }) {
+  return (
+    <View class="absolute rounded-md" style={{ insetL: props.x, insetT: PIN_Y, width: PIN_W, height: PIN_H, bgColor: color(pressed(props.target) ? "selection" : "dark_background") }}>
+      <Text class="absolute left-0 top-[4] h-[18] text-center font-mono text-base leading-[18]" style={{ insetL: -inkShift(props.icon, 16), width: PIN_W, textColor: color(props.dim ? "dark_foreground" : "foreground") }}>
+        {props.icon}
+      </Text>
+      <Text class="absolute left-[2] top-[23] h-[14] overflow-hidden text-center font-mono text-xs leading-[14]" style={{ width: PIN_W - 4, textColor: color("dark_foreground") }}>
+        {props.label}
+      </Text>
+    </View>
+  );
+}
+
 export function Home() {
   const bar = () => barPosition();
+  // an app installed since the menu last looked shows up as a pin
+  createEffect(on(deckLayout, (l) => l === "home" && refreshApps(), { defer: true }));
   return (
     <>
       <View class="absolute overflow-hidden rounded-sm" style={{ insetL: MAP_X, insetT: MAP_Y, width: MAP_W, height: MAP_H, bgColor: color("dark_background") }}>
@@ -149,13 +208,12 @@ export function Home() {
         <For each={visibleWindows()}>{(win) => <Tile win={win} />}</For>
         <Show when={visibleWindows().length === 0}>
           <Text class="absolute left-0 text-center font-mono text-xs leading-[14]" style={{ insetT: MAP_H / 2 - 7, width: MAP_W, textColor: color("dark_foreground") }}>
-            nothing open here · the menu's Apps opens a window
+            No windows
           </Text>
         </Show>
       </View>
-      <Text class="absolute left-0 w-[512] text-center font-mono text-xs leading-[14]" style={{ insetT: MAP_Y + MAP_H + 12, textColor: color("dark_foreground") }}>
-        press a window for its keys · L1 + B closes · R1 + D-pad swaps
-      </Text>
+      <For each={pinned()}>{(item, i) => <PinCell x={pinXs()[i()]!} icon={item.icon} label={shortLabel(item.label)} target={`home:pin${i()}`} />}</For>
+      <PinCell x={pinXs()[pinned().length]!} icon={ADD} label="Pin" target={`home:pin${pinned().length}`} dim />
       <For each={Array.from({ length: WORKSPACES }, (_, i) => i)}>
         {(n) => (
           <View
@@ -179,7 +237,7 @@ export function Home() {
             class="absolute rounded-md"
             style={{ insetL: RIGHT_X, insetT: MAP_Y + i() * (CELL_H + CELL_GAP), width: SIDE_W, height: CELL_H, bgColor: color(openPanel() === p || pressed(`home:${p}`) ? "selection" : "dark_background") }}
           >
-            <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: CELL_H / 2 - 9, width: SIDE_W, textColor: color(openPanel() === p ? "accent" : (p === "proxy" && state()?.proxy?.running === false) || (p === "tailscale" && state()?.tailscale?.state !== "Running") ? "muted" : "foreground") }}>
+            <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: CELL_H / 2 - 9, insetL: -inkShift(panelGlyph(p), 16), width: SIDE_W, textColor: color(openPanel() === p ? "accent" : (p === "proxy" && state()?.proxy?.running === false) || (p === "tailscale" && state()?.tailscale?.state !== "Running") ? "muted" : "foreground") }}>
               {panelGlyph(p)}
             </Text>
           </View>

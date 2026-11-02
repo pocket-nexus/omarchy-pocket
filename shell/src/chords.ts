@@ -10,7 +10,9 @@
 //                              deck's layout, L2/R2 step workspaces
 //
 // L2/R2 under a shoulder do what the 3DS's circle pad does: resize under L1,
-// pan the scrolling strip under R1. The dispatcher (app.tsx), the legend
+// pan the scrolling strip under R1. Under R1 either stick resizes the focused
+// window as it is pushed (stick.ts): right and up make it wider and taller.
+// The dispatcher (app.tsx), the legend
 // while a shoulder is held and the key sheet read this table, so a label
 // cannot describe what its button does not do. A layer lasts as long as its
 // shoulder: nothing on the deck latches one.
@@ -119,22 +121,22 @@ export function labelFor(action: Action, layout: Layout): string {
     case "split":
       return layout === "dwindle" ? "toggle split" : "column width";
     case "layout":
-      return layout === "dwindle" ? "layout: scrolling" : "layout: dwindle";
+      return layout === "dwindle" ? "scroll layout" : "tile layout";
     case "keys":
       return "key sheet";
     case "shrink":
     case "grow":
       return layout === "dwindle" ? "resize" : "column width";
     case "another":
-      return "another of this";
+      return "open another";
     case "reopen":
       return "reopen closed";
     case "maximize":
       return "maximize";
     case "swapsplit":
-      return layout === "dwindle" ? "swap split" : "stack / unstack";
+      return layout === "dwindle" ? "swap split" : "(un)stack";
     case "wallpaper":
-      return "next background";
+      return "next wallpaper";
     case "bar":
       return "toggle bar";
     case "pan.left":
@@ -156,6 +158,9 @@ export function dpadLabel(layer: Layer): string {
       return "arrows";
   }
 }
+
+/** What a stick does under a layer, or "" for nothing. */
+export const stickLabel = (layer: Layer) => (layer === "move" ? "resize" : "");
 
 /** What L2/R2 do under a layer. */
 export function triggerLabel(layer: Layer, layout: Layout): string {
@@ -214,6 +219,8 @@ export function keySheet(layout: Layout): { title: string; rows: SheetRow[] }[] 
   for (const layer of HELD_LAYERS) {
     // the sheet's value column is narrower than the deck's: the workspace row says less
     const rows: SheetRow[] = [{ keys: `${prefix[layer]} d-pad`, what: layer === "workspace" ? "switch · carry" : dpadLabel(layer) }];
+    const stick = stickLabel(layer);
+    if (stick) rows.push({ keys: `${prefix[layer]} stick`, what: stick });
     const triggers = triggerLabel(layer, layout);
     if (triggers !== "—") rows.push({ keys: `${prefix[layer]} L2/R2`, what: triggers });
     for (const chord of chordsOf(layer)) {

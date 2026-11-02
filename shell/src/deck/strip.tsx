@@ -2,8 +2,10 @@
 // (opens the menu, as L1 + A does) and Esc at the left, Home at the right, and
 // between them the keys what has focus wants at one press. A terminal gets Tab
 // and its control keys; a touch app gets Back, which it hears as the Cross
-// button; anything else gets the workspaces' steps. While a pinyin composition
-// is open (the 中 key, term/ime.ts) the row holds its preedit and candidates.
+// button; an empty workspace gets Terminal and Layout; the menu, Pin for the
+// app it has selected. Home's side column steps the workspaces, so this row
+// does not. While a pinyin composition is open (the 中 key, term/ime.ts) the
+// row holds its preedit and candidates.
 import { createMemo, createRoot, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { perform, toggleMenu } from "../actions.ts";
@@ -11,9 +13,10 @@ import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
 import { keySink, layout, toggleHome } from "../focus.ts";
 import { cjk } from "../glyphs.ts";
 import { fieldSink } from "../keys.ts";
+import { inkShift } from "../ink.ts";
 import { appletTyping, pressBack } from "../packages.ts";
 import { card } from "../stage/card.tsx";
-import { menuOpen } from "../stage/menu.tsx";
+import { allApps, menuOpen, selectedItem } from "../stage/menu.tsx";
 import { composing, pick, snapshot } from "../term/ime.ts";
 import { openTerminal } from "../term/store.ts";
 import { sendCtrl, sendKey } from "../term/keyboard.tsx";
@@ -21,13 +24,13 @@ import { color } from "../theme.ts";
 import type { TouchFrame } from "../touch.ts";
 import { focused } from "../workspaces.ts";
 import { STRIP_H } from "./geometry.ts";
+import { PIN, pinIds, pinnable, togglePin, UNPIN } from "./pins.ts";
 import { pressed } from "./press.ts";
 
 const LOGO = "\u{e900}";
 const HOME = "\u{f02dc}";
 const CLOSE = "\u{f0156}";
 const LEFT = "\u{f0141}";
-const RIGHT = "\u{f0142}";
 const TERMINAL = "\u{f018d}";
 
 const EDGE = 4;
@@ -58,18 +61,24 @@ interface Placed extends Chip {
 
 const ctrl = (ch: string): Chip => ({ id: `ctrl-${ch}`, label: `^${ch.toUpperCase()}`, run: () => sendCtrl(ch) });
 const TAB: Chip = { id: "tab", label: "Tab", run: () => sendKey("Tab") };
-const PREV: Chip = { id: "ws-prev", label: "WS", glyph: LEFT, run: () => perform("ws.prev") };
-const NEXT: Chip = { id: "ws-next", label: "WS", glyph: RIGHT, run: () => perform("ws.next") };
+
+/** The menu's Pin key, while it has an app selected. */
+function pinChip(): Chip[] {
+  const item = menuOpen() ? selectedItem() : undefined;
+  if (!pinnable(item)) return [];
+  const on = pinIds(allApps()).includes(item.id);
+  return [{ id: "pin", label: on ? "Unpin" : "Pin", glyph: on ? UNPIN : PIN, run: () => togglePin(item, allApps()) }];
+}
 
 /** The middle of the row, for what has focus. */
 function context(): Chip[] {
   if (fieldSink()) return [];
-  if (card()) return [TAB];
+  if (card()) return [...pinChip(), TAB];
   const w = focused();
-  if (!w) return [PREV, NEXT, { id: "terminal", label: "Terminal", glyph: TERMINAL, run: () => openTerminal() }, { id: "layout", label: "Layout", run: () => perform("layout") }];
+  if (!w) return [{ id: "terminal", label: "Terminal", glyph: TERMINAL, run: () => openTerminal() }, { id: "layout", label: "Layout", run: () => perform("layout") }];
   if (w.kind === "terminal") return [TAB, ctrl("c"), ctrl("d"), ctrl("l"), ctrl("r")];
-  if (w.kind === "app") return appletTyping(w.app) ? [TAB, PREV, NEXT] : [{ id: "back", label: "Back", glyph: LEFT, run: pressBack }, PREV, NEXT];
-  return [TAB, PREV, NEXT];
+  if (w.kind === "app" && !appletTyping(w.app)) return [{ id: "back", label: "Back", glyph: LEFT, run: pressBack }];
+  return [TAB];
 }
 
 const closes = () => keySink().close;
@@ -132,13 +141,13 @@ export function Strip() {
               return (
                 <View class="absolute rounded-md" style={{ insetL: chip.x, insetT: CHIP_Y, width: chip.w, height: CHIP_H, bgColor: color(lit() || pressed(`strip:${chip.id}`) ? "selection" : "dark_background") }}>
                   <Show when={chip.glyph && chip.label}>
-                    <Text class="absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]" style={{ insetL: 6, textColor: color("foreground") }}>
+                    <Text class="absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]" style={{ insetL: 6 - inkShift(chip.glyph!, 12), textColor: color("foreground") }}>
                       {chip.glyph}
                     </Text>
                   </Show>
                   <Text
                     class={chip.id === "menu" ? "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]" : "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]"}
-                    style={{ width: chip.w, ...(chip.glyph && chip.label ? { insetL: 11 } : {}), textColor: color(chip.danger ? "red" : lit() ? "accent" : "foreground") }}
+                    style={{ width: chip.w, insetL: chip.glyph && chip.label ? 11 : chip.label ? 0 : -inkShift(chip.glyph ?? "", chip.id === "menu" ? 14 : 12), textColor: color(chip.danger ? "red" : lit() ? "accent" : "foreground") }}
                   >
                     {chip.label || chip.glyph}
                   </Text>

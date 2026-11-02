@@ -53,6 +53,7 @@ import { buttonKey, fieldSink } from "./keys.ts";
 import { appletRefused, feedPackage, showPackage, mediaPlaying, touchAppButtons } from "./packages.ts";
 import { glide } from "./motion.ts";
 import { remoteButtons } from "./remote-input.ts";
+import { stickTick } from "./stick.ts";
 import { Bar } from "./stage/bar.tsx";
 import { Card } from "./stage/card.tsx";
 import { KeySheet, Legend, tickLegend } from "./stage/keysheet.tsx";
@@ -227,6 +228,7 @@ export default function Shell() {
     setHeldLayer(layerOf(buttons & MODIFIERS));
     shoulderFor = buttons & MODIFIERS ? shoulderFor + 1 : 0;
     tickLegend(!locked() && !!(buttons & MODIFIERS), shoulderFor);
+    stickTick(!locked() && layerOf(buttons & MODIFIERS) === "move");
     for (const key of KEYS) {
       if (down & key) press(key, buttons);
       else if (key & REPEATS & buttons && heldFor > REPEAT_AFTER && (heldFor - REPEAT_AFTER) % REPEAT_EVERY === 0) press(key, buttons);

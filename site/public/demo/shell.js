@@ -1886,6 +1886,12 @@
   function analogY() {
     return axis(analogPacked & 255);
   }
+  function rightAnalogX() {
+    return axis(rightPacked >> 8 & 255);
+  }
+  function rightAnalogY() {
+    return axis(rightPacked & 255);
+  }
 
   // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/contracts/spec/motion.ts
   var MotionLevel = {
@@ -4849,6 +4855,21 @@
         return false;
       const grow = parent.side === "a" ? delta : -delta;
       parent.split.ratio = clamp(parent.split.ratio + grow * RESIZE_STEP, MIN_RATIO, MAX_RATIO);
+      return true;
+    }
+    resizeAxis(axis, delta) {
+      if (this.layout() === "scrolling")
+        return axis === "x" && this.resize(delta);
+      const space = this.spaces[this.active];
+      const chain = space.focus === null ? null : path(space.root, space.focus);
+      const parent = chain ? [...chain].reverse().find((p) => p.split.axis === axis) : undefined;
+      if (!parent)
+        return false;
+      const grow = parent.side === "a" ? delta : -delta;
+      const ratio = clamp(parent.split.ratio + grow * RESIZE_STEP, MIN_RATIO, MAX_RATIO);
+      if (ratio === parent.split.ratio)
+        return false;
+      parent.split.ratio = ratio;
       return true;
     }
     toggleSplit() {
@@ -12166,6 +12187,47 @@
     });
   }
 
+  // shell/src/deck/pins.ts
+  var MAX_PINS = 6;
+  var PIN = "\uDB81\uDC03";
+  var UNPIN = "\uDB81\uDC04";
+  var DEFAULT_PINS = ["Terminal", "Agent", "YouTube", "X", "GitHub", "Weather"];
+  var [saved2, setSaved] = createSignal(null);
+  request({
+    method: "pins"
+  }).then(setSaved, () => {});
+  var pinnable = (item) => !!item && item.id.startsWith("apps.");
+  function pinIds(apps) {
+    const chosen = saved2() ?? DEFAULT_PINS.flatMap((label) => apps.find((a) => a.label.toLowerCase() === label.toLowerCase())?.id ?? []);
+    return apps.length ? chosen.filter((id) => apps.some((a) => a.id === id)) : chosen;
+  }
+  function togglePin(item, apps) {
+    const now = pinIds(apps);
+    if (now.includes(item.id))
+      return save2(now.filter((id) => id !== item.id));
+    if (now.length >= MAX_PINS)
+      return toast({
+        icon: PIN,
+        title: `Home holds ${MAX_PINS} pins`,
+        body: "Unpin one to make room",
+        tone: "info"
+      });
+    save2([...now, item.id]);
+    toast({
+      icon: PIN,
+      title: `${item.label} is on Home`,
+      body: "Home opens it with one press",
+      tone: "info"
+    }, 3);
+  }
+  function save2(ids) {
+    setSaved(ids);
+    request({
+      method: "pinsSet",
+      ids
+    }).catch(() => {});
+  }
+
   // shell/src/generated/bluetooth-model.js
   function isAddressLike(value) {
     var text = String(value || "").trim();
@@ -14116,13 +14178,43 @@
         selected: first.id
       }));
   }
+  function showApps() {
+    refreshApps();
+    openAppsList();
+    setMenuOpen(true);
+  }
+  var selectedItem = () => {
+    const l = level();
+    return rows3(l)[indexIn(l)];
+  };
+  var openItem = (item) => activate(item);
+  function openAppsList() {
+    entering = 1;
+    setStack([levelFor(ROOT_TITLE, MENU)]);
+    const apps = MENU.find((item) => item.id === "apps");
+    if (apps)
+      openProvider(apps);
+  }
   var atRoot = () => stack().length === 1;
   function lastLine(text) {
     const lines = text.trim().split(`
 `);
     return lines[lines.length - 1] ?? "";
   }
-  var iconOf = (app) => app.applet ? APPLET : APP;
+  var MARKS = {
+    youtube: "\uDB81\uDDC3",
+    github: "\uDB80\uDEA4",
+    discord: "\uDB81\uDE6F",
+    x: "X",
+    "hacker news": "",
+    hn: "",
+    weather: "\uDB81\uDD95",
+    maps: "\uDB80\uDF4D",
+    podcasts: "\uDB82\uDD94",
+    "home assistant": "\uDB81\uDFD0",
+    home: "\uDB81\uDFD0"
+  };
+  var iconOf = (app) => app.applet ? MARKS[app.name.toLowerCase()] ?? APPLET : APP;
   var appRows = () => {
     const windows = [{
       ...row("apps.terminal", TERMINAL, "Terminal", ""),
@@ -14317,6 +14409,7 @@
   function Row(props) {
     const disabled = () => !!props.item().disabled && truth()[props.item().disabled] === true;
     const checked = () => props.item().current === true || !!props.item().checked && truth()[props.item().checked] === true;
+    const pinned = () => props.item().id.startsWith("apps.") && pinIds(allApps()).includes(props.item().id);
     return [createComponent2(Text, {
       get ["class"]() {
         return C.icon;
@@ -14344,7 +14437,7 @@
       }
     }), createComponent2(Show, {
       get when() {
-        return props.item().children.length > 0 || checked();
+        return props.item().children.length > 0 || checked() || pinned();
       },
       get children() {
         return createComponent2(Text, {
@@ -14357,7 +14450,7 @@
             };
           },
           get children() {
-            return props.item().children.length > 0 ? CHEVRON : CHECK2;
+            return memo2(() => props.item().children.length > 0)() ? CHEVRON : checked() ? CHECK2 : PIN;
           }
         });
       }
@@ -14642,22 +14735,22 @@
       case "split":
         return layout === "dwindle" ? "toggle split" : "column width";
       case "layout":
-        return layout === "dwindle" ? "layout: scrolling" : "layout: dwindle";
+        return layout === "dwindle" ? "scroll layout" : "tile layout";
       case "keys":
         return "key sheet";
       case "shrink":
       case "grow":
         return layout === "dwindle" ? "resize" : "column width";
       case "another":
-        return "another of this";
+        return "open another";
       case "reopen":
         return "reopen closed";
       case "maximize":
         return "maximize";
       case "swapsplit":
-        return layout === "dwindle" ? "swap split" : "stack / unstack";
+        return layout === "dwindle" ? "swap split" : "(un)stack";
       case "wallpaper":
-        return "next background";
+        return "next wallpaper";
       case "bar":
         return "toggle bar";
       case "pan.left":
@@ -14677,6 +14770,7 @@
         return "arrows";
     }
   }
+  var stickLabel = (layer) => layer === "move" ? "resize" : "";
   function triggerLabel(layer, layout) {
     switch (layer) {
       case "window":
@@ -14712,6 +14806,12 @@
         keys: `${prefix[layer]} d-pad`,
         what: layer === "workspace" ? "switch · carry" : dpadLabel(layer)
       }];
+      const stick = stickLabel(layer);
+      if (stick)
+        rows.push({
+          keys: `${prefix[layer]} stick`,
+          what: stick
+        });
       const triggers = triggerLabel(layer, layout);
       if (triggers !== "—")
         rows.push({
@@ -14898,22 +14998,34 @@
     if (due !== legendDue())
       setLegendDue(due);
   }
-  function legendLines(layer) {
+  function legendCells(layer) {
     if (layer === "plain")
-      return ["", ""];
+      return [];
     const l = layout();
-    const parts = (buttons) => chordsOf(layer).filter((c) => buttons.includes(c.button)).map((c) => `${BUTTON_NAME[c.button]} ${labelFor(c.action, l)}`);
-    const dpad = layer === "workspace" ? "D-pad ← → switch  ↑ ↓ carry" : `D-pad ${labelFor(chordsOf(layer).find((c) => c.button & DPAD).action, l)}`;
+    const cells = layer === "workspace" ? [["← →", "workspace"], ["↑ ↓", "carry window"]] : [["D-pad", labelFor(chordsOf(layer).find((c) => c.button & DPAD).action, l)]];
+    const stick = stickLabel(layer);
+    if (stick)
+      cells.push(["Stick", stick]);
     const triggers = triggerLabel(layer, l);
-    const first = [dpad, triggers === "—" ? "" : `L2/R2 ${triggers}`].filter(Boolean).join("   ");
-    const second = parts(FACE_AND_SIDE).join("   ");
-    return [first, second];
+    if (triggers !== "—")
+      cells.push(["L2/R2", triggers]);
+    for (const c of chordsOf(layer))
+      if (FACE_AND_SIDE.includes(c.button))
+        cells.push([BUTTON_NAME[c.button], labelFor(c.action, l)]);
+    return cells;
   }
   var FACE_AND_SIDE = [BTN.CIRCLE, BTN.CROSS, BTN.TRIANGLE, BTN.SQUARE, BTN.START, BTN.SELECT];
+  var LEGEND_COLS = 3;
+  var CELL_W = 154;
+  var KEY_W = 50;
+  var LEGEND_ROW = 16;
+  var LEGEND_TOP = 23;
+  var LEGEND_BOTTOM = 376;
   function Legend() {
     let node;
     const shownLayer = createMemo((last) => held() === "plain" ? last ?? "window" : held(), "window");
-    const text = createMemo(() => legendLines(shownLayer()));
+    const cells = createMemo(() => legendCells(shownLayer()));
+    const height = () => LEGEND_TOP + Math.ceil(cells().length / LEGEND_COLS) * LEGEND_ROW + 6;
     createEffect(on(legendDue, (due) => glide(node, "opacity", due ? 1 : 0, due ? 120 : 160), {
       defer: true
     }));
@@ -14923,6 +15035,8 @@
       },
       get style() {
         return {
+          insetT: LEGEND_BOTTOM - height(),
+          height: height(),
           bgColor: color("background", 0.96),
           borderColor: color("accent"),
           opacity: 0
@@ -14934,35 +15048,40 @@
           class: "absolute left-[12] top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]",
           get style() {
             return {
-              width: 120,
+              width: 464,
               textColor: color("accent")
             };
           },
           get children() {
             return LAYER_TITLE[shownLayer()];
           }
-        }), createComponent2(Text, {
-          class: "absolute left-[132] top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]",
-          get style() {
-            return {
-              width: 356,
-              textColor: color("foreground")
-            };
+        }), createComponent2(For, {
+          get each() {
+            return cells();
           },
-          get children() {
-            return text()[0];
-          }
-        }), createComponent2(Text, {
-          class: "absolute left-[132] top-[22] h-[14] overflow-hidden font-mono text-xs leading-[14]",
-          get style() {
-            return {
-              width: 356,
-              textColor: color("foreground")
-            };
-          },
-          get children() {
-            return text()[1];
-          }
+          children: ([key, what], i) => [createComponent2(Text, {
+            class: "absolute h-[14] overflow-hidden font-mono text-xs leading-[14]",
+            get style() {
+              return {
+                insetL: 12 + i() % LEGEND_COLS * CELL_W,
+                insetT: LEGEND_TOP + Math.floor(i() / LEGEND_COLS) * LEGEND_ROW,
+                width: KEY_W,
+                textColor: color("bright_foreground")
+              };
+            },
+            children: key
+          }), createComponent2(Text, {
+            class: "absolute h-[14] overflow-hidden font-mono text-xs leading-[14]",
+            get style() {
+              return {
+                insetL: 12 + i() % LEGEND_COLS * CELL_W + KEY_W,
+                insetT: LEGEND_TOP + Math.floor(i() / LEGEND_COLS) * LEGEND_ROW,
+                width: CELL_W - KEY_W - 4,
+                textColor: color("foreground")
+              };
+            },
+            children: what
+          })]
         })];
       }
     });
@@ -15121,353 +15240,18 @@
     },
     toggle: {
       x: RIGHT_X,
-      y: PAD_SMALL.y,
+      y: PAD_BOTTOM - 2 * ROUND - ROUND_GAP,
       w: ROUND,
       h: ROUND
     },
     more: {
       x: RIGHT_X,
-      y: PAD_SMALL.y + ROUND + ROUND_GAP,
+      y: PAD_BOTTOM - ROUND,
       w: ROUND,
       h: ROUND
     }
   };
   var inRect = (r, x, y) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
-
-  // shell/src/deck/press.ts
-  var LINGER = 5;
-  var [lit, setLit] = createSignal(null);
-  var linger = 0;
-  var pressed = (target) => lit() === target;
-  function pressAt(target) {
-    if (target !== null) {
-      linger = LINGER;
-      if (lit() !== target)
-        setLit(target);
-    } else if (lit() !== null && --linger <= 0)
-      setLit(null);
-  }
-
-  // shell/src/deck/home.tsx
-  var MAP_SCALE = 0.7;
-  var MAP_W = STAGE_W * MAP_SCALE;
-  var MAP_H = STAGE_H * MAP_SCALE;
-  var MAP_X = (512 - MAP_W) / 2;
-  var MAP_Y = 28;
-  var SIDE_W = 60;
-  var LEFT_X2 = (MAP_X - SIDE_W) / 2;
-  var RIGHT_X2 = 512 - MAP_X + (MAP_X - SIDE_W) / 2;
-  var CELL_H2 = 40;
-  var CELL_GAP = 6;
-  var LAYOUT_Y = MAP_Y + WORKSPACES * (CELL_H2 + CELL_GAP);
-  var PANEL_LIST = ["tailscale", "proxy", "bluetooth", "network", "audio", "power"];
-  var cellAt = (y) => {
-    const i = Math.floor((y - MAP_Y) / (CELL_H2 + CELL_GAP));
-    return y >= MAP_Y && y - MAP_Y - i * (CELL_H2 + CELL_GAP) < CELL_H2 ? i : -1;
-  };
-  var wsTabAt = (x, y) => {
-    const i = x >= LEFT_X2 && x < LEFT_X2 + SIDE_W ? cellAt(y) : -1;
-    return i < WORKSPACES ? i : -1;
-  };
-  var onBadge = (x, y) => x >= LEFT_X2 && x < LEFT_X2 + SIDE_W && y >= LAYOUT_Y && y < LAYOUT_Y + CELL_H2;
-  var panels = () => PANEL_LIST.filter((p) => (p !== "proxy" || state()?.proxy) && (p !== "tailscale" || state()?.tailscale));
-  var panelAt = (x, y) => x >= RIGHT_X2 && x < RIGHT_X2 + SIDE_W ? panels()[cellAt(y)] : undefined;
-  var panelGlyph = (p) => {
-    const s = state();
-    return p === "tailscale" ? "\uDB80\uDF18" : p === "proxy" ? "\uDB81\uDD82" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
-  };
-  var toStage = (x, y) => ({
-    x: (x - MAP_X) / MAP_SCALE,
-    y: (y - MAP_Y) / MAP_SCALE
-  });
-  var onMap = (x, y) => x >= MAP_X && x < MAP_X + MAP_W && y >= MAP_Y && y < MAP_Y + MAP_H;
-  var onDeck = (r) => ({
-    x: MAP_X + r.x * MAP_SCALE,
-    y: MAP_Y + r.y * MAP_SCALE,
-    w: r.w * MAP_SCALE,
-    h: r.h * MAP_SCALE
-  });
-  var icon = (w) => w.kind === "terminal" ? "\uDB80\uDD8D" : w.kind === "app" ? "\uDB82\uDF8A" : appletOf(w)?.icon ?? "";
-  var title = (w) => w.kind === "terminal" ? "Terminal" : w.kind === "app" ? w.title : appletOf(w)?.title ?? w.applet;
-  function homeTarget(x, y) {
-    const ws = wsTabAt(x, y);
-    if (ws >= 0)
-      return `home:ws${ws}`;
-    if (onBadge(x, y))
-      return "home:layout";
-    const p = panelAt(x, y);
-    if (p)
-      return `home:${p}`;
-    if (onMap(x, y)) {
-      const at = toStage(x, y);
-      const id = windowAt(at.x, at.y);
-      if (id !== null)
-        return `home:win${id}`;
-    }
-    return null;
-  }
-  function tap(x, y) {
-    const ws = wsTabAt(x, y);
-    if (ws >= 0)
-      return focus(ws);
-    if (onBadge(x, y))
-      return perform("layout");
-    const p = panelAt(x, y);
-    if (p)
-      return panel() === p ? closePanel() : showPanel(p);
-    if (onMap(x, y)) {
-      const at = toStage(x, y);
-      const id = windowAt(at.x, at.y);
-      if (id !== null)
-        act((m) => m.focusWin(id));
-    }
-  }
-  function homeTouch(frame) {
-    const c = frame.down[0];
-    pressAt(c && !c.moved ? homeTarget(c.x, c.y) : null);
-    for (const p of frame.presses)
-      tap(p.x, p.y);
-  }
-  function Tile(props) {
-    const rect = createMemo(() => onDeck(placements().find((p) => p.id === props.win.id)?.rect ?? {
-      x: 0,
-      y: 0,
-      w: 0,
-      h: 0
-    }), undefined, {
-      equals: sameRect
-    });
-    const hidden = () => placements().find((p) => p.id === props.win.id)?.hidden ?? true;
-    const isFocused = () => focused2()?.id === props.win.id;
-    const lit = () => pressed(`home:win${props.win.id}`);
-    let node;
-    createEffect(on(rect, (next, prev) => {
-      if (!node)
-        return;
-      if (prev)
-        flip(node, prev, next);
-      else
-        flip(node, {
-          x: next.x + next.w * 0.065,
-          y: next.y + next.h * 0.065,
-          w: next.w * 0.87,
-          h: next.h * 0.87
-        }, next, 0, 1);
-    }));
-    onCleanup(() => node = undefined);
-    return createComponent2(View, {
-      class: "absolute overflow-hidden",
-      get style() {
-        return {
-          insetL: rect().x - MAP_X,
-          insetT: rect().y - MAP_Y,
-          width: rect().w,
-          height: rect().h,
-          opacity: hidden() ? 0 : 1,
-          bgColor: color(lit() ? "bright_foreground" : isFocused() ? "accent" : "muted"),
-          ...TOP_LEFT
-        };
-      },
-      ref: (n) => node = n,
-      get children() {
-        return createComponent2(View, {
-          class: "absolute left-[2] top-[2] overflow-hidden",
-          get style() {
-            return {
-              width: rect().w - 4,
-              height: rect().h - 4,
-              bgColor: color(isFocused() ? "lighter_background" : "background")
-            };
-          },
-          get children() {
-            return [createComponent2(Text, {
-              class: "absolute left-0 text-center font-mono text-base leading-[20]",
-              get style() {
-                return {
-                  insetT: rect().h / 2 - 22,
-                  width: rect().w - 4,
-                  textColor: color(isFocused() ? "accent" : "foreground")
-                };
-              },
-              get children() {
-                return icon(props.win);
-              }
-            }), createComponent2(Text, {
-              class: "absolute left-0 h-[14] overflow-hidden text-center font-mono text-xs leading-[14]",
-              get style() {
-                return {
-                  insetT: rect().h / 2,
-                  width: rect().w - 4,
-                  textColor: color(isFocused() ? "bright_foreground" : "dark_foreground")
-                };
-              },
-              get children() {
-                return title(props.win);
-              }
-            })];
-          }
-        });
-      }
-    });
-  }
-  function Home() {
-    const bar = () => barPosition();
-    return [createComponent2(View, {
-      class: "absolute overflow-hidden rounded-sm",
-      get style() {
-        return {
-          insetL: MAP_X,
-          insetT: MAP_Y,
-          width: MAP_W,
-          height: MAP_H,
-          bgColor: color("dark_background")
-        };
-      },
-      get children() {
-        return [createComponent2(Show, {
-          get when() {
-            return bar() !== "none";
-          },
-          get children() {
-            return createComponent2(View, {
-              class: "absolute left-0",
-              get style() {
-                return {
-                  insetT: bar() === "bottom" ? MAP_H - BAR_H * MAP_SCALE : 0,
-                  width: MAP_W,
-                  height: BAR_H * MAP_SCALE,
-                  bgColor: color("background")
-                };
-              }
-            });
-          }
-        }), createComponent2(For, {
-          get each() {
-            return visibleWindows();
-          },
-          children: (win) => createComponent2(Tile, {
-            win
-          })
-        }), createComponent2(Show, {
-          get when() {
-            return visibleWindows().length === 0;
-          },
-          get children() {
-            return createComponent2(Text, {
-              class: "absolute left-0 text-center font-mono text-xs leading-[14]",
-              get style() {
-                return {
-                  insetT: MAP_H / 2 - 7,
-                  width: MAP_W,
-                  textColor: color("dark_foreground")
-                };
-              },
-              children: "nothing open here · the menu's Apps opens a window"
-            });
-          }
-        })];
-      }
-    }), createComponent2(Text, {
-      class: "absolute left-0 w-[512] text-center font-mono text-xs leading-[14]",
-      get style() {
-        return {
-          insetT: MAP_Y + MAP_H + 12,
-          textColor: color("dark_foreground")
-        };
-      },
-      children: "press a window for its keys · L1 + B closes · R1 + D-pad swaps"
-    }), createComponent2(For, {
-      get each() {
-        return Array.from({
-          length: WORKSPACES
-        }, (_, i) => i);
-      },
-      children: (n) => createComponent2(View, {
-        class: "absolute rounded-md",
-        get style() {
-          return {
-            insetL: LEFT_X2,
-            insetT: MAP_Y + n * (CELL_H2 + CELL_GAP),
-            width: SIDE_W,
-            height: CELL_H2,
-            bgColor: color(current4() === n || pressed(`home:ws${n}`) ? "selection" : "dark_background")
-          };
-        },
-        get children() {
-          return createComponent2(Text, {
-            class: "absolute left-0 text-center font-mono text-sm leading-[16]",
-            get style() {
-              return {
-                insetT: CELL_H2 / 2 - 8,
-                width: SIDE_W,
-                textColor: color(current4() === n ? "accent" : occupied(n) ? "foreground" : "muted")
-              };
-            },
-            get children() {
-              return String(n + 1);
-            }
-          });
-        }
-      })
-    }), createComponent2(View, {
-      class: "absolute rounded-md",
-      get style() {
-        return {
-          insetL: LEFT_X2,
-          insetT: LAYOUT_Y,
-          width: SIDE_W,
-          height: CELL_H2,
-          bgColor: color(pressed("home:layout") ? "selection" : "background")
-        };
-      },
-      get children() {
-        return createComponent2(Text, {
-          class: "absolute left-0 text-center font-mono text-xs leading-[14]",
-          get style() {
-            return {
-              insetT: CELL_H2 / 2 - 7,
-              width: SIDE_W,
-              textColor: color("dark_foreground")
-            };
-          },
-          get children() {
-            return layout() === "dwindle" ? "tile" : "scroll";
-          }
-        });
-      }
-    }), createComponent2(For, {
-      get each() {
-        return panels();
-      },
-      children: (p, i) => createComponent2(View, {
-        class: "absolute rounded-md",
-        get style() {
-          return {
-            insetL: RIGHT_X2,
-            insetT: MAP_Y + i() * (CELL_H2 + CELL_GAP),
-            width: SIDE_W,
-            height: CELL_H2,
-            bgColor: color(panel() === p || pressed(`home:${p}`) ? "selection" : "dark_background")
-          };
-        },
-        get children() {
-          return createComponent2(Text, {
-            class: "absolute left-0 text-center font-mono text-base leading-[18]",
-            get style() {
-              return {
-                insetT: CELL_H2 / 2 - 9,
-                width: SIDE_W,
-                textColor: color(panel() === p ? "accent" : p === "proxy" && state()?.proxy?.running === false || p === "tailscale" && state()?.tailscale?.state !== "Running" ? "muted" : "foreground")
-              };
-            },
-            get children() {
-              return panelGlyph(p);
-            }
-          });
-        }
-      })
-    })];
-  }
 
   // shell/src/stage/card.tsx
   var card = () => pickerOpen() ? "picker" : panel() ? "panel" : menuOpen() ? "menu" : null;
@@ -15490,6 +15274,11 @@
       panelKey("Forget");
       return true;
     }
+    const item = card() === "menu" && button & BTN.SQUARE ? selectedItem() : undefined;
+    if (pinnable(item)) {
+      togglePin(item, allApps());
+      return true;
+    }
     return false;
   }
   var cardSink = () => ({
@@ -15500,7 +15289,7 @@
   function cardHint() {
     switch (card()) {
       case "menu":
-        return "type to filter · ↑↓ move · Enter opens · Esc closes";
+        return pinnable(selectedItem()) ? "type to filter · Enter opens · Y pins to Home" : "type to filter · ↑↓ move · Enter opens · Esc closes";
       case "panel":
         return "↑↓ move · ←→ adjust · Enter acts · Esc closes";
       case "picker":
@@ -15677,6 +15466,677 @@
     chooseLayout(ORDER[(ORDER.indexOf(layout2()) + 1) % ORDER.length]);
   }
 
+  // shell/src/generated/glyph-ink.ts
+  var INK = {
+    "\uDB80\uDC26": 0.159,
+    "\uDB80\uDC3B": 0.034,
+    "\uDB80\uDC45": 0.03,
+    "\uDB80\uDC4D": 0.03,
+    "\uDB80\uDC54": 0.03,
+    "\uDB80\uDC5D": 0.03,
+    "\uDB80\uDC6E": 0.2,
+    "\uDB80\uDC85": 0.138,
+    "\uDB80\uDC86": 0.138,
+    "\uDB80\uDC87": 0.138,
+    "\uDB80\uDC88": 0.138,
+    "\uDB80\uDC89": 0.138,
+    "\uDB80\uDC8A": 0.138,
+    "\uDB80\uDC8B": 0.138,
+    "\uDB80\uDC9A": 0.075,
+    "\uDB80\uDC9B": 0.138,
+    "\uDB80\uDCB1": 0.075,
+    "\uDB80\uDCB2": 0.034,
+    "\uDB80\uDCB5": 0.096,
+    "\uDB80\uDCC9": 0.055,
+    "\uDB80\uDCDF": 0.171,
+    "\uDB80\uDD00": 0.116,
+    "\uDB80\uDD2C": 0.065,
+    "\uDB80\uDD41": -0.011,
+    "\uDB80\uDD42": 0.012,
+    "\uDB80\uDD47": 0.075,
+    "\uDB80\uDD59": 0.116,
+    "\uDB80\uDD5A": 0.116,
+    "\uDB80\uDD5F": 0.2,
+    "\uDB80\uDD8D": 0.116,
+    "\uDB80\uDD8F": 0.096,
+    "\uDB80\uDDBD": 0.051,
+    "\uDB80\uDDBE": 0.128,
+    "\uDB80\uDDD6": 0.075,
+    "\uDB80\uDDD8": 0.034,
+    "\uDB80\uDDE7": 0.116,
+    "\uDB80\uDDE9": 0.112,
+    "\uDB80\uDE00": 0.116,
+    "\uDB80\uDE02": 0.075,
+    "\uDB80\uDE08": 0.159,
+    "\uDB80\uDE09": 0.159,
+    "\uDB80\uDE37": 0.075,
+    "\uDB80\uDE49": 0.075,
+    "\uDB80\uDE9A": 0.116,
+    "\uDB80\uDEA4": 0.116,
+    "\uDB80\uDEAD": 0.106,
+    "\uDB80\uDEAF": 0.116,
+    "\uDB80\uDECA": 0.034,
+    "\uDB80\uDECB": 0.075,
+    "\uDB80\uDEDC": 0.116,
+    "\uDB80\uDEFC": 0.116,
+    "\uDB80\uDEFD": 0.116,
+    "\uDB80\uDF0C": 0.116,
+    "\uDB80\uDF11": 0.096,
+    "\uDB80\uDF2A": 0.116,
+    "\uDB80\uDF3E": 0.034,
+    "\uDB80\uDF43": 0.075,
+    "\uDB80\uDF4D": 0.075,
+    "\uDB80\uDF5C": 0.075,
+    "\uDB80\uDF6D": 0.075,
+    "\uDB80\uDF72": 0.096,
+    "\uDB80\uDF73": 0.116,
+    "\uDB80\uDF79": 0.159,
+    "\uDB80\uDFD3": 0.075,
+    "\uDB80\uDFD6": 0.138,
+    "\uDB80\uDFD8": 0.075,
+    "\uDB81\uDC04": 0.075,
+    "\uDB81\uDC0B": 0.075,
+    "\uDB81\uDC25": 0.034,
+    "\uDB81\uDC31": 0.138,
+    "\uDB81\uDC32": 0.075,
+    "\uDB81\uDC50": 0.034,
+    "\uDB81\uDC53": 0.138,
+    "\uDB81\uDCB1": 0.096,
+    "\uDB81\uDCB2": 0.159,
+    "\uDB81\uDCC5": 0.116,
+    "\uDB81\uDCC7": 0.116,
+    "\uDB81\uDD0E": 0.122,
+    "\uDB81\uDD2B": 0.034,
+    "\uDB81\uDD36": 0.159,
+    "\uDB81\uDD44": 0.136,
+    "\uDB81\uDD6E": 0.075,
+    "\uDB81\uDD7E": 0.075,
+    "\uDB81\uDD82": 0.159,
+    "\uDB81\uDD95": 0.136,
+    "\uDB81\uDD9F": 0.116,
+    "\uDB81\uDDA9": 0.149,
+    "\uDB81\uDDAA": 0.154,
+    "\uDB81\uDDB2": 0.034,
+    "\uDB81\uDDBA": 0.117,
+    "\uDB81\uDDC3": 0.116,
+    "\uDB81\uDDD8": 0.116,
+    "\uDB81\uDE07": 0.075,
+    "\uDB81\uDE36": 0.116,
+    "\uDB81\uDE6F": 0.116,
+    "\uDB81\uDEA9": 0.159,
+    "\uDB81\uDEE7": 0.2,
+    "\uDB81\uDEF3": 0.116,
+    "\uDB81\uDF09": 0.033,
+    "\uDB81\uDF5A": 0.096,
+    "\uDB81\uDF5F": 0.096,
+    "\uDB81\uDF63": 0.075,
+    "\uDB81\uDF64": 0.075,
+    "\uDB81\uDF65": 0.116,
+    "\uDB81\uDF85": 0.116,
+    "\uDB81\uDFD0": 0.14,
+    "\uDB81\uDFF5": 0.116,
+    "\uDB81\uDFF8": 0.116,
+    "\uDB82\uDC68": 0.116,
+    "\uDB82\uDC81": 0.159,
+    "\uDB82\uDC8C": 0.086,
+    "\uDB82\uDC9C": 0.138,
+    "\uDB82\uDC9D": 0.138,
+    "\uDB82\uDC9E": 0.138,
+    "\uDB82\uDCB9": 0.159,
+    "\uDB82\uDCC0": 0.054,
+    "\uDB82\uDCC7": 0.116,
+    "\uDB82\uDD01": 0.075,
+    "\uDB82\uDD1F": 0.185,
+    "\uDB82\uDD22": 0.185,
+    "\uDB82\uDD25": 0.185,
+    "\uDB82\uDD28": 0.185,
+    "\uDB82\uDD29": 0.182,
+    "\uDB82\uDD2E": 0.185,
+    "\uDB82\uDD2F": 0.185,
+    "\uDB82\uDD54": 0.116,
+    "\uDB82\uDD66": 0.034,
+    "\uDB82\uDD94": 0.138,
+    "\uDB82\uDDD1": 0.127,
+    "\uDB82\uDDF8": 0.138,
+    "\uDB82\uDE5F": 0.075,
+    "\uDB82\uDECF": 0.116,
+    "\uDB82\uDF4C": 0.159,
+    "\uDB82\uDF79": 0.116,
+    "\uDB82\uDF8A": 0.116,
+    "\uDB82\uDFC9": 0.159,
+    "\uDB83\uDCFD": 0.082,
+    "\uDB83\uDD11": 0.075,
+    "\uDB83\uDD6E": 0.116,
+    "\uDB83\uDD7D": 0.075,
+    "\uDB83\uDE0C": 0.116,
+    "\uDB84\uDCA9": 0.116,
+    "\uDB84\uDCAC": 0.116,
+    "\uDB84\uDD04": 0.159,
+    "\uDB84\uDDF1": 0.2,
+    "\uDB85\uDCDE": 0.121,
+    "\uDB85\uDCDF": 0.121,
+    "\uDB85\uDCFB": 0.075,
+    "\uDB85\uDEA1": 0.159,
+    "\uDB85\uDEA4": 0.159,
+    "\uDB85\uDEBE": 0.175,
+    "\uDB86\uDCF4": 0.116,
+    "": 0.075,
+    "": 0.141,
+    "": 0.023,
+    "": 0.137,
+    "": 0.137,
+    "": 0.132,
+    "": 0.137,
+    "": 0.137,
+    "": 0.067,
+    "": 0.068,
+    "": 0.085,
+    "": 0.1,
+    "": 0.09,
+    "": 0.086,
+    "": 0.081,
+    "": 0.1,
+    "": 0.092,
+    "": 0.091,
+    "": 0.052,
+    "": 0.101,
+    "": 0.03,
+    "": 0.088,
+    "": 0.088,
+    "": 0.1,
+    "": 0.1,
+    "": 0.1,
+    "": 0.1,
+    "": 0.137,
+    "": 0.169,
+    "": 0.013,
+    "": 0.137,
+    "": 0.137,
+    "": 0.167,
+    "": 0.137,
+    "": 0.013,
+    "": 0.137,
+    "": 0.103,
+    "": 0.145,
+    "": 0.22,
+    "": 0.162,
+    "": 0.162,
+    "": 0.167,
+    "": 0.046,
+    "": 0.177,
+    "": 0.133,
+    "": 0.133,
+    "": 0.104,
+    "": 0.104,
+    "": 0.277,
+    "": 0.162,
+    "": 0.104,
+    "": 0.147,
+    "": 0.219,
+    "": 0.162,
+    "": 0.159,
+    "": 0.158,
+    "": 0.162,
+    "": 0.046,
+    "": 0.147,
+    "": 0.162,
+    "": 0.162,
+    "": 0.162,
+    "": 0.277,
+    "": 0.219,
+    "": 0.046,
+    "": 0.079,
+    "": 0.277,
+    "": 0.147,
+    "": 0.104,
+    "": 0.274,
+    "": 0.162,
+    "": 0.143,
+    "": 0.162,
+    "": 0.104,
+    "": 0.077,
+    "": 0.2,
+    "": 0.138,
+    "": 0.138,
+    "": 0.2,
+    "": 0.2,
+    "": 0.2,
+    "": 0.075
+  };
+
+  // shell/src/ink.ts
+  var inkShift = (glyph, px) => Math.round((INK[glyph] ?? 0) * px * 2) / 2;
+
+  // shell/src/deck/press.ts
+  var LINGER = 5;
+  var [lit, setLit] = createSignal(null);
+  var linger = 0;
+  var pressed = (target) => lit() === target;
+  function pressAt(target) {
+    if (target !== null) {
+      linger = LINGER;
+      if (lit() !== target)
+        setLit(target);
+    } else if (lit() !== null && --linger <= 0)
+      setLit(null);
+  }
+
+  // shell/src/deck/home.tsx
+  var MAP_SCALE = 0.7;
+  var MAP_W = STAGE_W * MAP_SCALE;
+  var MAP_H = STAGE_H * MAP_SCALE;
+  var MAP_X = (512 - MAP_W) / 2;
+  var MAP_Y = 28;
+  var SIDE_W = 60;
+  var LEFT_X2 = (MAP_X - SIDE_W) / 2;
+  var RIGHT_X2 = 512 - MAP_X + (MAP_X - SIDE_W) / 2;
+  var CELL_H2 = 40;
+  var CELL_GAP = 6;
+  var LAYOUT_Y = MAP_Y + WORKSPACES * (CELL_H2 + CELL_GAP);
+  var PANEL_LIST = ["tailscale", "proxy", "bluetooth", "network", "audio", "power"];
+  var cellAt = (y) => {
+    const i = Math.floor((y - MAP_Y) / (CELL_H2 + CELL_GAP));
+    return y >= MAP_Y && y - MAP_Y - i * (CELL_H2 + CELL_GAP) < CELL_H2 ? i : -1;
+  };
+  var wsTabAt = (x, y) => {
+    const i = x >= LEFT_X2 && x < LEFT_X2 + SIDE_W ? cellAt(y) : -1;
+    return i < WORKSPACES ? i : -1;
+  };
+  var onBadge = (x, y) => x >= LEFT_X2 && x < LEFT_X2 + SIDE_W && y >= LAYOUT_Y && y < LAYOUT_Y + CELL_H2;
+  var panels = () => PANEL_LIST.filter((p) => (p !== "proxy" || state()?.proxy) && (p !== "tailscale" || state()?.tailscale));
+  var panelAt = (x, y) => x >= RIGHT_X2 && x < RIGHT_X2 + SIDE_W ? panels()[cellAt(y)] : undefined;
+  var panelGlyph = (p) => {
+    const s = state();
+    return p === "tailscale" ? "\uDB80\uDF18" : p === "proxy" ? "\uDB81\uDD82" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
+  };
+  var PIN_W = 64;
+  var PIN_H = 40;
+  var PIN_GAP = 6;
+  var PIN_Y = MAP_Y + MAP_H + 7;
+  var ADD = "\uDB81\uDC15";
+  var pinned = () => {
+    const apps = allApps();
+    return pinIds(apps).flatMap((id) => apps.find((a) => a.id === id) ?? []);
+  };
+  var pinXs = () => {
+    const n = pinned().length + 1;
+    const left = 256 - (n * PIN_W + (n - 1) * PIN_GAP) / 2;
+    return Array.from({
+      length: n
+    }, (_, i) => left + i * (PIN_W + PIN_GAP));
+  };
+  var pinAt = (x, y) => y >= PIN_Y && y < PIN_Y + PIN_H ? pinXs().findIndex((left) => x >= left && x < left + PIN_W) : -1;
+  var shortLabel = (label) => label.length <= 8 || !label.includes(" ") ? label : label.split(/\s+/).map((word) => word[0]).join("").toUpperCase();
+  function openPin(item) {
+    const open = item.applet ? find((w) => w.kind === "app" && w.path === item.applet) : null;
+    if (open)
+      return focusWindow(open.id);
+    openItem(item);
+  }
+  var toStage = (x, y) => ({
+    x: (x - MAP_X) / MAP_SCALE,
+    y: (y - MAP_Y) / MAP_SCALE
+  });
+  var onMap = (x, y) => x >= MAP_X && x < MAP_X + MAP_W && y >= MAP_Y && y < MAP_Y + MAP_H;
+  var onDeck = (r) => ({
+    x: MAP_X + r.x * MAP_SCALE,
+    y: MAP_Y + r.y * MAP_SCALE,
+    w: r.w * MAP_SCALE,
+    h: r.h * MAP_SCALE
+  });
+  var icon = (w) => w.kind === "terminal" ? "\uDB80\uDD8D" : w.kind === "app" ? "\uDB82\uDF8A" : appletOf(w)?.icon ?? "";
+  var title = (w) => w.kind === "terminal" ? "Terminal" : w.kind === "app" ? w.title : appletOf(w)?.title ?? w.applet;
+  function homeTarget(x, y) {
+    const ws = wsTabAt(x, y);
+    if (ws >= 0)
+      return `home:ws${ws}`;
+    if (onBadge(x, y))
+      return "home:layout";
+    const p = panelAt(x, y);
+    if (p)
+      return `home:${p}`;
+    const pin = pinAt(x, y);
+    if (pin >= 0)
+      return `home:pin${pin}`;
+    if (onMap(x, y)) {
+      const at = toStage(x, y);
+      const id = windowAt(at.x, at.y);
+      if (id !== null)
+        return `home:win${id}`;
+    }
+    return null;
+  }
+  function tap(x, y) {
+    const ws = wsTabAt(x, y);
+    if (ws >= 0)
+      return focus(ws);
+    if (onBadge(x, y))
+      return perform("layout");
+    const p = panelAt(x, y);
+    if (p)
+      return panel() === p ? closePanel() : showPanel(p);
+    const pin = pinAt(x, y);
+    if (pin >= 0) {
+      const item = pinned()[pin];
+      return item ? openPin(item) : showApps();
+    }
+    if (onMap(x, y)) {
+      const at = toStage(x, y);
+      const id = windowAt(at.x, at.y);
+      if (id !== null)
+        act((m) => m.focusWin(id));
+    }
+  }
+  function homeTouch(frame) {
+    const c = frame.down[0];
+    pressAt(c && !c.moved ? homeTarget(c.x, c.y) : null);
+    for (const p of frame.presses)
+      tap(p.x, p.y);
+  }
+  function Tile(props) {
+    const rect = createMemo(() => onDeck(placements().find((p) => p.id === props.win.id)?.rect ?? {
+      x: 0,
+      y: 0,
+      w: 0,
+      h: 0
+    }), undefined, {
+      equals: sameRect
+    });
+    const hidden = () => placements().find((p) => p.id === props.win.id)?.hidden ?? true;
+    const isFocused = () => focused2()?.id === props.win.id;
+    const lit = () => pressed(`home:win${props.win.id}`);
+    let node;
+    createEffect(on(rect, (next, prev) => {
+      if (!node)
+        return;
+      if (prev)
+        flip(node, prev, next);
+      else
+        flip(node, {
+          x: next.x + next.w * 0.065,
+          y: next.y + next.h * 0.065,
+          w: next.w * 0.87,
+          h: next.h * 0.87
+        }, next, 0, 1);
+    }));
+    onCleanup(() => node = undefined);
+    return createComponent2(View, {
+      class: "absolute overflow-hidden",
+      get style() {
+        return {
+          insetL: rect().x - MAP_X,
+          insetT: rect().y - MAP_Y,
+          width: rect().w,
+          height: rect().h,
+          opacity: hidden() ? 0 : 1,
+          bgColor: color(lit() ? "bright_foreground" : isFocused() ? "accent" : "muted"),
+          ...TOP_LEFT
+        };
+      },
+      ref: (n) => node = n,
+      get children() {
+        return createComponent2(View, {
+          class: "absolute left-[2] top-[2] overflow-hidden",
+          get style() {
+            return {
+              width: rect().w - 4,
+              height: rect().h - 4,
+              bgColor: color(isFocused() ? "lighter_background" : "background")
+            };
+          },
+          get children() {
+            return [createComponent2(Text, {
+              class: "absolute left-0 text-center font-mono text-base leading-[20]",
+              get style() {
+                return {
+                  insetT: rect().h / 2 - 22,
+                  width: rect().w - 4,
+                  textColor: color(isFocused() ? "accent" : "foreground")
+                };
+              },
+              get children() {
+                return icon(props.win);
+              }
+            }), createComponent2(Text, {
+              class: "absolute left-0 h-[14] overflow-hidden text-center font-mono text-xs leading-[14]",
+              get style() {
+                return {
+                  insetT: rect().h / 2,
+                  width: rect().w - 4,
+                  textColor: color(isFocused() ? "bright_foreground" : "dark_foreground")
+                };
+              },
+              get children() {
+                return title(props.win);
+              }
+            })];
+          }
+        });
+      }
+    });
+  }
+  function PinCell(props) {
+    return createComponent2(View, {
+      class: "absolute rounded-md",
+      get style() {
+        return {
+          insetL: props.x,
+          insetT: PIN_Y,
+          width: PIN_W,
+          height: PIN_H,
+          bgColor: color(pressed(props.target) ? "selection" : "dark_background")
+        };
+      },
+      get children() {
+        return [createComponent2(Text, {
+          class: "absolute left-0 top-[4] h-[18] text-center font-mono text-base leading-[18]",
+          get style() {
+            return {
+              insetL: -inkShift(props.icon, 16),
+              width: PIN_W,
+              textColor: color(props.dim ? "dark_foreground" : "foreground")
+            };
+          },
+          get children() {
+            return props.icon;
+          }
+        }), createComponent2(Text, {
+          class: "absolute left-[2] top-[23] h-[14] overflow-hidden text-center font-mono text-xs leading-[14]",
+          get style() {
+            return {
+              width: PIN_W - 4,
+              textColor: color("dark_foreground")
+            };
+          },
+          get children() {
+            return props.label;
+          }
+        })];
+      }
+    });
+  }
+  function Home() {
+    const bar = () => barPosition();
+    createEffect(on(layout2, (l) => l === "home" && refreshApps(), {
+      defer: true
+    }));
+    return [createComponent2(View, {
+      class: "absolute overflow-hidden rounded-sm",
+      get style() {
+        return {
+          insetL: MAP_X,
+          insetT: MAP_Y,
+          width: MAP_W,
+          height: MAP_H,
+          bgColor: color("dark_background")
+        };
+      },
+      get children() {
+        return [createComponent2(Show, {
+          get when() {
+            return bar() !== "none";
+          },
+          get children() {
+            return createComponent2(View, {
+              class: "absolute left-0",
+              get style() {
+                return {
+                  insetT: bar() === "bottom" ? MAP_H - BAR_H * MAP_SCALE : 0,
+                  width: MAP_W,
+                  height: BAR_H * MAP_SCALE,
+                  bgColor: color("background")
+                };
+              }
+            });
+          }
+        }), createComponent2(For, {
+          get each() {
+            return visibleWindows();
+          },
+          children: (win) => createComponent2(Tile, {
+            win
+          })
+        }), createComponent2(Show, {
+          get when() {
+            return visibleWindows().length === 0;
+          },
+          get children() {
+            return createComponent2(Text, {
+              class: "absolute left-0 text-center font-mono text-xs leading-[14]",
+              get style() {
+                return {
+                  insetT: MAP_H / 2 - 7,
+                  width: MAP_W,
+                  textColor: color("dark_foreground")
+                };
+              },
+              children: "No windows"
+            });
+          }
+        })];
+      }
+    }), createComponent2(For, {
+      get each() {
+        return pinned();
+      },
+      children: (item, i) => createComponent2(PinCell, {
+        get x() {
+          return pinXs()[i()];
+        },
+        get icon() {
+          return item.icon;
+        },
+        get label() {
+          return shortLabel(item.label);
+        },
+        get target() {
+          return `home:pin${i()}`;
+        }
+      })
+    }), createComponent2(PinCell, {
+      get x() {
+        return pinXs()[pinned().length];
+      },
+      icon: ADD,
+      label: "Pin",
+      get target() {
+        return `home:pin${pinned().length}`;
+      },
+      dim: true
+    }), createComponent2(For, {
+      get each() {
+        return Array.from({
+          length: WORKSPACES
+        }, (_, i) => i);
+      },
+      children: (n) => createComponent2(View, {
+        class: "absolute rounded-md",
+        get style() {
+          return {
+            insetL: LEFT_X2,
+            insetT: MAP_Y + n * (CELL_H2 + CELL_GAP),
+            width: SIDE_W,
+            height: CELL_H2,
+            bgColor: color(current4() === n || pressed(`home:ws${n}`) ? "selection" : "dark_background")
+          };
+        },
+        get children() {
+          return createComponent2(Text, {
+            class: "absolute left-0 text-center font-mono text-sm leading-[16]",
+            get style() {
+              return {
+                insetT: CELL_H2 / 2 - 8,
+                width: SIDE_W,
+                textColor: color(current4() === n ? "accent" : occupied(n) ? "foreground" : "muted")
+              };
+            },
+            get children() {
+              return String(n + 1);
+            }
+          });
+        }
+      })
+    }), createComponent2(View, {
+      class: "absolute rounded-md",
+      get style() {
+        return {
+          insetL: LEFT_X2,
+          insetT: LAYOUT_Y,
+          width: SIDE_W,
+          height: CELL_H2,
+          bgColor: color(pressed("home:layout") ? "selection" : "background")
+        };
+      },
+      get children() {
+        return createComponent2(Text, {
+          class: "absolute left-0 text-center font-mono text-xs leading-[14]",
+          get style() {
+            return {
+              insetT: CELL_H2 / 2 - 7,
+              width: SIDE_W,
+              textColor: color("dark_foreground")
+            };
+          },
+          get children() {
+            return layout() === "dwindle" ? "tile" : "scroll";
+          }
+        });
+      }
+    }), createComponent2(For, {
+      get each() {
+        return panels();
+      },
+      children: (p, i) => createComponent2(View, {
+        class: "absolute rounded-md",
+        get style() {
+          return {
+            insetL: RIGHT_X2,
+            insetT: MAP_Y + i() * (CELL_H2 + CELL_GAP),
+            width: SIDE_W,
+            height: CELL_H2,
+            bgColor: color(panel() === p || pressed(`home:${p}`) ? "selection" : "dark_background")
+          };
+        },
+        get children() {
+          return createComponent2(Text, {
+            class: "absolute left-0 text-center font-mono text-base leading-[18]",
+            get style() {
+              return {
+                insetT: CELL_H2 / 2 - 9,
+                insetL: -inkShift(panelGlyph(p), 16),
+                width: SIDE_W,
+                textColor: color(panel() === p ? "accent" : p === "proxy" && state()?.proxy?.running === false || p === "tailscale" && state()?.tailscale?.state !== "Running" ? "muted" : "foreground")
+              };
+            },
+            get children() {
+              return panelGlyph(p);
+            }
+          });
+        }
+      })
+    })];
+  }
+
   // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/contracts/spec/ime.ts
   var IME = Object.freeze({
     keys: 128,
@@ -15784,6 +16244,46 @@
     setKeys([...keys, IME.select + index]);
     waiting = true;
     evaluate2(emit);
+  }
+
+  // shell/src/stick.ts
+  var DEAD = 0.35;
+  var SLOW = 14;
+  var FAST = 4;
+  var wait = [0, 0];
+  var remote = {
+    x: 0,
+    y: 0,
+    frames: 0
+  };
+  function holdStick(x, y, frames) {
+    Object.assign(remote, {
+      x,
+      y,
+      frames
+    });
+  }
+  function read2() {
+    if (remote.frames > 0) {
+      remote.frames--;
+      return [remote.x, remote.y];
+    }
+    const left = [analogX(), analogY()];
+    const right = [rightAnalogX(), rightAnalogY()];
+    return Math.hypot(...left) >= Math.hypot(...right) ? left : right;
+  }
+  function step(axis, push) {
+    if (Math.abs(push) < DEAD)
+      return void (wait[axis] = 0);
+    if (wait[axis] > 0)
+      return void wait[axis]--;
+    act((m) => m.resizeAxis(axis === 0 ? "x" : "y", Math.sign(push)));
+    wait[axis] = Math.round(SLOW + (FAST - SLOW) * ((Math.abs(push) - DEAD) / (1 - DEAD)));
+  }
+  function stickTick(active) {
+    const [x, y] = active ? read2() : [0, 0];
+    step(0, x);
+    step(1, -y);
   }
 
   // shell/src/clock-format.ts
@@ -16027,8 +16527,8 @@
   }
 
   // shell/src/term/grid.tsx
-  var CELL_W = 6.4;
-  var TRACK = CELL_W - 7.2;
+  var CELL_W2 = 6.4;
+  var TRACK = CELL_W2 - 7.2;
   var CELL_H3 = 14;
   var PAD = 3;
   var hex = (rgb) => "#" + rgb.toString(16).padStart(6, "0");
@@ -16044,8 +16544,8 @@
           class: "absolute top-0",
           get style() {
             return {
-              insetL: props.run[0] * CELL_W,
-              width: runColumns(props.run) * CELL_W,
+              insetL: props.run[0] * CELL_W2,
+              width: runColumns(props.run) * CELL_W2,
               height: CELL_H3,
               bgColor: hex(props.run[3])
             };
@@ -16060,7 +16560,7 @@
         class: "absolute top-0 font-mono text-xs",
         get style() {
           return {
-            insetL: (props.run[0] + i() * step()) * CELL_W,
+            insetL: (props.run[0] + i() * step()) * CELL_W2,
             lineHeight: CELL_H3,
             fontSlot: props.run[4],
             textColor: props.run[2] >= 0 ? hex(props.run[2]) : color("foreground")
@@ -16092,8 +16592,8 @@
               class: "absolute top-0",
               get style() {
                 return {
-                  insetL: props.run()[0] * CELL_W,
-                  width: runColumns(props.run()) * CELL_W,
+                  insetL: props.run()[0] * CELL_W2,
+                  width: runColumns(props.run()) * CELL_W2,
                   height: CELL_H3,
                   bgColor: hex(props.run()[3])
                 };
@@ -16104,7 +16604,7 @@
           class: "absolute top-0 font-mono text-xs",
           get style() {
             return {
-              insetL: props.run()[0] * CELL_W,
+              insetL: props.run()[0] * CELL_W2,
               lineHeight: CELL_H3,
               tracking: TRACK,
               textColor: props.run()[2] >= 0 ? hex(props.run()[2]) : color("foreground")
@@ -16118,7 +16618,7 @@
     });
   }
   function TermGrid(props) {
-    const cols = () => Math.max(8, Math.min(TERM_COLS, Math.floor((props.w - 2 * PAD) / CELL_W)));
+    const cols = () => Math.max(8, Math.min(TERM_COLS, Math.floor((props.w - 2 * PAD) / CELL_W2)));
     const rows = () => Math.max(2, Math.min(TERM_ROWS, Math.floor((props.h - 2 * PAD) / CELL_H3)));
     let settle = 0;
     createEffect(on([cols, rows], ([c, r]) => {
@@ -16150,9 +16650,9 @@
                 class: "absolute",
                 get style() {
                   return {
-                    insetL: s.cursor()[0] * CELL_W,
+                    insetL: s.cursor()[0] * CELL_W2,
                     insetT: s.cursor()[1] * CELL_H3,
-                    width: CELL_W,
+                    width: CELL_W2,
                     height: CELL_H3,
                     bgColor: color("accent", 0.6)
                   };
@@ -16168,7 +16668,7 @@
               get style() {
                 return {
                   insetT: y * CELL_H3,
-                  width: cols() * CELL_W,
+                  width: cols() * CELL_W2,
                   height: CELL_H3
                 };
               },
@@ -16727,6 +17227,7 @@
       y: Number(y),
       frames: TAP_FRAMES + 1
     }), "ok"),
+    stick: (x, y, frames = "30") => (holdStick(Math.max(-1, Math.min(1, Number(x) || 0)), Math.max(-1, Math.min(1, Number(y) || 0)), Math.max(1, Number(frames) || 30)), "ok"),
     pointer: (x, y) => (movePointer(Number(x) - pointer().x, Number(y) - pointer().y), "ok"),
     click: () => (click(), "ok"),
     drag: (x, y, x2, y2, frames = "20", hold = "0") => {
@@ -17215,7 +17716,6 @@
   var HOME = "\uDB80\uDEDC";
   var CLOSE = "\uDB80\uDD56";
   var LEFT = "\uDB80\uDD41";
-  var RIGHT = "\uDB80\uDD42";
   var TERMINAL2 = "\uDB80\uDD8D";
   var EDGE2 = 4;
   var GAP3 = 4;
@@ -17237,26 +17737,26 @@
     label: "Tab",
     run: () => sendKey("Tab")
   };
-  var PREV = {
-    id: "ws-prev",
-    label: "WS",
-    glyph: LEFT,
-    run: () => perform("ws.prev")
-  };
-  var NEXT = {
-    id: "ws-next",
-    label: "WS",
-    glyph: RIGHT,
-    run: () => perform("ws.next")
-  };
+  function pinChip() {
+    const item = menuOpen() ? selectedItem() : undefined;
+    if (!pinnable(item))
+      return [];
+    const on = pinIds(allApps()).includes(item.id);
+    return [{
+      id: "pin",
+      label: on ? "Unpin" : "Pin",
+      glyph: on ? UNPIN : PIN,
+      run: () => togglePin(item, allApps())
+    }];
+  }
   function context() {
     if (field())
       return [];
     if (card())
-      return [TAB];
+      return [...pinChip(), TAB];
     const w = focused2();
     if (!w)
-      return [PREV, NEXT, {
+      return [{
         id: "terminal",
         label: "Terminal",
         glyph: TERMINAL2,
@@ -17268,14 +17768,14 @@
       }];
     if (w.kind === "terminal")
       return [TAB, ctrl("c"), ctrl("d"), ctrl("l"), ctrl("r")];
-    if (w.kind === "app")
-      return appletTyping(w.app) ? [TAB, PREV, NEXT] : [{
+    if (w.kind === "app" && !appletTyping(w.app))
+      return [{
         id: "back",
         label: "Back",
         glyph: LEFT,
         run: pressBack
-      }, PREV, NEXT];
-    return [TAB, PREV, NEXT];
+      }];
+    return [TAB];
   }
   var closes = () => keySink().close;
   var row2 = createRoot(() => createMemo(() => {
@@ -17378,7 +17878,7 @@
                           class: "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]",
                           get style() {
                             return {
-                              insetL: 6,
+                              insetL: 6 - inkShift(chip.glyph, 12),
                               textColor: color("foreground")
                             };
                           },
@@ -17394,9 +17894,7 @@
                       get style() {
                         return {
                           width: chip.w,
-                          ...chip.glyph && chip.label ? {
-                            insetL: 11
-                          } : {},
+                          insetL: chip.glyph && chip.label ? 11 : chip.label ? 0 : -inkShift(chip.glyph ?? "", chip.id === "menu" ? 14 : 12),
                           textColor: color(chip.danger ? "red" : lit() ? "accent" : "foreground")
                         };
                       },
@@ -17863,6 +18361,7 @@
               get style() {
                 return {
                   insetT: ROUND / 2 - 12,
+                  insetL: -inkShift(r.glyph, 20),
                   width: ROUND,
                   textColor: color(listening() ? "bright_foreground" : lit() ? "accent" : "foreground")
                 };
@@ -18005,7 +18504,7 @@
     stop: () => (stopScreensaver(), "ok"),
     status: () => active2() ? "running" : "stopped"
   });
-  var CELL_W2 = 6;
+  var CELL_W3 = 6;
   var CELL_H4 = 14;
   var HOLD = 7;
   var OUT = 1.6;
@@ -18013,7 +18512,7 @@
     const lines = source.split(`
 `);
     const cols = Math.max(1, ...lines.map((l) => [...l].length));
-    const left = Math.round((512 - cols * CELL_W2) / 2);
+    const left = Math.round((512 - cols * CELL_W3) / 2);
     const top = Math.round((384 - lines.length * CELL_H4) / 2);
     const cells = [];
     lines.forEach((line, row) => [...line].forEach((ch, col) => {
@@ -18022,7 +18521,7 @@
           ch,
           col,
           row,
-          x: left + col * CELL_W2,
+          x: left + col * CELL_W3,
           y: top + row * CELL_H4
         });
     }));
@@ -18381,6 +18880,7 @@
       setHeld(layerOf(buttons & MODIFIERS));
       shoulderFor = buttons & MODIFIERS ? shoulderFor + 1 : 0;
       tickLegend(!locked() && !!(buttons & MODIFIERS), shoulderFor);
+      stickTick(!locked() && layerOf(buttons & MODIFIERS) === "move");
       for (const key of KEYS) {
         if (down & key)
           press(key, buttons);
@@ -20073,23 +20573,24 @@
     "absolute overflow-hidden": 109,
     "absolute h-[15] overflow-hidden font-mono text-xs leading-[15]": 110,
     "absolute left-[12] top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]": 111,
-    "absolute left-[132] top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]": 112,
-    "absolute left-[132] top-[22] h-[14] overflow-hidden font-mono text-xs leading-[14]": 113,
-    "absolute left-[2] top-[2] overflow-hidden": 114,
-    "absolute left-0 text-center font-mono text-base leading-[20]": 115,
-    "absolute overflow-hidden rounded-sm": 116,
-    "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]": 117,
-    "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 118,
-    "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 119,
-    "absolute left-0 top-0 w-[512]": 120,
-    "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]": 121,
-    "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 122,
-    "absolute rounded-lg": 123,
-    "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]": 124,
-    "absolute text-center text-lg leading-[24]": 125,
-    "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 126,
-    "absolute w-[44] h-[44] rounded-full": 127,
-    "absolute left-0 top-0 w-[512] h-[384] overflow-hidden": 128
+    "absolute h-[14] overflow-hidden font-mono text-xs leading-[14]": 112,
+    "absolute left-[2] top-[2] overflow-hidden": 113,
+    "absolute left-0 text-center font-mono text-base leading-[20]": 114,
+    "absolute left-0 top-[4] h-[18] text-center font-mono text-base leading-[18]": 115,
+    "absolute left-[2] top-[23] h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 116,
+    "absolute overflow-hidden rounded-sm": 117,
+    "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]": 118,
+    "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 119,
+    "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 120,
+    "absolute left-0 top-0 w-[512]": 121,
+    "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]": 122,
+    "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 123,
+    "absolute rounded-lg": 124,
+    "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]": 125,
+    "absolute text-center text-lg leading-[24]": 126,
+    "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 127,
+    "absolute w-[44] h-[44] rounded-full": 128,
+    "absolute left-0 top-0 w-[512] h-[384] overflow-hidden": 129
   };
 
   // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/index.ts

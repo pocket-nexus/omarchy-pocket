@@ -30,6 +30,7 @@ import { checkPassword, watchSleep } from "./session.ts";
 import { Glyphs } from "./glyphs.ts";
 import { commonHanzi, Ime } from "./ime.ts";
 import { apps } from "./apps.ts";
+import { readPins, writePins } from "./pins.ts";
 import { Bar } from "./bar.ts";
 import * as applets from "./applets.ts";
 import { RUNTIME } from "./paths.ts";
@@ -446,6 +447,13 @@ async function handle(socket: Socket<Peer>, request: Request) {
         break;
       case "apps":
         result = apps(HOME);
+        break;
+      case "pins":
+        result = readPins(HOME);
+        break;
+      case "pinsSet":
+        writePins(HOME, request.ids);
+        result = null;
         break;
       case "ime": {
         const snapshot = await ime.compose(request.keys);

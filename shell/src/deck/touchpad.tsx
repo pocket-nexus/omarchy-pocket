@@ -7,9 +7,10 @@
 // pointer holds down and moves, which moves a slider or a picked-up row. In the
 // keys layout the pointer shows from the first touch here until the next key.
 //
-// Two round buttons sit in each margin and stay put when the trackpad grows:
-// the microphone (deck/voice.ts) and Hold on the left, the keyboard (folds the
-// keys away and back) and the key sheet on the right. A package that draws a touch surface of its own and is not a touch app
+// Two round buttons sit at the bottom of each margin and stay put when the
+// trackpad grows: the microphone (deck/voice.ts) and Hold on the left, the
+// keyboard (folds the keys away and back) and the key sheet on the right. A
+// package that draws a touch surface of its own and is not a touch app
 // (app.surfaces.auxiliary without `applet`) shows that surface in the pad layout
 // instead, and the fingers on it are its contacts.
 import { createEffect, createSignal, For, on, Show } from "solid-js";
@@ -18,6 +19,7 @@ import { getOps } from "@pocketjs/framework/host";
 import { perform } from "../actions.ts";
 import { toggleVoice, voiceLevel, voiceState } from "./voice.ts";
 import { C } from "../classes.ts";
+import { inkShift } from "../ink.ts";
 import { keySink, layout, toggleKeys, type Layout } from "../focus.ts";
 import { flip, TOP_LEFT } from "../motion.ts";
 import { appTextures } from "../packages.ts";
@@ -240,7 +242,7 @@ function Pad() {
           const at = ROUNDS[r.name];
           return (
             <View class="absolute w-[44] h-[44] rounded-full" style={{ insetL: at.x, insetT: at.y, bgColor: color(listening() ? "red" : pressed(`round:${r.name}`) ? "selection" : "dark_background"), opacity: listening() ? 0.55 + 0.45 * voiceLevel() : 1 }}>
-              <Text class="absolute left-0 text-center text-xl leading-[24]" style={{ insetT: ROUND / 2 - 12, width: ROUND, textColor: color(listening() ? "bright_foreground" : lit() ? "accent" : "foreground") }}>
+              <Text class="absolute left-0 text-center text-xl leading-[24]" style={{ insetT: ROUND / 2 - 12, insetL: -inkShift(r.glyph, 20), width: ROUND, textColor: color(listening() ? "bright_foreground" : lit() ? "accent" : "foreground") }}>
                 {r.glyph}
               </Text>
             </View>

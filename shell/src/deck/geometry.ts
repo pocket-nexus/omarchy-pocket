@@ -23,9 +23,8 @@ const PAD_BOTTOM = BODY_H - 6;
 export const PAD_SMALL: Rect = { x: PAD_X, y: KEYS_BOTTOM + 6, w: PAD_W, h: PAD_BOTTOM - KEYS_BOTTOM - 6 };
 export const PAD_LARGE: Rect = { x: PAD_X, y: 6, w: PAD_W, h: PAD_BOTTOM - 6 };
 
-/** The round buttons: two at the bottom of the left margin, two at the top
- *  of the right margin beside the small trackpad. They stay put when the
- *  trackpad grows. */
+/** The round buttons: two at the bottom of each margin, level with each
+ *  other. They stay put when the trackpad grows. */
 export const ROUND = 44;
 const ROUND_GAP = 8;
 const LEFT_X = (PAD_X - ROUND) / 2;
@@ -33,8 +32,8 @@ const RIGHT_X = 512 - PAD_X + LEFT_X;
 export const ROUNDS = {
   voice: { x: LEFT_X, y: PAD_BOTTOM - 2 * ROUND - ROUND_GAP, w: ROUND, h: ROUND },
   hold: { x: LEFT_X, y: PAD_BOTTOM - ROUND, w: ROUND, h: ROUND },
-  toggle: { x: RIGHT_X, y: PAD_SMALL.y, w: ROUND, h: ROUND },
-  more: { x: RIGHT_X, y: PAD_SMALL.y + ROUND + ROUND_GAP, w: ROUND, h: ROUND },
+  toggle: { x: RIGHT_X, y: PAD_BOTTOM - 2 * ROUND - ROUND_GAP, w: ROUND, h: ROUND },
+  more: { x: RIGHT_X, y: PAD_BOTTOM - ROUND, w: ROUND, h: ROUND },
 } satisfies Record<string, Rect>;
 
 export const inRect = (r: Rect, x: number, y: number) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
