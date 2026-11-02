@@ -55,6 +55,10 @@ a{color:inherit}
 .bar a{text-decoration:none}
 .bar nav{display:flex;gap:22px;align-items:center}
 .ghost{padding:10px 14px;border:1px solid var(--line);border-radius:999px;backdrop-filter:blur(12px)}
+.burger{display:none;flex-direction:column;justify-content:center;gap:6px;width:44px;height:44px;margin:-8px -10px -8px 0;padding:0 10px;border:0;background:none;color:inherit;cursor:pointer}
+.burger i{display:block;height:2px;border-radius:1px;background:currentColor;transition:transform .18s}
+.bar.open .burger i:first-child{transform:translateY(4px) rotate(45deg)}
+.bar.open .burger i:last-child{transform:translateY(-4px) rotate(-45deg)}
 .logo{display:flex;gap:9px;align-items:center;font-weight:700}
 .logo i{width:14px;height:20px;border-radius:3px;border:2px solid currentColor;display:block;position:relative}
 .logo i::after{content:"";position:absolute;left:-2px;right:-2px;top:7px;height:2px;background:currentColor}
@@ -114,7 +118,11 @@ footer{position:relative;z-index:2;display:flex;justify-content:space-between;pa
   .ghost,.btn.alt{backdrop-filter:none}
   #glow{display:none}
   #study-title{top:76px}
-  .bar nav a:not(.ghost):not(.vs){display:none}
+  .burger{display:flex}
+  .bar nav{position:absolute;left:12px;right:12px;top:calc(100% - 4px);flex-direction:column;align-items:stretch;gap:0;padding:6px;background:#1c0d28;border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.45);opacity:0;visibility:hidden;transform:translateY(-8px);transition:opacity .18s,transform .18s,visibility .18s}
+  .bar.open nav{opacity:1;visibility:visible;transform:none}
+  .bar nav a,.bar nav a.ghost{display:block;padding:15px 14px;border:0;border-radius:12px;font-size:17px}
+  .bar nav a+a{border-top:1px solid var(--line);border-radius:0}
   #orbit{display:none}
   [data-beat="11"]{padding-top:13vh!important;min-height:135vh!important}
   [data-beat="12"]{padding-top:15vh!important;min-height:100vh!important}
@@ -133,7 +141,8 @@ footer{position:relative;z-index:2;display:flex;justify-content:space-between;pa
 <p id="say" aria-live="polite"></p>
 <header class="bar">
   <a class="logo" href="#top"><i></i>Omarchy Pocket</a>
-  <nav><a href="#shapes">Interaction</a><a href="#heart">Omarchy</a><a href="#apps">Applets</a><a class="vs" href="/vs/iphone-duo/">vs iPhone Duo</a><a href="/demo/">Live demo</a><a class="ghost" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a></nav>
+  <button class="burger" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu"><i></i><i></i></button>
+  <nav id="menu"><a href="#shapes">Interaction</a><a href="#heart">Omarchy</a><a href="#apps">Applets</a><a class="vs" href="/vs/iphone-duo/">vs iPhone Duo</a><a href="/demo/">Live demo</a><a class="ghost" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a></nav>
 </header>
 <main id="top">
   <section class="beat hero" data-beat="0">
@@ -356,6 +365,13 @@ const toBeat = (target, behavior) => {
   const r = target.getBoundingClientRect();
   scrollTo({ top: r.top + scrollY + r.height / 2 - screenH() / 2, behavior });
 };
+const bar = document.querySelector(".bar"), burger = bar.querySelector(".burger");
+const setMenu = (open) => { bar.classList.toggle("open", open); burger.setAttribute("aria-expanded", String(open)); };
+document.addEventListener("click", (e) => {
+  if (e.target.closest?.(".burger")) setMenu(!bar.classList.contains("open"));
+  else if (!e.target.closest?.(".bar nav") || e.target.closest("a")) setMenu(false);
+});
+addEventListener("keydown", (e) => { if (e.key === "Escape") setMenu(false); });
 document.addEventListener("click", (e) => {
   const a = e.target.closest?.('a[href^="#"]');
   const target = a && a.getAttribute("href") !== "#top" && document.querySelector(a.getAttribute("href"));

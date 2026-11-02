@@ -6,7 +6,7 @@ The landing page and the browser demo, an assets-only Worker (`wrangler.jsonc`).
 |---|---|
 | `public/` | what deploys: `index.html`, `demo/`, `kit/` (the RG DS Plus as a three.js model, the chord table), `shots/` |
 | `demo/` | sources of `public/demo/host.js`: the browser's host program and a stand-in for omarchy-pocketd |
-| `vs.ts` | builds `public/vs/iphone-duo/`: three versions of the comparison from one table of figures, and the to-scale drawing |
+| `vs.ts` | builds `public/vs/iphone-duo/`: the comparison from one table of figures, and the to-scale drawing |
 | `study/` | the three directions not chosen, and the first draft of this one; not deployed |
 
 ```sh
