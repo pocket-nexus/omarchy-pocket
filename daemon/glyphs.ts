@@ -242,6 +242,8 @@ const APPLET_FACES = [CJK, MONO, EMOJI];
 /** The child keeps its parsed faces this long after its last job: an applet
  *  asks for atlases as it scrolls, minutes apart. */
 const BAKER_IDLE_MS = 10 * 60_000;
+/** Rasterized glyphs the baker keeps between atlases. */
+const RASTERS_KEPT = 6000;
 
 interface AtlasJob {
   px: number;
@@ -255,10 +257,11 @@ interface AtlasJob {
 
 /** FONT ATLAS files for the applets' glyphs service (daemon/companion.ts),
  *  at the raster density the applet asks for (this device's when it names
- *  none): an applet asks for density 1, since its atlas reaches it through
- *  its worker's response ring, a quarter of the bytes. One niced child (`omarchy-pocketd.js
- *  atlas-baker`) parses the faces once and bakes the atlases asked for in
- *  turn; it exits after BAKER_IDLE_MS without a job and returns its
+ *  none). One niced child (`omarchy-pocketd.js atlas-baker`) parses the faces
+ *  once and bakes the atlases asked for in turn, keeping each glyph it
+ *  rasterized (bake-font.ts GlyphRasterCache): an applet's next atlas holds
+ *  the glyphs of the last one and the new ones, and only the new ones are
+ *  rasterized. It exits after BAKER_IDLE_MS without a job and returns its
  *  hundred-odd MB. */
 export class AtlasBaker {
   private child: ReturnType<typeof Bun.spawn<"pipe", "pipe", "inherit">> | null = null;
@@ -347,6 +350,7 @@ async function* readLines(stream: ReadableStream<Uint8Array>): AsyncGenerator<st
 export async function atlasBakerMain() {
   const { default: opentype } = await import("opentype.js");
   const { bakeSlot } = await import("../vendor/pocketjs/framework/compiler/bake-font.ts");
+  const rasters: import("../vendor/pocketjs/framework/compiler/bake-font.ts").GlyphRasterCache = new Map();
   const faces = APPLET_FACES.map((paths) => {
     const path = paths.find((p) => p && existsSync(p));
     return path ? opentype.parse(firstFace(new Uint8Array(readFileSync(path))).buffer) : null;
@@ -356,7 +360,9 @@ export async function atlasBakerMain() {
       if (!faces.length) throw new Error("no run-time font; install wqy-microhei");
       const job = JSON.parse(line) as { px: number; bold: boolean; slot: number; density?: number; chars: number[]; out: string };
       const [font, ...fallbacks] = faces;
-      const atlas = bakeSlot(font!, job.slot, job.px, job.bold, job.chars, job.density === 1 ? 1 : DENSITY, fallbacks);
+      // a few thousand glyphs at density 2 are about 10 MB
+      if (rasters.size > RASTERS_KEPT) rasters.clear();
+      const atlas = bakeSlot(font!, job.slot, job.px, job.bold, job.chars, job.density === 1 ? 1 : DENSITY, fallbacks, rasters);
       writeFileSync(job.out, atlas.bytes);
       console.log(JSON.stringify({ glyphs: atlas.glyphCount }));
     } catch (error) {
