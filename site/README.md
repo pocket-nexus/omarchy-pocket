@@ -6,7 +6,8 @@ The landing page and the browser demo, an assets-only Worker (`wrangler.jsonc`).
 |---|---|
 | `public/` | what deploys: `index.html`, `demo/`, `kit/` (the RG DS Plus as a three.js model, the chord table), `shots/` |
 | `demo/` | sources of `public/demo/host.js`: the browser's host program and a stand-in for omarchy-pocketd |
-| `vs.ts` | builds `public/vs/iphone-duo/`: the comparison from one table of figures, and the to-scale drawing |
+| `vs.ts` | builds `public/vs/iphone-duo/`: the comparison from one table of figures, and the to-scale drawing of the iPhone Duo with its home screen |
+| `render.ts` | renders the 3D model with two panel captures through headless Chrome: `public/vs/iphone-duo/rg-ds-plus.webp` (the desktop over the keyboard, face on) and the README's picture (`--pose=-18,-48,118`) |
 | `study/` | the three directions not chosen, and the first draft of this one; not deployed |
 
 ```sh
@@ -16,6 +17,7 @@ bun site/record.ts                 # the chord video and the panel stills, from 
 bun site/icons.ts                  # the icon family and og-image.png (needs the preview)
 bun site/shots.ts                  # device captures from the ignored .pocket-build/validation
 bun site/vs.ts                     # the iPhone Duo comparison
+bun site/render.ts <top.png> <bottom.png> <out.png> [--pose=yaw,pitch,lid]   # the 3D model with two panel captures, transparent
 cd site && bunx wrangler deploy
 ```
 

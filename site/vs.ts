@@ -74,19 +74,48 @@ function duoSvg() {
   rect(0, 0, W, H, 92, "url(#edge)");
   rect(5, 5, W - 10, H - 10, 88, "#0b0b0d");
   out.push(`<clipPath id="screen"><rect x="${SX}" y="${SY}" width="${SW}" height="${SH}" rx="68"/></clipPath><g clip-path="url(#screen)">`);
-  // the upper half: a page of videos, in no one's colours
-  rect(SX, SY, SW, FOLD - SY, 0, "#f6f3ef");
-  rect(SX, SY, SW, 84, 0, "#ffffff");
-  rect(SX + 50, SY + 34, 60, 22, 8, "#d8d3cc");
-  rect(SX + 300, SY + 26, SW - 600, 38, 19, "#ece8e2");
-  const tints = ["#e8b7a6", "#b7c9e8", "#c8e0bd", "#e6d3a3", "#d6bfe6", "#a9d6d4"];
-  for (let i = 0; i < 6; i++) {
-    const col = i % 3, row = Math.floor(i / 3), tw = (SW - 100 - 2 * 30) / 3, th = tw * 0.56;
-    const tx = SX + 50 + col * (tw + 30), ty = SY + 118 + row * (th + 110);
-    rect(tx, ty, tw, th, 16, tints[i]!);
-    rect(tx, ty + th + 16, tw * 0.9, 16, 6, "#3b3833");
-    rect(tx, ty + th + 44, tw * 0.55, 13, 6, "#a8a297");
-  }
+  // the upper half: its own home screen, a wallpaper, two rows of apps and the dock
+  out.push(`<rect x="${SX}" y="${SY}" width="${SW}" height="${(FOLD - SY).toFixed(1)}" fill="url(#wall)"/>`);
+  out.push(`<rect x="${SX}" y="${SY}" width="${SW}" height="${(FOLD - SY).toFixed(1)}" fill="url(#glow)"/>`);
+  text(SX + 104, SY + 62, "9:41", 34, "#ffffff");
+  for (let i = 0; i < 4; i++) rect(SX + SW - 238 + i * 13, SY + 52 - i * 5, 9, 12 + i * 5, 2, "#ffffff");
+  rect(SX + SW - 160, SY + 36, 54, 26, 8, "none", `stroke="#ffffff" stroke-width="2.5" opacity=".9"`);
+  rect(SX + SW - 156, SY + 40, 38, 18, 5, "#ffffff");
+  rect(SX + SW - 103, SY + 44, 4, 10, 2, "#ffffff", `opacity=".7"`);
+  const ICON = 140, R = 34;
+  const gap = (SW - 4 * ICON) / 5;
+  const at = (col: number) => SX + gap + col * (ICON + gap);
+  const glyph: Record<string, (x: number, y: number) => string> = {
+    mail: (x, y) => `<rect x="${x + 30}" y="${y + 40}" width="80" height="60" rx="8" fill="#fff"/><path d="M${x + 32} ${y + 44} L${x + 70} ${y + 74} L${x + 108} ${y + 44}" stroke="#2f7cf6" stroke-width="5" fill="none"/>`,
+    calendar: (x, y) => `<text x="${x + 70}" y="${y + 42}" font-size="22" font-weight="600" fill="#f2453d" text-anchor="middle" font-family="-apple-system,Helvetica,Arial,sans-serif">TUE</text><text x="${x + 70}" y="${y + 112}" font-size="68" font-weight="300" fill="#111" text-anchor="middle" font-family="-apple-system,Helvetica,Arial,sans-serif">3</text>`,
+    photos: (x, y) => ["#f5c23c", "#f0812e", "#e9435d", "#a35bd9", "#4c7ff0", "#3fbfd8", "#5cc76a", "#c3d940"].map((c, i) => {
+      const a = (i / 8) * Math.PI * 2, cx = x + 70 + Math.cos(a) * 24, cy = y + 70 + Math.sin(a) * 24;
+      return `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="22" ry="12" transform="rotate(${((a * 180) / Math.PI).toFixed(0)} ${cx.toFixed(1)} ${cy.toFixed(1)})" fill="${c}" opacity=".82"/>`;
+    }).join(""),
+    camera: (x, y) => `<rect x="${x + 26}" y="${y + 46}" width="88" height="58" rx="12" fill="#2b2d31"/><circle cx="${x + 70}" cy="${y + 75}" r="21" fill="#53575e"/><circle cx="${x + 70}" cy="${y + 75}" r="12" fill="#1a1c1f"/>`,
+    maps: (x, y) => `<path d="M${x} ${y + 98} C${x + 40} ${y + 90} ${x + 70} ${y + 40} ${x + ICON} ${y + 34}" stroke="#fff" stroke-width="14" fill="none"/><path d="M${x + 58} ${y} L${x + 92} ${y + ICON}" stroke="#f7d36b" stroke-width="10"/><circle cx="${x + 96}" cy="${y + 64}" r="11" fill="#2f7cf6" stroke="#fff" stroke-width="4"/>`,
+    weather: (x, y) => `<circle cx="${x + 58}" cy="${y + 56}" r="24" fill="#ffd34a"/><ellipse cx="${x + 82}" cy="${y + 90}" rx="38" ry="20" fill="#fff"/><circle cx="${x + 66}" cy="${y + 82}" r="20" fill="#fff"/>`,
+    notes: (x, y) => `<rect x="${x}" y="${y}" width="${ICON}" height="34" fill="#f8cf3f"/>${[60, 84, 108].map((ly) => `<rect x="${x + 22}" y="${y + ly}" width="96" height="5" rx="2" fill="#d6d3cc"/>`).join("")}`,
+    settings: (x, y) => `<circle cx="${x + 70}" cy="${y + 70}" r="40" fill="#6d7179"/>${Array.from({ length: 12 }, (_, i) => `<rect x="${x + 64}" y="${y + 20}" width="12" height="18" rx="3" fill="#6d7179" transform="rotate(${i * 30} ${x + 70} ${y + 70})"/>`).join("")}<circle cx="${x + 70}" cy="${y + 70}" r="24" fill="#c9ccd1"/><circle cx="${x + 70}" cy="${y + 70}" r="11" fill="#6d7179"/>`,
+    phone: (x, y) => `<path d="M${x + 46} ${y + 38} q10 -6 16 4 l8 16 q3 7 -4 12 l-6 4 q8 18 26 26 l4 -6 q5 -7 12 -4 l16 8 q10 6 4 16 l-6 8 q-10 10 -30 2 q-36 -16 -50 -52 q-6 -20 4 -30 z" fill="#fff"/>`,
+    compass: (x, y) => `<circle cx="${x + 70}" cy="${y + 70}" r="48" fill="#fff"/><circle cx="${x + 70}" cy="${y + 70}" r="42" fill="#3d8ef7"/><path d="M${x + 96} ${y + 44} L${x + 76} ${y + 76} L${x + 64} ${y + 64} Z" fill="#f2453d"/><path d="M${x + 44} ${y + 96} L${x + 64} ${y + 64} L${x + 76} ${y + 76} Z" fill="#fff"/>`,
+    messages: (x, y) => `<ellipse cx="${x + 70}" cy="${y + 66}" rx="46" ry="38" fill="#fff"/><path d="M${x + 40} ${y + 92} q-6 14 -16 18 q22 0 32 -10 z" fill="#fff"/>`,
+    music: (x, y) => `<path d="M${x + 58} ${y + 40} L${x + 98} ${y + 32} L${x + 98} ${y + 92}" stroke="#fff" stroke-width="9" fill="none"/><path d="M${x + 58} ${y + 40} L${x + 58} ${y + 100}" stroke="#fff" stroke-width="9"/><circle cx="${x + 48}" cy="${y + 100}" r="13" fill="#fff"/><circle cx="${x + 88}" cy="${y + 92}" r="13" fill="#fff"/>`,
+  };
+  const BG: Record<string, string> = {
+    mail: "url(#g-blue)", calendar: "#ffffff", photos: "#ffffff", camera: "url(#g-gray)", maps: "url(#g-green)", weather: "url(#g-sky)",
+    notes: "#ffffff", settings: "url(#g-gray)", phone: "url(#g-green)", compass: "#ffffff", messages: "url(#g-green)", music: "url(#g-red)",
+  };
+  const icon = (name: string, x: number, y: number, label?: string) => {
+    out.push(`<clipPath id="i-${name}"><rect x="${x}" y="${y}" width="${ICON}" height="${ICON}" rx="${R}"/></clipPath>`);
+    out.push(`<g clip-path="url(#i-${name})"><rect x="${x}" y="${y}" width="${ICON}" height="${ICON}" fill="${BG[name]}"/>${glyph[name]!(x, y)}</g>`);
+    if (label) text(x + ICON / 2, y + ICON + 32, label, 23, "#ffffff");
+  };
+  const GRID = [["mail", "Mail"], ["calendar", "Calendar"], ["photos", "Photos"], ["camera", "Camera"], ["maps", "Maps"], ["weather", "Weather"], ["notes", "Notes"], ["settings", "Settings"]] as const;
+  GRID.forEach(([name, label], i) => icon(name, at(i % 4), SY + 108 + Math.floor(i / 4) * 214, label));
+  for (let i = 0; i < 3; i++) out.push(`<circle cx="${SX + SW / 2 - 18 + i * 18}" cy="${SY + 568}" r="5" fill="#ffffff" opacity="${i === 0 ? 0.95 : 0.4}"/>`);
+  rect(SX + 36, FOLD - 214, SW - 72, 184, 56, "#ffffff", `opacity=".22"`);
+  ["phone", "compass", "messages", "music"].forEach((name, i) => icon(name, at(i), FOLD - 192));
   // the lower half: a function row, keys and a trackpad
   rect(SX, FOLD, SW, H - FOLD, 0, "#111114");
   const chips = ["esc", "‹ Back", "› Forward", "Reload", "New Tab", "Address"];
@@ -114,7 +143,14 @@ function duoSvg() {
   out.push(`<rect x="${SX}" y="${FOLD - 7}" width="${SW}" height="14" fill="url(#crease)"/>`);
   out.push("</g>");
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="An iPhone Duo, open, drawn from its published dimensions">
-<defs><linearGradient id="edge" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#b9bbc0"/><stop offset=".5" stop-color="#7b7d83"/><stop offset="1" stop-color="#c8cacf"/></linearGradient>
+<defs><linearGradient id="wall" x1="0" x2=".4" y1="0" y2="1"><stop offset="0" stop-color="#1d3fd6"/><stop offset=".55" stop-color="#6b3fd8"/><stop offset="1" stop-color="#d9608f"/></linearGradient>
+<radialGradient id="glow" cx=".75" cy=".2" r=".7"><stop offset="0" stop-color="#ffb36b" stop-opacity=".55"/><stop offset="1" stop-color="#ffb36b" stop-opacity="0"/></radialGradient>
+<linearGradient id="g-blue" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#4fa3ff"/><stop offset="1" stop-color="#1d6ef2"/></linearGradient>
+<linearGradient id="g-green" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#67e07a"/><stop offset="1" stop-color="#22b84a"/></linearGradient>
+<linearGradient id="g-sky" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#3b8cf0"/><stop offset="1" stop-color="#77c3fb"/></linearGradient>
+<linearGradient id="g-gray" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#a7abb2"/><stop offset="1" stop-color="#80848c"/></linearGradient>
+<linearGradient id="g-red" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff6680"/><stop offset="1" stop-color="#f2304e"/></linearGradient>
+<linearGradient id="edge" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#b9bbc0"/><stop offset=".5" stop-color="#7b7d83"/><stop offset="1" stop-color="#c8cacf"/></linearGradient>
 <linearGradient id="crease" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset=".5" stop-color="#000" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient></defs>
 ${out.join("\n")}
 </svg>`;
@@ -124,8 +160,8 @@ writeFileSync(`${OUT}iphone-duo.svg`, duoSvg());
 // ---------- pieces ----------
 const num = (n: number) => n.toLocaleString("en");
 const LOCAL_NAV = `<a href="/#shapes">Interaction</a><a href="/#heart">Omarchy</a><a href="/#apps">Applets</a><a class="here" href="/vs/iphone-duo/" aria-current="page">vs iPhone Duo</a><a href="/demo/">Live demo</a><a href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a>`;
-const DUO_IMG = (cls: string) => `<img class="${cls}" src="/vs/iphone-duo/iphone-duo.svg" width="1178" height="1646" alt="${cls === "lo" ? "An iPhone Duo, open: a keyboard and trackpad on the lower half of its one folding screen" : ""}" decoding="async">`;
-const RG_IMG = (cls: string) => `<img class="${cls}" src="/vs/iphone-duo/rg-ds-plus.webp" width="1600" height="1724" alt="${cls === "lo" ? "An RG DS Plus, open, running Omarchy Pocket: YouTube on the upper screen, a keyboard and trackpad on the lower" : ""}" decoding="async">`;
+const DUO_IMG = (cls: string) => `<img class="${cls}" src="/vs/iphone-duo/iphone-duo.svg" width="1178" height="1646" alt="${cls === "lo" ? "An iPhone Duo, open: its home screen on the upper half of its one folding screen, a keyboard and trackpad on the lower" : ""}" decoding="async">`;
+const RG_IMG = (cls: string) => `<img class="${cls}" src="/vs/iphone-duo/rg-ds-plus.webp" width="1600" height="1724" alt="${cls === "lo" ? "An RG DS Plus, open, running Omarchy Pocket: the desktop on the upper screen, a keyboard and trackpad on the lower" : ""}" decoding="async">`;
 const device = (who: "duo" | "rg", mm: string, name: string, facts: string) => `<figure class="dev ${who}">
   <div class="fold">${who === "duo" ? DUO_IMG("up") + DUO_IMG("lo") : RG_IMG("up") + RG_IMG("lo")}</div>
   <div class="rule"><i></i><span>${mm}</span></div>

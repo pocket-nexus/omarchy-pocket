@@ -1,6 +1,27 @@
 # Omarchy Pocket
 
-Omarchy's CLI, themes, config and Linux services on the Anbernic RG DS Plus (RK3568, two 1024×768 DSI panels), under one PocketJS shell rendered by the Mali-G52. Omarchy's desktop session (Hyprland, Quickshell, SDDM) is not installed.
+<p align="center"><img src="docs/media/rg-ds-plus.webp" width="560" alt="An RG DS Plus running Omarchy Pocket: a terminal, a CPU panel and a clock tiled on the upper screen, the keyboard deck on the lower"></p>
+
+Omarchy's CLI, themes, config and Linux services on the Anbernic RG DS Plus (RK3568, two 1024×768 DSI panels), under one PocketJS shell rendered by the Mali-G52. Omarchy's desktop session (Hyprland, Quickshell, SDDM) is not installed. The site is [omapocket.org](https://omapocket.org), with a [live demo](https://omapocket.org/demo/) of the shell in the browser.
+
+The picture is the device's three.js model (`site/public/kit/rgds.js`) with two captures from the device on its panels, rendered by `site/render.ts`.
+
+## On the device
+
+<p align="center"><img src="docs/media/screens.webp" width="840" alt="Six captures, each the upper panel over the lower: the desktop with the workspace pad, three tiled windows over the keyboard, Codex in a window, the window layer's key sheet, Hacker News and Maps over the touchpad"></p>
+
+Both panels read back from the GPU (`tools/screenshot.ts`), the upper over the lower:
+
+- **Top row:** the desktop with the workspace pad; a terminal, Activity and Clock tiled, over the keyboard deck; Codex in a window.
+- **Bottom row:** the window layer's key sheet (hold L1); Hacker News and Maps over the touchpad.
+
+## Applets
+
+<p align="center"><img src="docs/media/applets.webp" width="840" alt="Nine applets on sample data: Weather, Hacker News, GitHub, X, Discord, YouTube, Podcasts, Maps and Home"></p>
+
+The windows' applets come from [pocket-nexus/applets](https://github.com/pocket-nexus/applets), the source Pocket Shell also builds for the 3DS and the Tab5. The pictures are each applet's first screen on its sample data, in the player at [applets.pocket.nexus](https://applets.pocket.nexus/); the Store applet installs them on the device.
+
+## Documentation and layout
 
 - [docs/omarchy-pocket.md](docs/omarchy-pocket.md): boot chain, card layout, system image, device program, session, bridge and daemon, input, power, network, shell.
 - [docs/features.md](docs/features.md): Omarchy's desktop features and where each stands in Omarchy Pocket.
