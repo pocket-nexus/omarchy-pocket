@@ -36,7 +36,7 @@ use crate::{media, net};
 use pocket_drivers::{Contact, InputClasses, InputFrameBuilder, InputSource, TextEvent};
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_linux_hooks::FileSource;
-use pocket_linux_worker::WorkerDomain;
+use pocket_linux_worker::{contract_response_bytes, WorkerDomain};
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, Profile, Runtime, RuntimeConfig, RuntimeError};
 use pocket_spec::op;
 use rquickjs::{Function, Object};
@@ -201,6 +201,9 @@ pub type Shared = Rc<RefCell<Children>>;
 
 /// A list app holds its rows, its responses and its font atlases: 32 MiB was too little.
 const APP_HEAP: usize = 96 * 1024 * 1024;
+/// The host contract: an app's worker answers responses up to its
+/// `worker.http.responseBytes`, the limit its packages were compiled against.
+const CONTRACT: &str = include_str!("../pocket.host.json");
 /// a 4 x 4 placeholder: the shell's texture handle for an app's display; its
 /// pixels never draw, the bound GL texture does
 const PLACEHOLDER: [u8; 64] = [0; 64];
@@ -346,7 +349,7 @@ impl Children {
         let resized = Rc::new(Cell::new(None));
         let media = Rc::new(RefCell::new(None));
         let typing = Rc::new(Cell::new(None));
-        let guest = AppGuest { inner: RquickjsGuest::default(), domain: WorkerDomain::new(Box::new(exchange)), media: media.clone(), typing: typing.clone(), app: id, resized: resized.clone() };
+        let guest = AppGuest { inner: RquickjsGuest::default(), domain: WorkerDomain::with_response_bytes(Box::new(exchange), contract_response_bytes(CONTRACT)), media: media.clone(), typing: typing.clone(), app: id, resized: resized.clone() };
         runtime.set_guest(Box::new(guest)).map_err(error)?;
         if let Err(failure) = runtime.boot() {
             self.net.borrow_mut().remove_app(id);

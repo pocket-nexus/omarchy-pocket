@@ -27,5 +27,10 @@
     "net.http",
     "runtime.worker",
     "text.glyphs.baked"
-  ]
+  ],
+  "worker": {
+    "nodes": { "http": 1 },
+    "channels": { "recordBytes": 16384, "capacity": 64 },
+    "http": { "responseBytes": 4194304 }
+  }
 }

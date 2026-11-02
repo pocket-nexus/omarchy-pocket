@@ -32,9 +32,11 @@ import { IMG_FLAG_LINEAR, PSM } from "../vendor/pocketjs/contracts/spec/spec.ts"
 import { manifest } from "./apps.ts";
 import { createAppStoreService, installedApp, isolatedRequest, isolatedServices, STORE_PACKAGE } from "./appstore.ts";
 import { AtlasBaker } from "./glyphs.ts";
+import HOST_CONTRACT from "../host/pocket.host.json" with { type: "json" };
 
-/** The response limit an app's worker may ask for (contracts/spec/net.ts). */
-export const APP_RESPONSE_MAX = 256 * 1024;
+/** The response limit an app's worker may ask for: the host contract's
+ *  `worker.http.responseBytes`, which the host's http node admits. */
+export const APP_RESPONSE_MAX = HOST_CONTRACT.worker.http.responseBytes;
 const GLYPH_PX = [8, 32] as const;
 const GLYPH_TEXT_MAX = 20_000;
 const ASCII = Array.from({ length: 0x7f - 0x20 }, (_, i) => 0x20 + i);
