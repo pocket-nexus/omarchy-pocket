@@ -6,13 +6,14 @@
 //
 //   pocket-applet make              ask what to make, then start the coding agent on it
 //   pocket-applet new <name> [--title T]
-//   pocket-applet build <name>      compile
-//   pocket-applet run <name>        compile, install and open it in a window
+//   pocket-applet check <name>      the rules an applet is held to, with what to do instead
+//   pocket-applet build <name>      check and compile
+//   pocket-applet run <name>        check, compile, install and open it in a window
 //   pocket-applet shot [name]       the two panels as <name>/shot.png
 //   pocket-applet log               the host's and the daemon's last lines
 //   pocket-applet tap <x> <y>       click at a place on the top panel, as read off a shot
 //   pocket-applet scroll <x> <y> <dy>   two fingers at that place, dy px up
-//   pocket-applet key <name>        Enter, Escape, Up, ... to the focused window
+//   pocket-applet key <name>        Enter, Backspace (back), Up, ... to the focused window
 //   pocket-applet type <text>       text to the focused window
 //   pocket-applet publish <name> [--author handle]   sign it and send it to the store
 import { generateKeyPairSync, createPrivateKey, createPublicKey, sign } from "node:crypto";
@@ -21,6 +22,7 @@ import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { bakeSvg } from "../vendor/pocketjs/framework/compiler/bake-svg.ts";
 import { encodePNG } from "../vendor/pocketjs/tools/png.ts";
+import { checkApplet, printFindings } from "./check.ts";
 import { base64url, HANDLE, ICON_SIDE, packageFacts, sha256, signedMessage, SUMMARY_MAX } from "../store/src/shared.ts";
 
 const SDK = resolve(import.meta.dir, "..");
@@ -58,6 +60,7 @@ function workspace() {
   mkdirSync(WORK, { recursive: true });
   link(join(SDK, "applets", "ui"), join(WORK, "ui"));
   link(join(SDK, "applets", "lib"), join(WORK, "lib"));
+  link(join(SDK, "applets", "kit"), join(WORK, "kit"));
   link(join(SDK, "applets"), join(WORK, "examples"));
   link(join(SDK, "vendor"), join(WORK, "vendor"));
   link(join(SDK, "host"), join(WORK, "host"));
@@ -84,12 +87,12 @@ function create(name: string, title: string, summary: string) {
   symlinkSync("../ui/art", join(dir, "art"));
   symlinkSync("../AGENTS.md", join(dir, "AGENTS.md"));
   symlinkSync("../AGENTS.md", join(dir, "CLAUDE.md"));
-  const manifest = JSON.parse(readFileSync(join(SDK, "applets", "weather", "pocket.json"), "utf8"));
+  const manifest = JSON.parse(readFileSync(join(SDK, "applets", "github", "pocket.json"), "utf8"));
   manifest.id = `oma.${publisher()?.handle ?? "me"}.${name}`;
   manifest.name = `pocket-${name}`;
   manifest.title = title;
   manifest.version = "0.1.0";
-  manifest.applet = { version: 1, summary, services: ["store"], hosts: [] };
+  manifest.applet = { version: 1, summary, services: ["store", "images", "glyphs"], hosts: [] };
   manifest.app.entry = `${name}/main.tsx`;
   manifest.app.output = `${name}-main`;
   writeFileSync(join(dir, "pocket.json"), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -98,10 +101,20 @@ function create(name: string, title: string, summary: string) {
   console.log(dir);
 }
 
+/** The rules, printed. An error stops a build; with `strict` so does a warning. */
+function check(name: string, strict = false) {
+  const dir = dirOf(name);
+  if (!existsSync(join(dir, "pocket.json"))) fail(`no applet at ${dir}`);
+  const findings = checkApplet(dir, join(SDK, "sdk", "template"));
+  printFindings(findings);
+  if (findings.some((finding) => finding.level === "error" || strict)) fail(`${name} does not meet the rules: see ../kit/README.md`);
+}
+
 async function compile(name: string): Promise<string> {
   const dir = dirOf(name);
   if (!existsSync(join(dir, "pocket.json"))) fail(`no applet at ${dir}`);
   workspace();
+  check(name);
   const out = join(name, ".build");
   const child = Bun.spawn(
     ["bun", join("vendor", "pocketjs", "tools", "pocket.ts"), "compile", "--manifest", join(name, "pocket.json"), "--project-root", ".", "--runtime-config", join("host", "pocket.runtime-config.ts"),
@@ -124,7 +137,12 @@ async function run(name: string) {
   copyFileSync(built, installed);
   const title = JSON.parse(readFileSync(join(dirOf(name), "pocket.json"), "utf8")).title as string;
   const opened = Bun.spawnSync(["omarchy-shell", "pocket.window", "app", installed, title, "applet"], { stdout: "pipe", stderr: "pipe" });
-  if (opened.exitCode !== 0) fail(`the shell did not open it: ${opened.stderr.toString().trim()}`);
+  if (opened.exitCode !== 0) {
+    // the shell answers late while it loads a package: the window says whether it opened
+    await Bun.sleep(2000);
+    const windows = Bun.spawnSync(["omarchy-shell", "pocket.window", "list"], { stdout: "pipe", stderr: "pipe" });
+    if (!windows.stdout.toString().includes(title)) fail(`the shell did not open it: ${opened.stderr.toString().trim()}`);
+  }
   console.log(`running ${installed}`);
 }
 
@@ -214,6 +232,7 @@ async function publish(name: string) {
   const summary = String(manifest.applet?.summary ?? "").trim();
   if (!summary || summary.length > SUMMARY_MAX) fail(`applet.summary in pocket.json must be 1 to ${SUMMARY_MAX} characters`);
   const icon = iconPng(dir);
+  check(name, true);
   const built = await compile(name);
   const bytes = new Uint8Array(readFileSync(built));
   const facts = packageFacts(bytes);
@@ -247,7 +266,7 @@ async function make() {
   const named = String((await lines.next()).value ?? "").trim().toLowerCase();
   const name = named || suggested;
   create(name, titleOf(name), want.slice(0, SUMMARY_MAX));
-  const prompt = `Make this Pocket applet, called ${titleOf(name)}, in this directory: ${want}\n\nRead AGENTS.md first. Draw its icon.svg. Work until pocket-applet run shows it working and you have looked at pocket-applet shot ${name}.`;
+  const prompt = `Make this Pocket applet, called ${titleOf(name)}, in this directory: ${want}\n\nRead AGENTS.md and ../kit/README.md first, and build every page from the kit's rows. Draw its icon.svg. Work until pocket-applet run shows it working and you have looked at pocket-applet shot ${name}.`;
   const agent = Bun.which("codex") ?? fail("no coding agent here: install Codex first");
   const child = Bun.spawn([agent!, prompt], { cwd: dirOf(name), stdio: ["inherit", "inherit", "inherit"] });
   process.exit(await child.exited);
@@ -261,6 +280,10 @@ switch (argv[0]) {
   case "new":
     if (!name) fail("usage: pocket-applet new <name> [--title T]");
     create(name!, option("--title") ?? titleOf(name!), `${titleOf(name!)} for Omarchy Pocket.`);
+    break;
+  case "check":
+    workspace();
+    check(name ?? fail("usage: pocket-applet check <name>"));
     break;
   case "build":
     console.log(await compile(name ?? fail("usage: pocket-applet build <name>")));
@@ -284,9 +307,16 @@ switch (argv[0]) {
     // the pad's two fingers scroll what the pointer is over
     input("pointer", String(Number(argv[1] ?? 0) / 2), String(Number(argv[2] ?? 0) / 2));
     input("layout", "pad");
-    await Bun.sleep(150);
-    const dy = Number(argv[3] ?? 100);
-    input("drag2", "512", String(384 + dy / 2), "512", String(384 - dy / 2), "16");
+    await Bun.sleep(600);
+    // the pad's surface is y 36..324 of the deck's 384 points, and a stroke
+    // that starts outside it is not a scroll; a longer scroll is several strokes
+    let dy = Number(argv[3] ?? 200);
+    while (Math.abs(dy) > 0) {
+      const stroke = Math.max(-240, Math.min(240, dy));
+      input("drag2", "196", String(180 + stroke / 2), "196", String(180 - stroke / 2), "60", "120");
+      dy -= stroke;
+      await Bun.sleep(1200);
+    }
     await Bun.sleep(600);
     input("layout", "keys");
     break;
@@ -301,6 +331,6 @@ switch (argv[0]) {
     await publish(name ?? fail("usage: pocket-applet publish <name> [--author handle]"));
     break;
   default:
-    console.log(readFileSync(import.meta.path, "utf8").split("\n").slice(1, 17).filter((line) => line.startsWith("//")).map((line) => line.slice(3)).join("\n"));
+    console.log(readFileSync(import.meta.path, "utf8").split("\n").slice(1, 18).filter((line) => line.startsWith("//")).map((line) => line.slice(3)).join("\n"));
     if (argv[0]) process.exit(1);
 }

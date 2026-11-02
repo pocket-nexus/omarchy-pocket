@@ -20,7 +20,8 @@
 // An app installed from the store by anyone but the official key runs apart
 // (appstore.ts): it gets only the services that act for nobody, its `store`
 // names are its own, and it fetches only the hosts it declared.
-import { mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { NET_ERROR } from "../vendor/pocketjs/contracts/spec/net.ts";
 import { NetFailure, normalizeNetRequest, performNet, type NetResponse } from "../vendor/pocketjs/tools/companion/fetch.ts";
@@ -82,11 +83,12 @@ async function ffmpegImage(bytes: Uint8Array, width: number, height: number) {
   const [rgba, code] = await Promise.all([new Response(child.stdout).bytes(), child.exited]);
   return code === 0 && rgba.length === width * height * 4 ? { width, height, rgba } : null;
 }
-/** The `images` service: GET /fetch?url=<image>&w=<pow2>&h=<pow2>[&alpha=1] is
+/** The `images` service: GET /fetch?url=<image>&w=<pow2>&h=<pow2>[&alpha=1][&round=1] is
  *  a JPEG, PNG or WebP from the network as an IMG entry the app uploads, scaled
  *  to cover the box and cropped at its centre. QuickJS has no image decoder. */
-function imagesService(): ServiceProvider {
+function imagesService(cacheDir: string): ServiceProvider {
   const POW2 = new Set([8, 16, 32, 64, 128, 256, 512]);
+  mkdirSync(cacheDir, { recursive: true });
   return {
     name: "images",
     async handle(request) {
@@ -96,12 +98,28 @@ function imagesService(): ServiceProvider {
       const h = Number(request.query.get("h"));
       if (!/^https:\/\//.test(url)) return jsonResponse(400, { error: "fetch needs an https url" });
       if (!POW2.has(w) || !POW2.has(h)) return jsonResponse(400, { error: "w and h are powers of two from 8 to 512" });
+      // a picture comes back from disk: ffmpeg and the network take seconds
+      const cached = join(cacheDir, `${createHash("sha256").update(request.query.toString()).digest("hex")}.img`);
+      if (existsSync(cached)) return bytesResponse(new Uint8Array(readFileSync(cached)), "application/x-pocket-img");
       const fetched = await performNet({ url, method: "GET", headers: {}, body: new Uint8Array(0), timeoutMs: 30_000, maxBytes: 8 * 1024 * 1024 }, { signal: request.signal });
       if (fetched.status !== 200) return jsonResponse(502, { error: `the image's server answered ${fetched.status}` });
       const image = await ffmpegImage(fetched.body, w, h);
       if (!image) return jsonResponse(415, { error: "that image cannot be read" });
-      const alpha = request.query.get("alpha") === "1";
-      return bytesResponse(encodeImageEntry(image, alpha ? PSM.PSM_8888 : PSM.PSM_5650, IMG_FLAG_LINEAR), "application/x-pocket-img");
+      // `round` cuts a circle with a soft edge, for an avatar
+      const round = request.query.get("round") === "1";
+      if (round) {
+        const r = w / 2;
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const edge = r - Math.hypot(x + 0.5 - r, y + 0.5 - r);
+            image.rgba[(y * w + x) * 4 + 3] = Math.max(0, Math.min(255, Math.round((edge + 0.5) * 255)));
+          }
+        }
+      }
+      const alpha = round || request.query.get("alpha") === "1";
+      const entry = encodeImageEntry(image, alpha ? PSM.PSM_8888 : PSM.PSM_5650, IMG_FLAG_LINEAR);
+      writeFileSync(cached, entry);
+      return bytesResponse(entry, "application/x-pocket-img");
     },
   };
 }
@@ -124,7 +142,7 @@ export class AppNet {
     SERVICE_FACTORIES.glyphs = () => deviceGlyphs(baker);
     SERVICE_FACTORIES.x = (context) => createXService(context, { decodeAvatar: ffmpegAvatar, decodeMedia: ffmpegImage });
     // what an install or a removal changes is read again at the next request
-    SERVICE_FACTORIES.images = () => imagesService();
+    SERVICE_FACTORIES.images = () => imagesService(join(home, ".cache", "omarchy-pocket", "images"));
     SERVICE_FACTORIES.appstore = () => createAppStoreService(home, () => this.callers.clear());
     this.services = new ServiceHost({ storeDir, log: (line) => log(line) });
   }

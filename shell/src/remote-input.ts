@@ -51,7 +51,7 @@ serve("pocket.input", {
   },
   /** a named key (Enter, Escape, Up, ...) on the keyboard */
   key: (name) => (sendKey(name ?? ""), "ok"),
-  /** the deck's layout, as the strip's tabs pick it */
+  /** the deck's layout, as the round keyboard button and Home pick it */
   layout: (name) => {
     if (name !== "keys" && name !== "pad" && name !== "home") throw new Error(`no layout ${name}`);
     chooseLayout(name as Layout);

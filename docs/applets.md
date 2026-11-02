@@ -9,6 +9,7 @@ An applet is a PocketJS package in a window of the shell. The toolchain to make 
 | Command | What it does |
 |---|---|
 | `pocket-applet new <name>` | a new applet from `sdk/template`, with `AGENTS.md` beside it |
+| `pocket-applet check <name>` | the rules below, each with what to do instead; `run` and `build` stop on an error, `publish` also on a warning |
 | `pocket-applet run <name>` | compiles, installs to `~/.local/share/omarchy-pocket/applets/` and opens the window, replacing a running one |
 | `pocket-applet shot <name>` | both panels as `<name>/shot.png`, for the agent to look at |
 | `pocket-applet log` | the last lines of the host and the daemon |
@@ -16,6 +17,8 @@ An applet is a PocketJS package in a window of the shell. The toolchain to make 
 | `pocket-applet publish <name> --author <handle>` | signs it and sends it to the store |
 
 `~/Applets` is laid out as this repository's `applets/` are, with symlinks into the SDK at `/usr/share/omarchy-pocket/sdk`: `ui`, `lib`, `vendor`, `host`, `node_modules`, and `examples` (the finished applets). `sdk/AGENTS.md` is what the agent reads. `bun tools/build.ts sdk` builds the SDK (89 MiB, installed for linux-arm64) and `bun tools/deploy.ts <host> sdk` installs it.
+
+**An app is built from the design system in `applets/kit`** (`applets/kit/README.md`): a page is a list of rows, and the kit does the measuring, colours, touch, keyboard focus, loading states and text for any script. `applets/github` is a full client built that way. `sdk/check.ts` refuses a page of positioned views, a colour of its own, a host or a service missing from the manifest, a query with no failure state, an emoji and an icon of letters; a file that draws a game or a map names why on its first lines and keeps its own pixels. `sdk/AGENTS.md` is what a coding agent on the device reads, `skills/pocket-applet/SKILL.md` the same for one on a computer.
 
 **Measured on the device:** a full compile of Weather takes 62 s and peaks at 386 MiB of 953 MiB, about 35 s of it the TypeScript check. No Rust toolchain is involved: a package is JavaScript, styles, fonts and images.
 

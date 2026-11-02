@@ -47,7 +47,7 @@ export function createStoreClient(): StoreClient {
   const [icons, setIcons] = createSignal(0);
   return {
     catalog: async (fresh = false) => (await call<{ apps: StoreApp[] }>(`/catalog${fresh ? "?fresh=1" : ""}`)).apps,
-    install: async (id) => void (await call(`/install?id=${encodeURIComponent(id)}`, 180_000)),
+    install: async (id) => void (await call(`/install?id=${encodeURIComponent(id)}`, 120_000)),
     remove: async (id) => void (await call(`/remove?id=${encodeURIComponent(id)}`)),
     open: async (id) => void (await call(`/open?id=${encodeURIComponent(id)}`)),
     icon(sha) {

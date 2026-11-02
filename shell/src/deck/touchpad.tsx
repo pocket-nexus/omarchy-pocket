@@ -1,38 +1,62 @@
-// The deck's pad layout: a trackpad for the stage, after the trackpad of
-// Pocket Shell's iPod touch remote. The stage takes no touch, so a finger
-// here moves the pointer there (stage/pointer.tsx) as a laptop's trackpad
-// does, relative and accelerated. A tap clicks where the pointer is. Two
-// fingers scroll: the pointer stays where it is and the list under it moves
-// with the fingers. The Hold key and a finger drag: the pointer holds down
-// and moves, which moves a slider or a picked-up row. It is the layout for
-// a touch app in a window (X, Discord, YouTube, Hacker News), and the Pad
-// tab brings it up for any window: its clicks focus windows and open the
-// bar's panels. A package that draws a touch surface of its own and is not
-// a touch app (app.surfaces.auxiliary without `applet`) shows that surface
-// here instead, and the fingers on it are its contacts.
-import { createEffect, createSignal, Show } from "solid-js";
+// The deck's trackpad, under the keys in the keys layout and alone in the pad
+// layout, after the trackpad of Pocket Shell's iPod touch remote. The stage
+// takes no touch, so a finger here moves the pointer there (stage/pointer.tsx)
+// as a laptop's trackpad does, relative and accelerated. A tap clicks where the
+// pointer is. Two fingers scroll: the pointer stays where it is and the list
+// under it moves with the fingers. The round Hold button and a finger drag: the
+// pointer holds down and moves, which moves a slider or a picked-up row. In the
+// keys layout the pointer shows from the first touch here until the next key.
+//
+// Two round buttons sit in each margin and stay put when the trackpad grows:
+// the microphone (deck/voice.ts) and Hold on the left, the keyboard (folds the
+// keys away and back) and the key sheet on the right. A package that draws a touch surface of its own and is not a touch app
+// (app.surfaces.auxiliary without `applet`) shows that surface in the pad layout
+// instead, and the fingers on it are its contacts.
+import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework/host";
+import { perform } from "../actions.ts";
+import { toggleVoice, voiceLevel, voiceState } from "./voice.ts";
 import { C } from "../classes.ts";
+import { keySink, layout, toggleKeys, type Layout } from "../focus.ts";
+import { flip, TOP_LEFT } from "../motion.ts";
 import { appTextures } from "../packages.ts";
+import { sheetOpen } from "../stage/keysheet.tsx";
+import { chordSent, onTyped } from "../term/keyboard.tsx";
 import { click, hold, movePointer, pinchTo, scrollBy } from "../stage/pointer.tsx";
 import { color } from "../theme.ts";
 import { settled, type TouchFrame } from "../touch.ts";
 import { focused, type Win } from "../workspaces.ts";
-import { BODY_H } from "./geometry.ts";
+import { BODY_H, inRect, PAD_LARGE, PAD_SMALL, ROUND, ROUNDS, type Rect } from "./geometry.ts";
+import { pressed } from "./press.ts";
 
-const PAD = { x: 12, y: 10, w: 488, h: BODY_H - 10 - 58 };
-const KEY = { x: 12, y: PAD.y + PAD.h + 8, w: 140, h: 40 };
+const padFor = (l: Layout): Rect => (l === "keys" ? PAD_SMALL : PAD_LARGE);
+type RoundName = keyof typeof ROUNDS;
+const ROUND_LIST: { name: RoundName; glyph: string }[] = [
+  { name: "voice", glyph: "\u{f036c}" },
+  { name: "hold", glyph: "\u{f01be}" },
+  { name: "toggle", glyph: "\u{f030c}" },
+  { name: "more", glyph: "\u{f01d8}" },
+];
+const roundAt = (x: number, y: number) => ROUND_LIST.find((r) => inRect(ROUNDS[r.name], x, y))?.name;
+
+/** The round button's target under a finger, for the pressed look. */
+export function roundTarget(x: number, y: number): string | null {
+  const name = roundAt(x, y);
+  return name ? `round:${name}` : null;
+}
 /** pointer points per deck point at rest, and how much speed adds */
 const GAIN = 1.1;
 const ACCEL = 0.09;
 const MAX_GAIN = 3.2;
 
-const inPad = (x: number, y: number) => x >= PAD.x && x < PAD.x + PAD.w && y >= PAD.y && y < PAD.y + PAD.h;
-const onKey = (x: number, y: number) => x >= KEY.x && x < KEY.x + KEY.w && y >= KEY.y && y < KEY.y + KEY.h;
-
 type Mode = "drag" | "scroll" | null;
 const [mode, setMode] = createSignal<Mode>(null);
+
+/** In the keys layout: the pointer shows from a touch here until the next key. */
+const [awake, setAwake] = createSignal(false);
+export const pointerAwake = awake;
+onTyped(() => setAwake(false));
 
 type AppWin = Extract<Win, { kind: "app" }>;
 /** The focused package whose own touch surface the pad shows. */
@@ -66,7 +90,8 @@ function move(dx: number, dy: number) {
 /** The pad's fingers (body coordinates). Returns a package surface's
  *  contacts [id, x, y, ...] in its own points when the pad shows one. */
 export function touchpadTouch(frame: TouchFrame): number[] {
-  if (surfacePackage()) {
+  const l = layout();
+  if (l === "pad" && surfacePackage()) {
     const contacts: number[] = [];
     for (const c of frame.down) {
       const x = (c.x - SURFACE_X) / SCALE;
@@ -75,9 +100,19 @@ export function touchpadTouch(frame: TouchFrame): number[] {
     }
     return contacts;
   }
+  for (const c of frame.presses) {
+    const name = roundAt(c.x, c.y);
+    if (name === "toggle") toggleKeys();
+    else if (name === "voice") toggleVoice();
+    else if (name === "more") perform("keys");
+  }
+  const rect = padFor(l);
+  const inPad = (x: number, y: number) => !keySink().field && inRect(rect, x, y);
+  const onKey = (x: number, y: number) => inRect(ROUNDS.hold, x, y);
   const down = frame.down.filter(settled);
   const keyDown = down.some((c) => onKey(c.start.x, c.start.y));
   const pad = down.filter((c) => inPad(c.start.x, c.start.y));
+  if (pad.length && !awake()) setAwake(true);
   // a tap of the moving finger that did not travel, in a touch that never dragged, clicks
   for (const t of frame.taps) if (t.id === primary && !t.moved && !dragged && inPad(t.start.x, t.start.y)) click();
   const first = pad[0];
@@ -145,34 +180,73 @@ function Surface(props: { win: AppWin }) {
 
 export function Touchpad() {
   return (
-    <View class={C.deck} style={{ bgColor: color("darker_background") }}>
-      <Show when={surfacePackage()} keyed fallback={<Pad />}>
+    <View class={C.deck}>
+      <Show when={layout() === "pad" && surfacePackage()} keyed fallback={<Pad />}>
         {(w) => <Surface win={w} />}
       </Show>
     </View>
   );
 }
 
+/** The line along the trackpad's bottom edge: what a chord sent, what the keys do here. */
+const line = () => {
+  const voice = voiceState();
+  if (voice === "listening") return "listening · press the microphone to finish";
+  if (voice === "decoding") return "turning that into text";
+  const sent = chordSent();
+  if (sent) return `sent ${sent}`;
+  return keySink().hint?.() ?? (layout() === "pad" ? "tap to click · two fingers scroll or pinch" : "");
+};
+
 function Pad() {
+  let node: NodeMirror | undefined;
+  const rect = () => padFor(layout() === "keys" ? "keys" : "pad");
+  // the keys fold away: the trackpad grows from where it was on the core's tracks
+  createEffect(on(rect, (next, prev) => node && prev && prev !== next && flip(node, prev, next, 1, 1, 180), { defer: false }));
+  const field = () => keySink().field;
   return (
     <>
-      <View class="absolute rounded-lg" style={{ insetL: PAD.x, insetT: PAD.y, width: PAD.w, height: PAD.h, bgColor: color(mode() ? "selection" : "dark_background") }}>
-        <Text class="absolute left-0 text-center text-2xl leading-[28]" style={{ insetT: PAD.h / 2 - 36, width: PAD.w, textColor: color("muted") }}>{"\u{f0741}"}</Text>
-        <Text class="absolute left-0 text-center font-mono text-xs leading-[14]" style={{ insetT: PAD.h / 2 + 2, width: PAD.w, textColor: color("dark_foreground") }}>
-          {"move the pointer · tap to click"}
-        </Text>
-        <Text class="absolute left-0 text-center font-mono text-xs leading-[14]" style={{ insetT: PAD.h / 2 + 20, width: PAD.w, textColor: color("dark_foreground") }}>
-          {"two fingers scroll or pinch"}
-        </Text>
-      </View>
-      <View class="absolute rounded-md" style={{ insetL: KEY.x, insetT: KEY.y, width: KEY.w, height: KEY.h, bgColor: color(mode() === "drag" ? "accent" : "dark_background") }}>
-        <Text class="absolute left-0 text-center font-mono text-sm leading-[16]" style={{ insetT: KEY.h / 2 - 8, width: KEY.w, textColor: color(mode() === "drag" ? "background" : "foreground") }}>
-          {"Hold"}
-        </Text>
-      </View>
-      <Text class="absolute font-mono text-xs leading-[14]" style={{ insetL: KEY.x + KEY.w + 14, insetT: KEY.y + 13, textColor: color("dark_foreground") }}>
-        {"hold it and slide a finger to drag"}
-      </Text>
+      <View
+        class="absolute rounded-lg"
+        style={{ insetL: rect().x, insetT: rect().y, width: rect().w, height: rect().h, bgColor: color(mode() ? "selection" : "dark_background"), ...TOP_LEFT }}
+        ref={(n: NodeMirror) => (node = n)}
+      />
+      <Show
+        when={field()}
+        fallback={
+          <Text
+            class="absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]"
+            style={{ insetL: rect().x + 12, insetT: rect().y + rect().h - 34, width: rect().w - 24, textColor: color(voiceState() !== "idle" || chordSent() ? "accent" : "muted") }}
+          >
+            {line()}
+          </Text>
+        }
+      >
+        {(value) => (
+          <>
+            <Text class="absolute text-center text-lg leading-[24]" style={{ insetL: rect().x, insetT: rect().y + rect().h / 2 - 26, width: rect().w, textColor: color("bright_foreground") }}>
+              {value()()}
+            </Text>
+            <Text class="absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]" style={{ insetL: rect().x + 8, insetT: rect().y + rect().h / 2 + 6, width: rect().w - 16, textColor: color("dark_foreground") }}>
+              {keySink().hint?.() ?? ""}
+            </Text>
+          </>
+        )}
+      </Show>
+      <For each={ROUND_LIST}>
+        {(r) => {
+          const listening = () => r.name === "voice" && voiceState() === "listening";
+          const lit = () => (r.name === "voice" ? voiceState() === "decoding" : r.name === "hold" ? mode() === "drag" : r.name === "toggle" ? layout() === "keys" : r.name === "more" ? sheetOpen() : false);
+          const at = ROUNDS[r.name];
+          return (
+            <View class="absolute w-[44] h-[44] rounded-full" style={{ insetL: at.x, insetT: at.y, bgColor: color(listening() ? "red" : pressed(`round:${r.name}`) ? "selection" : "dark_background"), opacity: listening() ? 0.55 + 0.45 * voiceLevel() : 1 }}>
+              <Text class="absolute left-0 text-center text-xl leading-[24]" style={{ insetT: ROUND / 2 - 12, width: ROUND, textColor: color(listening() ? "bright_foreground" : lit() ? "accent" : "foreground") }}>
+                {r.glyph}
+              </Text>
+            </View>
+          );
+        }}
+      </For>
     </>
   );
 }

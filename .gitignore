@@ -12,3 +12,4 @@ shell/src/fonts.json
 shell/src/wall-*.png
 target/
 .pocket-build/
+.pocket/

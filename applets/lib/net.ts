@@ -8,7 +8,7 @@
 // @pocketjs/framework/net and @pocketjs/framework/link.
 // the frame loop's service pumps (not a subpath: framework/src/services.ts),
 // which mount() does not reset as it does onFrame's registry
-import { registerServicePump } from "../../vendor/pocketjs/framework/src/services.ts";
+import { registerServicePump } from "../vendor/pocketjs/framework/src/services.ts";
 
 interface NetOps {
   /** the request body is copied during this call */

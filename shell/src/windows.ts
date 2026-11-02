@@ -50,6 +50,8 @@ serve("pocket.window", {
   applets: () => applets().map((a) => a.id).join(" "),
   /** every transition `factor` times slower, 1 to restore */
   slow: (factor) => (setSlowMotion(Number(factor) || 1), "ok"),
+  /** ends the package window numbered as `list` numbers it: `closeapp <id>` */
+  closeapp: (id) => (closePackage(Number(id)), "ok"),
   /** a package in a window: `app <path.pocket> [title] [aux|applet]` */
   app: (path, title, aux) => {
     // a package opened again starts over: `pocket-applet run` after a build

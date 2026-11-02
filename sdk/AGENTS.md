@@ -1,41 +1,46 @@
 # Making a Pocket applet on this device
 
-This directory is one applet for Omarchy Pocket, the Linux handheld you are running on. An applet is a PocketJS package: a Solid app drawn by the device's GPU in a window of the shell, with no browser and no DOM. The compiler, the UI kit and working examples are on this device.
+This directory is one applet for Omarchy Pocket, the Linux handheld you are running on. An applet is a PocketJS package: a Solid app drawn by the device's GPU in a window of the shell, with no browser and no DOM.
+
+**Build it from the design system in `../kit`.** A page says what it shows, as rows, and the kit draws it. **Read `../kit/README.md` before writing anything**, then copy from `../examples/github`, a full app built the same way. An app of positioned views looks bad however long you work on it, and `pocket-applet check` refuses one.
 
 ## The loop
 
-Work in this order, and repeat until it looks right:
+Repeat until every page looks right:
 
 1. Edit the code in this directory.
-2. `pocket-applet run <name>`: compiles (about a minute), installs and opens it in a window, replacing the old one. A compile error prints here; fix it and run again.
-3. `pocket-applet shot <name>`: writes `shot.png` here, the device's two panels stacked, windows on the top one. **Look at the image.** Check that the text fits, nothing overlaps and the page does what was asked. Do not call the work done without having looked.
-4. `pocket-applet log`: the last lines of the host and the daemon, where an exception from the app or a refused request shows.
-5. Use it as a person would: `pocket-applet tap <x> <y>` clicks at a place you read off the top panel of the shot (1024 x 768), `pocket-applet scroll <x> <y> <dy>` scrolls what is there, `pocket-applet key Enter|Escape|Up|Down`, `pocket-applet type <text>`. Open every page you made this way and take a shot of it.
+2. `pocket-applet run <name>`: checks the rules, compiles (about a minute), installs and opens it in a window, replacing the old one. Fix what it prints and run again.
+3. `pocket-applet shot <name>`: writes `shot.png` here, the device's two panels stacked, windows on the top one. **Open the image and look at it.**
+4. `pocket-applet log`: the host's and the daemon's last lines. An exception from the app shows as `app N threw: ...`.
+5. Use it as a person would. `pocket-applet tap <x> <y>` clicks at a place read off the top panel of the shot (1024 x 768, so a row at y = 400 in the image is tapped at y = 400). `pocket-applet scroll <x> <y> <dy>` scrolls what is there, up by dy. `pocket-applet key Enter|Backspace|Up|Down` (Backspace goes back), `pocket-applet type <text>`. Wait for the network before the next shot: `sleep 3`.
 
-Only `pocket-applet publish <name>` sends anything out, and only the owner decides that. Do not run it unless asked.
+## Plan the pages first
 
-## What is here
+Write the list of pages at the top of `app.tsx` before the code, with what each one shows and which row each thing is. One thing per page. The first page shows the reader's data.
 
-- `app.tsx`, `main.tsx`: the entry. `pocket.json`: the manifest. `icon.svg`: the 128 px icon, a concise picture of what the app is, never letters.
-- `../ui/`: the UI kit, read it before writing a widget: `nav.tsx` (pages and the back stack), `table.tsx` (grouped tables), `chrome.tsx`, `field.tsx` (text fields), `alert.tsx`, `slots.ts` (long lists), `touch.ts`, `text.ts` (measuring, wrapping, `ellipsize`).
-- `../examples/`: finished applets to copy from. `weather` is a table, a detail page and a search, `hn` a long list with a segmented control, `podcasts` images and media, `maps` gestures and textures, `store` icons and an alert.
-- `../lib/net.ts`: `fetch`, `companionService`.
-- `../vendor/pocketjs/docs/` and `framework/`: the framework's reference, `docs/HIG.md` for how an app should feel.
+## Rules
 
-## Rules the compiler and the device hold you to
-
-- Import `@pocketjs/framework/*` for components, lifecycle and input, `solid-js` for signals and control flow. There is no DOM, no `window`, no CSS files. Styles are Tailwind-like classes on `View` and `Text`, and every class string must be a whole literal: the compiler bakes them.
-- Layout is absolute by default in the kit: compute `insetL`, `insetT`, `width`, `height`. Read `SCREEN_W` and `SCREEN_H` from `../ui/screen.ts` when the page builds. A window can be as small as 320x240 and as large as 640x720, and the app remounts on a resize, so keep state in `keep()` (`../ui/keep.ts`).
-- Touch goes through hit targets: a page's `targets()` lists rectangles, and `createTouchRouter` calls them. A `Text` or `View` takes no `onClick`.
-- Images are textures with power-of-two sides up to 512. Text is drawn from baked glyphs: `toAscii` a string from the network before drawing it, or use `../ui/glyphs.ts` for anything else.
-- The network is `fetch` from `../lib/net.ts`. List every host you fetch in `applet.hosts` in `pocket.json`; once published, the device refuses any other and shows the list before an install. Private addresses are refused.
-- Settings outlive the window in the `store` service: `companionService("store", "/get?name=x")`, `/set?name=x` with a JSON body. Add `"store"` to `applet.services`.
-- A picture from the network goes through the `images` service, because QuickJS has no image decoder: `companionService("images", "/fetch?url=" + encodeURIComponent(url) + "&w=64&h=64")` answers an IMG entry (power-of-two sides up to 512; add `&alpha=1` to keep transparency) for `getOps().uploadImgEntry(await response.bytes())`, which returns a texture handle for `getOps().setImage(image.id, handle)`. See how `examples/store/api.ts` keeps its icons. Add `"images"` to `applet.services`, and the picture's host to `applet.hosts`.
-- A published app may use the services `store`, `glyphs`, `maps` and `images`. `x`, `discord`, `homeassistant`, `podcasts` and `youtube` are for the device's own applets.
-- Never send anything to a real service while testing: no comments, posts, merges or other writes unless the owner asks for that one. Read-only requests are fine.
-- QuickJS runs the code: there is no `TextDecoder`, `setTimeout` is `after()` from `@pocketjs/framework/clock`, and a frame is 16 ms, so do not do per-frame work in signals you can avoid.
-- The deck's keyboard types into a field: see `SearchField` in `../ui/field.tsx` and how `examples/weather/app.tsx` uses `createOsk`.
+- Only `../kit`, `../lib/net.ts`, `../ui/window.tsx`, `../ui/keep.ts`, `solid-js` and `@pocketjs/framework/clock` are for app pages. `pocket-applet check` prints what to use instead of anything else.
+- **No colours, sizes or positions of your own.** No `View`, `Text` or `Image`. A game, a map or a canvas is the one exception: see the end of the kit's README.
+- **The network is `fetch` from `../lib/net.ts`, inside a query** (`app.queries.query`, `app.queries.paged`). QuickJS runs the code: there is no `TextDecoder`, no timers (`after()` from `@pocketjs/framework/clock`), no DOM. List every host in `applet.hosts` in `pocket.json`; once published, the device refuses any other.
+- Settings outlive the window in the `store` service: `fetch(companionService("store", "/get?name=x"))`, `/set?name=x` with a JSON body. Pictures are `avatar:` on a cell. `manifest.applet.services` lists what you use; a published app may use `store`, `glyphs`, `maps` and `images`.
+- `pocket.json`: set `applet.summary` to one line saying what the app does. `icon.svg`: 128 px, a concise picture of what the app is, never letters.
+- **Never send anything to a real service while testing:** no comments, posts, merges or other writes unless the owner asks for that one. Read-only requests are fine. Keep a sign-in token out of the code; ask for it with `app.compose({ secret: true })` and keep it in the store service.
+- Only `pocket-applet publish <name>` sends the app out, and only the owner decides that. Do not run it unless asked.
 
 ## Before saying it is done
 
-Run it, take a shot, look at it, try the page the request is about, and read `pocket-applet log` for errors.
+Go through this for **every page**, with a shot of each, and fix what fails:
+
+- [ ] `pocket-applet check <name>` prints nothing.
+- [ ] `pocket-applet log` shows no `threw`.
+- [ ] Every button and row in the request does what it says. You tapped it.
+- [ ] Real data shows, from the real source, with no placeholder or template text left.
+- [ ] A long list scrolls, and more than one screen of it looks right.
+- [ ] No text is cut in the middle of a word, overlapping or running off the window. Long values and non-English text were tried.
+- [ ] No `undefined`, `null`, `[object Object]`, JSON, raw ids or ISO dates on screen.
+- [ ] Loading, empty and failed each show something a person can read and act on. Turn the failure on by pointing the request at a bad path once, look, and put it back.
+- [ ] Back returns to where you were, at the same scroll position.
+- [ ] The summary and the icon say what the app is.
+
+Say in your last message which pages you looked at and what you could not check.

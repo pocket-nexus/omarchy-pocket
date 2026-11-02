@@ -112,6 +112,15 @@ struct AppGuest {
     resized: Rc<Cell<Option<[u32; 2]>>>,
 }
 
+impl AppGuest {
+    /// What the app threw, for `pocket-applet log` and whoever reads this journal.
+    fn report(&self, result: &Result<(), RuntimeError>) {
+        if result.is_err() {
+            eprintln!("omarchy-pocket-host: app {} threw: {}", self.app, self.inner.last_error().unwrap_or("(no message)"));
+        }
+    }
+}
+
 impl Guest for AppGuest {
     fn initialize(&mut self, ops: OpContext, environment: &GuestEnvironment<'_>) -> Result<(), RuntimeError> {
         let player = media::Player::new(ops.clone());
@@ -139,7 +148,9 @@ impl Guest for AppGuest {
         }
     }
     fn evaluate(&mut self, code: &[u8]) -> Result<(), RuntimeError> {
-        self.inner.evaluate(code)
+        let result = self.inner.evaluate(code);
+        self.report(&result);
+        result
     }
     fn frame(&mut self, frame: &GuestFrame<'_>) -> Result<(), RuntimeError> {
         if let Some([w, h]) = self.resized.take() {
@@ -154,10 +165,14 @@ impl Guest for AppGuest {
                 eprintln!("omarchy-pocket-host: app {} resize: {error}", self.app);
             }
         }
-        self.inner.frame(frame)
+        let result = self.inner.frame(frame);
+        self.report(&result);
+        result
     }
     fn collect(&mut self) -> Result<(), RuntimeError> {
-        self.inner.collect()
+        let result = self.inner.collect();
+        self.report(&result);
+        result
     }
     fn shutdown(&mut self) {
         self.inner.shutdown();
@@ -174,7 +189,8 @@ pub struct Children {
 
 pub type Shared = Rc<RefCell<Children>>;
 
-const APP_HEAP: usize = 32 * 1024 * 1024;
+/// A list app holds its rows, its responses and its font atlases: 32 MiB was too little.
+const APP_HEAP: usize = 96 * 1024 * 1024;
 /// a 4 x 4 placeholder: the shell's texture handle for an app's display; its
 /// pixels never draw, the bound GL texture does
 const PLACEHOLDER: [u8; 64] = [0; 64];
