@@ -378,6 +378,22 @@ export class WindowManager {
     return true;
   }
 
+  /** Grows (+1) or shrinks (-1) the focused window along one axis: in
+   *  dwindle the nearest split across that axis, in scrolling the column's
+   *  width (x only). */
+  resizeAxis(axis: "x" | "y", delta: number): boolean {
+    if (this.layout() === "scrolling") return axis === "x" && this.resize(delta);
+    const space = this.spaces[this.active]!;
+    const chain = space.focus === null ? null : path(space.root, space.focus);
+    const parent = chain ? [...chain].reverse().find((p) => p.split.axis === axis) : undefined;
+    if (!parent) return false;
+    const grow = parent.side === "a" ? delta : -delta;
+    const ratio = clamp(parent.split.ratio + grow * RESIZE_STEP, MIN_RATIO, MAX_RATIO);
+    if (ratio === parent.split.ratio) return false;
+    parent.split.ratio = ratio;
+    return true;
+  }
+
   /** dwindle: side by side becomes stacked, or back (togglesplit);
    *  scrolling: the column's width steps through ⅓ ½ ⅔ 1. */
   toggleSplit(): boolean {

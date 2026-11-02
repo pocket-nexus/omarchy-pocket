@@ -54,6 +54,31 @@ test("resize, toggle split and fullscreen", () => {
   expect(ps.find((p) => p.id !== a)!.hidden).toBe(true);
 });
 
+test("a stick resizes along its own axis: the nearest split across it", () => {
+  const wm = new WindowManager();
+  wm.open(term(1));
+  const b = wm.open(term(2));
+  const c = wm.open(term(3));
+  // c is the lower half of the right column: wider moves the column split, taller the row split
+  const rect = (id: number) => wm.placements().find((p) => p.id === id)!.rect;
+  const before = rect(c);
+  expect(wm.resizeAxis("x", 1)).toBe(true);
+  expect(rect(c).w).toBeGreaterThan(before.w);
+  expect(rect(c).h).toBe(before.h);
+  expect(wm.resizeAxis("y", 1)).toBe(true);
+  expect(rect(c).h).toBeGreaterThan(before.h);
+  expect(rect(b).h).toBeLessThan(before.h);
+  // a window with no split across an axis does not move along it
+  wm.close(b);
+  expect(wm.focused()!.id).toBe(c);
+  expect(wm.resizeAxis("y", 1)).toBe(false);
+  // the clamp holds: a step past it changes nothing
+  let steps = 0;
+  while (wm.resizeAxis("x", -1)) steps++;
+  expect(steps).toBeGreaterThan(0);
+  expect(wm.resizeAxis("x", -1)).toBe(false);
+});
+
 test("the scrolling strip keeps the focused column whole and toggles back", () => {
   const wm = new WindowManager();
   const ids = [1, 2, 3].map((sid) => wm.open(term(sid)));

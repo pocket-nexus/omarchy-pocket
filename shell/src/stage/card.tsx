@@ -13,7 +13,8 @@ import { glide } from "../motion.ts";
 import { color } from "../theme.ts";
 import type { TouchFrame } from "../touch.ts";
 import { CARD_H, CARD_W, CARD_X, CARD_Y } from "./geometry.ts";
-import { closeMenu, MenuCard, menuKey, menuOpen, menuText, menuTitle, menuTouch } from "./menu.tsx";
+import { pinnable, togglePin } from "../deck/pins.ts";
+import { allApps, closeMenu, MenuCard, menuKey, menuOpen, menuText, menuTitle, menuTouch, selectedItem } from "./menu.tsx";
 import { closePanel, openPanel, panelKey, panelTitle, Panels, panelTouch } from "./panels.tsx";
 import { Picker, pickerKey, pickerOpen, pickerTitle, pickerTouch } from "./picker.tsx";
 
@@ -46,6 +47,11 @@ export function cardButton(button: number): boolean {
     panelKey("Forget");
     return true;
   }
+  const item = card() === "menu" && button & BTN.SQUARE ? selectedItem() : undefined;
+  if (pinnable(item)) {
+    togglePin(item, allApps());
+    return true;
+  }
   return false;
 }
 
@@ -68,7 +74,7 @@ export function cardTitle(): string {
 function cardHint(): string {
   switch (card()) {
     case "menu":
-      return "type to filter · ↑↓ move · Enter opens · Esc closes";
+      return pinnable(selectedItem()) ? "type to filter · Enter opens · Y pins to Home" : "type to filter · ↑↓ move · Enter opens · Esc closes";
     case "panel":
       return "↑↓ move · ←→ adjust · Enter acts · Esc closes";
     case "picker":

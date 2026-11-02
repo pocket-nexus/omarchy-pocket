@@ -10,6 +10,7 @@
 // point and `click` clicks there. They drive the shell
 // over SSH for testing; the names are BTN's (UP, CIRCLE, START, ...).
 import { BTN } from "@pocketjs/framework/input";
+import { holdStick } from "./stick.ts";
 import { serve } from "./system.ts";
 import { sendKey } from "./term/keyboard.tsx";
 import { chooseLayout, type Layout } from "./focus.ts";
@@ -31,6 +32,8 @@ serve("pocket.input", {
     return "ok";
   },
   tap: (x, y) => (taps.push({ x: Number(x), y: Number(y), frames: TAP_FRAMES + 1 }), "ok"),
+  /** a stick pushed to (x, y), each -1..1, for `frames` frames (stick.ts) */
+  stick: (x, y, frames = "30") => (holdStick(Math.max(-1, Math.min(1, Number(x) || 0)), Math.max(-1, Math.min(1, Number(y) || 0)), Math.max(1, Number(frames) || 30)), "ok"),
   pointer: (x, y) => (movePointer(Number(x) - pointer().x, Number(y) - pointer().y), "ok"),
   click: () => (click(), "ok"),
   drag: (x, y, x2, y2, frames = "20", hold = "0") => {
