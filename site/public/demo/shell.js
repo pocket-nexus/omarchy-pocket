@@ -12208,12 +12208,6 @@
         tone: "info"
       });
     save2([...now, item.id]);
-    toast({
-      icon: PIN,
-      title: `${item.label} is on Home`,
-      body: "Home opens it with one press",
-      tone: "info"
-    }, 3);
   }
   function save2(ids) {
     setSaved(ids);
@@ -14173,23 +14167,11 @@
         selected: first.id
       }));
   }
-  function showApps() {
-    refreshApps();
-    openAppsList();
-    setMenuOpen(true);
-  }
   var selectedItem = () => {
     const l = level();
     return rows3(l)[indexIn(l)];
   };
   var openItem = (item) => activate(item);
-  function openAppsList() {
-    entering = 1;
-    setStack([levelFor(ROOT_TITLE, MENU)]);
-    const apps = MENU.find((item) => item.id === "apps");
-    if (apps)
-      openProvider(apps);
-  }
   var atRoot = () => stack().length === 1;
   function lastLine(text) {
     const lines = text.trim().split(`
@@ -15745,15 +15727,18 @@
     const s = state();
     return p === "tailscale" ? "\uDB80\uDF18" : p === "proxy" ? "\uDB81\uDD82" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
   };
-  var PIN_W = 60;
+  var PIN_GAP = 6;
+  var PIN_W = (MAP_W - MAX_PINS * PIN_GAP) / (MAX_PINS + 1);
   var PIN_H = 40;
   var PIN_Y = MAP_Y + MAP_H + 7;
+  var PIN_STEP = PIN_W + PIN_GAP;
   var ADD = "\uDB81\uDC15";
+  var DONE = "\uDB80\uDD2C";
+  var REMOVE = "\uDB80\uDD56";
   var pinned = () => {
     const apps = allApps();
     return pinIds(apps).flatMap((id) => apps.find((a) => a.id === id) ?? []);
   };
-  var PIN_STEP = (RIGHT_X2 + SIDE_W - LEFT_X2 - PIN_W) / MAX_PINS;
   var pinXs = () => {
     const n = pinned().length + 1;
     const left = 256 - ((n - 1) * PIN_STEP + PIN_W) / 2;
@@ -15762,6 +15747,36 @@
     }, (_, i) => left + i * PIN_STEP);
   };
   var pinAt = (x, y) => y >= PIN_Y && y < PIN_Y + PIN_H ? pinXs().findIndex((left) => x >= left && x < left + PIN_W) : -1;
+  var [editing2, setEditing2] = createSignal(false);
+  var EDIT_PAD = 4;
+  var APP_H = 33;
+  var APP_W = (MAP_W - 2 * EDIT_PAD) / 2;
+  var APP_ROWS = Math.floor((MAP_H - 2 * EDIT_PAD) / APP_H);
+  var appList = createList(APP_H, MAP_Y + EDIT_PAD, APP_ROWS);
+  var appRows2 = () => {
+    const apps = allApps();
+    return Array.from({
+      length: Math.ceil(apps.length / 2)
+    }, (_, i) => [apps[2 * i], apps[2 * i + 1]]);
+  };
+  var appAt = (x, y) => {
+    if (!onMap(x, y) || y < MAP_Y + EDIT_PAD)
+      return -1;
+    const row = appList.first() + Math.floor((y - MAP_Y - EDIT_PAD) / APP_H);
+    const i = 2 * row + (x >= MAP_X + EDIT_PAD + APP_W ? 1 : 0);
+    return i < allApps().length ? i : -1;
+  };
+  var full = () => pinIds(allApps()).length >= MAX_PINS;
+  function editPins(on) {
+    if (on)
+      appList.reset();
+    setEditing2(on);
+  }
+  function toggleApp(item) {
+    const apps = allApps();
+    if (pinIds(apps).includes(item.id) || !full())
+      togglePin(item, apps);
+  }
   function openPin(item) {
     const open = item.applet ? find((w) => w.kind === "app" && w.path === item.applet) : null;
     if (open)
@@ -15793,6 +15808,10 @@
     const pin = pinAt(x, y);
     if (pin >= 0)
       return `home:pin${pin}`;
+    if (editing2()) {
+      const app = appAt(x, y);
+      return app >= 0 ? `home:app${app}` : null;
+    }
     if (onMap(x, y)) {
       const at = toStage(x, y);
       const id = windowAt(at.x, at.y);
@@ -15813,8 +15832,12 @@
     const pin = pinAt(x, y);
     if (pin >= 0) {
       const item = pinned()[pin];
-      return item ? openPin(item) : showApps();
+      if (!item)
+        return editPins(!editing2());
+      return editing2() ? togglePin(item, allApps()) : openPin(item);
     }
+    if (editing2())
+      return;
     if (onMap(x, y)) {
       const at = toStage(x, y);
       const id = windowAt(at.x, at.y);
@@ -15825,6 +15848,19 @@
   function homeTouch(frame) {
     const c = frame.down[0];
     pressAt(c && !c.moved ? homeTarget(c.x, c.y) : null);
+    if (editing2()) {
+      const listed = (t) => onMap(t.start.x, t.start.y);
+      appList.touch({
+        ...frame,
+        down: frame.down.filter(listed),
+        taps: []
+      }, appRows2().length, () => {});
+      for (const t of frame.taps) {
+        const i = !t.moved && listed(t) ? appAt(t.x, t.y) : -1;
+        if (i >= 0)
+          toggleApp(allApps()[i]);
+      }
+    }
     for (const p of frame.presses)
       tap(p.x, p.y);
   }
@@ -15923,26 +15959,142 @@
         };
       },
       get children() {
-        return createComponent2(Text, {
+        return [createComponent2(Text, {
           class: "absolute left-0 text-center font-mono text-base leading-[18]",
           get style() {
             return {
               insetT: PIN_H / 2 - 9,
               insetL: -inkShift(props.icon, 16),
               width: PIN_W,
-              textColor: color(props.dim ? "dark_foreground" : "foreground")
+              textColor: color(props.tone === "dim" ? "dark_foreground" : props.tone === "accent" ? "accent" : "foreground")
             };
           },
           get children() {
             return props.icon;
           }
+        }), createComponent2(Show, {
+          get when() {
+            return props.removable;
+          },
+          get children() {
+            return createComponent2(Text, {
+              class: "absolute top-[1] w-[12] text-center font-mono text-xs leading-[12]",
+              get style() {
+                return {
+                  insetL: PIN_W - 13,
+                  textColor: color("dark_foreground")
+                };
+              },
+              children: REMOVE
+            });
+          }
+        })];
+      }
+    });
+  }
+  function AppCell(props) {
+    const on = () => pinIds(allApps()).includes(props.item.id);
+    const tone = () => on() ? "accent" : full() ? "muted" : "foreground";
+    return createComponent2(View, {
+      class: "absolute top-[1] rounded-sm",
+      get style() {
+        return {
+          insetL: props.x,
+          width: APP_W - 2,
+          height: APP_H - 2,
+          bgColor: color(pressed(`home:app${props.index}`) ? "selection" : on() ? "background" : "dark_background")
+        };
+      },
+      get children() {
+        return [createComponent2(Text, {
+          class: "absolute top-[7] w-[20] text-center font-mono text-base leading-[18]",
+          get style() {
+            return {
+              insetL: 8 - inkShift(props.item.icon, 16),
+              textColor: color(tone())
+            };
+          },
+          get children() {
+            return props.item.icon;
+          }
+        }), createComponent2(Text, {
+          class: "absolute left-[34] top-[9] h-[14] overflow-hidden font-mono text-xs leading-[14]",
+          get style() {
+            return {
+              width: APP_W - 60,
+              textColor: color(on() ? "bright_foreground" : tone())
+            };
+          },
+          get children() {
+            return props.item.label;
+          }
+        }), createComponent2(Show, {
+          get when() {
+            return on();
+          },
+          get children() {
+            return createComponent2(Text, {
+              class: "absolute top-[8] w-[16] text-center font-mono text-xs leading-[16]",
+              get style() {
+                return {
+                  insetL: APP_W - 24 - inkShift(PIN, 12),
+                  textColor: color("accent")
+                };
+              },
+              children: PIN
+            });
+          }
+        })];
+      }
+    });
+  }
+  function AppList() {
+    return createComponent2(View, {
+      class: "absolute overflow-hidden rounded-sm",
+      get style() {
+        return {
+          insetL: MAP_X,
+          insetT: MAP_Y,
+          width: MAP_W,
+          height: MAP_H,
+          bgColor: color("darker_background"),
+          opacity: editing2() ? 1 : 0
+        };
+      },
+      get children() {
+        return createComponent2(List, {
+          state: appList,
+          items: appRows2,
+          top: EDIT_PAD,
+          rowH: APP_H,
+          left: EDIT_PAD,
+          width: MAP_W - 2 * EDIT_PAD,
+          selected: () => -1,
+          children: (row, i) => [createComponent2(AppCell, {
+            get item() {
+              return row()[0];
+            },
+            x: 0,
+            index: 2 * i
+          }), createComponent2(Show, {
+            get when() {
+              return row()[1];
+            },
+            children: (second) => createComponent2(AppCell, {
+              get item() {
+                return second();
+              },
+              x: APP_W,
+              index: 2 * i + 1
+            })
+          })]
         });
       }
     });
   }
   function Home() {
     const bar = () => barPosition();
-    createEffect(on(layout2, (l) => l === "home" && refreshApps(), {
+    createEffect(on(layout2, (l) => l === "home" ? refreshApps() : editPins(false), {
       defer: true
     }));
     return [createComponent2(View, {
@@ -16000,7 +16152,7 @@
           }
         })];
       }
-    }), createComponent2(For, {
+    }), createComponent2(AppList, {}), createComponent2(For, {
       get each() {
         return pinned();
       },
@@ -16013,17 +16165,24 @@
         },
         get target() {
           return `home:pin${i()}`;
+        },
+        get removable() {
+          return editing2();
         }
       })
     }), createComponent2(PinCell, {
       get x() {
         return pinXs()[pinned().length];
       },
-      icon: ADD,
+      get icon() {
+        return editing2() ? DONE : ADD;
+      },
       get target() {
         return `home:pin${pinned().length}`;
       },
-      dim: true
+      get tone() {
+        return editing2() ? "accent" : "dim";
+      }
     }), createComponent2(For, {
       get each() {
         return Array.from({
@@ -20558,19 +20717,24 @@
     "absolute h-[14] overflow-hidden font-mono text-xs leading-[14]": 112,
     "absolute left-[2] top-[2] overflow-hidden": 113,
     "absolute left-0 text-center font-mono text-base leading-[20]": 114,
-    "absolute overflow-hidden rounded-sm": 115,
-    "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]": 116,
-    "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 117,
-    "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 118,
-    "absolute left-0 top-0 w-[512]": 119,
-    "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]": 120,
-    "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 121,
-    "absolute rounded-lg": 122,
-    "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]": 123,
-    "absolute text-center text-lg leading-[24]": 124,
-    "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 125,
-    "absolute w-[44] h-[44] rounded-full": 126,
-    "absolute left-0 top-0 w-[512] h-[384] overflow-hidden": 127
+    "absolute top-[1] w-[12] text-center font-mono text-xs leading-[12]": 115,
+    "absolute top-[1] rounded-sm": 116,
+    "absolute top-[7] w-[20] text-center font-mono text-base leading-[18]": 117,
+    "absolute left-[34] top-[9] h-[14] overflow-hidden font-mono text-xs leading-[14]": 118,
+    "absolute top-[8] w-[16] text-center font-mono text-xs leading-[16]": 119,
+    "absolute overflow-hidden rounded-sm": 120,
+    "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]": 121,
+    "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 122,
+    "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 123,
+    "absolute left-0 top-0 w-[512]": 124,
+    "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]": 125,
+    "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 126,
+    "absolute rounded-lg": 127,
+    "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]": 128,
+    "absolute text-center text-lg leading-[24]": 129,
+    "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 130,
+    "absolute w-[44] h-[44] rounded-full": 131,
+    "absolute left-0 top-0 w-[512] h-[384] overflow-hidden": 132
   };
 
   // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/index.ts

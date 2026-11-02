@@ -1,8 +1,9 @@
 // Apps pinned under the Home map, each one press from open. A pin is an Apps
 // row's id (stage/menu.tsx); omarchy-pocketd keeps the list in
 // ~/.local/state/omarchy-pocket/pins.json. Until something is pinned or
-// unpinned the row holds DEFAULT_PINS, those of them this device has. The
-// menu pins and unpins its selected app (Y, or the function row's Pin).
+// unpinned the row holds DEFAULT_PINS, those of them this device has. Home
+// edits them in place (deck/home.tsx); the menu pins and unpins its selected
+// app too (Y, or the function row's Pin).
 import { createSignal } from "solid-js";
 import { request } from "../bridge.ts";
 import type { MenuItem } from "../menu.ts";
@@ -31,7 +32,6 @@ export function togglePin(item: MenuItem, apps: readonly MenuItem[]) {
   if (now.includes(item.id)) return save(now.filter((id) => id !== item.id));
   if (now.length >= MAX_PINS) return toast({ icon: PIN, title: `Home holds ${MAX_PINS} pins`, body: "Unpin one to make room", tone: "info" });
   save([...now, item.id]);
-  toast({ icon: PIN, title: `${item.label} is on Home`, body: "Home opens it with one press", tone: "info" }, 3);
 }
 
 function save(ids: string[]) {

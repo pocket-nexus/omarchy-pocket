@@ -3,20 +3,23 @@
 // Home tab asks for it. A press on a window focuses it, and the deck becomes
 // that window's keyboard or pad; a press on a workspace tab switches to it;
 // the layout badge toggles dwindle and scrolling; a press in the right column
-// opens that panel's card on the stage. Under the map, the pinned apps
-// (deck/pins.ts): a press opens one, or focuses its window when it is a
-// package or applet already open; the last cell opens the menu at Apps, where
-// Y pins and unpins. Moving, swapping, resizing and closing windows are the
-// gamepad's chords (chords.ts), not gestures here.
-import { createEffect, createMemo, For, on, onCleanup, Show } from "solid-js";
+// opens that panel's card on the stage. Under the map and as wide as it, the
+// pinned apps (deck/pins.ts): a press opens one, or focuses its window when it
+// is a package or applet already open. Pins are edited here, on the deck: the
+// last cell (+) turns the map into every app, two columns that scroll; a tap
+// there pins or unpins an app, a press on a pin in the row unpins it, and the
+// last cell (now ✓) puts the map back. Moving, swapping, resizing and closing
+// windows are the gamepad's chords (chords.ts), not gestures here.
+import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { appletOf } from "../applets/applet.ts";
 import { perform } from "../actions.ts";
 import { layout as deckLayout } from "../focus.ts";
 import { inkShift } from "../ink.ts";
 import type { MenuItem } from "../menu.ts";
-import { allApps, openItem, refreshApps, showApps } from "../stage/menu.tsx";
-import { MAX_PINS, pinIds } from "./pins.ts";
+import { allApps, openItem, refreshApps } from "../stage/menu.tsx";
+import { createList, List } from "./list.tsx";
+import { MAX_PINS, PIN, pinIds, togglePin } from "./pins.ts";
 import { flip, TOP_LEFT, type Box } from "../motion.ts";
 import { color } from "../theme.ts";
 import type { TouchFrame } from "../touch.ts";
@@ -59,19 +62,20 @@ const panelGlyph = (p: PanelName) => {
   return p === "tailscale" ? "\u{f0318}" : p === "proxy" ? "\u{f0582}" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
 };
 
-/** the pinned apps' row under the map, and the add cell at its end: icons
- *  only, in cells the size of the side columns' */
-const PIN_W = 60;
+/** the pinned apps' row under the map: icons only, seven cells (six pins and
+ *  the add cell) exactly as wide as the map, a shorter row centred under it */
+const PIN_GAP = 6;
+const PIN_W = (MAP_W - MAX_PINS * PIN_GAP) / (MAX_PINS + 1);
 const PIN_H = 40;
 const PIN_Y = MAP_Y + MAP_H + 7;
+const PIN_STEP = PIN_W + PIN_GAP;
 const ADD = "\u{f0415}";
+const DONE = "\u{f012c}";
+const REMOVE = "\u{f0156}";
 const pinned = (): MenuItem[] => {
   const apps = allApps();
   return pinIds(apps).flatMap((id) => apps.find((a) => a.id === id) ?? []);
 };
-/** one pitch for every count: a full row (six pins and the add cell) runs
- *  from the left column's edge to the right column's; a shorter one is centred */
-const PIN_STEP = (RIGHT_X + SIDE_W - LEFT_X - PIN_W) / MAX_PINS;
 /** the cells' left edges: the pins, then the add cell */
 const pinXs = () => {
   const n = pinned().length + 1;
@@ -80,6 +84,36 @@ const pinXs = () => {
 };
 /** the cell under body point (x, y): a pin's index, the add cell's (pins' count), or -1 */
 const pinAt = (x: number, y: number) => (y >= PIN_Y && y < PIN_Y + PIN_H ? pinXs().findIndex((left) => x >= left && x < left + PIN_W) : -1);
+
+/** While pins are edited, the map's place holds every app. */
+const [editing, setEditing] = createSignal(false);
+const EDIT_PAD = 4;
+const APP_H = 33;
+const APP_W = (MAP_W - 2 * EDIT_PAD) / 2;
+const APP_ROWS = Math.floor((MAP_H - 2 * EDIT_PAD) / APP_H);
+const appList = createList(APP_H, MAP_Y + EDIT_PAD, APP_ROWS);
+/** the apps two to a row */
+const appRows = () => {
+  const apps = allApps();
+  return Array.from({ length: Math.ceil(apps.length / 2) }, (_, i) => [apps[2 * i]!, apps[2 * i + 1]] as const);
+};
+/** the app under body point (x, y) while editing, by index in allApps, or -1 */
+const appAt = (x: number, y: number) => {
+  if (!onMap(x, y) || y < MAP_Y + EDIT_PAD) return -1;
+  const row = appList.first() + Math.floor((y - MAP_Y - EDIT_PAD) / APP_H);
+  const i = 2 * row + (x >= MAP_X + EDIT_PAD + APP_W ? 1 : 0);
+  return i < allApps().length ? i : -1;
+};
+const full = () => pinIds(allApps()).length >= MAX_PINS;
+function editPins(on: boolean) {
+  if (on) appList.reset();
+  setEditing(on);
+}
+/** A tap on an app while editing: pins it, or unpins it; a full row takes no more. */
+function toggleApp(item: MenuItem) {
+  const apps = allApps();
+  if (pinIds(apps).includes(item.id) || !full()) togglePin(item, apps);
+}
 
 /** A pin opens its app, or focuses the package already open in a window. */
 function openPin(item: MenuItem) {
@@ -105,6 +139,10 @@ export function homeTarget(x: number, y: number): string | null {
   if (p) return `home:${p}`;
   const pin = pinAt(x, y);
   if (pin >= 0) return `home:pin${pin}`;
+  if (editing()) {
+    const app = appAt(x, y);
+    return app >= 0 ? `home:app${app}` : null;
+  }
   if (onMap(x, y)) {
     const at = toStage(x, y);
     const id = windowAt(at.x, at.y);
@@ -122,8 +160,11 @@ function tap(x: number, y: number) {
   const pin = pinAt(x, y);
   if (pin >= 0) {
     const item = pinned()[pin];
-    return item ? openPin(item) : showApps();
+    if (!item) return editPins(!editing());
+    return editing() ? togglePin(item, allApps()) : openPin(item);
   }
+  // the app list takes its taps at the lift, so a drag can scroll it
+  if (editing()) return;
   if (onMap(x, y)) {
     const at = toStage(x, y);
     const id = windowAt(at.x, at.y);
@@ -131,10 +172,20 @@ function tap(x: number, y: number) {
   }
 }
 
-/** The home layout's fingers this frame (body coordinates): a finger acts where it settles. */
+/** The home layout's fingers this frame (body coordinates): a finger acts
+ *  where it settles; on the app list it scrolls, and acts at a lift that did
+ *  not travel. */
 export function homeTouch(frame: TouchFrame) {
   const c = frame.down[0];
   pressAt(c && !c.moved ? homeTarget(c.x, c.y) : null);
+  if (editing()) {
+    const listed = (t: { start: { x: number; y: number } }) => onMap(t.start.x, t.start.y);
+    appList.touch({ ...frame, down: frame.down.filter(listed), taps: [] }, appRows().length, () => {});
+    for (const t of frame.taps) {
+      const i = !t.moved && listed(t) ? appAt(t.x, t.y) : -1;
+      if (i >= 0) toggleApp(allApps()[i]!);
+    }
+  }
   for (const p of frame.presses) tap(p.x, p.y);
 }
 
@@ -180,21 +231,65 @@ function Tile(props: { win: Win }) {
   );
 }
 
-/** One cell of the pins' row: the app's icon, drawn as the side columns draw theirs. */
-function PinCell(props: { x: number; icon: string; target: string; dim?: boolean }) {
+/** One cell of the pins' row: the app's icon, drawn as the side columns draw
+ *  theirs; while editing, a pin wears a small × in its corner. */
+function PinCell(props: { x: number; icon: string; target: string; tone?: "dim" | "accent"; removable?: boolean }) {
   return (
     <View class="absolute rounded-md" style={{ insetL: props.x, insetT: PIN_Y, width: PIN_W, height: PIN_H, bgColor: color(pressed(props.target) ? "selection" : "dark_background") }}>
-      <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: PIN_H / 2 - 9, insetL: -inkShift(props.icon, 16), width: PIN_W, textColor: color(props.dim ? "dark_foreground" : "foreground") }}>
+      <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: PIN_H / 2 - 9, insetL: -inkShift(props.icon, 16), width: PIN_W, textColor: color(props.tone === "dim" ? "dark_foreground" : props.tone === "accent" ? "accent" : "foreground") }}>
         {props.icon}
       </Text>
+      <Show when={props.removable}>
+        <Text class="absolute top-[1] w-[12] text-center font-mono text-xs leading-[12]" style={{ insetL: PIN_W - 13, textColor: color("dark_foreground") }}>
+          {REMOVE}
+        </Text>
+      </Show>
+    </View>
+  );
+}
+
+/** One app in the list: its icon and name, lit when it is pinned, dim when the row is full. */
+function AppCell(props: { item: MenuItem; x: number; index: number }) {
+  const on = () => pinIds(allApps()).includes(props.item.id);
+  const tone = () => (on() ? "accent" : full() ? "muted" : "foreground");
+  return (
+    <View class="absolute top-[1] rounded-sm" style={{ insetL: props.x, width: APP_W - 2, height: APP_H - 2, bgColor: color(pressed(`home:app${props.index}`) ? "selection" : on() ? "background" : "dark_background") }}>
+      <Text class="absolute top-[7] w-[20] text-center font-mono text-base leading-[18]" style={{ insetL: 8 - inkShift(props.item.icon, 16), textColor: color(tone()) }}>
+        {props.item.icon}
+      </Text>
+      <Text class="absolute left-[34] top-[9] h-[14] overflow-hidden font-mono text-xs leading-[14]" style={{ width: APP_W - 60, textColor: color(on() ? "bright_foreground" : tone()) }}>
+        {props.item.label}
+      </Text>
+      <Show when={on()}>
+        <Text class="absolute top-[8] w-[16] text-center font-mono text-xs leading-[16]" style={{ insetL: APP_W - 24 - inkShift(PIN, 12), textColor: color("accent") }}>
+          {PIN}
+        </Text>
+      </Show>
+    </View>
+  );
+}
+
+/** Every app, two columns over the map's place while pins are edited. */
+function AppList() {
+  return (
+    <View class="absolute overflow-hidden rounded-sm" style={{ insetL: MAP_X, insetT: MAP_Y, width: MAP_W, height: MAP_H, bgColor: color("darker_background"), opacity: editing() ? 1 : 0 }}>
+      <List state={appList} items={appRows} top={EDIT_PAD} rowH={APP_H} left={EDIT_PAD} width={MAP_W - 2 * EDIT_PAD} selected={() => -1}>
+        {(row, i) => (
+          <>
+            <AppCell item={row()[0]} x={0} index={2 * i} />
+            <Show when={row()[1]}>{(second) => <AppCell item={second()} x={APP_W} index={2 * i + 1} />}</Show>
+          </>
+        )}
+      </List>
     </View>
   );
 }
 
 export function Home() {
   const bar = () => barPosition();
-  // an app installed since the menu last looked shows up as a pin
-  createEffect(on(deckLayout, (l) => l === "home" && refreshApps(), { defer: true }));
+  // an app installed since the menu last looked shows up as a pin; leaving
+  // Home ends an edit
+  createEffect(on(deckLayout, (l) => (l === "home" ? refreshApps() : editPins(false)), { defer: true }));
   return (
     <>
       <View class="absolute overflow-hidden rounded-sm" style={{ insetL: MAP_X, insetT: MAP_Y, width: MAP_W, height: MAP_H, bgColor: color("dark_background") }}>
@@ -208,8 +303,9 @@ export function Home() {
           </Text>
         </Show>
       </View>
-      <For each={pinned()}>{(item, i) => <PinCell x={pinXs()[i()]!} icon={item.icon} target={`home:pin${i()}`} />}</For>
-      <PinCell x={pinXs()[pinned().length]!} icon={ADD} target={`home:pin${pinned().length}`} dim />
+      <AppList />
+      <For each={pinned()}>{(item, i) => <PinCell x={pinXs()[i()]!} icon={item.icon} target={`home:pin${i()}`} removable={editing()} />}</For>
+      <PinCell x={pinXs()[pinned().length]!} icon={editing() ? DONE : ADD} target={`home:pin${pinned().length}`} tone={editing() ? "accent" : "dim"} />
       <For each={Array.from({ length: WORKSPACES }, (_, i) => i)}>
         {(n) => (
           <View
