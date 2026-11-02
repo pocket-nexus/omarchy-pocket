@@ -6,6 +6,7 @@
 // surface. The window manager keeps the shoulders, L2/R2 and SELECT; a
 // package that is not a touch app gets the other buttons. A package off the
 // current workspace is paused.
+import { BTN } from "@pocketjs/framework/input";
 import { createSignal } from "solid-js";
 import { onEvent } from "./bridge.ts";
 import type { KeySink } from "./keys.ts";
@@ -50,6 +51,19 @@ export function appletKeys(id: number): KeySink {
     close: () => host?.appText?.(id, "key", "Escape"),
     hint: () => "types into the window above · × closes its field",
   };
+}
+
+/** The function row's Back: the focused touch app hears Cross for BACK_FRAMES frames. */
+const BACK_FRAMES = 3;
+let backFor = 0;
+export const pressBack = () => {
+  backFor = BACK_FRAMES;
+};
+/** Once per frame: the buttons a touch app hears, which are Back's alone. */
+export function touchAppButtons(): number {
+  if (backFor === 0) return 0;
+  backFor--;
+  return BTN.CROSS;
 }
 
 /** An applet's touch surface in its window: its size in logical points and

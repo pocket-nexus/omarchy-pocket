@@ -8,12 +8,14 @@
 //                               bar, the card (the menu, the panels, the
 //                               theme picker), the OSD, notices, the legend
 //                               and the key sheet.
-//   The deck is the keyboard.   The bottom panel has three layouts and one
-//                               rule picks them (focus.ts): keys for what
-//                               takes keys, the pad for a touch app, home
-//                               when nothing has focus. The strip's tabs
-//                               pick one by hand until the focus changes;
-//                               the strip's logo opens Omarchy's menu.
+//   The deck is the keyboard.   The bottom panel is a laptop's lower half: a
+//                               function row, keys and a trackpad. It has three
+//                               layouts and one rule picks them (focus.ts):
+//                               keys for what takes keys, the trackpad alone
+//                               for a touch app, home when nothing has focus.
+//                               The keyboard button and Home pick one by hand
+//                               until the focus changes; the row's logo opens
+//                               Omarchy's menu.
 //   The gamepad is SUPER.       L1, R1 and both are the chord layers of
 //                               chords.ts and last as long as the shoulder;
 //                               with no shoulder the buttons are keys for
@@ -29,8 +31,8 @@
 // the panel's root, so two would share its width. The portal inserts its
 // child once (framework renderPortalChild calls the accessor), so the deck's
 // switching sits inside a View.
-import { createEffect, createSignal, on, Show } from "solid-js";
-import { AuxiliarySurface, View } from "@pocketjs/framework/components";
+import { createEffect, createSignal, on, Show, untrack } from "solid-js";
+import { AuxiliarySurface, View, type NodeMirror } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
 import { onFrame } from "@pocketjs/framework/lifecycle";
@@ -42,13 +44,14 @@ import { BODY_H, BODY_TOP, STRIP_H } from "./deck/geometry.ts";
 import { Home, homeTarget, homeTouch } from "./deck/home.tsx";
 import { pressAt } from "./deck/press.ts";
 import { Strip, stripTarget, stripTouch } from "./deck/strip.tsx";
-import { surfacePackage, Touchpad, touchpadTouch } from "./deck/touchpad.tsx";
+import { pointerAwake, roundTarget, surfacePackage, Touchpad, touchpadTouch } from "./deck/touchpad.tsx";
 import { card, cardButton, closeCard } from "./stage/card.tsx";
 import { closeMenu } from "./stage/menu.tsx";
 import { cycleLayout, layout } from "./focus.ts";
 import { setHeldLayer } from "./held.ts";
 import { buttonKey, fieldSink } from "./keys.ts";
-import { appletRefused, feedPackage, showPackage, mediaPlaying } from "./packages.ts";
+import { appletRefused, feedPackage, showPackage, mediaPlaying, touchAppButtons } from "./packages.ts";
+import { glide } from "./motion.ts";
 import { remoteButtons } from "./remote-input.ts";
 import { Bar } from "./stage/bar.tsx";
 import { Card } from "./stage/card.tsx";
@@ -181,7 +184,7 @@ export default function Shell() {
     if (!w) return;
     fed = w.app;
     // a touch app answers touch only (the pointer's); the buttons are the shell's
-    if (w.appletSurface) return feedPackage(w.app, 0, pointerContacts(w.app));
+    if (w.appletSurface) return feedPackage(w.app, touchAppButtons(), pointerContacts(w.app));
     const mask = layerOf(buttons & MODIFIERS) === "plain" && !locked() && !card() && !fieldSink() ? buttons & ~(MODIFIERS | BTN.SELECT | BTN.ZL | BTN.ZR) : 0;
     feedPackage(w.app, mask, contacts);
   };
@@ -190,7 +193,7 @@ export default function Shell() {
     switch (layout()) {
       case "keys":
         keyboardTouch(frame, "body");
-        return [];
+        return touchpadTouch(frame);
       case "pad":
         return touchpadTouch(frame);
       case "home":
@@ -198,6 +201,15 @@ export default function Shell() {
         return [];
     }
   };
+
+  // the keys fold away upward as the trackpad grows, and come back
+  let keysNode: NodeMirror | undefined;
+  createEffect(
+    on(layout, (l) => {
+      glide(keysNode, "opacity", l === "keys" ? 1 : 0, 140);
+      glide(keysNode, "translateY", l === "keys" ? 0 : -14, 180);
+    }, { defer: true }),
+  );
 
   let held = 0;
   let heldFor = 0;
@@ -231,7 +243,7 @@ export default function Shell() {
 
     // the pressed look follows the oldest finger
     const first = touch.down[0];
-    pressAt(!first ? null : first.start.y < STRIP_H ? stripTarget(first.x) : layout() === "home" ? homeTarget(first.x, first.y - BODY_TOP) : null);
+    pressAt(!first ? null : first.start.y < STRIP_H ? stripTarget(first.x) : layout() === "home" ? homeTarget(first.x, first.y - BODY_TOP) : roundTarget(first.x, first.y - BODY_TOP));
     stripTouch(band(touch, 0, STRIP_H));
     const contacts = bodyTouch(band(touch, BODY_TOP, 384));
     feed(buttons, contacts);
@@ -248,7 +260,7 @@ export default function Shell() {
       <Legend />
       <Osd />
       <Toasts />
-      <Pointer shown={() => layout() === "pad" && !surfacePackage() && !locked()} />
+      <Pointer shown={() => !locked() && (layout() === "pad" ? !surfacePackage() : layout() === "keys" && pointerAwake())} />
       <LockStage clock={time} date={date} />
       <Screensaver />
       <AuxiliarySurface>
@@ -258,17 +270,21 @@ export default function Shell() {
                 opacity: unlocking repaints the deck instead of building it */}
             <View class="absolute left-0 top-0 w-[512] h-[384] contain-strict" style={{ opacity: locked() ? 0 : 1 }}>
               <View class="absolute left-0 w-[512] overflow-hidden contain-strict" style={{ insetT: BODY_TOP, height: BODY_H }}>
-                {/* the keys and home stay mounted and show by opacity, so a change of
-                    focus repaints instead of building a layout; the pad mounts on demand */}
+                {/* everything stays mounted and shows by opacity, so a change of
+                    focus repaints instead of building a layout */}
                 <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: BODY_H, opacity: layout() === "home" ? 1 : 0 }}>
                   <Home />
                 </View>
-                <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: BODY_H, opacity: layout() === "keys" ? 1 : 0 }}>
+                <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: BODY_H, opacity: layout() === "home" ? 0 : 1 }}>
+                  <Touchpad />
+                </View>
+                <View
+                  class="absolute left-0 top-0 w-[512] contain-strict"
+                  style={{ height: BODY_H, opacity: untrack(layout) === "keys" ? 1 : 0, translateY: untrack(layout) === "keys" ? 0 : -14 }}
+                  ref={(n: NodeMirror) => (keysNode = n)}
+                >
                   <Keyboard mode="body" />
                 </View>
-                <Show when={layout() === "pad"}>
-                  <Touchpad />
-                </Show>
               </View>
               <Strip />
             </View>

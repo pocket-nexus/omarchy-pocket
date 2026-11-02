@@ -33,6 +33,7 @@ import { apps } from "./apps.ts";
 import { Bar } from "./bar.ts";
 import * as applets from "./applets.ts";
 import { RUNTIME } from "./paths.ts";
+import { Voice } from "./voice.ts";
 
 if (process.argv[2] === "bake") {
   await (await import("./glyphs.ts")).bakeMain(process.argv[3]!);
@@ -264,10 +265,24 @@ function broadcast(message: DaemonMessage) {
   for (const peer of peers) send(peer, message);
 }
 
+const voice = new Voice(({ state, level }) => broadcast({ event: "voice", state, level }));
+voice.onLimit = () => void voice.stop().then((text) => broadcast({ event: "voiceText", text }), () => {});
+
 async function handle(socket: Socket<Peer>, request: Request) {
   try {
     let result: unknown;
     switch (request.method) {
+      case "voiceStart":
+        await voice.start();
+        result = null;
+        break;
+      case "voiceStop":
+        result = await voice.stop();
+        break;
+      case "voiceCancel":
+        await voice.cancel();
+        result = null;
+        break;
       case "run":
         result = await run(request.command);
         break;

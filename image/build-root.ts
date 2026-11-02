@@ -136,6 +136,8 @@ install -Dm644 /repo/.cache/daemon/ghostty-vt.wasm /usr/lib/omarchy-pocket/ghost
 gcc -O2 /repo/.cache/daemon/ime/rime.c -lrime -o /tmp/pocket-rime
 install -Dm755 /tmp/pocket-rime /usr/lib/omarchy-pocket/pocket-rime
 install -Dm644 /repo/.cache/daemon/ime/pocket_pinyin.schema.yaml /usr/lib/omarchy-pocket/ime/pocket_pinyin.schema.yaml
+# voice input: tools/build.ts asr builds pocket-asr and gathers its runtime and model
+cp -a /repo/.cache/asr/out /usr/lib/omarchy-pocket/asr
 for name in hyprctl uwsm uwsm-app omarchy-pocket-term omasnap omarchy-launch-screensaver; do install -Dm755 /repo/.cache/daemon/shim.js /usr/local/bin/$name; done
 install -d -m 755 /usr/lib/mali
 install -m 755 /repo/.cache/blobs/libmali.so.1.9.0 /repo/.cache/blobs/libmali-hook.so.1.9.0 /usr/lib/mali/

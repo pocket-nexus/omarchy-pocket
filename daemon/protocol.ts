@@ -32,6 +32,12 @@ export type Request =
   | { id: number; method: "conditions"; commands: string[] }
   /** The current SystemState; the daemon also pushes it as `state` events. */
   | { id: number; method: "state" }
+  /** Opens the microphone; `voice` events follow. */
+  | { id: number; method: "voiceStart" }
+  /** Closes the microphone and replies with what was said ("" for nothing). */
+  | { id: number; method: "voiceStop" }
+  /** Closes the microphone and forgets what it heard. */
+  | { id: number; method: "voiceCancel" }
   /** The shell's answer to a `shell` event: whether it ran the call, and
    *  what the call printed. */
   | { id: number; method: "answer"; call: number; handled: boolean; output?: string }
@@ -334,6 +340,10 @@ export interface SystemState {
 }
 
 export type Event =
+  /** Voice input's state; `level` is the microphone's peak, 0 to 1, while listening. */
+  | { event: "voice"; state: "listening" | "decoding" | "idle"; level: number }
+  /** A recording that reached its limit, recognized: what `voiceStop` would have returned. */
+  | { event: "voiceText"; text: string }
   /** Sent first on every bridge connection: what the shell knew of an
    *  earlier daemon (terminals, atlases) may be gone. */
   | { event: "hello" }

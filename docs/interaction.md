@@ -12,13 +12,17 @@ Omarchy Pocket is a Linux desktop shrunk to a handheld: a terminal, a coding age
 
 | Layout | What it is | The rule picks it for |
 |---|---|---|
-| **Keys** | the keyboard: Esc, Tab, Ctrl, Alt and the arrows over four rows of keys (`shell/src/term/keyboard.tsx`) | a terminal, Notes, Activity, Clock, Pictures; the card; a password field |
-| **Pad** | a trackpad for the pointer on the stage, with a Hold key (`shell/src/deck/touchpad.tsx`) | a touch app in a window (X, Discord, YouTube, Hacker News) |
+| **Keys** | four rows of keys with Return on the home row, Ctrl, Alt and the arrows on the bottom row (`shell/src/term/keyboard.tsx`), and the trackpad under them (`shell/src/deck/touchpad.tsx`) | a terminal, Notes, Activity, Clock, Pictures; the card; a password field |
+| **Pad** | the keys fold away and the same trackpad takes their room | a touch app in a window (X, Discord, YouTube, Hacker News) |
 | **Home** | the workspaces and the layout badge on the left, the current workspace's windows at 0.7 in the middle, the bar's panels on the right (`shell/src/deck/home.tsx`) | nothing in focus |
 
-The rule (`shell/src/focus.ts`) reads the thing in focus, in this order: a text field that took the keyboard (the lock, a Wi‑Fi password), the card on the stage, the focused window, nothing. The strip along the deck's top holds Omarchy's logo on the left (a press opens the menu, as L1 + A does), names the thing in focus, and holds the three layout tabs on the right; the lit tab is the layout shown. A press on a tab picks a layout by hand; **the choice lasts until the focus changes**, and then the rule picks again. SELECT turns the tabs from the gamepad. Nothing else sits on the deck: launching is the menu's Apps list (type to filter): Terminal, Agent, the shell's applets, the touch apps, then the terminal programs.
+The rule (`shell/src/focus.ts`) reads the thing in focus, in this order: a text field that took the keyboard (the lock, a Wi‑Fi password), the card on the stage, the focused window, nothing. **The function row** along the hinge (`shell/src/deck/strip.tsx`) stays in every layout: Omarchy's logo (a press opens the menu, as L1 + A does), Esc, the keys what has focus wants at one press, and Home. A terminal gets Tab, ^C, ^D, ^L and ^R; a touch app gets Back, which it hears as the Cross button; other windows get Tab and the workspace steps. **Four round buttons** sit in the trackpad's margins and stay put when it grows: the microphone and Hold on the left, the keyboard and the key sheet on the right. The keyboard button and Home pick a layout by hand; **the choice lasts until the focus changes**, and then the rule picks again. SELECT turns the layouts from the gamepad. Nothing else sits on the deck: launching is the menu's Apps list (type to filter): Terminal, Agent, the shell's applets, the touch apps, then the terminal programs.
 
 What the deck never does: it never shows a window's own controls, never mirrors the stage, never keeps a layer or a card after the shoulder or the finger that asked for it is gone.
+
+## Voice input
+
+The round microphone button opens the RK817's main microphone; the next press closes it, and the words type into what has the keys. A touch app with no field open shows them in a notice. **Recognition runs on the device with no network and no open port**: `daemon/voice.ts` records through `arecord` and sends the samples over a pipe to `pocket-asr` (`daemon/asr/pocket-asr.c`), which holds sherpa-onnx's 80 MB `paraformer-zh-small` model for Mandarin and English. The recognizer takes **157 MB of RSS**, starts with the first recording and exits 5 minutes after the last. The capture path is off except during a recording, and a recording ends at 60 s. `bun tools/build.ts asr` gathers the runtime and the model; `bun tools/deploy.ts <host> asr` installs them.
 
 ## Keys
 
@@ -66,7 +70,7 @@ Something that cannot happen says why in a notice: "No window that way", "A spli
 
 ## The stage's card
 
-Omarchy's menu (L1 + A, the strip's logo, `omarchy-shell shell summon omarchy.menu`), the panels (Network, Audio, Power, Bluetooth, Proxy: a pointer click on the bar's indicator, the home layout's right column, `omarchy-shell shell summon omarchy.network`) and the theme picker open in one 360 × 296 card centred under the bar, and the stage dims behind it. The card has the keys while it is up, so the deck shows the keyboard; a pointer click lands on its rows.
+Omarchy's menu (L1 + A, the function row's logo, `omarchy-shell shell summon omarchy.menu`), the panels (Network, Audio, Power, Bluetooth, Proxy: a pointer click on the bar's indicator, the home layout's right column, `omarchy-shell shell summon omarchy.network`) and the theme picker open in one 360 × 296 card centred under the bar, and the stage dims behind it. The card has the keys while it is up, so the deck shows the keyboard; a pointer click lands on its rows.
 
 **Sliders answer at once.** A brightness or volume row shows the value the key asked for the frame it is pressed, the OSD shows it on the stage, and one request at a time carries the newest value to omarchy-pocketd; the row reads the device's own value back once the last request has landed. Held or repeated presses accumulate: each step adds to the value shown, not to the value last read.
 

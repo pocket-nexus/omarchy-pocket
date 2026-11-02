@@ -1,11 +1,11 @@
-// The deck's keyboard, laid out like a phone's in landscape: ten keys to a
-// row, 46 points from row to row, sitting on the bottom edge, with a letters
-// layer and two symbol layers (123, #+=), and above them the row every
-// target takes: Esc, Tab, Ctrl, Alt and the arrows. It is the deck's `keys`
-// layout, and the whole deck while the screen is locked. The space above
-// the keys says where they go (focus.ts): the sink's hint and its close
-// button, a text field's value, and, while a pinyin composition is open
-// (the 中 key, ime.ts), its preedit and candidates along the keys' top edge.
+// The deck's keyboard: ten keys to a row with a letters layer and two symbol
+// layers (123, #+=), Return at the end of the home row, and along the bottom
+// the modifiers, the space bar and the arrows as an inverted T. It is the top
+// half of the deck's `keys` layout (deck/geometry.ts), with the trackpad under
+// it, and the whole deck while the screen is locked, where it sits on the
+// bottom edge under the password field. Esc, Tab and the keys a target wants
+// at one press are the function row's (deck/strip.tsx), and so are a pinyin
+// composition's preedit and candidates.
 //
 // A key lights the frame a finger lands and types the frame the finger
 // settles (two frames in, touch.ts), as a hardware key does: nothing waits
@@ -22,9 +22,9 @@ import { cjk } from "../glyphs.ts";
 import { keySink } from "../focus.ts";
 import { watching } from "../remote-input.ts";
 import { color } from "../theme.ts";
-import { chinese, composing, pick, route, snapshot, toggleChinese } from "./ime.ts";
+import { chinese, route, toggleChinese } from "./ime.ts";
 import type { Contact, TouchFrame } from "../touch.ts";
-import { BODY_H } from "../deck/geometry.ts";
+import { KEY_PITCH, KEYS_BOTTOM, KEYS_TOP } from "../deck/geometry.ts";
 
 type Layer = "abc" | "123" | "sym";
 
@@ -41,53 +41,53 @@ interface Key {
   ime?: boolean;
   /** repeats while held */
   repeat?: boolean;
+  /** half a row high: the top half shares its column with the bottom half that follows */
+  half?: "up" | "down";
 }
 
 const BACKSPACE = "\u{f006e}";
 const ENTER = "\u{f0311}";
 const chars = (row: string, shifted = row.toUpperCase(), w?: number): Key[] => [...row].map((ch, i) => ({ label: ch, key: ch, shifted: shifted[i], w }));
 const backspace: Key = { label: BACKSPACE, key: "Backspace", w: 1.5, repeat: true };
+const enter: Key = { label: ENTER, key: "Enter", w: 1.45 };
+const ARROW = 0.95;
 const bottom = (layer: Layer): Key[] => [
-  layer === "abc" ? { label: "123", key: "", w: 1.5, layer: "123" } : { label: "ABC", key: "", w: 1.5, layer: "abc" },
-  { label: "EN", key: "", ime: true },
-  { label: "space", key: " ", w: 5 },
-  { label: ".", key: "." },
-  { label: ENTER, key: "Enter", w: 1.5 },
+  layer === "abc" ? { label: "123", key: "", w: 1.2, layer: "123" } : { label: "ABC", key: "", w: 1.2, layer: "abc" },
+  { label: "EN", key: "", w: 0.9, ime: true },
+  { label: "Ctrl", key: "", modifier: "ctrl" },
+  { label: "Alt", key: "", modifier: "alt" },
+  { label: "", key: " ", w: 2.3 },
+  { label: ".", key: ".", w: 0.75 },
+  { label: "\u{2190}", key: "Left", w: ARROW, repeat: true },
+  { label: "\u{2191}", key: "Up", w: ARROW, repeat: true, half: "up" },
+  { label: "\u{2193}", key: "Down", w: ARROW, repeat: true, half: "down" },
+  { label: "\u{2192}", key: "Right", w: ARROW, repeat: true },
 ];
+const SHORT = 0.95;
 const LAYERS: Record<Layer, { rows: Key[][]; inset: number[] }> = {
   abc: {
     rows: [
       chars("qwertyuiop"),
-      chars("asdfghjkl"),
+      [...chars("asdfghjkl", undefined, SHORT), enter],
       [{ label: "\u{21e7}", key: "", w: 1.5, modifier: "shift" }, ...chars("zxcvbnm"), backspace],
       bottom("abc"),
     ],
-    inset: [0, 0.5, 0, 0],
+    inset: [0, 0, 0, 0],
   },
   "123": {
-    rows: [chars("1234567890", "1234567890"), chars('-/:;()$&@"', '-/:;()$&@"'), [{ label: "#+=", key: "", w: 1.5, layer: "sym" }, ...chars(".,?!'", ".,?!'", 1.4), backspace], bottom("123")],
+    rows: [chars("1234567890", "1234567890"), [...chars("-/:;()$&@", "-/:;()$&@", SHORT), enter], [{ label: "#+=", key: "", w: 1.5, layer: "sym" }, ...chars(".,?!'\"", ".,?!'\"", 7 / 6), backspace], bottom("123")],
     inset: [0, 0, 0, 0],
   },
   sym: {
-    rows: [chars("[]{}#%^*+=", "[]{}#%^*+="), chars("_\\|~<>`¥£•", "_\\|~<>`¥£•"), [{ label: "123", key: "", w: 1.5, layer: "123" }, ...chars(".,?!'", ".,?!'", 1.4), backspace], bottom("sym")],
+    rows: [chars("[]{}#%^*+=", "[]{}#%^*+="), [...chars("_\\|~<>`¥£", "_\\|~<>`¥£", SHORT), enter], [{ label: "123", key: "", w: 1.5, layer: "123" }, ...chars(".,?!'•", ".,?!'•", 7 / 6), backspace], bottom("sym")],
     inset: [0, 0, 0, 0],
   },
 };
-const EXTRAS: Key[] = [
-  { label: "Esc", key: "Escape" },
-  { label: "Tab", key: "Tab" },
-  { label: "Ctrl", key: "", modifier: "ctrl" },
-  { label: "Alt", key: "", modifier: "alt" },
-  { label: "\u{2190}", key: "Left", repeat: true },
-  { label: "\u{2193}", key: "Down", repeat: true },
-  { label: "\u{2191}", key: "Up", repeat: true },
-  { label: "\u{2192}", key: "Right", repeat: true },
-];
 
 const UNIT = 512 / 10;
-const PITCH = 46;
-const GAP = 6;
-const EXTRA_PITCH = 38;
+const GAP = 5;
+/** Row height on the lock, where the keys have the deck to themselves. */
+const FULL_PITCH = 46;
 const EDGE = 6;
 const REPEAT_AFTER = 24;
 const REPEAT_EVERY = 4;
@@ -97,7 +97,6 @@ const CHORD_S = 1.4;
 
 /** Where the keys sit: the whole deck (the lock) or the deck's body under its strip. */
 export type KeyboardMode = "full" | "body";
-const HEIGHT: Record<KeyboardMode, number> = { full: 384, body: BODY_H };
 
 interface Placed extends Key {
   x: number;
@@ -116,20 +115,20 @@ const placeRow = (row: Key[], inset: number, y: number, h: number): Placed[] => 
   return row.map((key) => {
     const w = (key.w ?? 1) * UNIT;
     const [lit, setLit] = createSignal(false);
-    const p: Placed = { ...key, x, y, w, h, char: [...key.key].length === 1 && key.key !== " ", lit, setLit };
-    x += w;
+    const half = key.half ? h / 2 : h;
+    const p: Placed = { ...key, x, y: key.half === "down" ? y + half : y, w, h: half, char: [...key.key].length === 1 && key.key !== " ", lit, setLit };
+    if (key.half !== "up") x += w;
     return p;
   });
 };
 
-/** The keys of `layer` laid out for `mode`, with the Esc/Tab/arrows row above them. */
+/** The keys of `layer` laid out for `mode`. */
 function layoutFor(mode: KeyboardMode, layer: Layer) {
-  const height = HEIGHT[mode];
-  const rowsTop = height - EDGE - LAYERS[layer].rows.length * PITCH;
-  const extrasTop = rowsTop - EXTRA_PITCH;
-  const keys = LAYERS[layer].rows.flatMap((row, r) => placeRow(row, LAYERS[layer].inset[r]!, rowsTop + r * PITCH, PITCH));
-  keys.push(...placeRow(EXTRAS.map((k) => ({ ...k, w: 10 / EXTRAS.length })), 0, extrasTop, EXTRA_PITCH));
-  return { keys, stripH: extrasTop - 2 };
+  const rows = LAYERS[layer].rows;
+  const pitch = mode === "full" ? FULL_PITCH : KEY_PITCH;
+  const top = mode === "full" ? 384 - EDGE - rows.length * FULL_PITCH : KEYS_TOP;
+  const keys = rows.flatMap((row, r) => placeRow(row, LAYERS[layer].inset[r]!, top + r * pitch, pitch));
+  return { keys, top, bottom: mode === "full" ? 384 : KEYS_BOTTOM };
 }
 const LAYOUTS = new Map<string, ReturnType<typeof layoutFor>>();
 const layout = (mode: KeyboardMode, layer: Layer) => {
@@ -175,6 +174,18 @@ export function resetKeyboard() {
   setLayer("abc");
 }
 
+/** Says what a chord sent; the trackpad's line shows it for CHORD_S. */
+export function showChord(name: string) {
+  setChord(name);
+  after(CHORD_S, () => setChord(""));
+}
+export { chord as chordSent };
+
+/** A key was typed: the pointer steps aside, as a laptop's does. */
+let typedHook: () => void = () => {};
+export const onTyped = (hook: () => void) => (typedHook = hook);
+const typed = () => typedHook();
+
 const chordName = (m: { ctrl: boolean; alt: boolean }, name: string) => `${m.ctrl ? "^" : ""}${m.alt ? "M-" : ""}${name.length === 1 ? name.toUpperCase() : name}`;
 
 /** Sends one key, with the latched modifiers; through pinyin composition in
@@ -184,10 +195,8 @@ export function sendKey(key: string, shifted?: string) {
   const shift = m.shift || capsLock();
   setMods({ shift: false, ctrl: false, alt: false });
   const name = shift && shifted ? shifted : key;
-  if (m.ctrl || m.alt) {
-    setChord(chordName(m, name));
-    after(CHORD_S, () => setChord(""));
-  }
+  if (m.ctrl || m.alt) showChord(chordName(m, name));
+  typed();
   const sink = keySink();
   const direct = () => {
     if ([...key].length === 1 && !m.ctrl && !m.alt) sink.text(name);
@@ -195,6 +204,13 @@ export function sendKey(key: string, shifted?: string) {
   };
   if (m.ctrl || m.alt || sink.field) return direct();
   route(name, (text) => sink.text(text), direct);
+}
+
+/** A control key from the function row, whatever is latched. */
+export function sendCtrl(ch: string) {
+  showChord(chordName({ ctrl: true, alt: false }, ch));
+  typed();
+  keySink().key(ch, { ctrl: true, alt: false, shift: false });
 }
 
 const keyAt = (keys: Placed[], x: number, y: number) => keys.find((k) => x >= k.x && x < k.x + k.w && y >= k.y && y < k.y + k.h) ?? null;
@@ -211,13 +227,13 @@ function press(key: Placed) {
 const held = new Map<number, { frames: number; repeats: number }>();
 
 /** The keyboard's fingers this frame, in its own coordinates: the keys under
- *  them light, a finger that settles presses the key under it, and a
- *  repeat key keeps pressing while its finger stays. A finger that settles
- *  above the keys picks a candidate or the close button. */
+ *  them light, a finger that settles presses the key under it, and a repeat
+ *  key keeps pressing while its finger stays. A finger that began off the
+ *  keys is not the keyboard's. */
 export function keyboardTouch(frame: TouchFrame, mode: KeyboardMode) {
   frameCount++;
-  const { keys, stripH } = layout(mode, layer());
-  const onKeys = (c: Contact) => c.start.y >= stripH;
+  const { keys, top, bottom: edge } = layout(mode, layer());
+  const onKeys = (c: Contact) => c.start.y >= top && c.start.y < edge;
   const down = frame.down.filter(onKeys);
   const now = down.map((c) => keyAt(keys, c.x, c.y)).filter((k) => k !== null);
   for (const k of pressed) if (!now.includes(k)) {
@@ -230,10 +246,7 @@ export function keyboardTouch(frame: TouchFrame, mode: KeyboardMode) {
   }
   pressed = now;
   for (const c of frame.presses) {
-    if (!onKeys(c)) {
-      stripTap(c.x, c.y, stripH);
-      continue;
-    }
+    if (!onKeys(c)) continue;
     const key = keyAt(keys, c.x, c.y);
     if (!key) continue;
     press(key);
@@ -252,70 +265,30 @@ export function keyboardTouch(frame: TouchFrame, mode: KeyboardMode) {
   for (const t of frame.taps) held.delete(t.id);
 }
 
-/** The candidate boxes along the strip's bottom edge, after the preedit. */
-const PREEDIT_W = 132;
-const CANDIDATE_W = (512 - PREEDIT_W) / 5;
-const CANDIDATES_H = 32;
-const CLOSE_X = 512 - 40;
-
-/** A press above the keys: a candidate while composing; otherwise the close button. */
-function stripTap(x: number, y: number, stripH: number) {
-  if (composing()) {
-    if (y >= stripH - CANDIDATES_H && x >= PREEDIT_W) pick(Math.floor((x - PREEDIT_W) / CANDIDATE_W), (text) => keySink().text(text));
-    return;
-  }
-  if (x >= CLOSE_X && y < 30) keySink().close?.();
-}
-
 export function Keyboard(props: { mode: KeyboardMode }) {
   const current = () => layout(props.mode, layer());
-  const sink = keySink;
   const latched = (k: Placed) => (!!k.modifier && mods()[k.modifier]) || (k.modifier === "shift" && capsLock());
+  /** a word on a key, or half a key: the smaller type */
+  const small = (k: Placed) => !!k.half || k.modifier === "ctrl" || k.modifier === "alt" || !!k.layer || !!k.ime;
   const fnKey = (k: Placed) => !k.char && k.key !== " ";
   const label = (k: Placed) => {
     if (k.ime) return chinese() ? "中" : "EN";
     if (k.modifier === "shift" && capsLock()) return "\u{21ea}";
     return (mods().shift || capsLock()) && k.shifted ? k.shifted : k.label;
   };
-  const hint = () => (chord() ? `sent ${chord()}` : (sink().hint?.() ?? ""));
   return (
-    <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: HEIGHT[props.mode], bgColor: color("darker_background") }}>
-      <Show when={sink().field}>
+    <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: props.mode === "full" ? 384 : KEYS_BOTTOM + 2 }}>
+      <Show when={props.mode === "full" && keySink().field}>
         {(field) => (
-          <>
-            <Text class="absolute left-0 w-[512] text-center text-lg leading-[24]" style={{ insetT: current().stripH / 2 - 22, textColor: color("bright_foreground") }}>
-              {field()()}
-            </Text>
-            <Text class="absolute left-0 w-[512] text-center font-mono text-xs leading-[14]" style={{ insetT: current().stripH / 2 + 10, textColor: color("dark_foreground") }}>
-              {hint()}
-            </Text>
-          </>
+          <Text class="absolute left-0 w-[512] text-center text-lg leading-[24]" style={{ insetT: current().top / 2 - 22, textColor: color("bright_foreground") }}>
+            {field()()}
+          </Text>
         )}
       </Show>
-      <Show when={!sink().field}>
-        <Text class="absolute left-[12] top-[8] w-[440] h-[14] overflow-hidden font-mono text-xs leading-[14]" style={{ textColor: color(chord() ? "accent" : "dark_foreground") }}>
-          {hint()}
+      <Show when={props.mode === "full"}>
+        <Text class="absolute left-0 w-[512] text-center font-mono text-xs leading-[14]" style={{ insetT: current().top / 2 + 10, textColor: color("dark_foreground") }}>
+          {keySink().hint?.() ?? ""}
         </Text>
-        <Show when={sink().close}>
-          <Text class="absolute right-[14] top-[6] font-mono text-sm leading-[16]" style={{ textColor: color("red") }}>{"\u{f0156}"}</Text>
-        </Show>
-      </Show>
-      <Show when={composing()}>
-        <View class="absolute left-0 w-[512]" style={{ insetT: current().stripH - CANDIDATES_H, height: CANDIDATES_H, bgColor: color("dark_background") }}>
-          <Text class="absolute left-[10] top-[7] h-[18] overflow-hidden font-mono text-sm leading-[18]" style={{ width: PREEDIT_W - 14, textColor: color("accent"), ...cjk(snapshot()?.preedit ?? "", CJK_SLOT_14) }}>
-            {snapshot()?.preedit ?? ""}
-          </Text>
-          <For each={snapshot()?.candidates ?? []}>
-            {(candidate, i) => (
-              <Text
-                class="absolute top-[7] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]"
-                style={{ insetL: PREEDIT_W + i() * CANDIDATE_W, width: CANDIDATE_W - 4, textColor: color(i() === 0 ? "bright_foreground" : "foreground"), ...cjk(candidate, CJK_SLOT_14) }}
-              >
-                {candidate}
-              </Text>
-            )}
-          </For>
-        </View>
       </Show>
       <For each={current().keys}>
         {(k) => (
@@ -326,15 +299,15 @@ export function Keyboard(props: { mode: KeyboardMode }) {
               insetT: k.y + GAP / 2,
               width: k.w - GAP,
               height: k.h - GAP,
-              bgColor: color(k.lit() ? (k.char ? "background" : "accent") : latched(k) ? "selection" : fnKey(k) ? "dark_background" : "muted"),
+              bgColor: color(k.lit() ? "accent" : latched(k) ? "selection" : fnKey(k) ? "dark_background" : "background"),
             }}
           >
             <Text
-              class="absolute left-0 text-center font-mono text-base leading-[18]"
+              class={small(k) ? "absolute left-0 text-center font-mono text-xs leading-[14]" : "absolute left-0 text-center font-mono text-base leading-[18]"}
               style={{
                 width: k.w - GAP,
-                insetT: (k.h - GAP) / 2 - 9,
-                textColor: color(k.lit() && !k.char ? "background" : latched(k) || (k.ime && chinese()) ? "accent" : "bright_foreground"),
+                insetT: (k.h - GAP) / 2 - (small(k) ? 7 : 9),
+                textColor: color(k.lit() ? "background" : latched(k) || (k.ime && chinese()) ? "accent" : fnKey(k) ? "foreground" : "bright_foreground"),
                 ...(k.ime && chinese() ? cjk("中", CJK_SLOT_14) : {}),
               }}
             >

@@ -7,6 +7,7 @@
 //   bun tools/build.ts daemon            omarchy-pocketd as one Bun script
 //   bun tools/build.ts applets [names]   applets/<name>/pocket.json as .cache/applets/<name>.pocket
 //   bun tools/build.ts sdk               what pocket-applet needs on the device, as .cache/sdk
+//   bun tools/build.ts asr               voice input: sherpa-onnx, its Paraformer model and pocket-asr, as .cache/asr/out
 //   bun tools/build.ts all               host, shell and daemon
 //   bun tools/build.ts shot --script "30:shot 40:DOWN 50:shot" [--out <dir>]
 //
@@ -204,8 +205,37 @@ async function shot() {
   console.log(`shot: frames in ${dir}`);
 }
 
+/** Voice input: sherpa-onnx's prebuilt runtime, the small Paraformer model and
+ *  pocket-asr, which links them. Downloads stay in .cache/asr. */
+const SHERPA = "v2.0.1";
+const ASR_MODEL = "sherpa-onnx-paraformer-zh-small-2024-03-09";
+async function asr() {
+  const dir = join(CACHE, "asr");
+  const runtime = `sherpa-onnx-${SHERPA}-linux-aarch64-shared-cpu`;
+  mkdirSync(join(dir, "include"), { recursive: true });
+  const fetch = async (name: string, url: string) => {
+    if (existsSync(join(dir, name))) return;
+    await $`curl -sSLf -o ${join(dir, `${name}.tar.bz2`)} ${url}`;
+    await $`tar xjf ${join(dir, `${name}.tar.bz2`)} -C ${dir}`;
+  };
+  await fetch(runtime, `https://github.com/k2-fsa/sherpa-onnx/releases/download/${SHERPA}/${runtime}.tar.bz2`);
+  await fetch(ASR_MODEL, `https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/${ASR_MODEL}.tar.bz2`);
+  const header = join(dir, "include", "c-api.h");
+  if (!existsSync(header)) await $`curl -sSLf -o ${header} https://raw.githubusercontent.com/k2-fsa/sherpa-onnx/${SHERPA}/sherpa-onnx/c-api/c-api.h`;
+  const out = join(dir, "out");
+  mkdirSync(join(out, "lib"), { recursive: true });
+  mkdirSync(join(out, "model"), { recursive: true });
+  await $`zig cc -target aarch64-linux-gnu.2.28 -O2 -I${join(dir, "include")} ${join(ROOT, "daemon", "asr", "pocket-asr.c")} -L${join(dir, runtime, "lib")} -lsherpa-onnx-c-api -o ${join(out, "pocket-asr")}`;
+  for (const lib of ["libonnxruntime.so", "libsherpa-onnx-c-api.so"]) await $`cp ${join(dir, runtime, "lib", lib)} ${join(out, "lib", lib)}`;
+  for (const file of ["model.int8.onnx", "tokens.txt"]) await $`cp ${join(dir, ASR_MODEL, file)} ${join(out, "model", file)}`;
+  console.log(`asr: ${out}`);
+}
+
 if (import.meta.main) {
   switch (argv[0]) {
+    case "asr":
+      await asr();
+      break;
     case "libs":
       if (!argv[1]) throw new Error("libs needs an SSH host, e.g. root@23.23.23.28");
       await libs(argv[1]);

@@ -2,9 +2,10 @@
 // Puts what tools/build.ts built, and device/rootfs/, on a running Omarchy
 // Pocket over SSH, then restarts what changed:
 //
-//   bun tools/deploy.ts <ssh-host> [host] [shell] [daemon] [applets] [files]
+//   bun tools/deploy.ts <ssh-host> [host] [shell] [daemon] [applets] [files] [asr]
 //
-// With no parts named, all five go. `files` copies every file under
+// With no parts named, all but asr go; asr (voice input's runtime and model,
+// 120 MB) goes when named. `files` copies every file under
 // device/rootfs/ (not directories) to the same path on the device, reloads
 // systemd and enables omarchy-pocketd for every user. The device keeps its
 // own copies of the stock firmware's modules and its NetworkManager profiles;
@@ -16,7 +17,7 @@ import { OUTPUTS, SHIM_NAMES } from "./build.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
 const ROOTFS = join(ROOT, "device", "rootfs");
-const PARTS = ["host", "shell", "daemon", "applets", "sdk", "files"] as const;
+const PARTS = ["host", "shell", "daemon", "applets", "sdk", "files", "asr"] as const;
 type Part = (typeof PARTS)[number];
 
 const [target, ...named] = process.argv.slice(2);
@@ -24,7 +25,7 @@ if (!target || named.some((p) => !PARTS.includes(p as Part))) {
   console.error(`usage: bun tools/deploy.ts <ssh-host> [${PARTS.join("] [")}]`);
   process.exit(2);
 }
-const parts = new Set<Part>(named.length ? (named as Part[]) : PARTS);
+const parts = new Set<Part>(named.length ? (named as Part[]) : PARTS.filter((p) => p !== "asr"));
 const user = process.env.OMARCHY_POCKET_USER ?? "omarchy";
 
 function files(dir: string): string[] {
@@ -72,5 +73,10 @@ if (parts.has("sdk")) {
   if (!existsSync(sdk)) throw new Error(`${sdk} is missing; run: bun tools/build.ts sdk`);
   const install = "rm -rf /usr/share/omarchy-pocket/sdk && mkdir -p /usr/share/omarchy-pocket/sdk && tar -C /usr/share/omarchy-pocket/sdk -xpf - && ln -sfn /usr/share/omarchy-pocket/sdk/sdk/pocket-applet.ts /usr/local/bin/pocket-applet";
   await $`COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -cf - -C ${sdk} . | ssh ${ssh} ${target} ${install}`;
+}
+if (parts.has("asr")) {
+  const asr = join(ROOT, ".cache", "asr", "out");
+  if (!existsSync(asr)) throw new Error(`${asr} is missing; run: bun tools/build.ts asr`);
+  await $`COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -cf - -C ${asr} . | ssh ${ssh} ${target} ${"mkdir -p /usr/lib/omarchy-pocket/asr && tar -C /usr/lib/omarchy-pocket/asr -xpf -"}`;
 }
 console.log(`deployed ${[...parts].join(", ")} to ${target}`);
