@@ -130,6 +130,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "itoa"
+version = "1.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+
+[[package]]
 name = "libc"
 version = "0.2.191"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -154,6 +160,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
+name = "memchr"
+version = "2.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
+
+[[package]]
 name = "omarchy-pocket-host"
 version = "0.1.0"
 dependencies = [
@@ -166,17 +178,19 @@ dependencies = [
  "pocket-linux-drm",
  "pocket-linux-evdev",
  "pocket-linux-hooks",
+ "pocket-linux-worker",
  "pocket-package",
  "pocket-profile-build",
  "pocket-raster",
  "pocket-runtime",
  "pocket-spec",
  "rquickjs",
+ "serde_json",
 ]
 
 [[package]]
 name = "pocket-draw-ops"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-drivers",
  "pocket-spec",
@@ -184,14 +198,14 @@ dependencies = [
 
 [[package]]
 name = "pocket-drivers"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-spec",
 ]
 
 [[package]]
 name = "pocket-gles"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-draw-ops",
  "pocket-drivers",
@@ -203,14 +217,14 @@ dependencies = [
 
 [[package]]
 name = "pocket-gles2"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-gles",
 ]
 
 [[package]]
 name = "pocket-glyph-pages"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-drivers",
  "pocket-spec",
@@ -218,7 +232,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-guest-rquickjs"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-drivers",
  "pocket-runtime",
@@ -227,7 +241,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-linux-drm"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "drm",
  "libc",
@@ -236,7 +250,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-linux-evdev"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "libc",
  "pocket-drivers",
@@ -245,22 +259,34 @@ dependencies = [
 
 [[package]]
 name = "pocket-linux-hooks"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "libc",
  "pocket-drivers",
 ]
 
 [[package]]
+name = "pocket-linux-worker"
+version = "0.16.0"
+dependencies = [
+ "cc",
+ "libc",
+ "pocket-guest-rquickjs",
+ "pocket-runtime",
+ "rquickjs",
+ "serde_json",
+]
+
+[[package]]
 name = "pocket-media"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-spec",
 ]
 
 [[package]]
 name = "pocket-package"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-drivers",
  "pocket-spec",
@@ -268,7 +294,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-present"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-draw-ops",
  "pocket-drivers",
@@ -278,11 +304,11 @@ dependencies = [
 
 [[package]]
 name = "pocket-profile-build"
-version = "0.1.0"
+version = "0.16.0"
 
 [[package]]
 name = "pocket-raster"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-draw-ops",
  "pocket-drivers",
@@ -291,7 +317,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-runtime"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-drivers",
  "pocket-package",
@@ -302,19 +328,19 @@ dependencies = [
 
 [[package]]
 name = "pocket-spec"
-version = "0.1.0"
+version = "0.16.0"
 
 [[package]]
 name = "pocket-tex-cache"
-version = "0.1.0"
+version = "0.16.0"
 
 [[package]]
 name = "pocket-tri-batch"
-version = "0.1.0"
+version = "0.16.0"
 
 [[package]]
 name = "pocketjs-core"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "pocket-drivers",
  "pocket-glyph-pages",
@@ -436,6 +462,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.154"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6"
+dependencies = [
+ "itoa",
+ "memchr",
+ "serde",
+ "serde_core",
+ "zmij",
 ]
 
 [[package]]
@@ -574,3 +613,9 @@ name = "windows_x86_64_msvc"
 version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
+
+[[package]]
+name = "zmij"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"

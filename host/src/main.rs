@@ -242,15 +242,15 @@ fn run(options: Options) -> Result<(), Box<dyn Error>> {
         .unwrap_or_else(|| DEFAULT_PACKAGE.into());
     if options.check {
         let mut source = FileSource::open(&shell)?;
-        LoadedPackage::load(
-            &mut source,
-            profile::ID,
-            profile::HOST_ABI,
-            &profile::PROFILE_HASH,
-            PACKAGE_LIMIT,
-        )
-        .map_err(error)?;
-        println!("package admitted: {} ({})", shell.display(), profile.id);
+        let package = LoadedPackage::load(&mut source, &profile.host_facts(profile::HOST_ABI, profile::PROFILE_HASH), PACKAGE_LIMIT)
+            .map_err(error)?;
+        println!(
+            "package admitted: {} ({}, {} Hz at {} Hz)",
+            shell.display(),
+            profile.id,
+            package.timing.tick_hz,
+            package.timing.cadence_hz
+        );
         return Ok(());
     }
     unsafe {
@@ -325,7 +325,9 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
         .map_err(error)?;
     runtime.boot().map_err(error)?;
     let mut clock = MonotonicClock::default();
-    let mut schedule = TickSchedule::new(profile.tick_hz, clock.now(), 1).map_err(error)?;
+    // One frame per cadence period of the shell's package.
+    let cadence_hz = runtime.timing().ok_or_else(|| error("the shell did not boot"))?.cadence_hz;
+    let mut schedule = TickSchedule::new(cadence_hz, clock.now(), 1).map_err(error)?;
     let mut presented = Presented::default();
     // The panels show the buffer of the flip before the last: a flip puts the
     // previous frame on the panel, and the frame it carries waits for the

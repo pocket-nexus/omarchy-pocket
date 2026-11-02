@@ -247,13 +247,16 @@ interface AtlasJob {
   px: number;
   bold: boolean;
   slot: number;
+  density: number;
   chars: number[];
   resolve: (atlas: Uint8Array) => void;
   reject: (error: Error) => void;
 }
 
 /** FONT ATLAS files for the applets' glyphs service (daemon/companion.ts),
- *  at this device's raster density. One niced child (`omarchy-pocketd.js
+ *  at the raster density the applet asks for (this device's when it names
+ *  none): an applet asks for density 1, since its atlas reaches it through
+ *  its worker's response ring, a quarter of the bytes. One niced child (`omarchy-pocketd.js
  *  atlas-baker`) parses the faces once and bakes the atlases asked for in
  *  turn; it exits after BAKER_IDLE_MS without a job and returns its
  *  hundred-odd MB. */
@@ -268,9 +271,9 @@ export class AtlasBaker {
     mkdirSync(dir, { recursive: true });
   }
 
-  bake(px: number, bold: boolean, slot: number, chars: number[]): Promise<Uint8Array> {
+  bake(px: number, bold: boolean, slot: number, chars: number[], density = DENSITY): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
-      this.queue.push({ px, bold, slot, chars, resolve, reject });
+      this.queue.push({ px, bold, slot, density, chars, resolve, reject });
       void this.next();
     });
   }
@@ -299,7 +302,7 @@ export class AtlasBaker {
     if (!this.child) this.start();
     const out = join(this.dir, `atlas-${process.pid}-${job.slot}.atlas`);
     const child = this.child!;
-    child.stdin.write(`${JSON.stringify({ px: job.px, bold: job.bold, slot: job.slot, chars: job.chars, out })}\n`);
+    child.stdin.write(`${JSON.stringify({ px: job.px, bold: job.bold, slot: job.slot, density: job.density, chars: job.chars, out })}\n`);
     child.stdin.flush();
     const line = await this.lines!.next();
     if (this.busy !== job) return; // the child exited meanwhile
@@ -351,9 +354,9 @@ export async function atlasBakerMain() {
   for await (const line of readLines(Bun.stdin.stream())) {
     try {
       if (!faces.length) throw new Error("no run-time font; install wqy-microhei");
-      const job = JSON.parse(line) as { px: number; bold: boolean; slot: number; chars: number[]; out: string };
+      const job = JSON.parse(line) as { px: number; bold: boolean; slot: number; density?: number; chars: number[]; out: string };
       const [font, ...fallbacks] = faces;
-      const atlas = bakeSlot(font!, job.slot, job.px, job.bold, job.chars, DENSITY, fallbacks);
+      const atlas = bakeSlot(font!, job.slot, job.px, job.bold, job.chars, job.density === 1 ? 1 : DENSITY, fallbacks);
       writeFileSync(job.out, atlas.bytes);
       console.log(JSON.stringify({ glyphs: atlas.glyphCount }));
     } catch (error) {

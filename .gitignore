@@ -5,7 +5,6 @@
 **/makepkg.log
 .cache/
 dist/
-vendor/pocketjs
 node_modules/
 shell/src/generated/
 shell/src/fonts.json

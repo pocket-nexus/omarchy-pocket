@@ -23,6 +23,7 @@ pocket-profile-build = { path = "vendor/pocketjs/engine/profile-build" }
 pocket-linux-hooks = { path = "vendor/pocketjs/platforms/linux/hooks" }
 pocket-linux-drm = { path = "vendor/pocketjs/platforms/linux/drm" }
 pocket-linux-evdev = { path = "vendor/pocketjs/platforms/linux/evdev" }
+pocket-linux-worker = { path = "vendor/pocketjs/platforms/linux/worker" }
 pocket-gles = { path = "vendor/pocketjs/devices/gles/pocket-gles" }
 pocket-gles2 = { path = "vendor/pocketjs/devices/gles/pocket-gles2" }
 rquickjs = { version = "0.12" }

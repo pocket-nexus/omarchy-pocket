@@ -1,4 +1,4 @@
-// The store on this device: oma.pocket.nexus's catalog, installs and removals,
+// The store on this device: applets.pocket.nexus's catalog, installs and removals,
 // answered to the Store applet as the `appstore` service, and the rules an
 // installed app runs under.
 //
@@ -19,10 +19,10 @@ import { join } from "node:path";
 import { encodeImageEntry, decodePng } from "../vendor/pocketjs/framework/compiler/pak.ts";
 import { IMG_FLAG_LINEAR, PSM } from "../vendor/pocketjs/contracts/spec/spec.ts";
 import { bytesResponse, jsonResponse, type ServiceProvider, type ServiceRequest } from "../vendor/pocketjs/tools/companion/services.ts";
-import { OPEN_SERVICES, packageFacts, sha256, signatureValid } from "../store/src/shared.ts";
+import { OPEN_SERVICES, packageFacts, sha256, signatureValid } from "../vendor/applets/store/src/shared.ts";
 import { apps } from "./apps.ts";
 
-export const STORE_ORIGIN = "https://oma.pocket.nexus";
+export const STORE_ORIGIN = "https://applets.pocket.nexus";
 /** The public half of the key Pocket Nexus publishes with. */
 export const OFFICIAL_KEY = "tF8Q_hSXiYfxDdlQrpJfleDcKmkZPtQ20G_SNjtOquQ";
 export const SYSTEM_APPLETS = "/usr/share/omarchy-pocket/applets";
@@ -105,11 +105,14 @@ function factsOf(path: string) {
   return packageFacts(head.subarray(0, size));
 }
 
+/** This device's target id in a package's variants. */
+const TARGET = "rg-ds-plus";
+
 /** This device's profile, from a package built for it. */
 function deviceProfile(): string {
   for (const file of readdirSync(SYSTEM_APPLETS).filter((f) => f.endsWith(".pocket"))) {
     const facts = factsOf(join(SYSTEM_APPLETS, file));
-    if (typeof facts !== "string") return facts.profile;
+    if (typeof facts !== "string") return facts.variants.find((v) => v.target === TARGET)?.profile ?? facts.profile;
   }
   throw new Error("no package built for this device to read its profile from");
 }
@@ -195,7 +198,8 @@ export function createAppStoreService(home: string, changed: () => void): Servic
     const fields = { id: entry.id, version: entry.version, package: entry.package, icon: entry.icon, author: entry.author, summary: entry.summary };
     if (!(await signatureValid(entry.key, entry.signature, fields))) return jsonResponse(502, { error: "the publisher's signature does not match" });
     const facts = packageFacts(bytes);
-    if (typeof facts === "string" || facts.id !== entry.id || facts.version !== entry.version || facts.profile !== deviceProfile()) {
+    // a package for several devices carries a variant for this one
+    if (typeof facts === "string" || facts.id !== entry.id || facts.version !== entry.version || !facts.variants.some((v) => v.profile === deviceProfile())) {
       return jsonResponse(502, { error: "the package is not the one the store describes" });
     }
     const dir = userApplets(home);
