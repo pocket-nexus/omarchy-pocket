@@ -5274,7 +5274,7 @@
     barText: "absolute top-[2] font-mono text-xs leading-[14]",
     barCenter: "absolute left-0 top-[2] w-[512] text-center font-mono text-xs leading-[14]",
     barRight: "absolute right-[8] top-[2] font-mono text-xs leading-[14]",
-    deck: "absolute left-0 top-0 w-[512] h-[358] contain-strict",
+    deck: "absolute left-0 top-0 w-[512] h-[350] contain-strict",
     card: "absolute left-0 top-0 w-[360] h-[296] contain-strict",
     cardRule: "absolute left-[8] top-[25] w-[344] h-[1]",
     crumbs: "absolute left-[12] top-[6] font-mono text-sm leading-[16]",
@@ -11674,6 +11674,17 @@
       hint: () => "types into the window above · × closes its field"
     };
   }
+  var BACK_FRAMES = 3;
+  var backFor = 0;
+  var pressBack = () => {
+    backFor = BACK_FRAMES;
+  };
+  function touchAppButtons() {
+    if (backFor === 0)
+      return 0;
+    backFor--;
+    return BTN.CROSS;
+  }
   var BASELINE = [320, 240];
   var MAX = [640, 720];
   var MIN_SCALE = 0.6;
@@ -12013,6 +12024,7 @@
     focused: () => JSON.stringify(focused2()),
     applets: () => applets().map((a) => a.id).join(" "),
     slow: (factor) => (setSlowMotion(Number(factor) || 1), "ok"),
+    closeapp: (id) => (closePackage(Number(id)), "ok"),
     app: (path, title, aux) => {
       const running = find((w) => w.kind === "app" && w.path === path);
       if (running?.kind === "app")
@@ -13553,7 +13565,6 @@
         setIndex(at);
     });
   }
-  var panelTitle = () => TITLES[panel() ?? "network"];
   function Panels() {
     return createComponent2(View, {
       get ["class"]() {
@@ -13898,7 +13909,6 @@
         return close(false);
     picker.touch(frame, rows2().length, (at) => at === index2() ? close(true) : select4(at));
   }
-  var pickerTitle = () => mode()?.kind === "themes" ? "Theme" : "Image";
   function Picker() {
     return createComponent2(View, {
       get ["class"]() {
@@ -14404,7 +14414,6 @@
       }
     });
   }
-  var menuTitle = () => stack().map((l) => l.title).join(" › ");
   function MenuCard() {
     const crumbs = () => stack().map((l) => l.title).join(`  ${CHEVRON}  `);
     const levelItems = createMemo(() => level().items);
@@ -14749,6 +14758,7 @@
 
   // shell/src/stage/keysheet.tsx
   var [open3, setOpen] = createSignal(false);
+  var sheetOpen = open3;
   var toggleSheet = () => setOpen((o) => !o);
   var LINE = 15;
   var COL_W = 236;
@@ -15071,9 +15081,58 @@
   }));
 
   // shell/src/deck/geometry.ts
-  var STRIP_H = 26;
+  var STRIP_H = 34;
   var BODY_TOP = STRIP_H;
   var BODY_H = 384 - STRIP_H;
+  var KEYS_TOP = 2;
+  var KEY_PITCH = 44;
+  var KEYS_BOTTOM = KEYS_TOP + 4 * KEY_PITCH;
+  var PAD_X = 62;
+  var PAD_W = 512 - 2 * PAD_X;
+  var PAD_BOTTOM = BODY_H - 6;
+  var PAD_SMALL = {
+    x: PAD_X,
+    y: KEYS_BOTTOM + 6,
+    w: PAD_W,
+    h: PAD_BOTTOM - KEYS_BOTTOM - 6
+  };
+  var PAD_LARGE = {
+    x: PAD_X,
+    y: 6,
+    w: PAD_W,
+    h: PAD_BOTTOM - 6
+  };
+  var ROUND = 44;
+  var ROUND_GAP = 8;
+  var LEFT_X = (PAD_X - ROUND) / 2;
+  var RIGHT_X = 512 - PAD_X + LEFT_X;
+  var ROUNDS = {
+    voice: {
+      x: LEFT_X,
+      y: PAD_BOTTOM - 2 * ROUND - ROUND_GAP,
+      w: ROUND,
+      h: ROUND
+    },
+    hold: {
+      x: LEFT_X,
+      y: PAD_BOTTOM - ROUND,
+      w: ROUND,
+      h: ROUND
+    },
+    toggle: {
+      x: RIGHT_X,
+      y: PAD_SMALL.y,
+      w: ROUND,
+      h: ROUND
+    },
+    more: {
+      x: RIGHT_X,
+      y: PAD_SMALL.y + ROUND + ROUND_GAP,
+      w: ROUND,
+      h: ROUND
+    }
+  };
+  var inRect = (r, x, y) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 
   // shell/src/deck/press.ts
   var LINGER = 5;
@@ -15096,8 +15155,8 @@
   var MAP_X = (512 - MAP_W) / 2;
   var MAP_Y = 28;
   var SIDE_W = 60;
-  var LEFT_X = (MAP_X - SIDE_W) / 2;
-  var RIGHT_X = 512 - MAP_X + (MAP_X - SIDE_W) / 2;
+  var LEFT_X2 = (MAP_X - SIDE_W) / 2;
+  var RIGHT_X2 = 512 - MAP_X + (MAP_X - SIDE_W) / 2;
   var CELL_H2 = 40;
   var CELL_GAP = 6;
   var LAYOUT_Y = MAP_Y + WORKSPACES * (CELL_H2 + CELL_GAP);
@@ -15107,12 +15166,12 @@
     return y >= MAP_Y && y - MAP_Y - i * (CELL_H2 + CELL_GAP) < CELL_H2 ? i : -1;
   };
   var wsTabAt = (x, y) => {
-    const i = x >= LEFT_X && x < LEFT_X + SIDE_W ? cellAt(y) : -1;
+    const i = x >= LEFT_X2 && x < LEFT_X2 + SIDE_W ? cellAt(y) : -1;
     return i < WORKSPACES ? i : -1;
   };
-  var onBadge = (x, y) => x >= LEFT_X && x < LEFT_X + SIDE_W && y >= LAYOUT_Y && y < LAYOUT_Y + CELL_H2;
+  var onBadge = (x, y) => x >= LEFT_X2 && x < LEFT_X2 + SIDE_W && y >= LAYOUT_Y && y < LAYOUT_Y + CELL_H2;
   var panels = () => PANEL_LIST.filter((p) => (p !== "proxy" || state()?.proxy) && (p !== "tailscale" || state()?.tailscale));
-  var panelAt = (x, y) => x >= RIGHT_X && x < RIGHT_X + SIDE_W ? panels()[cellAt(y)] : undefined;
+  var panelAt = (x, y) => x >= RIGHT_X2 && x < RIGHT_X2 + SIDE_W ? panels()[cellAt(y)] : undefined;
   var panelGlyph = (p) => {
     const s = state();
     return p === "tailscale" ? "\uDB80\uDF18" : p === "proxy" ? "\uDB81\uDD82" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
@@ -15327,7 +15386,7 @@
         class: "absolute rounded-md",
         get style() {
           return {
-            insetL: LEFT_X,
+            insetL: LEFT_X2,
             insetT: MAP_Y + n * (CELL_H2 + CELL_GAP),
             width: SIDE_W,
             height: CELL_H2,
@@ -15354,7 +15413,7 @@
       class: "absolute rounded-md",
       get style() {
         return {
-          insetL: LEFT_X,
+          insetL: LEFT_X2,
           insetT: LAYOUT_Y,
           width: SIDE_W,
           height: CELL_H2,
@@ -15384,7 +15443,7 @@
         class: "absolute rounded-md",
         get style() {
           return {
-            insetL: RIGHT_X,
+            insetL: RIGHT_X2,
             insetT: MAP_Y + i() * (CELL_H2 + CELL_GAP),
             width: SIDE_W,
             height: CELL_H2,
@@ -15438,18 +15497,6 @@
     key: cardKey,
     hint: cardHint
   });
-  function cardTitle() {
-    switch (card()) {
-      case "picker":
-        return pickerTitle();
-      case "panel":
-        return panelTitle();
-      case "menu":
-        return menuTitle();
-      default:
-        return "";
-    }
-  }
   function cardHint() {
     switch (card()) {
       case "menu":
@@ -15561,6 +15608,413 @@
         });
       }
     })];
+  }
+
+  // shell/src/focus.ts
+  function keySink() {
+    const field2 = field();
+    if (field2)
+      return field2;
+    if (card())
+      return cardSink();
+    const w = focused2();
+    if (!w)
+      return NO_SINK;
+    if (w.kind === "terminal")
+      return terminalSink;
+    if (w.kind === "app")
+      return appletTyping(w.app) ? appletKeys(w.app) : NO_SINK;
+    const applet = appletOf(w);
+    if (!applet)
+      return NO_SINK;
+    const own = applet.keys?.();
+    if (own)
+      return own;
+    return {
+      text: (ch) => ch === " " && applet.press?.(KEY_BUTTONS[" "]),
+      key: (name) => {
+        const button = KEY_BUTTONS[name];
+        if (button)
+          applet.press?.(button);
+      },
+      hint: applet.hint
+    };
+  }
+  var rule = createMemo(() => {
+    if (field())
+      return "keys";
+    if (card())
+      return "keys";
+    const w = focused2();
+    if (!w)
+      return "home";
+    return w.kind === "app" ? appletTyping(w.app) ? "keys" : "pad" : "keys";
+  });
+  var [chosen, setChosen] = createSignal(null);
+  createRoot(() => createEffect(on(rule, () => setChosen(null), {
+    defer: true
+  })));
+  var layout2 = () => chosen() ?? rule();
+  createRoot(() => createEffect(on([layout2, current4], ([l, ws]) => {
+    if (watching())
+      console.log(`deck: layout ${l}, workspace ${ws + 1}`);
+  }, {
+    defer: true
+  })));
+  function chooseLayout(next) {
+    setChosen(next === rule() ? null : next);
+  }
+  function toggleKeys() {
+    chooseLayout(layout2() === "keys" ? "pad" : "keys");
+  }
+  function toggleHome() {
+    if (layout2() !== "home")
+      return chooseLayout("home");
+    chooseLayout(rule() === "home" ? "keys" : rule());
+  }
+  var ORDER = ["keys", "pad", "home"];
+  function cycleLayout() {
+    chooseLayout(ORDER[(ORDER.indexOf(layout2()) + 1) % ORDER.length]);
+  }
+
+  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/contracts/spec/ime.ts
+  var IME = Object.freeze({
+    keys: 128,
+    candidates: 5,
+    select: 16777216,
+    selectAbsolute: 33554432,
+    browseSize: 15,
+    browseLimit: 512,
+    backspace: 65288,
+    enter: 65293,
+    left: 65361,
+    right: 65363,
+    pageUp: 65365,
+    pageDown: 65366
+  });
+
+  // shell/src/term/ime.ts
+  var [chinese, setChinese] = createSignal(false);
+  var [snapshot, setSnapshot] = createSignal(null);
+  var keys = [];
+  var [typed, setTyped] = createSignal(0);
+  var revision2 = 0;
+  var waiting = false;
+  var queued = [];
+  var composing = () => typed() > 0 || snapshot() !== null;
+  function setKeys(next) {
+    keys = next;
+    setTyped(next.length);
+  }
+  function toggleChinese() {
+    reset2();
+    setChinese((on) => !on);
+  }
+  function reset2() {
+    setKeys([]);
+    revision2++;
+    waiting = false;
+    queued.length = 0;
+    setSnapshot(null);
+  }
+  var NAMED = {
+    Backspace: IME.backspace,
+    Enter: IME.enter,
+    Left: IME.left,
+    Right: IME.right,
+    PageUp: IME.pageUp,
+    PageDown: IME.pageDown
+  };
+  var commits = (code) => code === 32 || code === IME.enter || code >= 48 && code <= 57 || code >= IME.select && code < IME.select + 5 || /[^a-z]/.test(String.fromCharCode(code));
+  function evaluate2(emit) {
+    const mine = ++revision2;
+    request({
+      method: "ime",
+      keys: [...keys]
+    }).then((next) => {
+      if (mine !== revision2)
+        return;
+      if (next.commit)
+        emit(next.commit);
+      if (next.commit || !next.raw) {
+        setKeys([]);
+        setSnapshot(next.preedit ? next : null);
+      } else
+        setSnapshot(next);
+      waiting = false;
+      const pending = queued.splice(0);
+      for (const q of pending)
+        route(q.key, q.emit, q.pass);
+    }, () => {
+      if (mine === revision2)
+        reset2();
+    });
+  }
+  function route(key, emit, pass) {
+    if (!chinese())
+      return pass();
+    if (waiting)
+      return void queued.push({
+        key,
+        emit,
+        pass
+      });
+    const active = keys.length > 0;
+    let code;
+    if ([...key].length === 1) {
+      const c = key.charCodeAt(0);
+      if (c >= 32 && c <= 126 && (/[a-z]/.test(key) || (active ? true : /[,.;:?!'"()<>[\]\\]/.test(key))))
+        code = c;
+    } else if (active && key === "Escape")
+      return reset2();
+    else if (active)
+      code = NAMED[key];
+    if (code === undefined)
+      return active ? undefined : pass();
+    setKeys([...keys, code]);
+    if (keys.length > IME.keys)
+      return reset2();
+    if (commits(code))
+      waiting = true;
+    evaluate2(emit);
+  }
+  function pick(index, emit) {
+    if (!keys.length || waiting)
+      return;
+    setKeys([...keys, IME.select + index]);
+    waiting = true;
+    evaluate2(emit);
+  }
+
+  // shell/src/clock-format.ts
+  var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var MONTHS2 = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var TOKEN = /'[^']*'|dddd|ddd|dd|d|MMMM|MMM|MM|M|yyyy|yy|HH|H|hh|h|mm|m|ss|s|AP|ap|ww|w/g;
+  var two2 = (n) => n < 10 ? `0${n}` : String(n);
+  function week(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const day = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - day);
+    const start = Date.UTC(d.getUTCFullYear(), 0, 1);
+    return Math.ceil(((d.getTime() - start) / 86400000 + 1) / 7);
+  }
+  function formatClock(format, date) {
+    const h12 = date.getHours() % 12 || 12;
+    return format.replace(TOKEN, (t) => {
+      switch (t) {
+        case "dddd":
+          return DAYS[date.getDay()];
+        case "ddd":
+          return DAYS[date.getDay()].slice(0, 3);
+        case "dd":
+          return two2(date.getDate());
+        case "d":
+          return String(date.getDate());
+        case "MMMM":
+          return MONTHS2[date.getMonth()];
+        case "MMM":
+          return MONTHS2[date.getMonth()].slice(0, 3);
+        case "MM":
+          return two2(date.getMonth() + 1);
+        case "M":
+          return String(date.getMonth() + 1);
+        case "yyyy":
+          return String(date.getFullYear());
+        case "yy":
+          return two2(date.getFullYear() % 100);
+        case "HH":
+          return two2(date.getHours());
+        case "H":
+          return String(date.getHours());
+        case "hh":
+          return two2(h12);
+        case "h":
+          return String(h12);
+        case "mm":
+          return two2(date.getMinutes());
+        case "m":
+          return String(date.getMinutes());
+        case "ss":
+          return two2(date.getSeconds());
+        case "s":
+          return String(date.getSeconds());
+        case "AP":
+          return date.getHours() < 12 ? "AM" : "PM";
+        case "ap":
+          return date.getHours() < 12 ? "am" : "pm";
+        case "ww":
+          return two2(week(date));
+        case "w":
+          return String(week(date));
+        default:
+          return t.slice(1, -1);
+      }
+    });
+  }
+
+  // shell/src/stage/bar.tsx
+  var NUMBERS = Array.from({
+    length: WORKSPACES
+  }, (_, i) => i);
+  var SLOT = 20;
+  var H2 = 18;
+  var ALPHA = {
+    opaque: 1,
+    glassy: 0.75,
+    none: 0
+  };
+  var marker;
+  createRoot(() => createEffect(on(current4, (ws) => glide(marker, "translateX", ws * 14, 160), {
+    defer: true
+  })));
+  function barIndicators(s) {
+    return [{
+      name: "power",
+      glyph: batteryGlyph(s?.battery ?? null)
+    }, {
+      name: "audio",
+      glyph: audioGlyph(s?.audio ?? null)
+    }, {
+      name: "network",
+      glyph: networkGlyph(s?.network)
+    }, {
+      name: "bluetooth",
+      glyph: bluetoothGlyph(s?.bluetooth ?? null)
+    }, {
+      name: "proxy",
+      glyph: s?.proxy ? "\uDB81\uDD82" : "",
+      off: s?.proxy?.running === false
+    }, {
+      name: "tailscale",
+      glyph: s?.tailscale ? "\uDB80\uDF18" : "",
+      off: s?.tailscale ? s.tailscale.state !== "Running" : false
+    }].filter((i) => i.glyph);
+  }
+  function Bar(props) {
+    const settings = () => state()?.bar;
+    const clock = () => formatClock(settings()?.clock ?? "dddd HH:mm", props.now());
+    const top = () => settings()?.position === "bottom" ? 384 - H2 : 0;
+    const indicators = () => barIndicators(state());
+    const statusRight = () => 512 - 8 - SLOT * indicators().length - 8;
+    return createComponent2(Show, {
+      get when() {
+        return !settings()?.hidden;
+      },
+      get children() {
+        return createComponent2(View, {
+          get ["class"]() {
+            return C.bar;
+          },
+          get style() {
+            return {
+              insetT: top(),
+              bgColor: color("background", ALPHA[settings()?.background ?? "opaque"] ?? 1)
+            };
+          },
+          get children() {
+            return [createComponent2(Text, {
+              get ["class"]() {
+                return C.barText;
+              },
+              get style() {
+                return {
+                  insetL: 6,
+                  insetT: 4,
+                  textColor: color("foreground")
+                };
+              },
+              children: ""
+            }), createComponent2(View, {
+              class: "absolute top-[2] h-[14] w-[12] rounded-sm",
+              get style() {
+                return {
+                  insetL: 23.5,
+                  translateX: untrack(current4) * 14,
+                  bgColor: color("bright_foreground")
+                };
+              },
+              ref: (n) => marker = n
+            }), createComponent2(For, {
+              each: NUMBERS,
+              children: (n) => createComponent2(Text, {
+                get ["class"]() {
+                  return C.barText;
+                },
+                get style() {
+                  return {
+                    insetL: 26 + n * 14,
+                    insetT: 2.5,
+                    textColor: color(current4() === n ? "background" : occupied(n) ? "foreground" : "muted")
+                  };
+                },
+                get children() {
+                  return String(n + 1);
+                }
+              })
+            }), createComponent2(Text, {
+              get ["class"]() {
+                return C.barCenter;
+              },
+              get style() {
+                return {
+                  textColor: color("foreground")
+                };
+              },
+              get children() {
+                return clock();
+              }
+            }), createComponent2(Text, {
+              class: "absolute top-[2] text-right font-mono text-xs leading-[14]",
+              get style() {
+                return {
+                  insetL: statusRight() - 160,
+                  width: 160,
+                  opacity: held() === "plain" ? 1 : 0,
+                  textColor: color("dark_foreground")
+                };
+              },
+              get children() {
+                return layout();
+              }
+            }), createComponent2(For, {
+              each: HELD_LAYERS,
+              children: (l) => createComponent2(Text, {
+                class: "absolute top-[2] text-right font-mono text-xs leading-[14]",
+                get style() {
+                  return {
+                    insetL: statusRight() - 160,
+                    width: 160,
+                    opacity: held() === l ? 1 : 0,
+                    textColor: color("accent")
+                  };
+                },
+                get children() {
+                  return LAYER_TITLE[l];
+                }
+              })
+            }), createComponent2(For, {
+              get each() {
+                return indicators();
+              },
+              children: (i, n) => createComponent2(Text, {
+                get ["class"]() {
+                  return C.barText;
+                },
+                get style() {
+                  return {
+                    insetL: 512 - 8 - SLOT * (n() + 1) + 4,
+                    textColor: color(props.focused() === i.name ? "accent" : ("off" in i) && i.off ? "muted" : "foreground")
+                  };
+                },
+                get children() {
+                  return i.glyph;
+                }
+              })
+            })];
+          }
+        });
+      }
+    });
   }
 
   // vendor/pocket-term/shared/protocol.ts
@@ -16050,439 +16504,6 @@
     })];
   }
 
-  // shell/src/focus.ts
-  function keySink() {
-    const field2 = field();
-    if (field2)
-      return field2;
-    if (card())
-      return cardSink();
-    const w = focused2();
-    if (!w)
-      return NO_SINK;
-    if (w.kind === "terminal")
-      return terminalSink;
-    if (w.kind === "app")
-      return appletTyping(w.app) ? appletKeys(w.app) : NO_SINK;
-    const applet = appletOf(w);
-    if (!applet)
-      return NO_SINK;
-    const own = applet.keys?.();
-    if (own)
-      return own;
-    return {
-      text: (ch) => ch === " " && applet.press?.(KEY_BUTTONS[" "]),
-      key: (name) => {
-        const button = KEY_BUTTONS[name];
-        if (button)
-          applet.press?.(button);
-      },
-      hint: applet.hint
-    };
-  }
-  function focusTitle() {
-    if (field())
-      return "Password";
-    if (card())
-      return cardTitle();
-    const w = focused2();
-    return w ? windowTitle(w) : `Workspace ${current4() + 1}`;
-  }
-  var rule = createMemo(() => {
-    if (field())
-      return "keys";
-    if (card())
-      return "keys";
-    const w = focused2();
-    if (!w)
-      return "home";
-    return w.kind === "app" ? appletTyping(w.app) ? "keys" : "pad" : "keys";
-  });
-  var [chosen, setChosen] = createSignal(null);
-  createRoot(() => createEffect(on(rule, () => setChosen(null), {
-    defer: true
-  })));
-  var layout2 = () => chosen() ?? rule();
-  createRoot(() => createEffect(on([layout2, current4], ([l, ws]) => {
-    if (watching())
-      console.log(`deck: layout ${l}, workspace ${ws + 1}`);
-  }, {
-    defer: true
-  })));
-  function chooseLayout(next) {
-    setChosen(next === rule() ? null : next);
-  }
-  var ORDER = ["keys", "pad", "home"];
-  function cycleLayout() {
-    chooseLayout(ORDER[(ORDER.indexOf(layout2()) + 1) % ORDER.length]);
-  }
-
-  // shell/src/deck/strip.tsx
-  var TAB_W = 72;
-  var TABS_X = 512 - 4 - 3 * TAB_W;
-  var MENU_W = 32;
-  var TITLE_X = MENU_W + 8;
-  var TITLE_W = TABS_X - TITLE_X - 12;
-  var TABS = [{
-    layout: "keys",
-    glyph: "\uDB80\uDF0C",
-    label: "Keys"
-  }, {
-    layout: "pad",
-    glyph: "\uDB81\uDF41",
-    label: "Pad"
-  }, {
-    layout: "home",
-    glyph: "\uDB80\uDEDC",
-    label: "Home"
-  }];
-  var tabAt = (x) => x >= TABS_X && x < TABS_X + 3 * TAB_W ? Math.floor((x - TABS_X) / TAB_W) : -1;
-  function stripTarget(x) {
-    if (x < MENU_W)
-      return "strip:menu";
-    const i = tabAt(x);
-    return i >= 0 ? `strip:${TABS[i].layout}` : null;
-  }
-  function stripTouch(frame) {
-    for (const c of frame.presses) {
-      if (c.x < MENU_W) {
-        toggleMenu();
-        continue;
-      }
-      const i = tabAt(c.x);
-      if (i >= 0)
-        chooseLayout(TABS[i].layout);
-    }
-  }
-  var lit2 = () => Math.max(0, TABS.findIndex((t) => t.layout === layout2()));
-  var highlight;
-  createRoot(() => createEffect(on(lit2, (i) => glide(highlight, "translateX", i * TAB_W, 160), {
-    defer: true
-  })));
-  function Strip() {
-    return createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] contain-strict",
-      get style() {
-        return {
-          height: STRIP_H,
-          bgColor: color("background")
-        };
-      },
-      get children() {
-        return [createComponent2(View, {
-          class: "absolute left-[3] top-[3] h-[20] rounded-sm",
-          get style() {
-            return {
-              width: MENU_W - 6,
-              bgColor: color(menuOpen() ? "selection" : pressed("strip:menu") ? "selection" : "background")
-            };
-          },
-          get children() {
-            return createComponent2(Text, {
-              class: "absolute left-0 top-[2] text-center font-mono text-sm leading-[16]",
-              get style() {
-                return {
-                  width: MENU_W - 6,
-                  textColor: color(menuOpen() ? "accent" : "foreground")
-                };
-              },
-              children: ""
-            });
-          }
-        }), createComponent2(Text, {
-          class: "absolute top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]",
-          get style() {
-            return {
-              insetL: TITLE_X,
-              width: TITLE_W,
-              textColor: color("foreground")
-            };
-          },
-          get children() {
-            return focusTitle();
-          }
-        }), createComponent2(View, {
-          class: "absolute top-[3] h-[20] rounded-sm",
-          get style() {
-            return {
-              insetL: TABS_X,
-              width: 3 * TAB_W,
-              bgColor: color("dark_background")
-            };
-          }
-        }), createComponent2(View, {
-          class: "absolute top-[3] h-[20] rounded-sm",
-          get style() {
-            return {
-              insetL: TABS_X,
-              width: TAB_W,
-              translateX: untrack(lit2) * TAB_W,
-              bgColor: color("selection")
-            };
-          },
-          ref: (n) => highlight = n
-        }), createComponent2(For, {
-          each: TABS,
-          children: (t, i) => [createComponent2(Text, {
-            class: "absolute top-[4] w-[18] text-center font-mono text-sm leading-[16]",
-            get style() {
-              return {
-                insetL: TABS_X + i() * TAB_W + 8,
-                textColor: color(lit2() === i() ? "accent" : pressed(`strip:${t.layout}`) ? "foreground" : "dark_foreground")
-              };
-            },
-            get children() {
-              return t.glyph;
-            }
-          }), createComponent2(Text, {
-            class: "absolute top-[5] h-[14] overflow-hidden font-mono text-xs leading-[14]",
-            get style() {
-              return {
-                insetL: TABS_X + i() * TAB_W + 30,
-                width: TAB_W - 34,
-                textColor: color(lit2() === i() ? "bright_foreground" : "dark_foreground")
-              };
-            },
-            get children() {
-              return t.label;
-            }
-          })]
-        })];
-      }
-    });
-  }
-
-  // shell/src/clock-format.ts
-  var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  var MONTHS2 = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  var TOKEN = /'[^']*'|dddd|ddd|dd|d|MMMM|MMM|MM|M|yyyy|yy|HH|H|hh|h|mm|m|ss|s|AP|ap|ww|w/g;
-  var two2 = (n) => n < 10 ? `0${n}` : String(n);
-  function week(date) {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const day = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - day);
-    const start = Date.UTC(d.getUTCFullYear(), 0, 1);
-    return Math.ceil(((d.getTime() - start) / 86400000 + 1) / 7);
-  }
-  function formatClock(format, date) {
-    const h12 = date.getHours() % 12 || 12;
-    return format.replace(TOKEN, (t) => {
-      switch (t) {
-        case "dddd":
-          return DAYS[date.getDay()];
-        case "ddd":
-          return DAYS[date.getDay()].slice(0, 3);
-        case "dd":
-          return two2(date.getDate());
-        case "d":
-          return String(date.getDate());
-        case "MMMM":
-          return MONTHS2[date.getMonth()];
-        case "MMM":
-          return MONTHS2[date.getMonth()].slice(0, 3);
-        case "MM":
-          return two2(date.getMonth() + 1);
-        case "M":
-          return String(date.getMonth() + 1);
-        case "yyyy":
-          return String(date.getFullYear());
-        case "yy":
-          return two2(date.getFullYear() % 100);
-        case "HH":
-          return two2(date.getHours());
-        case "H":
-          return String(date.getHours());
-        case "hh":
-          return two2(h12);
-        case "h":
-          return String(h12);
-        case "mm":
-          return two2(date.getMinutes());
-        case "m":
-          return String(date.getMinutes());
-        case "ss":
-          return two2(date.getSeconds());
-        case "s":
-          return String(date.getSeconds());
-        case "AP":
-          return date.getHours() < 12 ? "AM" : "PM";
-        case "ap":
-          return date.getHours() < 12 ? "am" : "pm";
-        case "ww":
-          return two2(week(date));
-        case "w":
-          return String(week(date));
-        default:
-          return t.slice(1, -1);
-      }
-    });
-  }
-
-  // shell/src/stage/bar.tsx
-  var NUMBERS = Array.from({
-    length: WORKSPACES
-  }, (_, i) => i);
-  var SLOT = 20;
-  var H2 = 18;
-  var ALPHA = {
-    opaque: 1,
-    glassy: 0.75,
-    none: 0
-  };
-  var marker;
-  createRoot(() => createEffect(on(current4, (ws) => glide(marker, "translateX", ws * 14, 160), {
-    defer: true
-  })));
-  function barIndicators(s) {
-    return [{
-      name: "power",
-      glyph: batteryGlyph(s?.battery ?? null)
-    }, {
-      name: "audio",
-      glyph: audioGlyph(s?.audio ?? null)
-    }, {
-      name: "network",
-      glyph: networkGlyph(s?.network)
-    }, {
-      name: "bluetooth",
-      glyph: bluetoothGlyph(s?.bluetooth ?? null)
-    }, {
-      name: "proxy",
-      glyph: s?.proxy ? "\uDB81\uDD82" : "",
-      off: s?.proxy?.running === false
-    }, {
-      name: "tailscale",
-      glyph: s?.tailscale ? "\uDB80\uDF18" : "",
-      off: s?.tailscale ? s.tailscale.state !== "Running" : false
-    }].filter((i) => i.glyph);
-  }
-  function Bar(props) {
-    const settings = () => state()?.bar;
-    const clock = () => formatClock(settings()?.clock ?? "dddd HH:mm", props.now());
-    const top = () => settings()?.position === "bottom" ? 384 - H2 : 0;
-    const indicators = () => barIndicators(state());
-    const statusRight = () => 512 - 8 - SLOT * indicators().length - 8;
-    return createComponent2(Show, {
-      get when() {
-        return !settings()?.hidden;
-      },
-      get children() {
-        return createComponent2(View, {
-          get ["class"]() {
-            return C.bar;
-          },
-          get style() {
-            return {
-              insetT: top(),
-              bgColor: color("background", ALPHA[settings()?.background ?? "opaque"] ?? 1)
-            };
-          },
-          get children() {
-            return [createComponent2(Text, {
-              get ["class"]() {
-                return C.barText;
-              },
-              get style() {
-                return {
-                  insetL: 6,
-                  insetT: 4,
-                  textColor: color("foreground")
-                };
-              },
-              children: ""
-            }), createComponent2(View, {
-              class: "absolute top-[2] h-[14] w-[12] rounded-sm",
-              get style() {
-                return {
-                  insetL: 23.5,
-                  translateX: untrack(current4) * 14,
-                  bgColor: color("bright_foreground")
-                };
-              },
-              ref: (n) => marker = n
-            }), createComponent2(For, {
-              each: NUMBERS,
-              children: (n) => createComponent2(Text, {
-                get ["class"]() {
-                  return C.barText;
-                },
-                get style() {
-                  return {
-                    insetL: 26 + n * 14,
-                    insetT: 2.5,
-                    textColor: color(current4() === n ? "background" : occupied(n) ? "foreground" : "muted")
-                  };
-                },
-                get children() {
-                  return String(n + 1);
-                }
-              })
-            }), createComponent2(Text, {
-              get ["class"]() {
-                return C.barCenter;
-              },
-              get style() {
-                return {
-                  textColor: color("foreground")
-                };
-              },
-              get children() {
-                return clock();
-              }
-            }), createComponent2(Text, {
-              class: "absolute top-[2] text-right font-mono text-xs leading-[14]",
-              get style() {
-                return {
-                  insetL: statusRight() - 160,
-                  width: 160,
-                  opacity: held() === "plain" ? 1 : 0,
-                  textColor: color("dark_foreground")
-                };
-              },
-              get children() {
-                return layout();
-              }
-            }), createComponent2(For, {
-              each: HELD_LAYERS,
-              children: (l) => createComponent2(Text, {
-                class: "absolute top-[2] text-right font-mono text-xs leading-[14]",
-                get style() {
-                  return {
-                    insetL: statusRight() - 160,
-                    width: 160,
-                    opacity: held() === l ? 1 : 0,
-                    textColor: color("accent")
-                  };
-                },
-                get children() {
-                  return LAYER_TITLE[l];
-                }
-              })
-            }), createComponent2(For, {
-              get each() {
-                return indicators();
-              },
-              children: (i, n) => createComponent2(Text, {
-                get ["class"]() {
-                  return C.barText;
-                },
-                get style() {
-                  return {
-                    insetL: 512 - 8 - SLOT * (n() + 1) + 4,
-                    textColor: color(props.focused() === i.name ? "accent" : ("off" in i) && i.off ? "muted" : "foreground")
-                  };
-                },
-                get children() {
-                  return i.glyph;
-                }
-              })
-            })];
-          }
-        });
-      }
-    });
-  }
-
   // shell/src/stage/pointer.tsx
   var BAR_H2 = 18;
   var x = 256;
@@ -16686,585 +16707,8 @@
     });
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/contracts/spec/ime.ts
-  var IME = Object.freeze({
-    keys: 128,
-    candidates: 5,
-    select: 16777216,
-    selectAbsolute: 33554432,
-    browseSize: 15,
-    browseLimit: 512,
-    backspace: 65288,
-    enter: 65293,
-    left: 65361,
-    right: 65363,
-    pageUp: 65365,
-    pageDown: 65366
-  });
-
-  // shell/src/term/ime.ts
-  var [chinese, setChinese] = createSignal(false);
-  var [snapshot, setSnapshot] = createSignal(null);
-  var keys = [];
-  var [typed, setTyped] = createSignal(0);
-  var revision2 = 0;
-  var waiting = false;
-  var queued = [];
-  var composing = () => typed() > 0 || snapshot() !== null;
-  function setKeys(next) {
-    keys = next;
-    setTyped(next.length);
-  }
-  function toggleChinese() {
-    reset2();
-    setChinese((on) => !on);
-  }
-  function reset2() {
-    setKeys([]);
-    revision2++;
-    waiting = false;
-    queued.length = 0;
-    setSnapshot(null);
-  }
-  var NAMED = {
-    Backspace: IME.backspace,
-    Enter: IME.enter,
-    Left: IME.left,
-    Right: IME.right,
-    PageUp: IME.pageUp,
-    PageDown: IME.pageDown
-  };
-  var commits = (code) => code === 32 || code === IME.enter || code >= 48 && code <= 57 || code >= IME.select && code < IME.select + 5 || /[^a-z]/.test(String.fromCharCode(code));
-  function evaluate2(emit) {
-    const mine = ++revision2;
-    request({
-      method: "ime",
-      keys: [...keys]
-    }).then((next) => {
-      if (mine !== revision2)
-        return;
-      if (next.commit)
-        emit(next.commit);
-      if (next.commit || !next.raw) {
-        setKeys([]);
-        setSnapshot(next.preedit ? next : null);
-      } else
-        setSnapshot(next);
-      waiting = false;
-      const pending = queued.splice(0);
-      for (const q of pending)
-        route(q.key, q.emit, q.pass);
-    }, () => {
-      if (mine === revision2)
-        reset2();
-    });
-  }
-  function route(key, emit, pass) {
-    if (!chinese())
-      return pass();
-    if (waiting)
-      return void queued.push({
-        key,
-        emit,
-        pass
-      });
-    const active = keys.length > 0;
-    let code;
-    if ([...key].length === 1) {
-      const c = key.charCodeAt(0);
-      if (c >= 32 && c <= 126 && (/[a-z]/.test(key) || (active ? true : /[,.;:?!'"()<>[\]\\]/.test(key))))
-        code = c;
-    } else if (active && key === "Escape")
-      return reset2();
-    else if (active)
-      code = NAMED[key];
-    if (code === undefined)
-      return active ? undefined : pass();
-    setKeys([...keys, code]);
-    if (keys.length > IME.keys)
-      return reset2();
-    if (commits(code))
-      waiting = true;
-    evaluate2(emit);
-  }
-  function pick(index, emit) {
-    if (!keys.length || waiting)
-      return;
-    setKeys([...keys, IME.select + index]);
-    waiting = true;
-    evaluate2(emit);
-  }
-
-  // shell/src/term/keyboard.tsx
-  var BACKSPACE = "\uDB80\uDC6E";
-  var ENTER = "\uDB80\uDF11";
-  var chars2 = (row, shifted = row.toUpperCase(), w) => [...row].map((ch, i) => ({
-    label: ch,
-    key: ch,
-    shifted: shifted[i],
-    w
-  }));
-  var backspace = {
-    label: BACKSPACE,
-    key: "Backspace",
-    w: 1.5,
-    repeat: true
-  };
-  var bottom = (layer) => [layer === "abc" ? {
-    label: "123",
-    key: "",
-    w: 1.5,
-    layer: "123"
-  } : {
-    label: "ABC",
-    key: "",
-    w: 1.5,
-    layer: "abc"
-  }, {
-    label: "EN",
-    key: "",
-    ime: true
-  }, {
-    label: "space",
-    key: " ",
-    w: 5
-  }, {
-    label: ".",
-    key: "."
-  }, {
-    label: ENTER,
-    key: "Enter",
-    w: 1.5
-  }];
-  var LAYERS = {
-    abc: {
-      rows: [chars2("qwertyuiop"), chars2("asdfghjkl"), [{
-        label: "⇧",
-        key: "",
-        w: 1.5,
-        modifier: "shift"
-      }, ...chars2("zxcvbnm"), backspace], bottom("abc")],
-      inset: [0, 0.5, 0, 0]
-    },
-    "123": {
-      rows: [chars2("1234567890", "1234567890"), chars2('-/:;()$&@"', '-/:;()$&@"'), [{
-        label: "#+=",
-        key: "",
-        w: 1.5,
-        layer: "sym"
-      }, ...chars2(".,?!'", ".,?!'", 1.4), backspace], bottom("123")],
-      inset: [0, 0, 0, 0]
-    },
-    sym: {
-      rows: [chars2("[]{}#%^*+=", "[]{}#%^*+="), chars2("_\\|~<>`¥£•", "_\\|~<>`¥£•"), [{
-        label: "123",
-        key: "",
-        w: 1.5,
-        layer: "123"
-      }, ...chars2(".,?!'", ".,?!'", 1.4), backspace], bottom("sym")],
-      inset: [0, 0, 0, 0]
-    }
-  };
-  var EXTRAS = [{
-    label: "Esc",
-    key: "Escape"
-  }, {
-    label: "Tab",
-    key: "Tab"
-  }, {
-    label: "Ctrl",
-    key: "",
-    modifier: "ctrl"
-  }, {
-    label: "Alt",
-    key: "",
-    modifier: "alt"
-  }, {
-    label: "←",
-    key: "Left",
-    repeat: true
-  }, {
-    label: "↓",
-    key: "Down",
-    repeat: true
-  }, {
-    label: "↑",
-    key: "Up",
-    repeat: true
-  }, {
-    label: "→",
-    key: "Right",
-    repeat: true
-  }];
-  var UNIT = 512 / 10;
-  var PITCH = 46;
-  var GAP2 = 6;
-  var EXTRA_PITCH = 38;
-  var EDGE = 6;
-  var REPEAT_AFTER = 24;
-  var REPEAT_EVERY = 4;
-  var REPEAT_MAX = 40;
-  var CHORD_S = 1.4;
-  var HEIGHT = {
-    full: 384,
-    body: BODY_H
-  };
-  var placeRow = (row, inset, y, h) => {
-    let x = inset * UNIT;
-    return row.map((key) => {
-      const w = (key.w ?? 1) * UNIT;
-      const [lit, setLit] = createSignal(false);
-      const p = {
-        ...key,
-        x,
-        y,
-        w,
-        h,
-        char: [...key.key].length === 1 && key.key !== " ",
-        lit,
-        setLit
-      };
-      x += w;
-      return p;
-    });
-  };
-  function layoutFor(mode, layer) {
-    const height = HEIGHT[mode];
-    const rowsTop = height - EDGE - LAYERS[layer].rows.length * PITCH;
-    const extrasTop = rowsTop - EXTRA_PITCH;
-    const keys = LAYERS[layer].rows.flatMap((row, r) => placeRow(row, LAYERS[layer].inset[r], rowsTop + r * PITCH, PITCH));
-    keys.push(...placeRow(EXTRAS.map((k) => ({
-      ...k,
-      w: 10 / EXTRAS.length
-    })), 0, extrasTop, EXTRA_PITCH));
-    return {
-      keys,
-      stripH: extrasTop - 2
-    };
-  }
-  var LAYOUTS = new Map;
-  var layout3 = (mode, layer) => {
-    const id = `${mode}:${layer}`;
-    let l = LAYOUTS.get(id);
-    if (!l)
-      LAYOUTS.set(id, l = layoutFor(mode, layer));
-    return l;
-  };
-  var [mods, setMods] = createSignal({
-    shift: false,
-    ctrl: false,
-    alt: false
-  });
-  var [capsLock, setCapsLock] = createSignal(false);
-  var [layer2, setLayer] = createSignal("abc");
-  var pressed2 = [];
-  var [chord, setChord] = createSignal("");
-  var lastShift = -1;
-  var frameCount = 0;
-  function latch(modifier) {
-    if (modifier === "shift") {
-      if (capsLock()) {
-        setCapsLock(false);
-        setMods((m) => ({
-          ...m,
-          shift: false
-        }));
-        return;
-      }
-      if (frameCount - lastShift < 20) {
-        setCapsLock(true);
-        return;
-      }
-      lastShift = frameCount;
-    }
-    setMods((m) => ({
-      ...m,
-      [modifier]: !m[modifier]
-    }));
-  }
-  function resetKeyboard() {
-    setMods({
-      shift: false,
-      ctrl: false,
-      alt: false
-    });
-    setCapsLock(false);
-    setLayer("abc");
-  }
-  var chordName = (m, name) => `${m.ctrl ? "^" : ""}${m.alt ? "M-" : ""}${name.length === 1 ? name.toUpperCase() : name}`;
-  function sendKey(key, shifted) {
-    const m = mods();
-    const shift = m.shift || capsLock();
-    setMods({
-      shift: false,
-      ctrl: false,
-      alt: false
-    });
-    const name = shift && shifted ? shifted : key;
-    if (m.ctrl || m.alt) {
-      setChord(chordName(m, name));
-      after(CHORD_S, () => setChord(""));
-    }
-    const sink = keySink();
-    const direct = () => {
-      if ([...key].length === 1 && !m.ctrl && !m.alt)
-        sink.text(name);
-      else
-        sink.key(name, {
-          ctrl: m.ctrl,
-          alt: m.alt,
-          shift: shift && !shifted
-        });
-    };
-    if (m.ctrl || m.alt || sink.field)
-      return direct();
-    route(name, (text) => sink.text(text), direct);
-  }
-  var keyAt = (keys, x, y) => keys.find((k) => x >= k.x && x < k.x + k.w && y >= k.y && y < k.y + k.h) ?? null;
-  function press(key) {
-    if (watching())
-      console.log(`key ${key.label} press`);
-    if (key.modifier)
-      latch(key.modifier);
-    else if (key.layer)
-      setLayer(key.layer);
-    else if (key.ime)
-      toggleChinese();
-    else
-      sendKey(key.key, key.shifted);
-  }
-  var held2 = new Map;
-  function keyboardTouch(frame, mode) {
-    frameCount++;
-    const {
-      keys,
-      stripH
-    } = layout3(mode, layer2());
-    const onKeys = (c) => c.start.y >= stripH;
-    const down = frame.down.filter(onKeys);
-    const now = down.map((c) => keyAt(keys, c.x, c.y)).filter((k) => k !== null);
-    for (const k of pressed2)
-      if (!now.includes(k)) {
-        k.setLit(false);
-        if (watching())
-          console.log(`key ${k.label} unlit`);
-      }
-    for (const k of now)
-      if (!pressed2.includes(k)) {
-        k.setLit(true);
-        if (watching())
-          console.log(`key ${k.label} lit`);
-      }
-    pressed2 = now;
-    for (const c of frame.presses) {
-      if (!onKeys(c)) {
-        stripTap(c.x, c.y, stripH);
-        continue;
-      }
-      const key = keyAt(keys, c.x, c.y);
-      if (!key)
-        continue;
-      press(key);
-      if (key.repeat)
-        held2.set(c.id, {
-          frames: 0,
-          repeats: 0
-        });
-    }
-    for (const c of down) {
-      const h = held2.get(c.id);
-      if (!h)
-        continue;
-      h.frames++;
-      const key = keyAt(keys, c.x, c.y);
-      if (key?.repeat && h.repeats < REPEAT_MAX && h.frames > REPEAT_AFTER && (h.frames - REPEAT_AFTER) % REPEAT_EVERY === 0) {
-        h.repeats++;
-        press(key);
-      }
-    }
-    for (const t of frame.taps)
-      held2.delete(t.id);
-  }
-  var PREEDIT_W = 132;
-  var CANDIDATE_W = (512 - PREEDIT_W) / 5;
-  var CANDIDATES_H = 32;
-  var CLOSE_X = 512 - 40;
-  function stripTap(x, y, stripH) {
-    if (composing()) {
-      if (y >= stripH - CANDIDATES_H && x >= PREEDIT_W)
-        pick(Math.floor((x - PREEDIT_W) / CANDIDATE_W), (text) => keySink().text(text));
-      return;
-    }
-    if (x >= CLOSE_X && y < 30)
-      keySink().close?.();
-  }
-  function Keyboard(props) {
-    const current = () => layout3(props.mode, layer2());
-    const sink = keySink;
-    const latched = (k) => !!k.modifier && mods()[k.modifier] || k.modifier === "shift" && capsLock();
-    const fnKey = (k) => !k.char && k.key !== " ";
-    const label = (k) => {
-      if (k.ime)
-        return chinese() ? "中" : "EN";
-      if (k.modifier === "shift" && capsLock())
-        return "⇪";
-      return (mods().shift || capsLock()) && k.shifted ? k.shifted : k.label;
-    };
-    const hint = () => chord() ? `sent ${chord()}` : sink().hint?.() ?? "";
-    return createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] contain-strict",
-      get style() {
-        return {
-          height: HEIGHT[props.mode],
-          bgColor: color("darker_background")
-        };
-      },
-      get children() {
-        return [createComponent2(Show, {
-          get when() {
-            return sink().field;
-          },
-          children: (field) => [createComponent2(Text, {
-            class: "absolute left-0 w-[512] text-center text-lg leading-[24]",
-            get style() {
-              return {
-                insetT: current().stripH / 2 - 22,
-                textColor: color("bright_foreground")
-              };
-            },
-            get children() {
-              return field()();
-            }
-          }), createComponent2(Text, {
-            class: "absolute left-0 w-[512] text-center font-mono text-xs leading-[14]",
-            get style() {
-              return {
-                insetT: current().stripH / 2 + 10,
-                textColor: color("dark_foreground")
-              };
-            },
-            get children() {
-              return hint();
-            }
-          })]
-        }), createComponent2(Show, {
-          get when() {
-            return !sink().field;
-          },
-          get children() {
-            return [createComponent2(Text, {
-              class: "absolute left-[12] top-[8] w-[440] h-[14] overflow-hidden font-mono text-xs leading-[14]",
-              get style() {
-                return {
-                  textColor: color(chord() ? "accent" : "dark_foreground")
-                };
-              },
-              get children() {
-                return hint();
-              }
-            }), createComponent2(Show, {
-              get when() {
-                return sink().close;
-              },
-              get children() {
-                return createComponent2(Text, {
-                  class: "absolute right-[14] top-[6] font-mono text-sm leading-[16]",
-                  get style() {
-                    return {
-                      textColor: color("red")
-                    };
-                  },
-                  children: "\uDB80\uDD56"
-                });
-              }
-            })];
-          }
-        }), createComponent2(Show, {
-          get when() {
-            return composing();
-          },
-          get children() {
-            return createComponent2(View, {
-              class: "absolute left-0 w-[512]",
-              get style() {
-                return {
-                  insetT: current().stripH - CANDIDATES_H,
-                  height: CANDIDATES_H,
-                  bgColor: color("dark_background")
-                };
-              },
-              get children() {
-                return [createComponent2(Text, {
-                  class: "absolute left-[10] top-[7] h-[18] overflow-hidden font-mono text-sm leading-[18]",
-                  get style() {
-                    return {
-                      width: PREEDIT_W - 14,
-                      textColor: color("accent"),
-                      ...cjk(snapshot()?.preedit ?? "", CJK_SLOT_14)
-                    };
-                  },
-                  get children() {
-                    return snapshot()?.preedit ?? "";
-                  }
-                }), createComponent2(For, {
-                  get each() {
-                    return snapshot()?.candidates ?? [];
-                  },
-                  children: (candidate, i) => createComponent2(Text, {
-                    class: "absolute top-[7] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]",
-                    get style() {
-                      return {
-                        insetL: PREEDIT_W + i() * CANDIDATE_W,
-                        width: CANDIDATE_W - 4,
-                        textColor: color(i() === 0 ? "bright_foreground" : "foreground"),
-                        ...cjk(candidate, CJK_SLOT_14)
-                      };
-                    },
-                    children: candidate
-                  })
-                })];
-              }
-            });
-          }
-        }), createComponent2(For, {
-          get each() {
-            return current().keys;
-          },
-          children: (k) => createComponent2(View, {
-            class: "absolute rounded-md",
-            get style() {
-              return {
-                insetL: k.x + GAP2 / 2,
-                insetT: k.y + GAP2 / 2,
-                width: k.w - GAP2,
-                height: k.h - GAP2,
-                bgColor: color(k.lit() ? k.char ? "background" : "accent" : latched(k) ? "selection" : fnKey(k) ? "dark_background" : "muted")
-              };
-            },
-            get children() {
-              return createComponent2(Text, {
-                class: "absolute left-0 text-center font-mono text-base leading-[18]",
-                get style() {
-                  return {
-                    width: k.w - GAP2,
-                    insetT: (k.h - GAP2) / 2 - 9,
-                    textColor: color(k.lit() && !k.char ? "background" : latched(k) || k.ime && chinese() ? "accent" : "bright_foreground"),
-                    ...k.ime && chinese() ? cjk("中", CJK_SLOT_14) : {}
-                  };
-                },
-                get children() {
-                  return label(k);
-                }
-              });
-            }
-          })
-        })];
-      }
-    });
-  }
-
   // shell/src/remote-input.ts
-  var held3 = [];
+  var held2 = [];
   var taps = [];
   var TAP_FRAMES = 3;
   serve("pocket.input", {
@@ -17272,7 +16716,7 @@
       const mask = BTN[name ?? ""];
       if (!mask)
         throw new Error(`no button ${name}`);
-      held3.push({
+      held2.push({
         mask,
         frames: Math.max(1, Number(frames) || 2)
       });
@@ -17338,12 +16782,12 @@
   }
   function remoteButtons() {
     let mask = 0;
-    for (const h of held3)
+    for (const h of held2)
       if (h.frames-- > 0)
         mask |= h.mask;
-    for (let i = held3.length - 1;i >= 0; i--)
-      if (held3[i].frames <= 0)
-        held3.splice(i, 1);
+    for (let i = held2.length - 1;i >= 0; i--)
+      if (held2[i].frames <= 0)
+        held2.splice(i, 1);
     return mask;
   }
   function remoteContacts() {
@@ -17367,6 +16811,702 @@
       y: at.y
     }] : [at];
   }
+
+  // shell/src/term/keyboard.tsx
+  var BACKSPACE = "\uDB80\uDC6E";
+  var ENTER = "\uDB80\uDF11";
+  var chars2 = (row, shifted = row.toUpperCase(), w) => [...row].map((ch, i) => ({
+    label: ch,
+    key: ch,
+    shifted: shifted[i],
+    w
+  }));
+  var backspace = {
+    label: BACKSPACE,
+    key: "Backspace",
+    w: 1.5,
+    repeat: true
+  };
+  var enter = {
+    label: ENTER,
+    key: "Enter",
+    w: 1.45
+  };
+  var ARROW = 0.95;
+  var bottom = (layer) => [layer === "abc" ? {
+    label: "123",
+    key: "",
+    w: 1.2,
+    layer: "123"
+  } : {
+    label: "ABC",
+    key: "",
+    w: 1.2,
+    layer: "abc"
+  }, {
+    label: "EN",
+    key: "",
+    w: 0.9,
+    ime: true
+  }, {
+    label: "Ctrl",
+    key: "",
+    modifier: "ctrl"
+  }, {
+    label: "Alt",
+    key: "",
+    modifier: "alt"
+  }, {
+    label: "",
+    key: " ",
+    w: 2.3
+  }, {
+    label: ".",
+    key: ".",
+    w: 0.75
+  }, {
+    label: "←",
+    key: "Left",
+    w: ARROW,
+    repeat: true
+  }, {
+    label: "↑",
+    key: "Up",
+    w: ARROW,
+    repeat: true,
+    half: "up"
+  }, {
+    label: "↓",
+    key: "Down",
+    w: ARROW,
+    repeat: true,
+    half: "down"
+  }, {
+    label: "→",
+    key: "Right",
+    w: ARROW,
+    repeat: true
+  }];
+  var SHORT = 0.95;
+  var LAYERS = {
+    abc: {
+      rows: [chars2("qwertyuiop"), [...chars2("asdfghjkl", undefined, SHORT), enter], [{
+        label: "⇧",
+        key: "",
+        w: 1.5,
+        modifier: "shift"
+      }, ...chars2("zxcvbnm"), backspace], bottom("abc")],
+      inset: [0, 0, 0, 0]
+    },
+    "123": {
+      rows: [chars2("1234567890", "1234567890"), [...chars2("-/:;()$&@", "-/:;()$&@", SHORT), enter], [{
+        label: "#+=",
+        key: "",
+        w: 1.5,
+        layer: "sym"
+      }, ...chars2(`.,?!'"`, `.,?!'"`, 7 / 6), backspace], bottom("123")],
+      inset: [0, 0, 0, 0]
+    },
+    sym: {
+      rows: [chars2("[]{}#%^*+=", "[]{}#%^*+="), [...chars2("_\\|~<>`¥£", "_\\|~<>`¥£", SHORT), enter], [{
+        label: "123",
+        key: "",
+        w: 1.5,
+        layer: "123"
+      }, ...chars2(".,?!'•", ".,?!'•", 7 / 6), backspace], bottom("sym")],
+      inset: [0, 0, 0, 0]
+    }
+  };
+  var UNIT = 512 / 10;
+  var GAP2 = 5;
+  var FULL_PITCH = 46;
+  var EDGE = 6;
+  var REPEAT_AFTER = 24;
+  var REPEAT_EVERY = 4;
+  var REPEAT_MAX = 40;
+  var CHORD_S = 1.4;
+  var placeRow = (row, inset, y, h) => {
+    let x = inset * UNIT;
+    return row.map((key) => {
+      const w = (key.w ?? 1) * UNIT;
+      const [lit, setLit] = createSignal(false);
+      const half = key.half ? h / 2 : h;
+      const p = {
+        ...key,
+        x,
+        y: key.half === "down" ? y + half : y,
+        w,
+        h: half,
+        char: [...key.key].length === 1 && key.key !== " ",
+        lit,
+        setLit
+      };
+      if (key.half !== "up")
+        x += w;
+      return p;
+    });
+  };
+  function layoutFor(mode, layer) {
+    const rows = LAYERS[layer].rows;
+    const pitch = mode === "full" ? FULL_PITCH : KEY_PITCH;
+    const top = mode === "full" ? 384 - EDGE - rows.length * FULL_PITCH : KEYS_TOP;
+    const keys = rows.flatMap((row, r) => placeRow(row, LAYERS[layer].inset[r], top + r * pitch, pitch));
+    return {
+      keys,
+      top,
+      bottom: mode === "full" ? 384 : KEYS_BOTTOM
+    };
+  }
+  var LAYOUTS = new Map;
+  var layout3 = (mode, layer) => {
+    const id = `${mode}:${layer}`;
+    let l = LAYOUTS.get(id);
+    if (!l)
+      LAYOUTS.set(id, l = layoutFor(mode, layer));
+    return l;
+  };
+  var [mods, setMods] = createSignal({
+    shift: false,
+    ctrl: false,
+    alt: false
+  });
+  var [capsLock, setCapsLock] = createSignal(false);
+  var [layer2, setLayer] = createSignal("abc");
+  var pressed2 = [];
+  var [chord, setChord] = createSignal("");
+  var lastShift = -1;
+  var frameCount = 0;
+  function latch(modifier) {
+    if (modifier === "shift") {
+      if (capsLock()) {
+        setCapsLock(false);
+        setMods((m) => ({
+          ...m,
+          shift: false
+        }));
+        return;
+      }
+      if (frameCount - lastShift < 20) {
+        setCapsLock(true);
+        return;
+      }
+      lastShift = frameCount;
+    }
+    setMods((m) => ({
+      ...m,
+      [modifier]: !m[modifier]
+    }));
+  }
+  function resetKeyboard() {
+    setMods({
+      shift: false,
+      ctrl: false,
+      alt: false
+    });
+    setCapsLock(false);
+    setLayer("abc");
+  }
+  function showChord(name) {
+    setChord(name);
+    after(CHORD_S, () => setChord(""));
+  }
+  var typedHook = () => {};
+  var onTyped = (hook) => typedHook = hook;
+  var typed2 = () => typedHook();
+  var chordName = (m, name) => `${m.ctrl ? "^" : ""}${m.alt ? "M-" : ""}${name.length === 1 ? name.toUpperCase() : name}`;
+  function sendKey(key, shifted) {
+    const m = mods();
+    const shift = m.shift || capsLock();
+    setMods({
+      shift: false,
+      ctrl: false,
+      alt: false
+    });
+    const name = shift && shifted ? shifted : key;
+    if (m.ctrl || m.alt)
+      showChord(chordName(m, name));
+    typed2();
+    const sink = keySink();
+    const direct = () => {
+      if ([...key].length === 1 && !m.ctrl && !m.alt)
+        sink.text(name);
+      else
+        sink.key(name, {
+          ctrl: m.ctrl,
+          alt: m.alt,
+          shift: shift && !shifted
+        });
+    };
+    if (m.ctrl || m.alt || sink.field)
+      return direct();
+    route(name, (text) => sink.text(text), direct);
+  }
+  function sendCtrl(ch) {
+    showChord(chordName({
+      ctrl: true,
+      alt: false
+    }, ch));
+    typed2();
+    keySink().key(ch, {
+      ctrl: true,
+      alt: false,
+      shift: false
+    });
+  }
+  var keyAt = (keys, x, y) => keys.find((k) => x >= k.x && x < k.x + k.w && y >= k.y && y < k.y + k.h) ?? null;
+  function press(key) {
+    if (watching())
+      console.log(`key ${key.label} press`);
+    if (key.modifier)
+      latch(key.modifier);
+    else if (key.layer)
+      setLayer(key.layer);
+    else if (key.ime)
+      toggleChinese();
+    else
+      sendKey(key.key, key.shifted);
+  }
+  var held3 = new Map;
+  function keyboardTouch(frame, mode) {
+    frameCount++;
+    const {
+      keys,
+      top,
+      bottom: edge
+    } = layout3(mode, layer2());
+    const onKeys = (c) => c.start.y >= top && c.start.y < edge;
+    const down = frame.down.filter(onKeys);
+    const now = down.map((c) => keyAt(keys, c.x, c.y)).filter((k) => k !== null);
+    for (const k of pressed2)
+      if (!now.includes(k)) {
+        k.setLit(false);
+        if (watching())
+          console.log(`key ${k.label} unlit`);
+      }
+    for (const k of now)
+      if (!pressed2.includes(k)) {
+        k.setLit(true);
+        if (watching())
+          console.log(`key ${k.label} lit`);
+      }
+    pressed2 = now;
+    for (const c of frame.presses) {
+      if (!onKeys(c))
+        continue;
+      const key = keyAt(keys, c.x, c.y);
+      if (!key)
+        continue;
+      press(key);
+      if (key.repeat)
+        held3.set(c.id, {
+          frames: 0,
+          repeats: 0
+        });
+    }
+    for (const c of down) {
+      const h = held3.get(c.id);
+      if (!h)
+        continue;
+      h.frames++;
+      const key = keyAt(keys, c.x, c.y);
+      if (key?.repeat && h.repeats < REPEAT_MAX && h.frames > REPEAT_AFTER && (h.frames - REPEAT_AFTER) % REPEAT_EVERY === 0) {
+        h.repeats++;
+        press(key);
+      }
+    }
+    for (const t of frame.taps)
+      held3.delete(t.id);
+  }
+  function Keyboard(props) {
+    const current = () => layout3(props.mode, layer2());
+    const latched = (k) => !!k.modifier && mods()[k.modifier] || k.modifier === "shift" && capsLock();
+    const small = (k) => !!k.half || k.modifier === "ctrl" || k.modifier === "alt" || !!k.layer || !!k.ime;
+    const fnKey = (k) => !k.char && k.key !== " ";
+    const label = (k) => {
+      if (k.ime)
+        return chinese() ? "中" : "EN";
+      if (k.modifier === "shift" && capsLock())
+        return "⇪";
+      return (mods().shift || capsLock()) && k.shifted ? k.shifted : k.label;
+    };
+    return createComponent2(View, {
+      class: "absolute left-0 top-0 w-[512] contain-strict",
+      get style() {
+        return {
+          height: props.mode === "full" ? 384 : KEYS_BOTTOM + 2
+        };
+      },
+      get children() {
+        return [createComponent2(Show, {
+          get when() {
+            return memo2(() => props.mode === "full")() && keySink().field;
+          },
+          children: (field) => createComponent2(Text, {
+            class: "absolute left-0 w-[512] text-center text-lg leading-[24]",
+            get style() {
+              return {
+                insetT: current().top / 2 - 22,
+                textColor: color("bright_foreground")
+              };
+            },
+            get children() {
+              return field()();
+            }
+          })
+        }), createComponent2(Show, {
+          get when() {
+            return props.mode === "full";
+          },
+          get children() {
+            return createComponent2(Text, {
+              class: "absolute left-0 w-[512] text-center font-mono text-xs leading-[14]",
+              get style() {
+                return {
+                  insetT: current().top / 2 + 10,
+                  textColor: color("dark_foreground")
+                };
+              },
+              get children() {
+                return keySink().hint?.() ?? "";
+              }
+            });
+          }
+        }), createComponent2(For, {
+          get each() {
+            return current().keys;
+          },
+          children: (k) => createComponent2(View, {
+            class: "absolute rounded-md",
+            get style() {
+              return {
+                insetL: k.x + GAP2 / 2,
+                insetT: k.y + GAP2 / 2,
+                width: k.w - GAP2,
+                height: k.h - GAP2,
+                bgColor: color(k.lit() ? "accent" : latched(k) ? "selection" : fnKey(k) ? "dark_background" : "background")
+              };
+            },
+            get children() {
+              return createComponent2(Text, {
+                get ["class"]() {
+                  return small(k) ? "absolute left-0 text-center font-mono text-xs leading-[14]" : "absolute left-0 text-center font-mono text-base leading-[18]";
+                },
+                get style() {
+                  return {
+                    width: k.w - GAP2,
+                    insetT: (k.h - GAP2) / 2 - (small(k) ? 7 : 9),
+                    textColor: color(k.lit() ? "background" : latched(k) || k.ime && chinese() ? "accent" : fnKey(k) ? "foreground" : "bright_foreground"),
+                    ...k.ime && chinese() ? cjk("中", CJK_SLOT_14) : {}
+                  };
+                },
+                get children() {
+                  return label(k);
+                }
+              });
+            }
+          })
+        })];
+      }
+    });
+  }
+
+  // shell/src/deck/strip.tsx
+  var LOGO = "";
+  var HOME = "\uDB80\uDEDC";
+  var CLOSE = "\uDB80\uDD56";
+  var LEFT = "\uDB80\uDD41";
+  var RIGHT = "\uDB80\uDD42";
+  var TERMINAL2 = "\uDB80\uDD8D";
+  var EDGE2 = 4;
+  var GAP3 = 4;
+  var CHIP_H = 28;
+  var CHIP_Y = 3;
+  var LOGO_W = 36;
+  var ESC_W = 44;
+  var END_W = 40;
+  var MAX_W2 = 84;
+  var PREEDIT_W = 132;
+  var CANDIDATE_W = (512 - PREEDIT_W) / 5;
+  var ctrl = (ch) => ({
+    id: `ctrl-${ch}`,
+    label: `^${ch.toUpperCase()}`,
+    run: () => sendCtrl(ch)
+  });
+  var TAB = {
+    id: "tab",
+    label: "Tab",
+    run: () => sendKey("Tab")
+  };
+  var PREV = {
+    id: "ws-prev",
+    label: "WS",
+    glyph: LEFT,
+    run: () => perform("ws.prev")
+  };
+  var NEXT = {
+    id: "ws-next",
+    label: "WS",
+    glyph: RIGHT,
+    run: () => perform("ws.next")
+  };
+  function context() {
+    if (field())
+      return [];
+    if (card())
+      return [TAB];
+    const w = focused2();
+    if (!w)
+      return [PREV, NEXT, {
+        id: "terminal",
+        label: "Terminal",
+        glyph: TERMINAL2,
+        run: () => openTerminal()
+      }, {
+        id: "layout",
+        label: "Layout",
+        run: () => perform("layout")
+      }];
+    if (w.kind === "terminal")
+      return [TAB, ctrl("c"), ctrl("d"), ctrl("l"), ctrl("r")];
+    if (w.kind === "app")
+      return appletTyping(w.app) ? [TAB, PREV, NEXT] : [{
+        id: "back",
+        label: "Back",
+        glyph: LEFT,
+        run: pressBack
+      }, PREV, NEXT];
+    return [TAB, PREV, NEXT];
+  }
+  var closes = () => keySink().close;
+  var row2 = createRoot(() => createMemo(() => {
+    const close = closes();
+    const start = [{
+      id: "menu",
+      label: "",
+      glyph: LOGO,
+      run: toggleMenu,
+      lit: menuOpen
+    }, {
+      id: "esc",
+      label: "Esc",
+      run: () => sendKey("Escape")
+    }];
+    const end = [...close ? [{
+      id: "close",
+      label: "",
+      glyph: CLOSE,
+      run: () => keySink().close?.(),
+      danger: true
+    }] : [], {
+      id: "home",
+      label: "",
+      glyph: HOME,
+      run: toggleHome,
+      lit: () => layout2() === "home"
+    }];
+    const middle = context();
+    const ends = LOGO_W + ESC_W + end.length * END_W;
+    const room = 512 - 2 * EDGE2 - ends - (2 + middle.length + end.length - 1) * GAP3;
+    const w = middle.length ? Math.min(MAX_W2, Math.floor(room / middle.length)) : 0;
+    let x = EDGE2;
+    const place = (chip, width) => {
+      const placed = {
+        ...chip,
+        x,
+        w: width
+      };
+      x += width + GAP3;
+      return placed;
+    };
+    const out = [place(start[0], LOGO_W), place(start[1], ESC_W), ...middle.map((c) => place(c, w))];
+    x = 512 - EDGE2 - end.length * END_W - (end.length - 1) * GAP3;
+    return [...out, ...end.map((c) => place(c, END_W))];
+  }));
+  var chipAt = (x) => row2().find((c) => x >= c.x - GAP3 / 2 && x < c.x + c.w + GAP3 / 2);
+  function stripTarget(x) {
+    if (composing())
+      return null;
+    const chip = chipAt(x);
+    return chip ? `strip:${chip.id}` : null;
+  }
+  function stripTouch(frame) {
+    for (const c of frame.presses) {
+      if (composing()) {
+        if (c.x >= PREEDIT_W)
+          pick(Math.floor((c.x - PREEDIT_W) / CANDIDATE_W), (text) => keySink().text(text));
+        continue;
+      }
+      chipAt(c.x)?.run();
+    }
+  }
+  function Strip() {
+    return createComponent2(View, {
+      class: "absolute left-0 top-0 w-[512] contain-strict",
+      style: {
+        height: STRIP_H
+      },
+      get children() {
+        return createComponent2(Show, {
+          get when() {
+            return composing();
+          },
+          get fallback() {
+            return createComponent2(For, {
+              get each() {
+                return row2();
+              },
+              children: (chip) => {
+                const lit = () => chip.lit?.() === true;
+                return createComponent2(View, {
+                  class: "absolute rounded-md",
+                  get style() {
+                    return {
+                      insetL: chip.x,
+                      insetT: CHIP_Y,
+                      width: chip.w,
+                      height: CHIP_H,
+                      bgColor: color(lit() || pressed(`strip:${chip.id}`) ? "selection" : "dark_background")
+                    };
+                  },
+                  get children() {
+                    return [createComponent2(Show, {
+                      get when() {
+                        return memo2(() => !!chip.glyph)() && chip.label;
+                      },
+                      get children() {
+                        return createComponent2(Text, {
+                          class: "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]",
+                          get style() {
+                            return {
+                              insetL: 6,
+                              textColor: color("foreground")
+                            };
+                          },
+                          get children() {
+                            return chip.glyph;
+                          }
+                        });
+                      }
+                    }), createComponent2(Text, {
+                      get ["class"]() {
+                        return chip.id === "menu" ? "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]" : "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]";
+                      },
+                      get style() {
+                        return {
+                          width: chip.w,
+                          ...chip.glyph && chip.label ? {
+                            insetL: 11
+                          } : {},
+                          textColor: color(chip.danger ? "red" : lit() ? "accent" : "foreground")
+                        };
+                      },
+                      get children() {
+                        return chip.label || chip.glyph;
+                      }
+                    })];
+                  }
+                });
+              }
+            });
+          },
+          get children() {
+            return createComponent2(View, {
+              class: "absolute left-0 top-0 w-[512]",
+              get style() {
+                return {
+                  height: STRIP_H,
+                  bgColor: color("dark_background")
+                };
+              },
+              get children() {
+                return [createComponent2(Text, {
+                  class: "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]",
+                  get style() {
+                    return {
+                      width: PREEDIT_W - 14,
+                      textColor: color("accent"),
+                      ...cjk(snapshot()?.preedit ?? "", CJK_SLOT_14)
+                    };
+                  },
+                  get children() {
+                    return snapshot()?.preedit ?? "";
+                  }
+                }), createComponent2(For, {
+                  get each() {
+                    return snapshot()?.candidates ?? [];
+                  },
+                  children: (candidate, i) => createComponent2(Text, {
+                    class: "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]",
+                    get style() {
+                      return {
+                        insetL: PREEDIT_W + i() * CANDIDATE_W,
+                        width: CANDIDATE_W - 4,
+                        textColor: color(i() === 0 ? "bright_foreground" : "foreground"),
+                        ...cjk(candidate, CJK_SLOT_14)
+                      };
+                    },
+                    children: candidate
+                  })
+                })];
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+
+  // shell/src/deck/voice.ts
+  var [state2, setState2] = createSignal("idle");
+  var [level2, setLevel] = createSignal(0);
+  var voiceState = state2;
+  var voiceLevel = level2;
+  var MIC = "\uDB80\uDF6C";
+  var say2 = (title, body = "") => toast({
+    icon: MIC,
+    title,
+    body,
+    tone: "info"
+  }, 2.4);
+  function deliver(text) {
+    if (!text)
+      return say2("Nothing heard");
+    const sink = keySink();
+    if (sink === NO_SINK)
+      return say2("Nothing takes text here", text);
+    sink.text(text);
+  }
+  var failed = (error) => {
+    setState2("idle");
+    toast({
+      icon: MIC,
+      title: "Voice input",
+      body: error instanceof Error ? error.message : String(error),
+      tone: "error"
+    }, 3);
+  };
+  function toggleVoice() {
+    const now = state2();
+    if (now === "decoding")
+      return;
+    if (now === "listening") {
+      setState2("decoding");
+      return void request({
+        method: "voiceStop"
+      }).then(deliver, failed);
+    }
+    setState2("listening");
+    request({
+      method: "voiceStart"
+    }).catch(failed);
+  }
+  onEvent((event) => {
+    if (event.event === "voice") {
+      setState2(event.state);
+      setLevel(event.level);
+    } else if (event.event === "voiceText")
+      deliver(event.text);
+  });
 
   // shell/src/touch.ts
   var SETTLE = 2;
@@ -17453,24 +17593,32 @@
   }
 
   // shell/src/deck/touchpad.tsx
-  var PAD2 = {
-    x: 12,
-    y: 10,
-    w: 488,
-    h: BODY_H - 10 - 58
-  };
-  var KEY2 = {
-    x: 12,
-    y: PAD2.y + PAD2.h + 8,
-    w: 140,
-    h: 40
-  };
+  var padFor = (l) => l === "keys" ? PAD_SMALL : PAD_LARGE;
+  var ROUND_LIST = [{
+    name: "voice",
+    glyph: "\uDB80\uDF6C"
+  }, {
+    name: "hold",
+    glyph: "\uDB80\uDDBE"
+  }, {
+    name: "toggle",
+    glyph: "\uDB80\uDF0C"
+  }, {
+    name: "more",
+    glyph: "\uDB80\uDDD8"
+  }];
+  var roundAt = (x, y) => ROUND_LIST.find((r) => inRect(ROUNDS[r.name], x, y))?.name;
+  function roundTarget(x, y) {
+    const name = roundAt(x, y);
+    return name ? `round:${name}` : null;
+  }
   var GAIN = 1.1;
   var ACCEL = 0.09;
   var MAX_GAIN = 3.2;
-  var inPad = (x, y) => x >= PAD2.x && x < PAD2.x + PAD2.w && y >= PAD2.y && y < PAD2.y + PAD2.h;
-  var onKey = (x, y) => x >= KEY2.x && x < KEY2.x + KEY2.w && y >= KEY2.y && y < KEY2.y + KEY2.h;
   var [mode2, setMode2] = createSignal(null);
+  var [awake, setAwake] = createSignal(false);
+  var pointerAwake = awake;
+  onTyped(() => setAwake(false));
   var surfacePackage = () => {
     const w = focused2();
     return w?.kind === "app" && w.aux && !w.appletSurface ? w : null;
@@ -17492,7 +17640,8 @@
       movePointer(dx * gain, dy * gain);
   }
   function touchpadTouch(frame) {
-    if (surfacePackage()) {
+    const l = layout2();
+    if (l === "pad" && surfacePackage()) {
       const contacts = [];
       for (const c of frame.down) {
         const x = (c.x - SURFACE_X) / SCALE;
@@ -17502,9 +17651,23 @@
       }
       return contacts;
     }
+    for (const c of frame.presses) {
+      const name = roundAt(c.x, c.y);
+      if (name === "toggle")
+        toggleKeys();
+      else if (name === "voice")
+        toggleVoice();
+      else if (name === "more")
+        perform("keys");
+    }
+    const rect = padFor(l);
+    const inPad = (x, y) => !keySink().field && inRect(rect, x, y);
+    const onKey = (x, y) => inRect(ROUNDS.hold, x, y);
     const down = frame.down.filter(settled);
     const keyDown = down.some((c) => onKey(c.start.x, c.start.y));
     const pad = down.filter((c) => inPad(c.start.x, c.start.y));
+    if (pad.length && !awake())
+      setAwake(true);
     for (const t of frame.taps)
       if (t.id === primary && !t.moved && !dragged && inPad(t.start.x, t.start.y))
         click();
@@ -17584,15 +17747,10 @@
       get ["class"]() {
         return C.deck;
       },
-      get style() {
-        return {
-          bgColor: color("darker_background")
-        };
-      },
       get children() {
         return createComponent2(Show, {
           get when() {
-            return surfacePackage();
+            return memo2(() => layout2() === "pad")() && surfacePackage();
           },
           keyed: true,
           get fallback() {
@@ -17605,85 +17763,117 @@
       }
     });
   }
+  var line = () => {
+    const voice = voiceState();
+    if (voice === "listening")
+      return "listening · press the microphone to finish";
+    if (voice === "decoding")
+      return "turning that into text";
+    const sent = chord();
+    if (sent)
+      return `sent ${sent}`;
+    return keySink().hint?.() ?? (layout2() === "pad" ? "tap to click · two fingers scroll or pinch" : "");
+  };
   function Pad() {
+    let node;
+    const rect = () => padFor(layout2() === "keys" ? "keys" : "pad");
+    createEffect(on(rect, (next, prev) => node && prev && prev !== next && flip(node, prev, next, 1, 1, 180), {
+      defer: false
+    }));
+    const field = () => keySink().field;
     return [createComponent2(View, {
       class: "absolute rounded-lg",
       get style() {
         return {
-          insetL: PAD2.x,
-          insetT: PAD2.y,
-          width: PAD2.w,
-          height: PAD2.h,
-          bgColor: color(mode2() ? "selection" : "dark_background")
+          insetL: rect().x,
+          insetT: rect().y,
+          width: rect().w,
+          height: rect().h,
+          bgColor: color(mode2() ? "selection" : "dark_background"),
+          ...TOP_LEFT
         };
       },
-      get children() {
-        return [createComponent2(Text, {
-          class: "absolute left-0 text-center text-2xl leading-[28]",
-          get style() {
-            return {
-              insetT: PAD2.h / 2 - 36,
-              width: PAD2.w,
-              textColor: color("muted")
-            };
-          },
-          children: "\uDB81\uDF41"
-        }), createComponent2(Text, {
-          class: "absolute left-0 text-center font-mono text-xs leading-[14]",
-          get style() {
-            return {
-              insetT: PAD2.h / 2 + 2,
-              width: PAD2.w,
-              textColor: color("dark_foreground")
-            };
-          },
-          children: "move the pointer · tap to click"
-        }), createComponent2(Text, {
-          class: "absolute left-0 text-center font-mono text-xs leading-[14]",
-          get style() {
-            return {
-              insetT: PAD2.h / 2 + 20,
-              width: PAD2.w,
-              textColor: color("dark_foreground")
-            };
-          },
-          children: "two fingers scroll or pinch"
-        })];
-      }
-    }), createComponent2(View, {
-      class: "absolute rounded-md",
-      get style() {
-        return {
-          insetL: KEY2.x,
-          insetT: KEY2.y,
-          width: KEY2.w,
-          height: KEY2.h,
-          bgColor: color(mode2() === "drag" ? "accent" : "dark_background")
-        };
+      ref: (n) => node = n
+    }), createComponent2(Show, {
+      get when() {
+        return field();
       },
-      get children() {
+      get fallback() {
         return createComponent2(Text, {
-          class: "absolute left-0 text-center font-mono text-sm leading-[16]",
+          class: "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]",
           get style() {
             return {
-              insetT: KEY2.h / 2 - 8,
-              width: KEY2.w,
-              textColor: color(mode2() === "drag" ? "background" : "foreground")
+              insetL: rect().x + 12,
+              insetT: rect().y + rect().h - 34,
+              width: rect().w - 24,
+              textColor: color(voiceState() !== "idle" || chord() ? "accent" : "muted")
             };
           },
-          children: "Hold"
+          get children() {
+            return line();
+          }
+        });
+      },
+      children: (value) => [createComponent2(Text, {
+        class: "absolute text-center text-lg leading-[24]",
+        get style() {
+          return {
+            insetL: rect().x,
+            insetT: rect().y + rect().h / 2 - 26,
+            width: rect().w,
+            textColor: color("bright_foreground")
+          };
+        },
+        get children() {
+          return value()();
+        }
+      }), createComponent2(Text, {
+        class: "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]",
+        get style() {
+          return {
+            insetL: rect().x + 8,
+            insetT: rect().y + rect().h / 2 + 6,
+            width: rect().w - 16,
+            textColor: color("dark_foreground")
+          };
+        },
+        get children() {
+          return keySink().hint?.() ?? "";
+        }
+      })]
+    }), createComponent2(For, {
+      each: ROUND_LIST,
+      children: (r) => {
+        const listening = () => r.name === "voice" && voiceState() === "listening";
+        const lit = () => r.name === "voice" ? voiceState() === "decoding" : r.name === "hold" ? mode2() === "drag" : r.name === "toggle" ? layout2() === "keys" : r.name === "more" ? sheetOpen() : false;
+        const at = ROUNDS[r.name];
+        return createComponent2(View, {
+          class: "absolute w-[44] h-[44] rounded-full",
+          get style() {
+            return {
+              insetL: at.x,
+              insetT: at.y,
+              bgColor: color(listening() ? "red" : pressed(`round:${r.name}`) ? "selection" : "dark_background"),
+              opacity: listening() ? 0.55 + 0.45 * voiceLevel() : 1
+            };
+          },
+          get children() {
+            return createComponent2(Text, {
+              class: "absolute left-0 text-center text-xl leading-[24]",
+              get style() {
+                return {
+                  insetT: ROUND / 2 - 12,
+                  width: ROUND,
+                  textColor: color(listening() ? "bright_foreground" : lit() ? "accent" : "foreground")
+                };
+              },
+              get children() {
+                return r.glyph;
+              }
+            });
+          }
         });
       }
-    }), createComponent2(Text, {
-      class: "absolute font-mono text-xs leading-[14]",
-      get style() {
-        return {
-          insetL: KEY2.x + KEY2.w + 14,
-          insetT: KEY2.y + 13,
-          textColor: color("dark_foreground")
-        };
-      },
-      children: "hold it and slide a finger to drag"
     })];
   }
 
@@ -18150,7 +18340,7 @@
         return;
       fed = w.app;
       if (w.appletSurface)
-        return feedPackage(w.app, 0, pointerContacts(w.app));
+        return feedPackage(w.app, touchAppButtons(), pointerContacts(w.app));
       const mask = layerOf(buttons & MODIFIERS) === "plain" && !locked() && !card() && !field() ? buttons & ~(MODIFIERS | BTN.SELECT | BTN.ZL | BTN.ZR) : 0;
       feedPackage(w.app, mask, contacts);
     };
@@ -18158,7 +18348,7 @@
       switch (layout2()) {
         case "keys":
           keyboardTouch(frame, "body");
-          return [];
+          return touchpadTouch(frame);
         case "pad":
           return touchpadTouch(frame);
         case "home":
@@ -18166,6 +18356,13 @@
           return [];
       }
     };
+    let keysNode;
+    createEffect(on(layout2, (l) => {
+      glide(keysNode, "opacity", l === "keys" ? 1 : 0, 140);
+      glide(keysNode, "translateY", l === "keys" ? 0 : -14, 180);
+    }, {
+      defer: true
+    }));
     let held = 0;
     let heldFor = 0;
     let shoulderFor = 0;
@@ -18201,7 +18398,7 @@
       if (locked())
         return keyboardTouch(touch, "full");
       const first = touch.down[0];
-      pressAt(!first ? null : first.start.y < STRIP_H ? stripTarget(first.x) : layout2() === "home" ? homeTarget(first.x, first.y - BODY_TOP) : null);
+      pressAt(!first ? null : first.start.y < STRIP_H ? stripTarget(first.x) : layout2() === "home" ? homeTarget(first.x, first.y - BODY_TOP) : roundTarget(first.x, first.y - BODY_TOP));
       stripTouch(band(touch, 0, STRIP_H));
       const contacts = bodyTouch(band(touch, BODY_TOP, 384));
       feed(buttons, contacts);
@@ -18213,7 +18410,7 @@
           now,
           focused: panel
         }), createComponent2(Card, {}), createComponent2(KeySheet, {}), createComponent2(QrSheet, {}), createComponent2(Legend, {}), createComponent2(Osd, {}), createComponent2(Toasts, {}), createComponent2(Pointer, {
-          shown: () => layout2() === "pad" && !surfacePackage() && !locked()
+          shown: () => !locked() && (layout2() === "pad" ? !surfacePackage() : layout2() === "keys" && pointerAwake())
         }), createComponent2(LockStage, {
           clock: time,
           date
@@ -18266,20 +18463,26 @@
                               get style() {
                                 return {
                                   height: BODY_H,
-                                  opacity: layout2() === "keys" ? 1 : 0
+                                  opacity: layout2() === "home" ? 0 : 1
                                 };
                               },
+                              get children() {
+                                return createComponent2(Touchpad, {});
+                              }
+                            }), createComponent2(View, {
+                              class: "absolute left-0 top-0 w-[512] contain-strict",
+                              get style() {
+                                return {
+                                  height: BODY_H,
+                                  opacity: untrack(layout2) === "keys" ? 1 : 0,
+                                  translateY: untrack(layout2) === "keys" ? 0 : -14
+                                };
+                              },
+                              ref: (n) => keysNode = n,
                               get children() {
                                 return createComponent2(Keyboard, {
                                   mode: "body"
                                 });
-                              }
-                            }), createComponent2(Show, {
-                              get when() {
-                                return layout2() === "pad";
-                              },
-                              get children() {
-                                return createComponent2(Touchpad, {});
                               }
                             })];
                           }
@@ -18379,7 +18582,7 @@
   }
   var TREE_THROTTLE = 30;
   var STATS_EVERY = 30;
-  var state2 = {
+  var state3 = {
     ops: null,
     transport: null,
     app: undefined,
@@ -18420,49 +18623,49 @@
         warn() {},
         error() {}
       };
-    state2.ops = ops;
-    state2.frame = 0;
-    state2.tapeStart = 0;
-    state2.tapeLen = 0;
-    state2.tapeFirstFrame = 0;
-    state2.tapeTouch = null;
-    state2.tapeRightAnalog = null;
-    state2.tapeTouchSurfaces = null;
-    state2.tapeAxes = null;
-    state2.tapeMotion = null;
-    state2.replayMasks = null;
-    state2.replayAnalog = null;
-    state2.replayRightAnalog = null;
-    state2.replayTouch = null;
-    state2.replayTouchSurfaces = null;
-    state2.replayAxes = null;
-    state2.replayMotion = null;
-    state2.paused = false;
-    state2.stepQueued = 0;
-    state2.inspectReportId = null;
-    state2.inspectAskedAt = 0;
-    state2.treeDirty = true;
-    state2.treeSentAt = -TREE_THROTTLE;
-    state2.saidHello = false;
-    state2.panelAttached = false;
-    state2.hostCalls = 0;
-    state2.app = globalThis.__pocketApp;
+    state3.ops = ops;
+    state3.frame = 0;
+    state3.tapeStart = 0;
+    state3.tapeLen = 0;
+    state3.tapeFirstFrame = 0;
+    state3.tapeTouch = null;
+    state3.tapeRightAnalog = null;
+    state3.tapeTouchSurfaces = null;
+    state3.tapeAxes = null;
+    state3.tapeMotion = null;
+    state3.replayMasks = null;
+    state3.replayAnalog = null;
+    state3.replayRightAnalog = null;
+    state3.replayTouch = null;
+    state3.replayTouchSurfaces = null;
+    state3.replayAxes = null;
+    state3.replayMotion = null;
+    state3.paused = false;
+    state3.stepQueued = 0;
+    state3.inspectReportId = null;
+    state3.inspectAskedAt = 0;
+    state3.treeDirty = true;
+    state3.treeSentAt = -TREE_THROTTLE;
+    state3.saidHello = false;
+    state3.panelAttached = false;
+    state3.hostCalls = 0;
+    state3.app = globalThis.__pocketApp;
     const injected = globalThis.__pocketDevtoolsTransport;
     if (injected) {
-      state2.transport = injected;
+      state3.transport = injected;
     } else if (ops.__dbgActive?.() && ops.__dbgPoll && ops.__dbgSend) {
-      state2.transport = {
+      state3.transport = {
         send: (l) => ops.__dbgSend(l),
         recv: () => ops.__dbgPoll(),
         everyFrames: 10,
         listening: ops.__dbgConnected ? () => ops.__dbgConnected() : undefined
       };
     } else {
-      state2.transport = null;
+      state3.transport = null;
     }
-    if (state2.transport) {
+    if (state3.transport) {
       setTreeMutationHook(() => {
-        state2.treeDirty = true;
+        state3.treeDirty = true;
       });
     } else {
       setTreeMutationHook(null);
@@ -18472,8 +18675,8 @@
   }
   function wrapFrameHandler(h) {
     return (buttons, analogArg, touchArg, hitsArg, touchSurfacesArg, rightAnalogArg, axisDeltasArg, motionArg, textArg) => {
-      state2.hostCalls++;
-      if (state2.transport) {
+      state3.hostCalls++;
+      if (state3.transport) {
         pollTransport();
         flushInspectReport();
       }
@@ -18485,55 +18688,55 @@
       let touchSurfaces = touchSurfacesArg;
       let axisDeltas = axisDeltasArg;
       let motion = motionArg;
-      if (state2.replayMasks) {
-        if (state2.replayAt < state2.replayMasks.length) {
-          if (state2.paused && state2.stepQueued <= 0)
+      if (state3.replayMasks) {
+        if (state3.replayAt < state3.replayMasks.length) {
+          if (state3.paused && state3.stepQueued <= 0)
             return;
-          axisDeltas = state2.replayAxes?.[state2.replayAt] ?? EMPTY_AXIS_DELTAS;
-          motion = state2.replayMotion?.[state2.replayAt] ?? null;
-          mask = state2.replayMasks[state2.replayAt];
-          analog = state2.replayAnalog ? state2.replayAnalog[state2.replayAt] : ANALOG_CENTER;
-          rightAnalog = state2.replayRightAnalog ? state2.replayRightAnalog[state2.replayAt] : ANALOG_CENTER;
-          touch = state2.replayTouch ? state2.replayTouch[state2.replayAt] : undefined;
-          touchSurfaces = state2.replayTouchSurfaces ? state2.replayTouchSurfaces[state2.replayAt] : undefined;
+          axisDeltas = state3.replayAxes?.[state3.replayAt] ?? EMPTY_AXIS_DELTAS;
+          motion = state3.replayMotion?.[state3.replayAt] ?? null;
+          mask = state3.replayMasks[state3.replayAt];
+          analog = state3.replayAnalog ? state3.replayAnalog[state3.replayAt] : ANALOG_CENTER;
+          rightAnalog = state3.replayRightAnalog ? state3.replayRightAnalog[state3.replayAt] : ANALOG_CENTER;
+          touch = state3.replayTouch ? state3.replayTouch[state3.replayAt] : undefined;
+          touchSurfaces = state3.replayTouchSurfaces ? state3.replayTouchSurfaces[state3.replayAt] : undefined;
           hits = undefined;
-          state2.replayAt++;
+          state3.replayAt++;
         } else {
-          state2.replayMasks = null;
-          state2.replayAnalog = null;
-          state2.replayRightAnalog = null;
-          state2.replayTouch = null;
-          state2.replayTouchSurfaces = null;
-          state2.replayAxes = null;
-          state2.replayMotion = null;
+          state3.replayMasks = null;
+          state3.replayAnalog = null;
+          state3.replayRightAnalog = null;
+          state3.replayTouch = null;
+          state3.replayTouchSurfaces = null;
+          state3.replayAxes = null;
+          state3.replayMotion = null;
           send({
             t: "replayDone",
-            frame: state2.frame
+            frame: state3.frame
           });
         }
       }
-      if (state2.paused) {
-        if (state2.stepQueued <= 0)
+      if (state3.paused) {
+        if (state3.stepQueued <= 0)
           return;
-        state2.stepQueued--;
-        state2.ops?.debugStep?.();
+        state3.stepQueued--;
+        state3.ops?.debugStep?.();
       }
       axisDeltas = __takeAxisDeltas(axisDeltas);
       motion = __takeMotionState(motion);
       recordMask(mask, analog, touch, touchSurfaces, rightAnalog, axisDeltas, motion);
-      state2.frame++;
+      state3.frame++;
       try {
         h(mask, analog, touch, hits, touchSurfaces, rightAnalog, axisDeltas, motion, textArg);
       } catch (e) {
         send({
           t: "error",
-          frame: state2.frame,
+          frame: state3.frame,
           message: e instanceof Error ? e.message : String(e),
           stack: e instanceof Error ? e.stack : undefined
         });
         throw e;
       }
-      if (state2.transport)
+      if (state3.transport)
         afterFrame();
     };
   }
@@ -18541,63 +18744,63 @@
     const axes = axisDeltas?.length ? axisDeltas.map((value) => ({
       ...value
     })) : null;
-    if (axes && !state2.tapeAxes)
-      state2.tapeAxes = new Array(TAPE_CAP).fill(null);
-    if (motion && !state2.tapeMotion)
-      state2.tapeMotion = new Array(TAPE_CAP).fill(null);
+    if (axes && !state3.tapeAxes)
+      state3.tapeAxes = new Array(TAPE_CAP).fill(null);
+    if (motion && !state3.tapeMotion)
+      state3.tapeMotion = new Array(TAPE_CAP).fill(null);
     const right = rightAnalog ?? ANALOG_CENTER;
-    if (right !== ANALOG_CENTER && !state2.tapeRightAnalog)
-      state2.tapeRightAnalog = new Uint16Array(TAPE_CAP).fill(ANALOG_CENTER);
+    if (right !== ANALOG_CENTER && !state3.tapeRightAnalog)
+      state3.tapeRightAnalog = new Uint16Array(TAPE_CAP).fill(ANALOG_CENTER);
     const contacts = touch && touch.length > 0 ? touch : null;
     const contactCount = Math.min(contacts?.length ?? 0, 16);
-    if (contacts && !state2.tapeTouch) {
-      state2.tapeTouch = createTouchRing();
+    if (contacts && !state3.tapeTouch) {
+      state3.tapeTouch = createTouchRing();
     }
     const surfaces = contacts && touchSurfaces ? touchSurfaces : null;
-    if (surfaces && !state2.tapeTouchSurfaces) {
+    if (surfaces && !state3.tapeTouchSurfaces) {
       for (let word = 0;word < Math.min(surfaces.length, contactCount); word++) {
         if (surfaces[word] === 1) {
-          state2.tapeTouchSurfaces = createTouchRing(true);
+          state3.tapeTouchSurfaces = createTouchRing(true);
           break;
         }
       }
     }
-    if (state2.tapeLen < TAPE_CAP) {
-      const at = (state2.tapeStart + state2.tapeLen) % TAPE_CAP;
-      state2.tape[at] = mask;
-      state2.tapeAnalog[at] = analog;
-      if (state2.tapeRightAnalog)
-        state2.tapeRightAnalog[at] = right;
-      if (state2.tapeTouch)
-        writeTouch(state2.tapeTouch, at, contacts, contactCount);
-      if (state2.tapeTouchSurfaces)
-        writeTouch(state2.tapeTouchSurfaces, at, surfaces, contactCount);
-      if (state2.tapeAxes)
-        state2.tapeAxes[at] = axes;
-      if (state2.tapeMotion)
-        state2.tapeMotion[at] = motion ?? null;
-      state2.tapeLen++;
+    if (state3.tapeLen < TAPE_CAP) {
+      const at = (state3.tapeStart + state3.tapeLen) % TAPE_CAP;
+      state3.tape[at] = mask;
+      state3.tapeAnalog[at] = analog;
+      if (state3.tapeRightAnalog)
+        state3.tapeRightAnalog[at] = right;
+      if (state3.tapeTouch)
+        writeTouch(state3.tapeTouch, at, contacts, contactCount);
+      if (state3.tapeTouchSurfaces)
+        writeTouch(state3.tapeTouchSurfaces, at, surfaces, contactCount);
+      if (state3.tapeAxes)
+        state3.tapeAxes[at] = axes;
+      if (state3.tapeMotion)
+        state3.tapeMotion[at] = motion ?? null;
+      state3.tapeLen++;
     } else {
-      state2.tape[state2.tapeStart] = mask;
-      state2.tapeAnalog[state2.tapeStart] = analog;
-      if (state2.tapeRightAnalog)
-        state2.tapeRightAnalog[state2.tapeStart] = right;
-      if (state2.tapeTouch)
-        writeTouch(state2.tapeTouch, state2.tapeStart, contacts, contactCount);
-      if (state2.tapeTouchSurfaces)
-        writeTouch(state2.tapeTouchSurfaces, state2.tapeStart, surfaces, contactCount);
-      if (state2.tapeAxes)
-        state2.tapeAxes[state2.tapeStart] = axes;
-      if (state2.tapeMotion)
-        state2.tapeMotion[state2.tapeStart] = motion ?? null;
-      state2.tapeStart = (state2.tapeStart + 1) % TAPE_CAP;
-      state2.tapeFirstFrame++;
+      state3.tape[state3.tapeStart] = mask;
+      state3.tapeAnalog[state3.tapeStart] = analog;
+      if (state3.tapeRightAnalog)
+        state3.tapeRightAnalog[state3.tapeStart] = right;
+      if (state3.tapeTouch)
+        writeTouch(state3.tapeTouch, state3.tapeStart, contacts, contactCount);
+      if (state3.tapeTouchSurfaces)
+        writeTouch(state3.tapeTouchSurfaces, state3.tapeStart, surfaces, contactCount);
+      if (state3.tapeAxes)
+        state3.tapeAxes[state3.tapeStart] = axes;
+      if (state3.tapeMotion)
+        state3.tapeMotion[state3.tapeStart] = motion ?? null;
+      state3.tapeStart = (state3.tapeStart + 1) % TAPE_CAP;
+      state3.tapeFirstFrame++;
     }
   }
   function rlePairs(ring) {
     const out = [];
-    for (let i = 0;i < state2.tapeLen; i++) {
-      const v = ring[(state2.tapeStart + i) % TAPE_CAP];
+    for (let i = 0;i < state3.tapeLen; i++) {
+      const v = ring[(state3.tapeStart + i) % TAPE_CAP];
       const last = out[out.length - 1];
       if (last && last[0] === v)
         last[1]++;
@@ -18609,24 +18812,24 @@
   function exportTape() {
     const tape = {
       v: 1,
-      app: state2.app,
-      frames: state2.tapeLen,
-      masks: rlePairs(state2.tape),
-      startFrame: state2.tapeFirstFrame
+      app: state3.app,
+      frames: state3.tapeLen,
+      masks: rlePairs(state3.tape),
+      startFrame: state3.tapeFirstFrame
     };
-    const analog = rlePairs(state2.tapeAnalog);
+    const analog = rlePairs(state3.tapeAnalog);
     if (analog.length > 1 || analog.length === 1 && analog[0][0] !== ANALOG_CENTER) {
       tape.analog = analog;
     }
-    if (state2.tapeRightAnalog) {
-      const right = rlePairs(state2.tapeRightAnalog);
+    if (state3.tapeRightAnalog) {
+      const right = rlePairs(state3.tapeRightAnalog);
       if (right.some(([value]) => value !== ANALOG_CENTER))
         tape.rightAnalog = right;
     }
-    if (state2.tapeTouch) {
+    if (state3.tapeTouch) {
       const touch = [];
-      for (let i = 0;i < state2.tapeLen; i++) {
-        const contacts = readTouch(state2.tapeTouch, (state2.tapeStart + i) % TAPE_CAP);
+      for (let i = 0;i < state3.tapeLen; i++) {
+        const contacts = readTouch(state3.tapeTouch, (state3.tapeStart + i) % TAPE_CAP);
         if (contacts)
           touch.push([i, contacts]);
       }
@@ -18635,10 +18838,10 @@
         tape.touch = touch;
       }
     }
-    if (state2.tapeTouchSurfaces) {
+    if (state3.tapeTouchSurfaces) {
       const touchSurfaces = [];
-      for (let i = 0;i < state2.tapeLen; i++) {
-        const surfaces = readTouch(state2.tapeTouchSurfaces, (state2.tapeStart + i) % TAPE_CAP);
+      for (let i = 0;i < state3.tapeLen; i++) {
+        const surfaces = readTouch(state3.tapeTouchSurfaces, (state3.tapeStart + i) % TAPE_CAP);
         if (surfaces)
           touchSurfaces.push([i, surfaces]);
       }
@@ -18647,10 +18850,10 @@
         tape.touchSurfaces = touchSurfaces;
       }
     }
-    if (state2.tapeAxes) {
+    if (state3.tapeAxes) {
       const axes = [];
-      for (let i = 0;i < state2.tapeLen; i++) {
-        const deltas = state2.tapeAxes[(state2.tapeStart + i) % TAPE_CAP];
+      for (let i = 0;i < state3.tapeLen; i++) {
+        const deltas = state3.tapeAxes[(state3.tapeStart + i) % TAPE_CAP];
         if (deltas)
           axes.push([i, deltas.map((value) => ({
             ...value
@@ -18661,10 +18864,10 @@
         tape.axes = axes;
       }
     }
-    if (state2.tapeMotion) {
+    if (state3.tapeMotion) {
       const motion = [];
-      for (let i = 0;i < state2.tapeLen; i++) {
-        const estimate = state2.tapeMotion[(state2.tapeStart + i) % TAPE_CAP];
+      for (let i = 0;i < state3.tapeLen; i++) {
+        const estimate = state3.tapeMotion[(state3.tapeStart + i) % TAPE_CAP];
         if (estimate)
           motion.push([i, __copyMotionState(estimate)]);
       }
@@ -18743,21 +18946,21 @@
   }
   function send(msg) {
     try {
-      state2.transport?.send(JSON.stringify(msg));
+      state3.transport?.send(JSON.stringify(msg));
     } catch {}
   }
   function pollTransport() {
-    const t = state2.transport;
+    const t = state3.transport;
     const every = t.everyFrames ?? 1;
-    if (every > 1 && state2.hostCalls % every !== 0)
+    if (every > 1 && state3.hostCalls % every !== 0)
       return;
-    if (!state2.saidHello) {
-      state2.saidHello = true;
+    if (!state3.saidHello) {
+      state3.saidHello = true;
       send({
         t: "hello",
-        app: state2.app,
+        app: state3.app,
         host: hostKind(),
-        frame: state2.frame
+        frame: state3.frame
       });
     }
     for (let guard = 0;guard < 64; guard++) {
@@ -18778,13 +18981,13 @@
     } catch {
       return;
     }
-    const ops = state2.ops;
+    const ops = state3.ops;
     switch (msg.t) {
       case "inspect": {
         const id = typeof msg.id === "number" ? msg.id : 0;
         ops?.debugInspect?.(id);
-        state2.inspectReportId = id || null;
-        state2.inspectAskedAt = state2.hostCalls;
+        state3.inspectReportId = id || null;
+        state3.inspectAskedAt = state3.hostCalls;
         if (!id)
           send({
             t: "inspect",
@@ -18794,18 +18997,18 @@
         break;
       }
       case "pause":
-        state2.paused = true;
-        state2.stepQueued = 0;
+        state3.paused = true;
+        state3.stepQueued = 0;
         ops?.debugPause?.(true);
         sendStats();
         break;
       case "resume":
-        state2.paused = false;
+        state3.paused = false;
         ops?.debugPause?.(false);
         sendStats();
         break;
       case "step":
-        state2.stepQueued += typeof msg.n === "number" && msg.n > 0 ? msg.n : 1;
+        state3.stepQueued += typeof msg.n === "number" && msg.n > 0 ? msg.n : 1;
         break;
       case "getTree":
         sendTree();
@@ -18845,7 +19048,7 @@
         }
         send({
           t: "devStats",
-          frame: state2.frame,
+          frame: state3.frame,
           data
         });
         break;
@@ -18858,7 +19061,7 @@
             w: 480,
             h: 272,
             stride: 512,
-            frame: state2.frame
+            frame: state3.frame
           });
         } else {
           send({
@@ -18872,14 +19075,14 @@
       case "replay": {
         const tape = msg.tape;
         if (tape && Array.isArray(tape.masks)) {
-          state2.replayMotion = tape.motion ? expandTapeMotion(tape) : null;
-          state2.replayAxes = tape.axes ? expandTapeAxes(tape) : null;
-          state2.replayMasks = expandTape(tape);
-          state2.replayAnalog = tape.analog ? expandTapeAnalog(tape) : null;
-          state2.replayRightAnalog = tape.rightAnalog ? expandTapeRightAnalog(tape) : null;
-          state2.replayTouch = tape.touch ? expandTapeTouch(tape) : null;
-          state2.replayTouchSurfaces = tape.touchSurfaces ? expandTapeTouchSurfaces(tape) : null;
-          state2.replayAt = 0;
+          state3.replayMotion = tape.motion ? expandTapeMotion(tape) : null;
+          state3.replayAxes = tape.axes ? expandTapeAxes(tape) : null;
+          state3.replayMasks = expandTape(tape);
+          state3.replayAnalog = tape.analog ? expandTapeAnalog(tape) : null;
+          state3.replayRightAnalog = tape.rightAnalog ? expandTapeRightAnalog(tape) : null;
+          state3.replayTouch = tape.touch ? expandTapeTouch(tape) : null;
+          state3.replayTouchSurfaces = tape.touchSurfaces ? expandTapeTouchSurfaces(tape) : null;
+          state3.replayAt = 0;
         }
         break;
       }
@@ -18888,38 +19091,38 @@
     }
   }
   function panelListening() {
-    const listening = state2.transport?.listening;
+    const listening = state3.transport?.listening;
     return !listening || listening();
   }
   function afterFrame() {
     if (!panelListening()) {
-      state2.panelAttached = false;
+      state3.panelAttached = false;
       return;
     }
-    if (!state2.panelAttached) {
-      state2.panelAttached = true;
-      state2.treeDirty = true;
-      state2.treeSentAt = -TREE_THROTTLE;
+    if (!state3.panelAttached) {
+      state3.panelAttached = true;
+      state3.treeDirty = true;
+      state3.treeSentAt = -TREE_THROTTLE;
     }
-    if (state2.treeDirty && state2.frame - state2.treeSentAt >= TREE_THROTTLE) {
+    if (state3.treeDirty && state3.frame - state3.treeSentAt >= TREE_THROTTLE) {
       sendTree();
     }
-    if (state2.frame % STATS_EVERY === 0)
+    if (state3.frame % STATS_EVERY === 0)
       sendStats();
   }
   function flushInspectReport() {
-    const id = state2.inspectReportId;
+    const id = state3.inspectReportId;
     if (id == null)
       return;
-    const ops = state2.ops;
+    const ops = state3.ops;
     if (!ops?.debugRectXY || !ops.debugRectWH) {
-      state2.inspectReportId = null;
+      state3.inspectReportId = null;
       return;
     }
     const xy = ops.debugRectXY();
     if (xy === -1) {
-      if (state2.hostCalls - state2.inspectAskedAt > 60) {
-        state2.inspectReportId = null;
+      if (state3.hostCalls - state3.inspectAskedAt > 60) {
+        state3.inspectReportId = null;
         send({
           t: "inspect",
           id,
@@ -18929,7 +19132,7 @@
       return;
     }
     const wh = ops.debugRectWH();
-    state2.inspectReportId = null;
+    state3.inspectReportId = null;
     send({
       t: "inspect",
       id,
@@ -18939,18 +19142,18 @@
   function sendStats() {
     send({
       t: "stats",
-      frame: state2.frame,
+      frame: state3.frame,
       nodes: countMountedNodes(),
-      tapeLen: state2.tapeLen,
-      paused: state2.paused
+      tapeLen: state3.tapeLen,
+      paused: state3.paused
     });
   }
   function sendTree() {
-    state2.treeDirty = false;
-    state2.treeSentAt = state2.frame;
+    state3.treeDirty = false;
+    state3.treeSentAt = state3.frame;
     send({
       t: "tree",
-      frame: state2.frame,
+      frame: state3.frame,
       root: serializeMountedTree()
     });
   }
@@ -19038,7 +19241,7 @@
     if (!g.console)
       g.console = {};
     const c = g.console;
-    const bridge = state2.transport ? {
+    const bridge = state3.transport ? {
       send,
       listening: panelListening
     } : {
@@ -19049,7 +19252,7 @@
       c.__pocketBridge.current = bridge;
       return;
     }
-    if (!state2.transport)
+    if (!state3.transport)
       return;
     const holder = {
       current: bridge
@@ -19102,7 +19305,7 @@
     return s.length > 200 ? s.slice(0, 199) + "…" : s;
   }
   function hostKind() {
-    const ops = state2.ops;
+    const ops = state3.ops;
     if (typeof ops?.__host === "string")
       return ops.__host;
     if (ops?.__textures !== undefined)
@@ -19113,18 +19316,18 @@
   }
   var api = {
     get frame() {
-      return state2.frame;
+      return state3.frame;
     },
     dumpTape: () => exportTape(),
     replay: (tape) => {
-      state2.replayMotion = tape.motion ? expandTapeMotion(tape) : null;
-      state2.replayAxes = tape.axes ? expandTapeAxes(tape) : null;
-      state2.replayMasks = expandTape(tape);
-      state2.replayAnalog = tape.analog ? expandTapeAnalog(tape) : null;
-      state2.replayRightAnalog = tape.rightAnalog ? expandTapeRightAnalog(tape) : null;
-      state2.replayTouch = tape.touch ? expandTapeTouch(tape) : null;
-      state2.replayTouchSurfaces = tape.touchSurfaces ? expandTapeTouchSurfaces(tape) : null;
-      state2.replayAt = 0;
+      state3.replayMotion = tape.motion ? expandTapeMotion(tape) : null;
+      state3.replayAxes = tape.axes ? expandTapeAxes(tape) : null;
+      state3.replayMasks = expandTape(tape);
+      state3.replayAnalog = tape.analog ? expandTapeAnalog(tape) : null;
+      state3.replayRightAnalog = tape.rightAnalog ? expandTapeRightAnalog(tape) : null;
+      state3.replayTouch = tape.touch ? expandTapeTouch(tape) : null;
+      state3.replayTouchSurfaces = tape.touchSurfaces ? expandTapeTouchSurfaces(tape) : null;
+      state3.replayAt = 0;
     }
   };
 
@@ -19775,7 +19978,7 @@
     "absolute top-[2] font-mono text-xs leading-[14]": 14,
     "absolute left-0 top-[2] w-[512] text-center font-mono text-xs leading-[14]": 15,
     "absolute right-[8] top-[2] font-mono text-xs leading-[14]": 16,
-    "absolute left-0 top-0 w-[512] h-[358] contain-strict": 17,
+    "absolute left-0 top-0 w-[512] h-[350] contain-strict": 17,
     "absolute left-0 top-0 w-[360] h-[296] contain-strict": 18,
     "absolute left-[8] top-[25] w-[344] h-[1]": 19,
     "absolute left-[12] top-[6] font-mono text-sm leading-[16]": 20,
@@ -19836,56 +20039,56 @@
     "absolute left-0 top-0 rounded-sm": 75,
     "absolute left-0 w-[512] text-center text-lg leading-[24]": 76,
     "absolute left-0 w-[512] text-center font-mono text-xs leading-[14]": 77,
-    "absolute left-[12] top-[8] w-[440] h-[14] overflow-hidden font-mono text-xs leading-[14]": 78,
-    "absolute right-[14] top-[6] font-mono text-sm leading-[16]": 79,
-    "absolute left-0 w-[512]": 80,
-    "absolute left-[10] top-[7] h-[18] overflow-hidden font-mono text-sm leading-[18]": 81,
-    "absolute top-[7] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 82,
-    "absolute rounded-md": 83,
-    "absolute left-0 text-center font-mono text-base leading-[18]": 84,
-    "absolute overflow-hidden rounded-md": 85,
-    "absolute left-[2] top-[2] overflow-hidden rounded-sm": 86,
-    "absolute right-[12] top-[6] font-mono text-xs leading-[16]": 87,
-    "absolute left-0 top-0 h-[4]": 88,
-    "absolute left-[12] top-[24] w-[488] h-[348] rounded-md border-[1]": 89,
-    "absolute left-[12] top-[8] font-mono text-sm leading-[16]": 90,
-    "absolute right-[12] top-[9] font-mono text-xs leading-[14]": 91,
-    "absolute left-[12] top-[30] w-[464] h-[1]": 92,
-    "absolute bg-white": 93,
-    "absolute bg-black": 94,
-    "absolute left-[12] top-[60] font-mono text-xs leading-[14]": 95,
-    "absolute left-[12] h-[14] overflow-hidden font-mono text-xs leading-[14] text-center": 96,
-    "absolute left-0 top-0 w-[256] h-[256]": 97,
-    "absolute left-[256] top-0 w-[256] h-[256]": 98,
-    "absolute left-0 top-[256] w-[256] h-[128]": 99,
-    "absolute left-[256] top-[256] w-[256] h-[128]": 100,
-    "absolute left-0 text-center text-xl leading-[24]": 101,
-    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 102,
-    "absolute left-0 h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 103,
-    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 104,
-    "absolute overflow-hidden rounded-md contain-strict": 105,
-    "absolute left-[6] top-[1] h-[14] overflow-hidden font-mono text-xs leading-[14]": 106,
-    "absolute left-0 overflow-hidden contain-strict": 107,
-    "absolute top-0": 108,
-    "absolute top-0 font-mono text-xs": 109,
-    "absolute overflow-hidden": 110,
-    "absolute left-0 top-0 w-[20] h-[24]": 111,
-    "absolute left-[-3] top-[-2] text-xl leading-[24]": 112,
-    "absolute top-[2] h-[14] w-[12] rounded-sm": 113,
-    "absolute top-[2] text-right font-mono text-xs leading-[14]": 114,
-    "absolute h-[15] overflow-hidden font-mono text-xs leading-[15]": 115,
-    "absolute left-[12] top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]": 116,
-    "absolute left-[132] top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]": 117,
-    "absolute left-[132] top-[22] h-[14] overflow-hidden font-mono text-xs leading-[14]": 118,
-    "absolute left-[2] top-[2] overflow-hidden": 119,
-    "absolute left-0 text-center font-mono text-base leading-[20]": 120,
-    "absolute overflow-hidden rounded-sm": 121,
-    "absolute left-[3] top-[3] h-[20] rounded-sm": 122,
-    "absolute left-0 top-[2] text-center font-mono text-sm leading-[16]": 123,
-    "absolute top-[3] h-[20] rounded-sm": 124,
-    "absolute top-[4] w-[18] text-center font-mono text-sm leading-[16]": 125,
-    "absolute top-[5] h-[14] overflow-hidden font-mono text-xs leading-[14]": 126,
-    "absolute rounded-lg": 127,
+    "absolute rounded-md": 78,
+    "absolute left-0 text-center font-mono text-base leading-[18]": 79,
+    "absolute overflow-hidden rounded-md": 80,
+    "absolute left-[2] top-[2] overflow-hidden rounded-sm": 81,
+    "absolute right-[12] top-[6] font-mono text-xs leading-[16]": 82,
+    "absolute left-0 top-0 h-[4]": 83,
+    "absolute left-[12] top-[24] w-[488] h-[348] rounded-md border-[1]": 84,
+    "absolute left-[12] top-[8] font-mono text-sm leading-[16]": 85,
+    "absolute right-[12] top-[9] font-mono text-xs leading-[14]": 86,
+    "absolute left-[12] top-[30] w-[464] h-[1]": 87,
+    "absolute bg-white": 88,
+    "absolute bg-black": 89,
+    "absolute left-[12] top-[60] font-mono text-xs leading-[14]": 90,
+    "absolute left-[12] h-[14] overflow-hidden font-mono text-xs leading-[14] text-center": 91,
+    "absolute left-0 top-0 w-[256] h-[256]": 92,
+    "absolute left-[256] top-0 w-[256] h-[256]": 93,
+    "absolute left-0 top-[256] w-[256] h-[128]": 94,
+    "absolute left-[256] top-[256] w-[256] h-[128]": 95,
+    "absolute left-0 top-0 w-[20] h-[24]": 96,
+    "absolute left-[-3] top-[-2] text-xl leading-[24]": 97,
+    "absolute top-[2] h-[14] w-[12] rounded-sm": 98,
+    "absolute top-[2] text-right font-mono text-xs leading-[14]": 99,
+    "absolute left-0 text-center text-xl leading-[24]": 100,
+    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 101,
+    "absolute left-0 h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 102,
+    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 103,
+    "absolute overflow-hidden rounded-md contain-strict": 104,
+    "absolute left-[6] top-[1] h-[14] overflow-hidden font-mono text-xs leading-[14]": 105,
+    "absolute left-0 overflow-hidden contain-strict": 106,
+    "absolute top-0": 107,
+    "absolute top-0 font-mono text-xs": 108,
+    "absolute overflow-hidden": 109,
+    "absolute h-[15] overflow-hidden font-mono text-xs leading-[15]": 110,
+    "absolute left-[12] top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]": 111,
+    "absolute left-[132] top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]": 112,
+    "absolute left-[132] top-[22] h-[14] overflow-hidden font-mono text-xs leading-[14]": 113,
+    "absolute left-[2] top-[2] overflow-hidden": 114,
+    "absolute left-0 text-center font-mono text-base leading-[20]": 115,
+    "absolute overflow-hidden rounded-sm": 116,
+    "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]": 117,
+    "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 118,
+    "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 119,
+    "absolute left-0 top-0 w-[512]": 120,
+    "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]": 121,
+    "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 122,
+    "absolute rounded-lg": 123,
+    "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]": 124,
+    "absolute text-center text-lg leading-[24]": 125,
+    "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 126,
+    "absolute w-[44] h-[44] rounded-full": 127,
     "absolute left-0 top-0 w-[512] h-[384] overflow-hidden": 128
   };
 

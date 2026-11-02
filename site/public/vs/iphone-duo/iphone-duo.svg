@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1178 1646" role="img" aria-label="An iPhone Duo, open, drawn from its published dimensions">
+<defs><linearGradient id="edge" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#b9bbc0"/><stop offset=".5" stop-color="#7b7d83"/><stop offset="1" stop-color="#c8cacf"/></linearGradient>
+<linearGradient id="crease" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset=".5" stop-color="#000" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient></defs>
+<rect x="0.0" y="0.0" width="1178.0" height="1646.0" rx="92" fill="url(#edge)" />
+<rect x="5.0" y="5.0" width="1168.0" height="1636.0" rx="88" fill="#0b0b0d" />
+<clipPath id="screen"><rect x="26" y="26" width="1126" height="1594" rx="68"/></clipPath><g clip-path="url(#screen)">
+<rect x="26.0" y="26.0" width="1126.0" height="797.0" rx="0" fill="#f6f3ef" />
+<rect x="26.0" y="26.0" width="1126.0" height="84.0" rx="0" fill="#ffffff" />
+<rect x="76.0" y="60.0" width="60.0" height="22.0" rx="8" fill="#d8d3cc" />
+<rect x="326.0" y="52.0" width="526.0" height="38.0" rx="19" fill="#ece8e2" />
+<rect x="76.0" y="144.0" width="322.0" height="180.3" rx="16" fill="#e8b7a6" />
+<rect x="76.0" y="340.3" width="289.8" height="16.0" rx="6" fill="#3b3833" />
+<rect x="76.0" y="368.3" width="177.1" height="13.0" rx="6" fill="#a8a297" />
+<rect x="428.0" y="144.0" width="322.0" height="180.3" rx="16" fill="#b7c9e8" />
+<rect x="428.0" y="340.3" width="289.8" height="16.0" rx="6" fill="#3b3833" />
+<rect x="428.0" y="368.3" width="177.1" height="13.0" rx="6" fill="#a8a297" />
+<rect x="780.0" y="144.0" width="322.0" height="180.3" rx="16" fill="#c8e0bd" />
+<rect x="780.0" y="340.3" width="289.8" height="16.0" rx="6" fill="#3b3833" />
+<rect x="780.0" y="368.3" width="177.1" height="13.0" rx="6" fill="#a8a297" />
+<rect x="76.0" y="434.3" width="322.0" height="180.3" rx="16" fill="#e6d3a3" />
+<rect x="76.0" y="630.6" width="289.8" height="16.0" rx="6" fill="#3b3833" />
+<rect x="76.0" y="658.6" width="177.1" height="13.0" rx="6" fill="#a8a297" />
+<rect x="428.0" y="434.3" width="322.0" height="180.3" rx="16" fill="#d6bfe6" />
+<rect x="428.0" y="630.6" width="289.8" height="16.0" rx="6" fill="#3b3833" />
+<rect x="428.0" y="658.6" width="177.1" height="13.0" rx="6" fill="#a8a297" />
+<rect x="780.0" y="434.3" width="322.0" height="180.3" rx="16" fill="#a9d6d4" />
+<rect x="780.0" y="630.6" width="289.8" height="16.0" rx="6" fill="#3b3833" />
+<rect x="780.0" y="658.6" width="177.1" height="13.0" rx="6" fill="#a8a297" />
+<rect x="26.0" y="823.0" width="1126.0" height="823.0" rx="0" fill="#111114" />
+<rect x="48.0" y="849.0" width="173.7" height="46.0" rx="12" fill="#26262b" />
+<text x="134.8" y="879.0" font-size="21" fill="#d9d9de" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">esc</text>
+<rect x="229.7" y="849.0" width="173.7" height="46.0" rx="12" fill="#26262b" />
+<text x="316.5" y="879.0" font-size="21" fill="#d9d9de" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">‹ Back</text>
+<rect x="411.3" y="849.0" width="173.7" height="46.0" rx="12" fill="#26262b" />
+<text x="498.2" y="879.0" font-size="21" fill="#d9d9de" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">› Forward</text>
+<rect x="593.0" y="849.0" width="173.7" height="46.0" rx="12" fill="#26262b" />
+<text x="679.8" y="879.0" font-size="21" fill="#d9d9de" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">Reload</text>
+<rect x="774.7" y="849.0" width="173.7" height="46.0" rx="12" fill="#26262b" />
+<text x="861.5" y="879.0" font-size="21" fill="#d9d9de" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">New Tab</text>
+<rect x="956.3" y="849.0" width="173.7" height="46.0" rx="12" fill="#26262b" />
+<text x="1043.2" y="879.0" font-size="21" fill="#d9d9de" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">Address</text>
+<rect x="51.0" y="910.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="102.1" y="948.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">q</text>
+<rect x="159.2" y="910.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="210.3" y="948.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">w</text>
+<rect x="267.4" y="910.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="318.5" y="948.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">e</text>
+<rect x="375.6" y="910.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="426.7" y="948.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">r</text>
+<rect x="483.8" y="910.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="534.9" y="948.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">t</text>
+<rect x="592.0" y="910.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="643.1" y="948.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">y</text>
+<rect x="700.2" y="910.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="751.3" y="948.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">u</text>
+<rect x="808.4" y="910.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="859.5" y="948.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">i</text>
+<rect x="916.6" y="910.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="967.7" y="948.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">o</text>
+<rect x="1024.8" y="910.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="1075.9" y="948.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">p</text>
+<rect x="105.1" y="972.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="156.2" y="1010.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">a</text>
+<rect x="213.3" y="972.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="264.4" y="1010.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">s</text>
+<rect x="321.5" y="972.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="372.6" y="1010.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">d</text>
+<rect x="429.7" y="972.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="480.8" y="1010.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">f</text>
+<rect x="537.9" y="972.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="589.0" y="1010.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">g</text>
+<rect x="646.1" y="972.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="697.2" y="1010.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">h</text>
+<rect x="754.3" y="972.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="805.4" y="1010.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">j</text>
+<rect x="862.5" y="972.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="913.6" y="1010.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">k</text>
+<rect x="970.7" y="972.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="1021.8" y="1010.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">l</text>
+<rect x="51.0" y="1034.0" width="156.3" height="55.0" rx="10" fill="#2c2c32" />
+<text x="129.2" y="1072.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">⇧</text>
+<rect x="213.3" y="1034.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="264.4" y="1072.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">z</text>
+<rect x="321.5" y="1034.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="372.6" y="1072.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">x</text>
+<rect x="429.7" y="1034.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="480.8" y="1072.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">c</text>
+<rect x="537.9" y="1034.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="589.0" y="1072.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">v</text>
+<rect x="646.1" y="1034.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="697.2" y="1072.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">b</text>
+<rect x="754.3" y="1034.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="805.4" y="1072.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">n</text>
+<rect x="862.5" y="1034.0" width="102.2" height="55.0" rx="10" fill="#2c2c32" />
+<text x="913.6" y="1072.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">m</text>
+<rect x="970.7" y="1034.0" width="156.3" height="55.0" rx="10" fill="#2c2c32" />
+<text x="1048.9" y="1072.0" font-size="26" fill="#f2f2f4" text-anchor="middle" font-family="-apple-system,'SF Pro Text',Helvetica,Arial,sans-serif">⌫</text>
+<rect x="51.0" y="1096.0" width="210.4" height="55.0" rx="10" fill="#232328" />
+<rect x="267.4" y="1096.0" width="643.2" height="55.0" rx="10" fill="#2c2c32" />
+<rect x="916.6" y="1096.0" width="210.4" height="55.0" rx="10" fill="#232328" />
+<rect x="196.0" y="1169.0" width="786.0" height="429.0" rx="30" fill="#1b1b1f" />
+<circle cx="112" cy="1496" r="27" fill="#2a2a30"/>
+<circle cx="112" cy="1562" r="27" fill="#2a2a30"/>
+<circle cx="1066" cy="1203" r="27" fill="#2a2a30"/>
+<circle cx="1066" cy="1269" r="27" fill="#2a2a30"/>
+<rect x="26" y="816" width="1126" height="14" fill="url(#crease)"/>
+</g>
+</svg>

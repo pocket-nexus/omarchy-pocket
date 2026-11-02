@@ -381,8 +381,11 @@ export function createDevice(host, options = {}) {
   const resize = () => {
     const r = host.getBoundingClientRect();
     width = Math.max(1, r.width); height = Math.max(1, r.height);
+    // a resize clears the canvas: draw at once, or the page shows it empty for a frame
     renderer.setSize(width, height, false);
     applyPose();
+    dirty = false;
+    renderer.render(scene, camera);
   };
   const ro = new ResizeObserver(resize);
   ro.observe(host);
@@ -422,7 +425,24 @@ export function createDevice(host, options = {}) {
   // ---------- input ----------
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  const listeners = { press: [], release: [], panel: [], hover: [], touch: [] };
+  const listeners = { press: [], release: [], panel: [], hover: [], touch: [], bezel: [] };
+  // a finger on a small model misses small buttons: `slop` pixels of grace,
+  // for all but the D-pad, whose press needs to know which arm, and the
+  // shoulders, which are out of sight behind the hinge
+  const near = new THREE.Vector3();
+  const nearest = (ev) => {
+    const slop = options.slop ?? 0;
+    if (!slop) return null;
+    const r = canvas.getBoundingClientRect();
+    let best = null, bestAt = slop;
+    for (const [name, b] of buttons) {
+      if (name === "DPAD" || name === "STICK" || /^[LR][12]$/.test(name)) continue;
+      b.group.getWorldPosition(near).project(camera);
+      const at = Math.hypot((near.x * 0.5 + 0.5) * r.width - (ev.clientX - r.left), (-near.y * 0.5 + 0.5) * r.height - (ev.clientY - r.top));
+      if (at < bestAt) { bestAt = at; best = name; }
+    }
+    return best ? { btn: best, local: new THREE.Vector3() } : null;
+  };
   const pick = (ev) => {
     const r = canvas.getBoundingClientRect();
     ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
@@ -435,9 +455,9 @@ export function createDevice(host, options = {}) {
         return { btn: name, point: h.point, local };
       }
       if (h.object.userData.hit) return { panel: h.object.userData.hit, uv: h.uv, point: h.point };
-      if (h.object.material !== glass) return null;
+      if (h.object.material !== glass) return nearest(ev);
     }
-    return null;
+    return nearest(ev);
   };
   // where a pointer meets the deck's plane, clamped to the panel: a finger that
   // slides off the glass stays a contact at the edge
@@ -468,6 +488,7 @@ export function createDevice(host, options = {}) {
       ev.preventDefault();
       return;
     }
+    if (!hit) listeners.bezel.forEach((f) => f());
     if (hit?.panel) listeners.panel.forEach((f) => f(hit.panel, hit.uv));
     if (deckTouch && hit?.panel === "deck") {
       touching.add(ev.pointerId);

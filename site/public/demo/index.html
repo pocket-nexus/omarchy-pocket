@@ -61,11 +61,10 @@ select option{background:#1a1030}
 .say{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:3;max-width:min(92vw,470px);padding:7px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font:400 12.5px/1.35 var(--mono);color:var(--ink-2);opacity:0;transition:opacity .2s;pointer-events:none;text-align:center;backdrop-filter:blur(10px)}
 .say.on{opacity:1}
 .chip{position:fixed;left:0;top:0;z-index:2;width:42px;height:29px;padding:0;border-radius:8px;background:rgba(22,20,30,.92);color:#fff;border:1px solid rgba(255,255,255,.28);font:600 12px/1 var(--mono);cursor:pointer;touch-action:none;box-shadow:0 3px 10px rgba(0,0,0,.5);will-change:transform}
-.on.chip,.pad button.on,.abxy button.on,.mini button.on{background:var(--gold);color:#2a1229;border-color:var(--gold)}
+.on.chip{background:var(--gold);color:#2a1229;border-color:var(--gold)}
 .side{transition:opacity .25s}
 body.close .side{opacity:0;pointer-events:none}
 .sheetbtn{display:none}
-.gamepad{display:none}
 
 @media (max-width:1180px){
   .side{display:none;position:fixed;left:10px!important;right:10px!important;top:54px;bottom:10px;width:auto;transform:none;max-height:none;padding:16px;border-radius:16px;background:rgba(16,9,30,.95);border:1px solid var(--line);z-index:6}
@@ -75,25 +74,16 @@ body.close .side{opacity:0;pointer-events:none}
   .sheetbtn{display:flex;position:fixed;right:10px;top:10px;z-index:7;gap:6px}
   .sheetbtn a,.sheetbtn button{height:36px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 13.5px/34px var(--grot);text-decoration:none;cursor:pointer;backdrop-filter:blur(10px)}
 }
-@media (max-width:760px){
-  .gamepad{display:grid;position:fixed;left:0;right:0;bottom:0;z-index:4;grid-template-columns:auto 1fr auto;align-items:end;padding:6px 12px calc(44px + env(safe-area-inset-bottom));gap:4px;pointer-events:none}
-  .gamepad>*{pointer-events:auto}
-  .pad{position:relative;width:112px;height:112px}
-  .pad button{position:absolute;background:#17181c;border:1px solid #33363f;color:var(--muted);padding:0;touch-action:none;font:500 13px/1 var(--mono)}
-  .pad .u,.pad .d{left:33%;width:34%;height:37%}.pad .u{top:0;border-radius:6px 6px 0 0}.pad .d{bottom:0;border-radius:0 0 6px 6px}
-  .pad .le,.pad .ri{top:33%;height:34%;width:37%}.pad .le{left:0;border-radius:6px 0 0 6px}.pad .ri{right:0;border-radius:0 6px 6px 0}
-  .abxy{position:relative;width:112px;height:112px}
-  .abxy button{position:absolute;width:38%;height:38%;border-radius:50%;background:#17181c;color:#dfe2ea;border:1px solid #33363f;font:500 14px/1 var(--grot);padding:0;touch-action:none}
-  .abxy .x{left:31%;top:0}.abxy .b{left:31%;bottom:0}.abxy .y{left:0;top:31%}.abxy .a{right:0;top:31%}
-  .mini{display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:6px}
-  .mini div{display:flex;gap:4px}
-  .mini button{height:28px;padding:0 9px;border-radius:999px;background:#2a2c33;color:#e6e8ee;border:1px solid #454852;font:500 10.5px/1 var(--mono);touch-action:none}
-  .chip{display:none}
-  .sheetbtn{left:10px;right:10px;top:auto;bottom:calc(10px + env(safe-area-inset-bottom));justify-content:space-between;pointer-events:none}
-  .sheetbtn a,.sheetbtn button{pointer-events:auto;height:33px;line-height:31px;font-size:12.5px;padding:0 11px}
-  .views button{padding:6px 8px}
-  body.sheet .side.l{top:10px}
-  body.sheet .side.r{bottom:52px;height:calc(58dvh - 62px)}
+/* A phone: the whole device and nothing over it. Its buttons are pressed on the
+   model. The shoulders are behind the hinge, out of a finger's reach from the
+   front, so their four keys sit on the hinge's face, L2 L1 at one end, R1 R2 at
+   the other. Holding one tips the device back. A double tap on the bezel moves
+   in on the bottom screen for typing and back. */
+@media (max-width:760px),(max-height:500px){
+  .side,.sheetbtn,.views{display:none!important}
+  .chip{width:40px;height:22px;border-radius:6px;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.17);color:#d5d7e0;font:500 10.5px/1 var(--mono);box-shadow:none}
+  body.zoomed .chip{display:none}
+  .say{top:calc(10px + env(safe-area-inset-top))}
 }
 .no3d #view{display:none}
 .no3d #stage,.no3d #deck{display:block;width:min(92vw,62vh);margin:6px auto 0;border-radius:6px}
@@ -112,8 +102,8 @@ body.close .side{opacity:0;pointer-events:none}
 <aside class="side l">
   <a class="back" href="/">← Omarchy Pocket</a>
   <h1>The real shell, <em>in your browser.</em></h1>
-  <p>This is the same bundle the RG DS Plus runs, on PocketJS's core compiled to WebAssembly. The top screen is the monitor, the bottom screen is the keyboard, the gamepad is SUPER.</p>
-  <p>The daemon under it is a stand-in: the terminal is a small script, the panels show sample data, and applets that need a network run on the device.</p>
+  <p>This is the same bundle the RG DS Plus runs, on <a href="https://pocketjs.dev/">PocketJS</a>'s core compiled to WebAssembly. The top screen is the monitor, the bottom screen is the keyboard, the gamepad is SUPER.</p>
+  <p>The daemon under it is a stand-in: the terminal is a small script, the panels show sample data, and <a href="https://oma.pocket.nexus/">applets</a> and voice input run on the device.</p>
   <h2>On a keyboard</h2>
   <table>
     <tr><td>Option</td><td>hold for L1</td></tr>
@@ -143,18 +133,12 @@ body.close .side{opacity:0;pointer-events:none}
   <select id="theme" aria-label="Omarchy theme"></select>
   <h2>The real thing</h2>
   <a class="btn" href="https://anbernic.com/products/rg-ds-plus?sca_ref=12680456.0FG7ivC2oS" rel="sponsored noopener" target="_blank">Get an RG DS Plus ↗</a><a class="btn alt" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a>
-  <p class="tiny">The RG DS Plus link is an affiliate link: a purchase through it supports this project.</p>
 </aside>
 
 <div class="views" id="views" role="group" aria-label="Camera">
   <button data-view="both" aria-pressed="true">Both</button><button data-view="top" aria-pressed="false">Top</button><button data-view="bottom" aria-pressed="false">Bottom</button>
 </div>
 
-<div class="gamepad" aria-label="Gamepad">
-  <div class="pad"><button class="u" data-b="UP" aria-label="Up"></button><button class="d" data-b="DOWN" aria-label="Down"></button><button class="le" data-b="LEFT" aria-label="Left"></button><button class="ri" data-b="RIGHT" aria-label="Right"></button></div>
-  <div class="mini"><div><button data-b="L2">L2</button><button data-b="L1">L1</button><button data-b="R1">R1</button><button data-b="R2">R2</button></div><div><button data-b="START">START</button><button data-b="SELECT">SELECT</button></div></div>
-  <div class="abxy"><button class="x" data-b="X">X</button><button class="b" data-b="B">B</button><button class="y" data-b="Y">Y</button><button class="a" data-b="A">A</button></div>
-</div>
 
 <script type="module">
 import { createDevice } from "/kit/rgds.js";
@@ -162,10 +146,10 @@ import { boot } from "./host.js";
 
 const recording = location.search.includes("record");
 const stage = document.getElementById("stage"), deck = document.getElementById("deck"), loading = document.getElementById("loading"), view = document.getElementById("view");
-const phone = () => innerWidth <= 760;
+const phone = () => innerWidth <= 760 || innerHeight <= 500;
 
 const device = recording ? null : createDevice(view, {
-  color: "black", deckTouch: true, drag: true, springBack: true, margin: .97, fov: 19, tilt: 1.6, glassLevel: .04,
+  color: "black", deckTouch: true, drag: !phone(), springBack: true, margin: .97, fov: 19, tilt: phone() ? 0 : 1.6, glassLevel: .04, slop: phone() ? 20 : 0,
   env: { sky: 0x352448, floor: 0x1a0a1c, key: 0x6e6468, fill: 0xb28cff, accent: 0xff6f91, strength: 1.25, front: 1.05 },
 });
 if (!device && !recording) document.body.classList.add("no3d");
@@ -174,9 +158,9 @@ if (!device && !recording) document.body.classList.add("no3d");
 // Top and Bottom bring one panel square to the camera.
 const LID = 166;
 const VIEWS = {
-  both: () => (phone() ? { pitch: -2, yaw: 0, lid: 176, zoom: 1.84, cy: 0, cz: 0, oy: -.1 } : { pitch: -7, yaw: 0, lid: LID, zoom: 1, cy: 0, cz: 0, oy: 0 }),
-  top: () => (phone() ? { pitch: -3, yaw: 0, lid: 176, zoom: 2.05, cy: 47, cz: 7, oy: -.14 } : { pitch: -14, yaw: 0, lid: LID, zoom: 2.14, cy: 45, cz: 16, oy: 0 }),
-  bottom: () => (phone() ? { pitch: 0, yaw: 0, lid: 176, zoom: 2.05, cy: -45, cz: -5, oy: -.14 } : { pitch: 0, yaw: 0, lid: LID, zoom: 2.14, cy: -45, cz: -5, oy: 0 }),
+  both: () => (phone() ? { pitch: 0, yaw: 0, lid: 180, zoom: 1.05, cy: 0, cz: 0, oy: 0 } : { pitch: -7, yaw: 0, lid: LID, zoom: 1, cy: 0, cz: 0, oy: 0 }),
+  top: () => ({ pitch: -14, yaw: 0, lid: LID, zoom: 2.14, cy: 45, cz: 16, oy: 0 }),
+  bottom: () => (phone() ? { pitch: 0, yaw: 0, lid: 180, zoom: innerWidth > innerHeight ? 2.7 : 1.97, cy: -45, cz: -5, oy: 0 } : { pitch: 0, yaw: 0, lid: LID, zoom: 2.14, cy: -45, cz: -5, oy: 0 }),
 };
 let viewNow = "both";
 const applyView = (ms = 700) => device?.pose(VIEWS[viewNow](), { ms });
@@ -210,10 +194,9 @@ const tell = (text) => { say.textContent = text; say.classList.add("on"); clearT
 const DPAD = new Set(["UP", "DOWN", "LEFT", "RIGHT"]);
 const SHOULDER = new Set(["L1", "R1", "L2", "R2"]);
 
-// the DOM's chips and gamepad, one list per button
+// the DOM's chips, one list per button
 const controls = {};
 const addControl = (el, name) => (controls[name] ??= []).push(el);
-for (const el of document.querySelectorAll(".gamepad [data-b]")) addControl(el, el.dataset.b);
 const chips = ["L2", "L1", "R1", "R2"].map((name) => {
   const b = document.createElement("button");
   b.className = "chip"; b.textContent = name; b.dataset.b = name; b.setAttribute("aria-label", `Hold ${name}`);
@@ -223,6 +206,16 @@ const chips = ["L2", "L1", "R1", "R2"].map((name) => {
 });
 const placeChips = () => {
   if (!device) return;
+  if (phone()) {
+    // on the hinge's face, at the ends of the device
+    const y = device.anchor("hinge").y;
+    for (const b of chips) {
+      const name = b.dataset.b, p = device.anchor(name[0] === "L" ? "L1" : "R1");
+      const out = name === "L2" ? -22 : name === "L1" ? 22 : name === "R1" ? -22 : 22;
+      b.style.transform = `translate(${p.x + out - 20}px,${y - 11}px)`;
+    }
+    return;
+  }
   for (const b of chips) {
     const p = device.anchor(b.dataset.b);
     const out = b.dataset.b === "L2" ? -44 : b.dataset.b === "R2" ? 44 : 0;
@@ -231,10 +224,16 @@ const placeChips = () => {
 };
 if (device) { device.on("frame", placeChips); placeChips(); } else chips.forEach((c) => (c.style.display = "none"));
 
+const heldShoulders = new Set();
 function set(name, down) {
   sim.press(BTN[name], down);
   for (const el of controls[name] ?? []) el.classList.toggle("on", down);
   if (!device) return;
+  // on a phone a shoulder is out of sight: holding one tips the device back on its hinge
+  if (SHOULDER.has(name) && phone() && viewNow === "both") {
+    if (down) heldShoulders.add(name); else heldShoulders.delete(name);
+    device.pose({ pitch: heldShoulders.size ? -7 : 0 }, { ms: 140 });
+  }
   if (DPAD.has(name)) { device.press("DPAD", down); device.dpad(down ? name : null); }
   else device.press(name, down);
 }
@@ -283,7 +282,25 @@ if (device) {
     if (phase === "down") ids.set(pointer, nextId++ % 200);
     sim.touch(ids.get(pointer), Math.min(511, uv.x * 512), Math.min(383, (1 - uv.y) * 384));
   });
-  device.on("panel", (panel) => { if (panel === "stage") tell("The top screen takes no touch: it is the monitor. Use the bottom screen and the buttons."); });
+  // a phone: a double tap on the bezel moves in on the bottom screen, and back
+  let bezelAt = 0;
+  const bezelTap = () => {
+    if (!phone()) return;
+    const now = performance.now();
+    if (now - bezelAt < 340) {
+      viewNow = viewNow === "both" ? "bottom" : "both";
+      document.body.classList.toggle("zoomed", viewNow !== "both");
+      applyView(420);
+      bezelAt = 0;
+    } else bezelAt = now;
+  };
+  device.on("bezel", bezelTap);
+  device.on("panel", (panel) => {
+    if (panel !== "stage") return;
+    // moved in, the top screen's edge is part of what is around the bottom one
+    if (phone() && viewNow !== "both") return bezelTap();
+    tell("The top screen takes no touch: it is the monitor. Use the bottom screen and the buttons.");
+  });
 } else if (!recording) {
   const place = (e) => { const r = deck.getBoundingClientRect(); return [Math.max(0, Math.min(511, ((e.clientX - r.left) / r.width) * 512)), Math.max(0, Math.min(383, ((e.clientY - r.top) / r.height) * 384))]; };
   deck.style.touchAction = "none";
@@ -350,7 +367,7 @@ const pick = document.getElementById("theme");
 pick.innerHTML = Object.entries(themes).map(([slug, t]) => `<option value="${slug}"${slug === "tokyo-night" ? " selected" : ""}>${t.name}</option>`).join("");
 pick.addEventListener("change", () => { sim.daemon.setTheme(pick.value); pick.blur(); });
 
-if (!recording) { await wait(900); open("terminal"); tell("Press the buttons on the model, touch the bottom screen, or use your keyboard."); }
+if (!recording) { await wait(900); open("terminal"); tell(phone() ? "Press the buttons on the model. L and R are on the hinge. Double-tap the bezel to move in on the keyboard." : "Press the buttons on the model, touch the bottom screen, or use your keyboard."); }
 </script>
 </body>
 </html>

@@ -324,6 +324,7 @@ export function createDaemon({ emit, themes, wallBase, screensaver, onStorage })
       const r = JSON.parse(line);
       try {
         const handler = handlers[r.method];
+        if (r.method === "voiceStart") throw new Error("Voice input runs on the device");
         if (!handler) throw new Error(`${r.method} is not in this demo`);
         const result = await handler(r);
         emit({ id: r.id, ok: true, result: result ?? null });
