@@ -145,3 +145,16 @@ test("an app from the store cannot name reserved ids or the services that act as
   expect(x.body.error).toContain("x");
   expect((await publish(key, manifest("io.github.faker.c"), { author: "faker", side: 64 })).status).toBe(400);
 });
+
+test("the website's routes answer listed versions only", async () => {
+  const all = (await (await fetch(`${BASE}/v1/apps`)).json()) as { apps: { id: string }[] };
+  expect(all.apps.length).toBeGreaterThan(0);
+  const id = all.apps[0]!.id;
+  const history = (await (await fetch(`${BASE}/v1/apps/${id}/versions`)).json()) as { versions: { id: string; version: string }[] };
+  expect(history.versions.every((v) => v.id === id)).toBe(true);
+  const pending = await (await fetch(`${BASE}/v1/admin/pending`, { headers: { authorization: `Bearer ${ADMIN}` } })).json() as { versions: { id: string; version: string }[] };
+  for (const waiting of pending.versions) {
+    expect(all.apps.some((a) => a.id === waiting.id && (a as { version?: string }).version === waiting.version)).toBe(false);
+  }
+  expect((await fetch(`${BASE}/v1/apps/no.such.app/versions`)).status).toBe(404);
+});

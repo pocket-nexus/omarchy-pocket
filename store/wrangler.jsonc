@@ -1,11 +1,11 @@
 {
   // oma.pocket.nexus: the store of Omarchy Pocket's applets. /v1/* is this
-  // Worker (src/index.ts); every other path is a static file from site/, where
-  // the landing page goes.
+  // Worker (src/index.ts); every other path is the website in site/, a page that
+  // draws what those routes answer.
   "name": "omarchy-pocket-store",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
-  "assets": { "directory": "./site", "binding": "ASSETS", "run_worker_first": ["/v1/*"] },
+  "assets": { "directory": "./site", "binding": "ASSETS", "run_worker_first": ["/v1/*"], "not_found_handling": "single-page-application" },
   "routes": [{ "pattern": "oma.pocket.nexus", "custom_domain": true }],
   "d1_databases": [{ "binding": "DB", "database_name": "omarchy-pocket-store", "database_id": "4e0510f7-12a8-4cba-9836-e062e006f543", "migrations_dir": "migrations" }],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "omarchy-pocket-store" }],

@@ -1,7 +1,9 @@
 // The store behind oma.pocket.nexus.
 //
 //   GET  /v1/catalog?profile=<hex>   the newest listed version of every app built for that profile
+//   GET  /v1/apps                    the newest listed version of every app, for the website
 //   GET  /v1/apps/<id>               one app's newest listed version
+//   GET  /v1/apps/<id>/versions      every listed version of one app, newest first
 //   GET  /v1/packages/<sha256>       a listed version's package
 //   GET  /v1/icons/<sha256>          a listed version's 128 px PNG
 //   POST /v1/publish                 form: package, icon, key, signature, author, summary
@@ -65,6 +67,21 @@ async function catalog(env: Env, url: URL): Promise<Response> {
      WHERE v.state = 'listed' AND v.profile = ?1 ORDER BY v.title COLLATE NOCASE`,
   ).bind(profile).all<VersionRow>();
   return json({ apps: results.map((row) => entry(row, env.OFFICIAL_KEY)) }, 200, { "cache-control": "public, max-age=60" });
+}
+
+async function everyApp(env: Env): Promise<Response> {
+  const { results } = await env.DB.prepare(
+    `SELECT v.* FROM versions v
+     JOIN (SELECT id, MAX(sort) AS top FROM versions WHERE state = 'listed' GROUP BY id) t ON t.id = v.id AND t.top = v.sort
+     ORDER BY v.title COLLATE NOCASE`,
+  ).all<VersionRow>();
+  return json({ apps: results.map((row) => entry(row, env.OFFICIAL_KEY)) }, 200, { "cache-control": "public, max-age=60" });
+}
+
+async function versionsOf(env: Env, id: string): Promise<Response> {
+  const { results } = await env.DB.prepare("SELECT * FROM versions WHERE id = ?1 AND state = 'listed' ORDER BY sort DESC").bind(id).all<VersionRow>();
+  if (!results.length) return refuse(404, "no listed app with that id");
+  return json({ versions: results.map((row) => entry(row, env.OFFICIAL_KEY)) }, 200, { "cache-control": "public, max-age=60" });
 }
 
 async function app(env: Env, id: string): Promise<Response> {
@@ -215,6 +232,9 @@ export default {
       if (path === "/v1/publish" && request.method === "POST") return await publish(request, env);
       if (request.method !== "GET" && request.method !== "HEAD") return refuse(405, "this route only reads");
       if (path === "/v1/catalog") return await catalog(env, url);
+      if (path === "/v1/apps") return await everyApp(env);
+      const history = /^\/v1\/apps\/([^/]+)\/versions$/.exec(path);
+      if (history) return await versionsOf(env, history[1]!);
       const named = /^\/v1\/(apps|packages|icons)\/([^/]+)$/.exec(path);
       if (named) {
         const [, kind, name] = named;

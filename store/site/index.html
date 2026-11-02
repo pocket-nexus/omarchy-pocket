@@ -1,7 +1,40 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Omarchy Pocket applets</title>
-<style>body{font:16px/1.5 system-ui,sans-serif;max-width:36rem;margin:15vh auto;padding:0 1rem}</style>
-<h1>Omarchy Pocket applets</h1>
-<p>The store of Omarchy Pocket's applets. Open <strong>Store</strong> on the device to browse it.</p>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Applets · Omarchy Pocket</title>
+<meta name="description" content="The applet store of Omarchy Pocket: small signed PocketJS apps for the RG DS Plus. See what each one reaches before you install it, and publish your own.">
+<link rel="canonical" href="https://oma.pocket.nexus/">
+<meta name="theme-color" content="#180c30">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Omarchy Pocket">
+<meta property="og:title" content="Applets for Omarchy Pocket">
+<meta property="og:description" content="Small signed PocketJS apps for the RG DS Plus. See what each one reaches before you install it.">
+<meta property="og:url" content="https://oma.pocket.nexus/">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="/store.css">
+</head>
+<body>
+<header class="bar">
+  <a class="logo" href="/"><i></i>Omarchy Pocket <span>Applets</span></a>
+  <nav>
+    <a href="/" data-nav="apps">Applets</a>
+    <a href="/make" data-nav="make">Make one</a>
+    <a href="https://omapocket.org/">The shell</a>
+    <a class="ghost" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a>
+  </nav>
+</header>
+<main id="main"></main>
+<footer>
+  <span>Omarchy Pocket's applets are built with <a href="https://pocketjs.dev/">PocketJS</a>.</span>
+  <span><a href="https://omapocket.org/">omapocket.org</a> · <a href="https://omapocket.org/demo/">Live demo</a> · <a href="/v1/apps">JSON</a></span>
+</footer>
+<script type="module" src="/store.js"></script>
+</body>
+</html>

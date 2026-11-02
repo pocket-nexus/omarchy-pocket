@@ -29,7 +29,9 @@ An applet is a PocketJS package in a window of the shell. The toolchain to make 
 | Route | Answer |
 |---|---|
 | `GET /v1/catalog?profile=<hex>` | the newest listed version of each app built for that device profile |
+| `GET /v1/apps` | the newest listed version of every app, for the website |
 | `GET /v1/apps/<id>` | one app's newest listed version |
+| `GET /v1/apps/<id>/versions` | every listed version of one app, newest first |
 | `GET /v1/packages/<sha256>`, `/v1/icons/<sha256>` | a listed version's files, immutable |
 | `POST /v1/publish` | a signed package, icon, author and summary |
 | `/v1/admin/*` | an editor's: pending, review, files |
