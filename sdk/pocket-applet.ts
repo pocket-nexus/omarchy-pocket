@@ -15,7 +15,9 @@
 //   pocket-applet scroll <x> <y> <dy>   two fingers at that place, dy px up
 //   pocket-applet key <name>        Enter, Backspace (back), Up, ... to the focused window
 //   pocket-applet type <text>       text to the focused window
-//   pocket-applet publish <name> [--author handle]   sign it and send it to the store
+//   pocket-applet mock <name>       pack its sample data (mock/mock.json): what the store's page runs it on
+//   pocket-applet web <name> [--port 4310]   it in a browser on its sample data, as the store's page runs it
+//   pocket-applet publish <name> [--author handle]   sign it and send it to the store, with its sample data
 import { generateKeyPairSync, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -23,6 +25,8 @@ import { basename, join, resolve } from "node:path";
 import { bakeSvg } from "../vendor/pocketjs/framework/compiler/bake-svg.ts";
 import { encodePNG } from "../vendor/pocketjs/tools/png.ts";
 import { checkApplet, printFindings } from "./check.ts";
+import { packMock } from "./mock.ts";
+import { servePlayer } from "../store/play/serve.ts";
 import { base64url, HANDLE, ICON_SIDE, packageFacts, sha256, signedMessage, SUMMARY_MAX } from "../store/src/shared.ts";
 
 const SDK = resolve(import.meta.dir, "..");
@@ -246,6 +250,9 @@ async function publish(name: string) {
   form.set("signature", base64url(new Uint8Array(sign(null, signedMessage(fields), key))));
   form.set("author", handle!);
   form.set("summary", summary);
+  const sample = sampleData(name);
+  if (sample) form.set("mock", new File([sample.bytes], "mock.json"));
+  else console.log(`${name} has no sample data (mock/mock.json): the store's page cannot run it in a browser`);
   const response = await fetch(`${STORE}/v1/publish`, { method: "POST", body: form });
   const body = (await response.json()) as { error?: string; state?: string; version?: string };
   if (!response.ok) fail(`the store refused it: ${body.error}`);
@@ -253,6 +260,13 @@ async function publish(name: string) {
   console.log(body.state === "listed"
     ? `${manifest.id} ${body.version} is in the store.`
     : `${manifest.id} ${body.version} is with the store's editors. It appears in Store once they list it.`);
+}
+
+/** The applet's sample data packed, or null; stops on data that cannot be packed. */
+function sampleData(name: string) {
+  const packed = packMock(dirOf(name));
+  if (Array.isArray(packed)) fail(`mock/mock.json: ${packed.join("; ")}`);
+  return packed as Exclude<typeof packed, string[]>;
 }
 
 /** Ask what to make, then hand it to the coding agent in a new applet's directory. */
@@ -327,6 +341,21 @@ switch (argv[0]) {
   case "type":
     input("type", argv.slice(1).join(" "));
     break;
+  case "mock": {
+    const sample = sampleData(name ?? fail("usage: pocket-applet mock <name>"));
+    if (!sample) fail(`${name} has no mock/mock.json`);
+    const data = sample!.data;
+    console.log(`${name}: ${data.routes.length} route${data.routes.length === 1 ? "" : "s"}, ${Object.keys(data.store ?? {}).length} store document(s), ${data.images?.length ?? 0} picture(s), ${(sample!.bytes.byteLength / 1024).toFixed(0)} KiB packed`);
+    break;
+  }
+  case "web": {
+    const built = await compile(name ?? fail("usage: pocket-applet web <name> [--port 4310]"));
+    const port = Number(option("--port") ?? 4310);
+    servePlayer({ package: built, applet: dirOf(name!), port, hostname: "0.0.0.0" });
+    console.log(`open http://<this device>:${port}/ in a browser: ${name} on its sample data. Each request it makes shows under the surface.`);
+    await new Promise(() => {});
+    break;
+  }
   case "publish":
     await publish(name ?? fail("usage: pocket-applet publish <name> [--author handle]"));
     break;

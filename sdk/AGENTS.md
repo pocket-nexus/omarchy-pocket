@@ -28,6 +28,14 @@ Write the list of pages at the top of `app.tsx` before the code, with what each 
 - **Never send anything to a real service while testing:** no comments, posts, merges or other writes unless the owner asks for that one. Read-only requests are fine. Keep a sign-in token out of the code; ask for it with `app.compose({ secret: true })` and keep it in the store service.
 - Only `pocket-applet publish <name>` sends the app out, and only the owner decides that. Do not run it unless asked.
 
+## Sample data
+
+The store's page runs an app in a browser on **sample data** in `mock/mock.json`: what the store service holds (`store`), the answers to its requests (`routes`, each a URL with `*` wildcards and a `file`, `json` or `text` body), and pictures for `avatar:` cells (`images`). `sdk/mock.ts` has the format; `../examples/weather/mock` and `../examples/hn/mock` are complete.
+
+- Use public data or data you made up. **Never put the owner's own data, a token or anything from a signed-in account in it**: it is published with the app.
+- `pocket-applet web <name>` serves the app on its sample data to a browser on the network, and lists each request with what answered it. A request marked "no sample data" needs a route.
+- `pocket-applet mock <name>` says what the sample data holds; `pocket-applet check` refuses sample data it cannot pack.
+
 ## Before saying it is done
 
 Go through this for **every page**, with a shot of each, and fix what fails:
@@ -42,5 +50,6 @@ Go through this for **every page**, with a shot of each, and fix what fails:
 - [ ] Loading, empty and failed each show something a person can read and act on. Turn the failure on by pointing the request at a bad path once, look, and put it back.
 - [ ] Back returns to where you were, at the same scroll position.
 - [ ] The summary and the icon say what the app is.
+- [ ] `mock/mock.json` answers every request the first pages make: `pocket-applet web <name>` lists none as "no sample data".
 
 Say in your last message which pages you looked at and what you could not check.

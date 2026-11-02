@@ -7,18 +7,34 @@
 //   bun store/admin.ts list <id> <version>           puts it in the store
 //   bun store/admin.ts reject <id> <version>
 //   bun store/admin.ts remove <id> <version>         takes a listed version down
-//   bun store/admin.ts publish <package.pocket> <icon.png> [summary]   as Pocket Nexus: listed at once
+//   bun store/admin.ts publish <package.pocket> <icon.png> [summary] [--mock <applet dir>]   as Pocket Nexus: listed at once
+//   bun store/admin.ts mock <id> <version> <applet dir>   gives a version its applet's sample data (mock/), for the website
+//   bun store/admin.ts mock <id> <version> --none         takes it away
+//   bun store/admin.ts backfill                     every version's target read again from its package
 import { createPrivateKey, sign } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { base64url, packageFacts, sha256, signedMessage } from "./src/shared.ts";
+import { packMock } from "../sdk/mock.ts";
 
 const STORE = process.env.OMARCHY_POCKET_STORE ?? "https://oma.pocket.nexus";
 const CONFIG = join(homedir(), ".config", "omarchy-pocket-store");
 const token = () => readFileSync(join(CONFIG, "admin-token"), "utf8").trim();
 const admin = (path: string, init: RequestInit = {}) => fetch(`${STORE}${path}`, { ...init, headers: { ...init.headers, authorization: `Bearer ${token()}` } });
-const [command, ...args] = process.argv.slice(2);
+const [command, ...rest] = process.argv.slice(2);
+const flag = (name: string) => {
+  const at = rest.indexOf(name);
+  return at >= 0 ? rest[at + 1] : undefined;
+};
+const args = rest.filter((arg, i) => !arg.startsWith("--") && !rest[i - 1]?.startsWith("--mock"));
+
+/** An applet directory's sample data, packed, or null when it has none. */
+function sampleData(dir: string): Uint8Array | null {
+  const packed = packMock(dir);
+  if (Array.isArray(packed)) throw new Error(`${dir}/mock: ${packed.join("; ")}`);
+  return packed?.bytes ?? null;
+}
 
 interface Pending { id: string; version: string; title: string; author: string; summary: string; hosts: string[]; services: string[]; bytes: number; package: string; icon: string }
 
@@ -54,8 +70,22 @@ async function publish() {
   form.set("signature", base64url(new Uint8Array(sign(null, message, key))));
   form.set("author", author);
   form.set("summary", summary);
+  const mockDir = flag("--mock");
+  const mock = mockDir ? sampleData(mockDir) : null;
+  if (mock) form.set("mock", new File([mock], "mock.json"));
   const response = await fetch(`${STORE}/v1/publish`, { method: "POST", body: form });
   console.log(facts.id, facts.version, response.status, await response.text());
+  if (!response.ok) process.exitCode = 1;
+}
+
+async function mock() {
+  const [id, version, dir] = args;
+  if (!id || !version || (!dir && !rest.includes("--none"))) throw new Error("usage: mock <id> <version> <applet dir> | --none");
+  const bytes = dir ? sampleData(dir) : null;
+  if (dir && !bytes) throw new Error(`${dir} has no mock/mock.json`);
+  const body = JSON.stringify({ id, version, mock: bytes ? JSON.parse(new TextDecoder().decode(bytes)) : null });
+  const response = await admin("/v1/admin/mock", { method: "POST", headers: { "content-type": "application/json" }, body });
+  console.log(id, version, response.status, await response.text());
   if (!response.ok) process.exitCode = 1;
 }
 
@@ -89,7 +119,15 @@ switch (command) {
   case "publish":
     await publish();
     break;
+  case "mock":
+    await mock();
+    break;
+  case "backfill": {
+    const response = await admin("/v1/admin/backfill", { method: "POST" });
+    console.log(response.status, await response.text());
+    break;
+  }
   default:
-    console.log(readFileSync(import.meta.path, "utf8").split("\n").slice(1, 10).map((line) => line.slice(3)).join("\n"));
+    console.log(readFileSync(import.meta.path, "utf8").split("\n").slice(1, 13).map((line) => line.slice(3)).join("\n"));
     process.exit(command ? 1 : 0);
 }

@@ -1,6 +1,10 @@
 // The store's website: three pages drawn from /v1/apps. An app's title, summary
 // and author come from whoever published it, so every value goes in as a text
-// node, never as markup.
+// node, never as markup. An app's page also reads its package's manifest
+// (/v1/manifests) for what it asks of a device, and runs a version that has
+// sample data in a sandboxed frame (/play/, store/play/player.ts): the frame
+// has no origin and no network, and this page posts it the package, the
+// sample data and PocketJS's core.
 const main = document.getElementById("main");
 
 function h(tag, props = {}, ...children) {
@@ -35,9 +39,30 @@ const SERVICES = {
   weather: "fetches the forecast",
   hn: "fetches Hacker News",
 };
+/** What each capability an applet may declare lets it do (PocketJS contracts/spec/applet.ts). */
+const CAPABILITIES = {
+  "text.glyphs.baked": "draws text from glyphs baked into the package",
+  "text.glyphs.runtime": "draws characters it did not bake, from the device's fonts",
+  "input.buttons": "the gamepad's buttons",
+  "input.analog.left": "the left stick",
+  "input.text": "a keyboard's typing",
+  "display.auxiliary": "the bottom screen",
+  "input.touch.auxiliary": "touch on the bottom screen",
+  "net.http": "HTTP requests, made by the device on its behalf",
+  "ui.physics": "the core's 2D physics",
+  "audio.pcm": "sound it makes itself",
+  "media.playback": "audio and video streams",
+  "data.fs": "files of its own",
+  "system.agent": "the device's coding agent can operate it",
+};
+const capability = (id) => CAPABILITIES[id] ?? (id.startsWith("camera.") ? "the camera" : "a capability this page does not describe yet");
+const SECTIONS = { js: "bundle", pak: "assets", plan: "build plan", identity: "identity", cover: "cover", workerJs: "worker bundle", hostInputs: "host inputs" };
 const size = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
 const day = (ms) => new Date(ms).toLocaleDateString("en", { year: "numeric", month: "short", day: "numeric" });
 const iconOf = (app, label = "") => h("img", { src: `/v1/icons/${app.icon}`, alt: label, width: 128, height: 128, loading: "lazy" });
+
+/** The running player's teardown, called when the page changes. */
+let stopPlayer = () => {};
 
 let cached = null;
 const load = () => (cached ??= fetch("/v1/apps").then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((d) => d.apps));
@@ -126,6 +151,18 @@ async function detail(id) {
   }
   setTitle(app.title, app.summary);
   const screen = SCREENS[app.id];
+  const asks = h("section", { class: "pane" }, h("h3", {}, "What it asks of the device"), h("p", { class: "small" }, "Reading the package"));
+  const build = h("section", { class: "pane" }, h("h3", {}, "Build"), h("p", { class: "small" }, "Reading the package"));
+  void fetch(`/v1/manifests/${app.package}`).then((r) => (r.ok ? r.json() : Promise.reject(r.status))).then(
+    (described) => {
+      asks.replaceChildren(...askedOf(described));
+      build.replaceChildren(...buildOf(described, app));
+    },
+    () => {
+      asks.replaceChildren(h("h3", {}, "What it asks of the device"), h("p", { class: "small" }, "The package could not be read."));
+      build.remove();
+    },
+  );
   const reach = app.official ? null : app.hosts.length ? `It can reach ${app.hosts.join(", ")}.` : "It reaches nothing on the internet.";
   main.replaceChildren(
     link("/", { class: "back" }, "← All applets"),
@@ -145,7 +182,7 @@ async function detail(id) {
     ),
     h("div", { class: "detail" },
       h("div", {},
-        screen ? h("img", { class: "shot", src: `/shots/${screen}.webp`, alt: `${app.title} on the top screen of the RG DS Plus`, width: 1024, height: 768 }) : null,
+        app.mock ? player(app, screen) : screen ? h("img", { class: "shot", src: `/shots/${screen}.webp`, alt: `${app.title} on the top screen of the RG DS Plus`, width: 1024, height: 768 }) : null,
         h("section", { class: "pane" },
           h("h3", {}, "Install"),
           h("ol", { class: "ol" },
@@ -153,7 +190,7 @@ async function detail(id) {
             h("li", {}, "In Apps, open ", h("strong", {}, "Store"), " and find ", h("strong", {}, app.title), "."),
             h("li", {}, "Press ", h("strong", {}, "GET"), ". The device checks the signature before it installs."),
           ),
-          h("p", { class: "small", style: "margin-top:12px" }, "No device? ", h("a", { class: "link", href: "https://omapocket.org/demo/" }, "The shell runs in your browser"), ", without applets."),
+          h("p", { class: "small", style: "margin-top:12px" }, "No device? ", app.mock ? "Run it above on its sample data, or try " : "", h("a", { class: "link", href: "https://omapocket.org/demo/" }, app.mock ? "the shell in your browser" : "The shell runs in your browser"), app.mock ? "." : ", without applets."),
         ),
       ),
       h("div", {},
@@ -163,6 +200,8 @@ async function detail(id) {
           app.hosts.length ? h("div", { class: "reach" }, app.hosts.map((host) => h("span", { class: "tag" }, host))) : null,
           app.services.length ? h("dl", { style: "margin-top:12px" }, app.services.flatMap((service) => [h("dt", {}, service), h("dd", {}, SERVICES[service] ?? "a service on the device")])) : null,
         ),
+        asks,
+        build,
         h("section", { class: "pane" },
           h("h3", {}, "Signed"),
           h("dl", {},
@@ -178,6 +217,104 @@ async function detail(id) {
         ),
       ),
     ),
+  );
+}
+
+/** The manifest's capabilities and surfaces, as a list of what the app asks for. */
+function askedOf(described) {
+  const m = described.manifest ?? {};
+  const caps = m.engine?.capabilities ?? {};
+  const list = (ids) => h("dl", {}, (ids ?? []).flatMap((id) => [h("dt", {}, id), h("dd", {}, capability(id))]));
+  const surface = m.app?.surfaces?.auxiliary?.adaptive;
+  const touch = m.app?.modality?.touch;
+  return [
+    h("h3", {}, "What it asks of the device"),
+    caps.requires?.length ? h("p", { class: "small" }, "It needs these to run:") : null,
+    caps.requires?.length ? list(caps.requires) : null,
+    caps.enhances?.length ? h("p", { class: "small", style: "margin-top:12px" }, "It uses these where a device has them:") : null,
+    caps.enhances?.length ? list(caps.enhances) : null,
+    surface || touch
+      ? h("p", { class: "small", style: "margin-top:12px" },
+          touch === "auxiliary" ? "It is a touch app on the bottom screen" : "It draws on the screen",
+          surface ? `, laid out for ${surface.min?.join(" × ")} up to ${surface.max?.join(" × ")} points.` : ".")
+      : null,
+  ];
+}
+
+/** The package's identity and directory: what was built, for which device. */
+function buildOf(described, app) {
+  const m = described.manifest ?? {};
+  const rows = [
+    ["name", m.name], ["version", m.version], ["framework", m.app?.framework], ["applet API", m.applet?.version !== undefined ? `v${m.applet.version}` : undefined],
+  ].filter(([, value]) => value !== undefined && value !== "");
+  return [
+    h("h3", {}, "Build"),
+    h("dl", {}, rows.flatMap(([label, value]) => [h("dt", {}, label), h("dd", { class: "mono" }, String(value))])),
+    ...described.variants.map((v) => h("div", { class: "variant" },
+      h("p", { class: "small" }, "Built for ", h("strong", {}, v.target === "rg-ds-plus" ? "RG DS Plus" : v.target), ` (host ABI ${v.hostAbi})`),
+      h("div", { class: "rows" }, v.sections.filter((s) => s.name !== "identity").map((s) => h("div", {}, h("span", {}, SECTIONS[s.name] ?? s.name), h("span", {}, size(s.bytes))))),
+      h("dl", { style: "margin-top:8px" }, h("dt", {}, "profile"), h("dd", { class: "mono" }, v.profile.slice(0, 16)), h("dt", {}, "build hash"), h("dd", { class: "mono" }, v.hash)),
+    )),
+    h("p", { class: "small", style: "margin-top:10px" }, `${size(app.bytes)} in all.`),
+  ];
+}
+
+/** The app running in a sandboxed frame on its sample data, started by a press. */
+function player(app, screen) {
+  const box = h("div", { class: "play" });
+  const log = h("ol", { class: "requests" });
+  const count = h("span", {}, "");
+  const state = h("span", { class: "state" }, "Runs here, on sample data");
+  let frame = null;
+  let requests = 0;
+  const back = h("button", { type: "button", class: "chip", disabled: true, onclick: () => frame?.contentWindow?.postMessage({ type: "button", name: "back" }, "*") }, "Back");
+  const start = () => {
+    stopPlayer();
+    frame = h("iframe", { sandbox: "allow-scripts", src: "/play/", title: `${app.title}, running on sample data`, allow: "" });
+    box.replaceChildren(frame);
+    state.textContent = "Starting";
+    const listen = async (e) => {
+      if (!frame || e.source !== frame.contentWindow) return;
+      const m = e.data ?? {};
+      if (m.type === "ready") {
+        try {
+          const [pkg, wasm, mock] = await Promise.all([
+            fetch(`/v1/packages/${app.package}`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))),
+            fetch("/play/pocketjs.wasm").then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))),
+            fetch(`/v1/mocks/${app.mock}`).then((r) => (r.ok ? r.json() : Promise.reject(r.status))),
+          ]);
+          frame.contentWindow.postMessage({ type: "boot", package: pkg, wasm, mock, size: [512, 384], target: app.target }, "*", [pkg, wasm]);
+        } catch {
+          state.textContent = "The store did not send the package.";
+        }
+      } else if (m.type === "running") {
+        state.textContent = "Running on sample data. Touch it as you would the bottom screen.";
+        back.disabled = false;
+      } else if (m.type === "error") {
+        state.textContent = `It stopped: ${m.message}`;
+      } else if (m.type === "request") {
+        requests++;
+        count.textContent = ` (${requests})`;
+        log.append(h("li", { class: m.answer ? "" : "miss" }, `${m.method} ${m.url}`, h("span", {}, m.answer ? ` ${m.status} · ${m.answer === "route" ? "sample" : m.answer}` : " no sample data")));
+        if (log.children.length > 200) log.firstChild.remove();
+      }
+    };
+    addEventListener("message", listen);
+    stopPlayer = () => {
+      removeEventListener("message", listen);
+      frame?.remove();
+      frame = null;
+      stopPlayer = () => {};
+    };
+  };
+  box.append(
+    screen ? h("img", { src: `/shots/${screen}.webp`, alt: "", width: 1024, height: 768 }) : h("img", { class: "poster-icon", src: `/v1/icons/${app.icon}`, alt: "", width: 128, height: 128 }),
+    h("button", { type: "button", class: "run", onclick: start }, `Run ${app.title} here`),
+  );
+  return h("section", { class: "player" },
+    box,
+    h("div", { class: "playbar" }, back, state),
+    h("details", { class: "small" }, h("summary", {}, "Requests it made", count), h("p", {}, "Every request is answered from the version's sample data in this page, not from the network. Nothing it does here reaches a device or an account."), log),
   );
 }
 
@@ -205,12 +342,14 @@ function make() {
       h("li", {}, h("strong", {}, "You are a key."), " The first publish makes an ed25519 key on the device. The first key to use an id or an author name owns it, and later versions must come from that key."),
       h("li", {}, h("strong", {}, "An editor reads it first."), " A new version waits for review, and nothing unlisted can be downloaded."),
       h("li", {}, h("strong", {}, "It says what it reaches."), " The manifest's ", h("code", {}, "applet.hosts"), " names every host, and the device shows them before it installs. Store apps cannot use services that act as the device's owner."),
+      h("li", {}, h("strong", {}, "It can run here first."), " Sample data in ", h("code", {}, "mock/mock.json"), " (the store service's documents and the answers to its requests) goes up with it, and its page runs it in your browser on that data. ", h("code", {}, "pocket-applet web"), " shows the same before you publish."),
     ),
     h("p", {}, "The full rules are in ", h("a", { class: "link", href: "https://github.com/pocket-nexus/omarchy-pocket/blob/main/docs/applets.md" }, "docs/applets.md"), "."),
   ));
 }
 
 function route() {
+  stopPlayer();
   const path = location.pathname.replace(/\/+$/, "") || "/";
   const app = /^\/app\/([^/]+)$/.exec(path);
   const author = /^\/author\/([^/]+)$/.exec(path);
