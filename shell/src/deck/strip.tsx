@@ -2,8 +2,8 @@
 // (opens the menu, as L1 + A does) and Esc at the left, Home at the right, and
 // between them the keys what has focus wants at one press. A terminal gets Tab
 // and its control keys; a touch app gets Back, which it hears as the Cross
-// button; an empty workspace gets Terminal and Layout; the menu, Pin for the
-// app it has selected. Home's side column steps the workspaces, so this row
+// button; an empty workspace gets Layout (Terminal is a pin on Home); the
+// menu, Pin for the app it has selected. Home's side column steps the workspaces, so this row
 // does not. While a pinyin composition is open (the 中 key, term/ime.ts) the
 // row holds its preedit and candidates.
 import { createMemo, createRoot, For, Show } from "solid-js";
@@ -18,7 +18,6 @@ import { appletTyping, pressBack } from "../packages.ts";
 import { card } from "../stage/card.tsx";
 import { allApps, menuOpen, selectedItem } from "../stage/menu.tsx";
 import { composing, pick, snapshot } from "../term/ime.ts";
-import { openTerminal } from "../term/store.ts";
 import { sendCtrl, sendKey } from "../term/keyboard.tsx";
 import { color } from "../theme.ts";
 import type { TouchFrame } from "../touch.ts";
@@ -31,7 +30,6 @@ const LOGO = "\u{e900}";
 const HOME = "\u{f02dc}";
 const CLOSE = "\u{f0156}";
 const LEFT = "\u{f0141}";
-const TERMINAL = "\u{f018d}";
 
 const EDGE = 4;
 const GAP = 4;
@@ -75,7 +73,7 @@ function context(): Chip[] {
   if (fieldSink()) return [];
   if (card()) return [...pinChip(), TAB];
   const w = focused();
-  if (!w) return [{ id: "terminal", label: "Terminal", glyph: TERMINAL, run: () => openTerminal() }, { id: "layout", label: "Layout", run: () => perform("layout") }];
+  if (!w) return [{ id: "layout", label: "Layout", run: () => perform("layout") }];
   if (w.kind === "terminal") return [TAB, ctrl("c"), ctrl("d"), ctrl("l"), ctrl("r")];
   if (w.kind === "app" && !appletTyping(w.app)) return [{ id: "back", label: "Back", glyph: LEFT, run: pressBack }];
   return [TAB];

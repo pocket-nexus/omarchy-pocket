@@ -9,21 +9,24 @@
 //
 // Two round buttons sit at the bottom of each margin and stay put when the
 // trackpad grows: the microphone (deck/voice.ts) and Hold on the left, the
-// keyboard (folds the keys away and back) and the key sheet on the right. A
+// keyboard (folds the keys away and back) and Close on the right. Close shuts
+// what is in front: the key sheet or a card when one is up, else the focused
+// window, as L1 + B does, so an applet closes with one press. A
 // package that draws a touch surface of its own and is not a touch app
 // (app.surfaces.auxiliary without `applet`) shows that surface in the pad layout
 // instead, and the fingers on it are its contacts.
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework/host";
-import { perform } from "../actions.ts";
+import { closeFocused } from "../actions.ts";
+import { card, closeCard } from "../stage/card.tsx";
 import { toggleVoice, voiceLevel, voiceState } from "./voice.ts";
 import { C } from "../classes.ts";
 import { inkShift } from "../ink.ts";
 import { keySink, layout, toggleKeys, type Layout } from "../focus.ts";
 import { flip, TOP_LEFT } from "../motion.ts";
 import { appTextures } from "../packages.ts";
-import { sheetOpen } from "../stage/keysheet.tsx";
+import { closeSheet, sheetOpen } from "../stage/keysheet.tsx";
 import { chordSent, onTyped } from "../term/keyboard.tsx";
 import { click, hold, movePointer, pinchTo, scrollBy } from "../stage/pointer.tsx";
 import { color } from "../theme.ts";
@@ -38,9 +41,16 @@ const ROUND_LIST: { name: RoundName; glyph: string }[] = [
   { name: "voice", glyph: "\u{f036c}" },
   { name: "hold", glyph: "\u{f01be}" },
   { name: "toggle", glyph: "\u{f030c}" },
-  { name: "more", glyph: "\u{f01d8}" },
+  { name: "close", glyph: "\u{f0156}" },
 ];
 const roundAt = (x: number, y: number) => ROUND_LIST.find((r) => inRect(ROUNDS[r.name], x, y))?.name;
+
+/** Close: the key sheet, a card, or the focused window. */
+function closeFront() {
+  if (sheetOpen()) return closeSheet();
+  if (card()) return closeCard();
+  closeFocused();
+}
 
 /** The round button's target under a finger, for the pressed look. */
 export function roundTarget(x: number, y: number): string | null {
@@ -106,7 +116,7 @@ export function touchpadTouch(frame: TouchFrame): number[] {
     const name = roundAt(c.x, c.y);
     if (name === "toggle") toggleKeys();
     else if (name === "voice") toggleVoice();
-    else if (name === "more") perform("keys");
+    else if (name === "close") closeFront();
   }
   const rect = padFor(l);
   const inPad = (x: number, y: number) => !keySink().field && inRect(rect, x, y);
@@ -238,7 +248,7 @@ function Pad() {
       <For each={ROUND_LIST}>
         {(r) => {
           const listening = () => r.name === "voice" && voiceState() === "listening";
-          const lit = () => (r.name === "voice" ? voiceState() === "decoding" : r.name === "hold" ? mode() === "drag" : r.name === "toggle" ? layout() === "keys" : r.name === "more" ? sheetOpen() : false);
+          const lit = () => (r.name === "voice" ? voiceState() === "decoding" : r.name === "hold" ? mode() === "drag" : r.name === "toggle" ? layout() === "keys" : false);
           const at = ROUNDS[r.name];
           return (
             <View class="absolute w-[44] h-[44] rounded-full" style={{ insetL: at.x, insetT: at.y, bgColor: color(listening() ? "red" : pressed(`round:${r.name}`) ? "selection" : "dark_background"), opacity: listening() ? 0.55 + 0.45 * voiceLevel() : 1 }}>
