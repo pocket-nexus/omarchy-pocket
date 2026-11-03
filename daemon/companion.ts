@@ -145,11 +145,11 @@ export class AppNet {
     // what an install or a removal changes is read again at the next request
     SERVICE_FACTORIES.images = () => imagesService(join(home, ".cache", "omarchy-pocket", "images"));
     SERVICE_FACTORIES.appstore = () => createAppStoreService(home, () => this.callers.clear());
-    // the Spotify sign-in, the Web API and librespot as this device's speaker
+    // Spotify: omarchy-pocket-spotify's pairing sign-in, internal API and speaker
     SERVICE_FACTORIES.spotify = (context) => createSpotifyService(context);
     this.services = new ServiceHost({ storeDir, log: (line) => log(line) });
     // signed in to Spotify before: its speaker comes up with the daemon, for a phone to find
-    if (existsSync(join(storeDir, "services", "spotify", "token.json"))) void this.services.command("spotify", ["status"]).catch(() => {});
+    if (existsSync(join(storeDir, "services", "spotify", "session", "streaming_cache", "credentials.json"))) void this.services.command("spotify", ["status"]).catch(() => {});
   }
 
   /** The app behind a package and the services its manifest declares. */

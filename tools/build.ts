@@ -5,10 +5,11 @@
 //   bun tools/build.ts host              omarchy-pocket-host for aarch64 Linux (glibc 2.36)
 //   bun tools/build.ts shell             the shell package (run tools/omarchy-assets.ts first)
 //   bun tools/build.ts daemon            omarchy-pocketd as one Bun script
+//   bun tools/build.ts spotify           omarchy-pocket-spotify (spotify/) for aarch64 Linux (glibc 2.36)
 //   bun tools/build.ts applets [names]   applets/<name>/pocket.json as .cache/applets/<name>.pocket
 //   bun tools/build.ts sdk               what pocket-applet needs on the device, as .cache/sdk
 //   bun tools/build.ts asr               voice input: sherpa-onnx, its Paraformer model and pocket-asr, as .cache/asr/out
-//   bun tools/build.ts all               host, shell and daemon
+//   bun tools/build.ts all               host, shell, daemon, spotify and the applets
 //   bun tools/build.ts shot --script "30:shot 40:DOWN 50:shot" [--out <dir>]
 //
 // `shot` runs the shell package with the host built for this computer, the CPU
@@ -39,6 +40,8 @@ export const OUTPUTS = {
   shim: join(CACHE, "daemon", "shim.js"),
   /** libghostty's VT core, which omarchy-pocketd loads from beside itself */
   wasm: join(CACHE, "daemon", "ghostty-vt.wasm"),
+  /** the Spotify applet's sign-in, internal API and speaker (daemon/spotify.ts runs it) */
+  spotify: join(CACHE, "spotify", "cargo", TARGET, "release", "omarchy-pocket-spotify"),
 };
 /** The names daemon/shim.ts is installed under, in /usr/local/bin */
 export const SHIM_NAMES = ["hyprctl", "uwsm", "uwsm-app", "omarchy-pocket-term", "omasnap", "omarchy-launch-screensaver"];
@@ -75,6 +78,13 @@ async function host() {
     .cwd(ROOT)
     .env({ ...process.env, POCKETJS_PROFILE_RS: PROFILE_RS, OMARCHY_POCKET_GL_LIBS: LIBS, POCKET_WORKER_CARGO_MANIFEST: join(ROOT, "Cargo.toml") });
   console.log(`host: ${OUTPUTS.host}`);
+}
+
+/** omarchy-pocket-spotify: its own workspace (spotify/Cargo.toml), pure Rust
+ *  with rustls, so zig links it with no sysroot. */
+async function spotify() {
+  await $`cargo zigbuild --release --target ${TARGET}.2.36 --target-dir ${join(CACHE, "spotify", "cargo")}`.cwd(join(ROOT, "spotify"));
+  console.log(`spotify: ${OUTPUTS.spotify}`);
 }
 
 async function shell() {
@@ -268,6 +278,9 @@ if (import.meta.main) {
     case "daemon":
       await daemon();
       break;
+    case "spotify":
+      await spotify();
+      break;
     case "applets":
       await applets(process.argv.slice(3));
       break;
@@ -278,13 +291,14 @@ if (import.meta.main) {
       await host();
       await shell();
       await daemon();
+      await spotify();
       await applets([]);
       break;
     case "shot":
       await shot();
       break;
     default:
-      console.error("usage: bun tools/build.ts libs <ssh-host> | host | shell | daemon | applets | all | shot --script <events> [--out <dir>]");
+      console.error("usage: bun tools/build.ts libs <ssh-host> | host | shell | daemon | spotify | applets | all | shot --script <events> [--out <dir>]");
       process.exit(2);
   }
 }

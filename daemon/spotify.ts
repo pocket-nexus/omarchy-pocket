@@ -1,32 +1,32 @@
 // The spotify service: what vendor/applets/spotify/contract.ts lists, for the
-// Spotify applet. It holds the sign-in, asks the Web API, and runs librespot
-// as this device's Spotify Connect speaker.
+// Spotify applet. omarchy-pocket-spotify (spotify/ in this repository, on
+// spotatui's librespot fork) does the Spotify half; this service runs it,
+// asks it, and answers the applet in the contract's objects.
 //
-// Sign-in. Spotify's Web API takes a token of an app the owner registers
-// (Development Mode: the app's owner needs Premium; its Client ID is set here
-// with POST /config, kept in config.json). The device has no browser, so
-// POST /signin makes a PKCE verifier and a state, and answers Spotify's
-// authorize URL for the applet to show as a QR code; its redirect URI is the
-// store's OAuth relay (applets.pocket.nexus/oauth/spotify), which keeps the
-// code the phone brings back until this service takes it
-// (GET /v1/oauth/spotify/<state>, polled every 2 s for ten minutes). The code
-// and the verifier make the refresh token, kept in token.json (mode 600)
-// under <storeDir>/services/spotify/; the applet never sees a token.
+// The program. It listens on 127.0.0.1:PORT and takes a request only with the
+// key this service hands it in OMARCHY_POCKET_SPOTIFY_KEY, made anew at each
+// start (an app's realm reaches 127.0.0.1 for media streams; it never has the
+// key). It keeps the login in <storeDir>/services/spotify/session/ (0700). It
+// is restarted when it exits, a second later, then at most every 30 s.
 //
-// The speaker. librespot (the `librespot` package) plays to PipeWire through
-// its PulseAudio backend under the name SPEAKER_NAME. Its first start signs
-// in with the Web API token (it holds the `streaming` scope); from then on it
-// signs in with the credentials it keeps in librespot/credentials.json. If
-// Spotify refuses the token, it starts with none and waits: picking the
-// speaker once in Spotify on a phone signs it in (Spotify Connect's zeroconf).
-// Its log tells the state: "Authenticated as" is ready. It is restarted when
-// it exits, a second later, then at most every 30 s.
+// Sign-in. POST /signin asks it for a pairing code: Spotify's own desktop
+// client signs in the way a TV does (OAuth device authorization), so there is
+// no Client ID, no developer app and no redirect. The applet shows the code
+// and spotify.com/pair?code=… as a QR code; the owner confirms it on a phone
+// or any computer, and the program signs in, keeps the login, and starts the
+// speaker. Spotify Premium is needed: a login without it is not kept.
 //
-// The Web API's answers are cached for a few seconds to a few minutes
-// (CACHE_MS), and a command clears the player's. A 401 refreshes the token
-// and asks once more.
-import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+// The speaker. Once signed in the program is this device's Spotify Connect
+// speaker, SPEAKER_NAME, writing PCM to pw-cat (PipeWire) at 320 kbps.
+//
+// Answers. The program answers Web API paths (GET /v1/me/player, /v1/search,
+// /v1/albums/<id>, PUT /v1/me/player/play, …) in the Web API's JSON, from the
+// internal API the official clients use: no developer quota, and every
+// playlist lists its tracks. spotify-map.ts turns them into the contract's
+// objects; they are cached for a few seconds to a few minutes (CACHE_MS), and
+// a command clears the player's.
+import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { jsonResponse, readJson, ServiceError, type ServiceContext, type ServiceProvider, type ServiceRequest } from "../vendor/pocketjs/tools/companion/services.ts";
 import type { AlbumPage, ArtistPage, Failure, Home, Item, Page, Player, PlaylistPage, Status } from "../vendor/applets/spotify/contract.ts";
@@ -36,33 +36,17 @@ import * as map from "./spotify-map.ts";
 type Json = any;
 
 export const SPEAKER_NAME = "Omarchy Pocket";
-const SCOPES = [
-  "user-read-private",
-  "user-read-playback-state",
-  "user-modify-playback-state",
-  "user-read-currently-playing",
-  "user-read-recently-played",
-  "user-top-read",
-  "user-library-read",
-  "user-library-modify",
-  "user-follow-read",
-  "playlist-read-private",
-  "playlist-read-collaborative",
-  "streaming",
-];
-const SIGNIN_MS = 10 * 60_000;
-const RELAY_POLL_MS = 2_000;
-const CLIENT_ID = /^[0-9a-f]{32}$/;
-const CACHE_MS = { home: 60_000, library: 60_000, page: 300_000, search: 120_000, player: 1_000, devices: 3_000, queue: 2_000, liked: 30_000 } as const;
+export const PROGRAM = "/usr/lib/omarchy-pocket/omarchy-pocket-spotify";
+const PORT = 4471;
+const CACHE_MS = { home: 60_000, library: 60_000, page: 300_000, search: 120_000, player: 1_000, devices: 3_000, queue: 2_000, liked: 30_000, status: 1_500 } as const;
 const LIST = 30;
 
 export interface SpotifyOptions {
-  accounts?: string;
-  api?: string;
-  /** the OAuth relay's origin */
-  relay?: string;
-  /** librespot's program; null runs no speaker (tests) */
-  librespot?: string | null;
+  /** the program; null runs none (a test serves it at `port`) */
+  program?: string | null;
+  port?: number;
+  /** the key, when a test runs the program itself */
+  key?: string;
   now?: () => number;
   /** how long after a command the player is read again, for Spotify to catch up */
   settleMs?: number;
@@ -74,216 +58,106 @@ class SpotifyError extends Error {
   }
 }
 
-const b64url = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64url");
 const fail = (status: number, error: string, reason: Failure["reason"] = "other") => new SpotifyError(status, { error, reason });
 
-interface Token {
-  refreshToken: string;
-  accessToken: string;
-  expiresAt: number;
-  scope: string;
-}
-
-/** librespot under supervision: started, watched through its log, restarted. */
-class Speaker {
-  state: Status["speaker"]["state"] = "off";
-  message = "";
+/** The program under supervision: started, restarted when it exits. */
+class Program {
   private child: ReturnType<typeof Bun.spawn> | null = null;
-  private wanted = false;
-  private token: string | null = null;
   private backoff = 1_000;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private stopped = false;
 
-  constructor(private readonly program: string | null, private readonly cache: string, private readonly log: (line: string) => void) {}
+  constructor(private readonly path: string | null, private readonly argv: string[], private readonly key: string, private readonly log: (line: string) => void) {}
 
-  get signedIn() {
-    return existsSync(join(this.cache, "credentials.json"));
-  }
-
-  /** Run it, signing in with `token` when it holds no credentials yet. */
-  start(token: string | null) {
-    this.wanted = true;
-    this.token = this.signedIn ? null : token;
-    if (!this.child && !this.timer) this.spawn();
-  }
-
-  stop(forget = false) {
-    this.wanted = false;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
-    this.child?.kill();
-    this.child = null;
-    this.state = "off";
-    this.message = "";
-    if (forget) rmSync(this.cache, { recursive: true, force: true });
-  }
-
-  private spawn() {
-    this.timer = null;
-    if (!this.program || !this.wanted) return;
-    mkdirSync(this.cache, { recursive: true, mode: 0o700 });
-    const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy || "";
-    const argv = [
-      this.program,
-      "--name", SPEAKER_NAME,
-      "--device-type", "gameconsole",
-      "--backend", "pulseaudio",
-      "--bitrate", "320",
-      "--initial-volume", "80",
-      "--system-cache", this.cache,
-      "--disable-audio-cache",
-      "--quiet",
-      ...(proxy ? ["--proxy", proxy] : []),
-      ...(this.token ? ["--access-token", this.token] : []),
-    ];
-    const usedToken = this.token !== null;
-    this.state = "starting";
-    this.message = "";
-    let authenticated = false;
-    const child = Bun.spawn(argv, { stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+  start() {
+    this.stopped = false;
+    if (!this.path || this.child || this.timer) return;
+    if (!existsSync(this.path)) return this.log(`spotify: ${this.path} is not installed`);
+    const child = Bun.spawn([this.path, ...this.argv], {
+      stdin: "ignore",
+      stdout: "ignore",
+      stderr: "pipe",
+      env: { ...process.env, OMARCHY_POCKET_SPOTIFY_KEY: this.key, RUST_LOG: process.env.RUST_LOG ?? "omarchy_pocket_spotify=info,librespot=warn" },
+    });
     this.child = child;
-    const watch = async (stream: ReadableStream<Uint8Array>) => {
+    void (async () => {
       const decoder = new TextDecoder();
       let rest = "";
-      for await (const chunk of stream) {
+      for await (const chunk of child.stderr as ReadableStream<Uint8Array>) {
         rest += decoder.decode(chunk, { stream: true });
         let at: number;
         while ((at = rest.indexOf("\n")) >= 0) {
           const line = rest.slice(0, at).trim();
           rest = rest.slice(at + 1);
-          if (!line) continue;
-          if (/Authenticated as/.test(line)) {
-            authenticated = true;
-            this.state = "ready";
-            this.message = "";
-            this.backoff = 1_000;
-          } else if (/ERROR|WARN/.test(line)) {
-            this.log(`librespot: ${line.slice(0, 200)}`);
-            if (!authenticated) this.message = line.replace(/^\[[^\]]*\]\s*/, "").slice(0, 160);
-          }
+          if (/ WARN | ERROR /.test(line)) this.log(`spotify: ${line.replace(/^\[[^\]]*\]\s*/, "").slice(0, 240)}`);
         }
       }
-    };
-    void watch(child.stdout as ReadableStream<Uint8Array>);
-    void watch(child.stderr as ReadableStream<Uint8Array>);
-    // waiting for a phone to pick it: running, and not signed in a moment later
-    setTimeout(() => {
-      if (this.child === child && !authenticated && !usedToken) this.state = "waiting";
-    }, 3_000);
+    })();
+    const started = Date.now();
     void child.exited.then((code) => {
       if (this.child !== child) return;
       this.child = null;
-      if (!this.wanted) return;
-      // a token Spotify would not take: start again with none, for the phone to sign it in
-      if (usedToken && !authenticated) this.token = null;
-      this.state = "error";
-      this.message ||= `librespot stopped (${code})`;
-      this.timer = setTimeout(() => this.spawn(), this.backoff);
+      if (this.stopped) return;
+      this.log(`spotify: the program stopped (${code}); starting it again`);
+      if (Date.now() - started > 60_000) this.backoff = 1_000;
+      this.timer = setTimeout(() => {
+        this.timer = null;
+        this.start();
+      }, this.backoff);
       this.backoff = Math.min(30_000, this.backoff * 2);
     });
+  }
+
+  stop() {
+    this.stopped = true;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    this.child?.kill();
+    this.child = null;
   }
 }
 
 export function createSpotifyService(context: ServiceContext, options: SpotifyOptions = {}): ServiceProvider {
-  const accounts = options.accounts ?? "https://accounts.spotify.com";
-  const api = options.api ?? "https://api.spotify.com/v1";
-  const relay = options.relay ?? "https://applets.pocket.nexus";
-  const redirectUri = `${relay}/oauth/spotify`;
   const now = options.now ?? Date.now;
   const settleMs = options.settleMs ?? 450;
-  const dir = join(context.storeDir, "services", "spotify");
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const configFile = join(dir, "config.json");
-  const tokenFile = join(dir, "token.json");
-  const speaker = new Speaker(options.librespot === undefined ? Bun.which("librespot") : options.librespot, join(dir, "librespot"), context.log);
-
-  const readFile = <T>(file: string): T | null => {
-    try {
-      return JSON.parse(readFileSync(file, "utf8")) as T;
-    } catch {
-      return null;
-    }
-  };
-  const writeSecret = (file: string, value: unknown) => {
-    writeFileSync(`${file}.new`, JSON.stringify(value), { mode: 0o600 });
-    renameSync(`${file}.new`, file);
-  };
-
-  let clientId: string = readFile<{ clientId?: string }>(configFile)?.clientId ?? process.env.OMARCHY_POCKET_SPOTIFY_CLIENT_ID ?? "";
-  let token: Token | null = readFile<Token>(tokenFile);
-  let user: Status["user"] = null;
-  let error = "";
-  let pending: { verifier: string; state: string; url: string; expiresAt: number; timer: ReturnType<typeof setInterval> } | null = null;
+  const port = options.port ?? PORT;
+  const base = `http://127.0.0.1:${port}`;
+  const key = options.key ?? randomBytes(24).toString("base64url");
+  const sessionDir = join(context.storeDir, "services", "spotify", "session");
+  mkdirSync(sessionDir, { recursive: true, mode: 0o700 });
+  const program = new Program(options.program === undefined ? PROGRAM : options.program, ["--cache", sessionDir, "--port", String(port), "--name", SPEAKER_NAME], key, context.log);
+  program.start();
   const cache = new Map<string, { at: number; value: unknown }>();
-  /** this device's speaker as the Web API lists it */
-  let speakerId: string | null = null;
 
-  /* ---------- tokens ---------- */
+  /* ---------- the program ---------- */
 
-  async function tokenRequest(form: Record<string, string>): Promise<Token> {
-    const response = await fetch(`${accounts}/api/token`, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ ...form, client_id: clientId }),
-      signal: AbortSignal.timeout(20_000),
-    });
-    const body: Json = await response.json().catch(() => ({}));
-    if (!response.ok || typeof body.access_token !== "string") {
-      throw fail(401, `Spotify refused the sign-in: ${body.error_description ?? body.error ?? response.status}`, "signin");
-    }
-    return {
-      accessToken: body.access_token,
-      refreshToken: typeof body.refresh_token === "string" ? body.refresh_token : (token?.refreshToken ?? ""),
-      expiresAt: now() + (Number(body.expires_in) || 3600) * 1000,
-      scope: typeof body.scope === "string" ? body.scope : (token?.scope ?? ""),
-    };
-  }
-
-  let refreshing: Promise<string> | null = null;
-  async function accessToken(force = false): Promise<string> {
-    if (!clientId) throw fail(409, "Spotify needs your app's Client ID.", "configure");
-    if (!token?.refreshToken) throw fail(401, "Sign in to Spotify.", "signin");
-    if (!force && token.accessToken && token.expiresAt - now() > 60_000) return token.accessToken;
-    refreshing ??= tokenRequest({ grant_type: "refresh_token", refresh_token: token.refreshToken })
-      .then((next) => {
-        token = next;
-        writeSecret(tokenFile, token);
-        return next.accessToken;
-      })
-      .catch((cause) => {
-        // a refresh token Spotify no longer takes: the owner signs in again
-        if (cause instanceof SpotifyError) {
-          token = null;
-          rmSync(tokenFile, { force: true });
-          error = cause.failure.error;
-        }
-        throw cause;
-      })
-      .finally(() => (refreshing = null));
-    return refreshing;
-  }
-
-  /* ---------- the Web API ---------- */
-
-  async function web(method: string, path: string, body?: unknown, retried = false): Promise<Json> {
-    const bearer = await accessToken();
-    const response = await fetch(`${api}${path}`, {
-      method,
-      headers: { authorization: `Bearer ${bearer}`, ...(body === undefined ? {} : { "content-type": "application/json" }) },
-      body: body === undefined ? (method === "PUT" || method === "POST" ? "" : undefined) : JSON.stringify(body),
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (response.status === 401 && !retried) {
-      await accessToken(true);
-      return web(method, path, body, true);
+  async function ask(method: string, path: string, body?: unknown): Promise<{ status: number; json: Json }> {
+    let response: Response;
+    try {
+      response = await fetch(`${base}${path}`, {
+        method,
+        headers: { "x-pocket-key": key, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(25_000),
+      });
+    } catch {
+      program.start();
+      throw fail(503, "Spotify is starting on this device. Try again in a moment.");
     }
     const text = await response.text();
-    const json: Json = text ? JSON.parse(text) : null;
-    if (!response.ok) {
-      const failure = map.failure(response.status, json);
-      if (response.status === 429) failure.error = `Spotify asked to wait ${response.headers.get("retry-after") ?? "a moment"} s.`;
-      throw new SpotifyError(response.status, failure);
+    let json: Json = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = { error: { message: text.slice(0, 200) } };
     }
+    return { status: response.status, json };
+  }
+
+  /** A Web API path, answered by the program from the internal API. */
+  async function web(method: string, path: string, body?: unknown): Promise<Json> {
+    const { status, json } = await ask(method, `/v1${path}`, body);
+    if (status >= 400) throw new SpotifyError(status, map.failure(status, json));
     return json;
   }
 
@@ -296,96 +170,44 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     return value;
   }
   const forgetPlayer = () => {
-    for (const key of cache.keys()) if (key.startsWith("player") || key.startsWith("queue") || key.startsWith("devices")) cache.delete(key);
+    for (const k of cache.keys()) if (k.startsWith("player") || k.startsWith("queue") || k.startsWith("devices")) cache.delete(k);
   };
-
-  async function me(): Promise<NonNullable<Status["user"]>> {
-    if (user) return user;
-    const m = await web("GET", "/me");
-    user = { id: String(m.id ?? ""), name: String(m.display_name ?? m.id ?? ""), image: map.cover(m.images) };
-    return user;
-  }
 
   /* ---------- sign-in ---------- */
 
-  function status(): Status {
-    if (pending && now() > pending.expiresAt) cancelSignIn("The sign-in expired. Start it again.");
-    return {
-      configured: clientId !== "",
-      signedIn: token !== null && token.refreshToken !== "",
-      user,
-      signIn: pending ? { url: pending.url, expiresAt: pending.expiresAt } : null,
-      error,
-      speaker: { name: SPEAKER_NAME, state: speaker.state, id: speakerId, message: speaker.message },
-    };
+  let speakerId: string | null = null;
+
+  async function status(fresh = false): Promise<Status> {
+    if (fresh) cache.delete("status");
+    return cached("status", CACHE_MS.status, async () => {
+      const { status: code, json } = await ask("GET", "/status");
+      if (code !== 200 || !json) throw fail(502, "Spotify did not answer on this device.");
+      const user = json.user && typeof json.user === "object" ? { id: String(json.user.id ?? ""), name: String(json.user.name ?? json.user.id ?? ""), image: String(json.user.image ?? "") } : null;
+      const state = ["off", "starting", "ready", "error"].includes(json.speaker?.state) ? json.speaker.state : "off";
+      if (state === "ready" && json.signedIn && !speakerId) await devices().catch(() => undefined);
+      return {
+        signedIn: json.signedIn === true,
+        user,
+        premium: typeof json.premium === "boolean" ? json.premium : null,
+        signIn: json.signIn?.code ? { url: String(json.signIn.url), code: String(json.signIn.code), expiresAt: Number(json.signIn.expiresAt) || 0 } : null,
+        error: String(json.error ?? ""),
+        speaker: { name: SPEAKER_NAME, state, id: state === "ready" ? speakerId : null, message: String(json.speaker?.message ?? "") },
+      } satisfies Status;
+    });
   }
 
-  function cancelSignIn(why = "") {
-    if (pending) clearInterval(pending.timer);
-    pending = null;
-    if (why) error = why;
-  }
-
-  async function finishSignIn(code: string, verifier: string) {
-    token = await tokenRequest({ grant_type: "authorization_code", code, redirect_uri: redirectUri, code_verifier: verifier });
-    writeSecret(tokenFile, token);
-    user = null;
-    error = "";
+  async function signIn(): Promise<Status> {
+    const { status: code, json } = await ask("POST", "/login");
+    if (code !== 200) throw fail(code === 403 ? 403 : 502, String(json?.error?.message ?? "Spotify did not give a pairing code."));
     cache.clear();
-    await me().catch(() => undefined);
-    speaker.start(token.scope.includes("streaming") ? token.accessToken : null);
+    return status(true);
   }
 
-  function startSignIn() {
-    if (!clientId) throw fail(409, "Set your app's Client ID first.", "configure");
-    cancelSignIn();
-    const verifier = b64url(randomBytes(64));
-    const state = b64url(randomBytes(32));
-    const challenge = b64url(createHash("sha256").update(verifier).digest());
-    const url = `${accounts}/authorize?${new URLSearchParams({
-      client_id: clientId,
-      response_type: "code",
-      redirect_uri: redirectUri,
-      code_challenge_method: "S256",
-      code_challenge: challenge,
-      state,
-      scope: SCOPES.join(" "),
-    })}`;
-    error = "";
-    let asking = false;
-    const timer = setInterval(async () => {
-      if (!pending || pending.state !== state || asking) return;
-      if (now() > pending.expiresAt) return cancelSignIn("The sign-in expired. Start it again.");
-      asking = true;
-      try {
-        const response = await fetch(`${relay}/v1/oauth/spotify/${state}`, { signal: AbortSignal.timeout(10_000) });
-        if (response.status !== 200) return;
-        const answer: { code?: string; error?: string } = await response.json();
-        const mine = pending;
-        cancelSignIn();
-        if (answer.error || !answer.code) {
-          error = answer.error === "access_denied" ? "Access was not allowed." : `Spotify did not sign in: ${answer.error ?? "no code"}`;
-          return;
-        }
-        await finishSignIn(answer.code, mine!.verifier).catch((cause) => (error = cause instanceof Error ? cause.message : String(cause)));
-      } catch {
-        // the relay out of reach for a moment: ask again at the next tick
-      } finally {
-        asking = false;
-      }
-    }, RELAY_POLL_MS);
-    pending = { verifier, state, url, expiresAt: now() + SIGNIN_MS, timer };
-  }
-
-  function signOut() {
-    cancelSignIn();
-    token = null;
-    user = null;
-    error = "";
+  async function signOut(): Promise<Status> {
+    await ask("POST", "/logout");
     speakerId = null;
     cache.clear();
-    rmSync(tokenFile, { force: true });
-    speaker.stop(true);
+    return status(true);
   }
 
   /* ---------- the speaker's Connect id ---------- */
@@ -404,12 +226,15 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
 
   const likedSet = async (uris: string[]): Promise<boolean[]> => {
     if (!uris.length) return [];
-    const key = `liked:${uris.join(",")}`;
-    return cached(key, CACHE_MS.liked, async () => {
+    return cached(`liked:${uris.join(",")}`, CACHE_MS.liked, async () => {
       const answer = await web("GET", `/me/library/contains?uris=${encodeURIComponent(uris.join(","))}`);
       return Array.isArray(answer) ? answer.map((v) => v === true) : uris.map(() => false);
     });
   };
+
+  async function me(): Promise<{ id: string }> {
+    return cached("me", CACHE_MS.page, async () => ({ id: String((await web("GET", "/me"))?.id ?? "") }));
+  }
 
   async function playerNow(fresh = false): Promise<Player> {
     if (fresh) forgetPlayer();
@@ -417,50 +242,49 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       const p = await web("GET", "/me/player?additional_types=episode");
       const uri = p?.item?.uri;
       const liked = uri ? ((await likedSet([uri]).catch(() => [false]))[0] ?? false) : false;
-      let title = "";
-      const context = p?.context;
-      if (context?.uri) title = await contextTitle(context.uri).catch(() => "");
+      const title = p?.context?.uri ? await contextTitle(p.context.uri).catch(() => "") : "";
       const out = map.player(p, SPEAKER_NAME, now(), liked, title);
       if (out.device?.local) speakerId = out.device.id;
       return out;
     });
   }
 
-  async function contextTitle(uri: string): Promise<string> {
-    return cached(`title:${uri}`, CACHE_MS.page, async () => {
+  async function contextItem(uri: string): Promise<Item | null> {
+    return cached(`context:${uri}`, CACHE_MS.page, async () => {
       const [, kind, id] = uri.split(":");
-      if (uri.endsWith(":collection")) return "Liked Songs";
-      if (kind === "album") return String((await web("GET", `/albums/${id}`))?.name ?? "");
-      if (kind === "playlist") return String((await web("GET", `/playlists/${id}?fields=name`))?.name ?? "");
-      if (kind === "artist") return String((await web("GET", `/artists/${id}`))?.name ?? "");
-      return "";
+      if (uri.endsWith(":collection")) {
+        const total = (await web("GET", "/me/tracks?limit=1").catch(() => null))?.total ?? null;
+        return map.liked((await me()).id, total);
+      }
+      if (kind === "album") return map.album(await web("GET", `/albums/${id}`));
+      if (kind === "playlist") return map.playlist(await web("GET", `/playlists/${id}`));
+      if (kind === "artist") return map.artist(await web("GET", `/artists/${id}`));
+      return null;
     });
+  }
+
+  async function contextTitle(uri: string): Promise<string> {
+    return (await contextItem(uri))?.title ?? "";
   }
 
   async function home(): Promise<Home> {
     return cached("home", CACHE_MS.home, async () => {
       const u = await me();
       const [recent, lists, albums, artists, likedTotal] = await Promise.all([
-        web("GET", "/me/player/recently-played?limit=40").catch(() => null),
+        web("GET", "/me/player/recently-played?limit=20").catch(() => null),
         web("GET", "/me/playlists?limit=20").catch(() => null),
         web("GET", "/me/albums?limit=12").catch(() => null),
-        web("GET", "/me/following?type=artist&limit=12").catch(() => web("GET", "/me/top/artists?limit=12").catch(() => null)),
+        web("GET", "/me/following?type=artist&limit=12").catch(() => null),
         web("GET", "/me/tracks?limit=1").catch(() => null),
       ]);
       const seen = new Set<string>();
       const recentItems: Item[] = [];
       for (const played of Array.isArray(recent?.items) ? recent.items : []) {
         if (recentItems.length >= 12) break;
-        const contextUri: string = played?.context?.uri ?? "";
-        const key = contextUri || played?.track?.uri;
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        let item: Item | null = null;
-        if (contextUri.startsWith("spotify:album:")) item = map.album(played.track?.album);
-        else if (contextUri.startsWith("spotify:playlist:")) item = await cached(`playlist-item:${contextUri}`, CACHE_MS.page, async () => map.playlist(await web("GET", `/playlists/${contextUri.split(":")[2]}?fields=id,uri,name,images,owner(display_name)`))).catch(() => null);
-        else if (contextUri.startsWith("spotify:artist:")) item = await cached(`artist-item:${contextUri}`, CACHE_MS.page, async () => map.artist(await web("GET", `/artists/${contextUri.split(":")[2]}`))).catch(() => null);
-        else if (contextUri.endsWith(":collection")) item = map.liked(u.id, likedTotal?.total ?? null);
-        item ??= map.track(played?.track);
+        const uri: string = played?.context?.uri ?? "";
+        if (!uri || seen.has(uri)) continue;
+        seen.add(uri);
+        const item = await contextItem(uri).catch(() => null);
         if (item) recentItems.push(item);
       }
       const artistList = artists?.artists ?? artists;
@@ -478,8 +302,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     return cached(`library:${shelf}:${next}`, CACHE_MS.library, async () => {
       if (shelf === "playlists") {
         const u = await me();
-        const answer = await web("GET", `/me/playlists?limit=${LIST}&offset=${offset}`);
-        const out = map.page(answer, offset, map.playlist);
+        const out = map.page(await web("GET", `/me/playlists?limit=${LIST}&offset=${offset}`), offset, map.playlist);
         if (offset === 0) {
           const total = (await web("GET", "/me/tracks?limit=1").catch(() => null))?.total ?? null;
           out.items.unshift(map.liked(u.id, total));
@@ -490,7 +313,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       if (shelf === "tracks") return map.page(await web("GET", `/me/tracks?limit=${LIST}&offset=${offset}`), offset, map.entryTrack);
       if (shelf === "artists") {
         const answer = await web("GET", `/me/following?type=artist&limit=${LIST}${after ? `&after=${encodeURIComponent(after)}` : ""}`);
-        return map.page(answer?.artists, 0, map.artist);
+        return map.page(answer?.artists ?? answer, 0, map.artist);
       }
       throw fail(404, `no shelf ${shelf}`);
     });
@@ -501,22 +324,22 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     if (!["track", "album", "artist", "playlist"].includes(type)) throw fail(400, `no search type ${type}`);
     const { offset } = map.readToken(next);
     return cached(`search:${type}:${q}:${offset}`, CACHE_MS.search, async () => {
-      // ten a page: Spotify's limit for apps since 2026
-      const answer = await web("GET", `/search?${new URLSearchParams({ q, type, limit: "10", offset: String(offset) })}`);
+      const answer = await web("GET", `/search?${new URLSearchParams({ q, type, limit: "20", offset: String(offset) })}`);
       const fn = type === "track" ? map.track : type === "album" ? map.album : type === "artist" ? map.artist : map.playlist;
       return map.page(answer?.[`${type}s`], offset, fn);
     });
   }
+
+  /** An album's tracks carry no album: give them this one's cover. */
+  const withAlbum = (a: Json) => (t: Json) => map.track({ ...t, album: t.album ?? { id: a.id, uri: a.uri, name: a.name, images: a.images } });
 
   async function albumPage(id: string): Promise<AlbumPage> {
     return cached(`album:${id}`, CACHE_MS.page, async () => {
       const a = await web("GET", `/albums/${encodeURIComponent(id)}`);
       const item = map.album(a);
       if (!item) throw fail(404, "no such album");
-      // an album's tracks carry no album: give them this one's cover
-      const tracks = map.page(a.tracks, 0, (t) => map.track({ ...t, album: { id: a.id, uri: a.uri, name: a.name, images: a.images } }));
       const [liked] = await likedSet([item.uri]).catch(() => [false]);
-      return { album: item, tracks, liked: liked ?? false };
+      return { album: item, tracks: map.page(a.tracks, 0, withAlbum(a)), liked: liked ?? false };
     });
   }
 
@@ -525,7 +348,9 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       const p = await web("GET", `/playlists/${encodeURIComponent(id)}`);
       const item = map.playlist(p);
       if (!item) throw fail(404, "no such playlist");
-      const list = p?.items ?? p?.tracks;
+      let list = p?.tracks ?? p?.items;
+      // a playlist answered without its tracks: ask for them
+      if (!list || !Array.isArray(list.items)) list = await web("GET", `/playlists/${encodeURIComponent(id)}/items?limit=50`).catch(() => null);
       const tracks = list && Array.isArray(list.items) ? map.page(list, 0, map.entryTrack) : null;
       return { playlist: { ...item, description: String(p.description ?? "").replace(/<[^>]+>/g, ""), owner: String(p.owner?.display_name ?? "") }, tracks };
     });
@@ -533,10 +358,15 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
 
   async function artistPage(id: string): Promise<ArtistPage> {
     return cached(`artist:${id}`, CACHE_MS.page, async () => {
-      const [a, albums] = await Promise.all([web("GET", `/artists/${encodeURIComponent(id)}`), web("GET", `/artists/${encodeURIComponent(id)}/albums?include_groups=album,single&limit=20`)]);
+      const [a, top, albums] = await Promise.all([
+        web("GET", `/artists/${encodeURIComponent(id)}`),
+        web("GET", `/artists/${encodeURIComponent(id)}/top-tracks`).catch(() => null),
+        web("GET", `/artists/${encodeURIComponent(id)}/albums?include_groups=album,single&limit=20`),
+      ]);
       const item = map.artist(a);
       if (!item) throw fail(404, "no such artist");
-      return { artist: item, albums: map.page(albums, 0, map.album) };
+      const tops = (Array.isArray(top?.tracks) ? top.tracks : []).map(map.track).filter((t: Item | null): t is Item => t !== null).slice(0, 10);
+      return { artist: item, top: tops, albums: map.page(albums, 0, map.album) };
     });
   }
 
@@ -546,8 +376,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     return cached(`${kind}:${scope}:${id}:${offset}`, CACHE_MS.page, async () => {
       if (kind === "tracks" && scope === "album") {
         const a = await web("GET", `/albums/${encodeURIComponent(id!)}`);
-        const answer = await web("GET", `/albums/${encodeURIComponent(id!)}/tracks?limit=50&offset=${offset}`);
-        return map.page(answer, offset, (t) => map.track({ ...t, album: { id: a.id, uri: a.uri, name: a.name, images: a.images } }));
+        return map.page(await web("GET", `/albums/${encodeURIComponent(id!)}/tracks?limit=50&offset=${offset}`), offset, withAlbum(a));
       }
       if (kind === "tracks" && scope === "playlist") return map.page(await web("GET", `/playlists/${encodeURIComponent(id!)}/items?limit=50&offset=${offset}`), offset, map.entryTrack);
       if (kind === "albums" && scope === "artist") return map.page(await web("GET", `/artists/${encodeURIComponent(id!)}/albums?include_groups=album,single&limit=20&offset=${offset}`), offset, map.album);
@@ -571,7 +400,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
 
   async function play(body: Json): Promise<Player> {
     const device = await target(typeof body.deviceId === "string" ? body.deviceId : undefined);
-    if (!device) throw fail(409, speaker.state === "ready" ? "This device's speaker is not in your Spotify devices yet." : "Nothing to play on.", "nodevice");
+    if (!device) throw fail(409, "Nothing to play on. This device's speaker joins once you are signed in.", "nodevice");
     const request: Json = {};
     if (typeof body.context === "string") request.context_uri = body.context;
     if (Array.isArray(body.uris)) request.uris = body.uris.filter((u: unknown) => typeof u === "string").slice(0, 100);
@@ -585,10 +414,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     const body = (): Json => (r.body.length ? readJson<Json>(r, { error: "a JSON body" }) : {});
     const next = r.query.get("next");
     if (r.method === "GET") {
-      if (path === "/status") {
-        if (token && !user) await me().catch(() => undefined);
-        return status();
-      }
+      if (path === "/status") return status();
       if (path === "/home") return home();
       if (path.startsWith("/library/")) return library(path.slice(9), next);
       if (path === "/search") return search(r.query.get("q") ?? "", r.query.get("type") ?? "track", next);
@@ -603,24 +429,13 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     }
     if (r.method !== "POST") throw fail(405, "the spotify service takes GET and POST");
     switch (path) {
-      case "/config": {
-        const id = String(body().clientId ?? "").trim().toLowerCase();
-        if (id && !CLIENT_ID.test(id)) throw fail(400, "A Client ID is 32 characters, 0-9 and a-f.");
-        if (id !== clientId) signOut();
-        clientId = id;
-        writeSecret(configFile, { clientId });
-        return status();
-      }
       case "/signin":
-        startSignIn();
-        return status();
+        return signIn();
       case "/cancel":
-        cancelSignIn();
-        error = "";
-        return status();
+        await ask("POST", "/login/cancel");
+        return status(true);
       case "/signout":
-        signOut();
-        return status();
+        return signOut();
       case "/play":
         return play(body());
       case "/pause":
@@ -654,15 +469,12 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
         const b = body();
         if (typeof b.uri !== "string" || !/^spotify:(track|album|episode|artist|playlist):[A-Za-z0-9]+$/.test(b.uri)) throw fail(400, "like needs a Spotify uri");
         await web(b.liked === false ? "DELETE" : "PUT", `/me/library?uris=${encodeURIComponent(b.uri)}`);
-        for (const key of cache.keys()) if (key.startsWith("liked:") || key.startsWith("album:") || key === "home" || key.startsWith("library:") || key === "player") cache.delete(key);
+        for (const k of cache.keys()) if (k.startsWith("liked:") || k.startsWith("album:") || k === "home" || k.startsWith("library:") || k === "player") cache.delete(k);
         return { liked: b.liked !== false };
       }
     }
     throw fail(404, `no spotify endpoint POST ${path}`);
   }
-
-  // signed in before: the speaker comes up with the service
-  if (token && clientId) speaker.start(null);
 
   return {
     name: "spotify",
@@ -678,27 +490,20 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       }
     },
     async command(args) {
-      const [verb, value] = args;
-      if (verb === "client-id" && value !== undefined) {
-        if (value && !CLIENT_ID.test(value)) return "A Client ID is 32 characters, 0-9 and a-f.";
-        clientId = value;
-        writeSecret(configFile, { clientId });
-        return value ? "Client ID set" : "Client ID cleared";
-      }
-      if (verb === "signout") {
-        signOut();
+      if (args[0] === "signout") {
+        await signOut().catch(() => undefined);
         return "signed out";
       }
-      const s = status();
-      return `configured ${s.configured}, signed in ${s.signedIn}${s.user ? ` as ${s.user.name}` : ""}, speaker ${s.speaker.state}${s.speaker.message ? ` (${s.speaker.message})` : ""}`;
+      const s = await status(true).catch(() => null);
+      if (!s) return "the program does not answer";
+      return `signed in ${s.signedIn}${s.user ? ` as ${s.user.name}` : ""}, premium ${s.premium}, speaker ${s.speaker.state}${s.speaker.message ? ` (${s.speaker.message})` : ""}${s.signIn ? `, pairing ${s.signIn.code}` : ""}`;
     },
     async state() {
-      const s = status();
-      return { configured: s.configured, signedIn: s.signedIn, user: s.user?.name ?? "", speaker: s.speaker.state };
+      const s = await status().catch(() => null);
+      return { signedIn: s?.signedIn ?? false, user: s?.user?.name ?? "", speaker: s?.speaker.state ?? "off" };
     },
     close() {
-      cancelSignIn();
-      speaker.stop();
+      program.stop();
     },
   };
 }
