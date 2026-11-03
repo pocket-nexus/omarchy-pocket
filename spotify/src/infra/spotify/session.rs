@@ -79,6 +79,16 @@ enum Connected {
   NotPremium,
 }
 
+fn last_error_slot() -> &'static std::sync::Mutex<String> {
+  static LAST: OnceLock<std::sync::Mutex<String>> = OnceLock::new();
+  LAST.get_or_init(|| std::sync::Mutex::new(String::new()))
+}
+
+/// omarchy-pocket: why the last connect failed, "" before any.
+pub fn last_error() -> String {
+  last_error_slot().lock().map(|s| s.clone()).unwrap_or_default()
+}
+
 fn slot() -> &'static Mutex<Slot> {
   static SLOT: OnceLock<Mutex<Slot>> = OnceLock::new();
   SLOT.get_or_init(|| Mutex::new(Slot::default()))
@@ -148,6 +158,8 @@ fn install(
     }
     Err(e) => {
       warn!("Spotify session failed to connect: {e:#}");
+      // omarchy-pocket: the reason, for the sign-in to show and to try another route
+      *last_error_slot().lock().unwrap_or_else(|p| p.into_inner()) = format!("{e:#}");
       slot.last_failure = Some(Instant::now());
       Err(Unavailable::Offline)
     }

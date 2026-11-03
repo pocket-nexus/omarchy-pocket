@@ -18,6 +18,23 @@
 //
 // The speaker. Once signed in the program is this device's Spotify Connect
 // speaker, SPEAKER_NAME, writing PCM to pw-cat (PipeWire) at 320 kbps.
+// Spotify refuses the audio keys to librespot for some accounts; the program
+// then reports the speaker `refused`, and the owner can set up Spotify's own
+// player, Soloist, in its place: the service's owner setup (PocketJS
+// tools/companion/setup.ts, answered at /_setup) holds the Soloist API key the
+// owner makes in Spotify's developer dashboard and Spotify's Soloist build,
+// fetched from Spotify on the owner's consent and again every
+// SOLOIST_REFRESH_DAYS (Spotify's builds stop working 90 days after their
+// release). With both, Soloist is the speaker under the same name (the
+// program runs with --speaker none): the owner picks it once in Spotify on a
+// phone on the same network, and it keeps that login in
+// services/spotify/soloist/. Its key is on its command line, as Soloist takes
+// it; its log lines never reach the daemon's log.
+//
+// Recently played. Spotify's own list is not one the program can ask for, so
+// the service keeps one: every album, playlist, artist or Liked Songs it
+// sees playing (on any of the account's devices) or is asked to play, newest
+// first, at most RECENT_MAX, in services/spotify/recent.json.
 //
 // Answers. The program answers Web API paths (GET /v1/me/player, /v1/search,
 // /v1/albums/<id>, PUT /v1/me/player/play, …) in the Web API's JSON, from the
@@ -26,9 +43,11 @@
 // objects; they are cached for a few seconds to a few minutes (CACHE_MS), and
 // a command clears the player's.
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { jsonResponse, readJson, ServiceError, type ServiceContext, type ServiceProvider, type ServiceRequest } from "../vendor/pocketjs/tools/companion/services.ts";
+import { OwnerSetup, type SetupSpec } from "../vendor/pocketjs/tools/companion/setup.ts";
+import { Supervised } from "../vendor/pocketjs/tools/companion/supervise.ts";
 import type { AlbumPage, ArtistPage, Failure, Home, Item, Page, Player, PlaylistPage, Status } from "../vendor/applets/spotify/contract.ts";
 import * as map from "./spotify-map.ts";
 
@@ -40,10 +59,48 @@ export const PROGRAM = "/usr/lib/omarchy-pocket/omarchy-pocket-spotify";
 const PORT = 4471;
 const CACHE_MS = { home: 60_000, library: 60_000, page: 300_000, search: 120_000, player: 1_000, devices: 3_000, queue: 2_000, liked: 30_000, status: 1_500 } as const;
 const LIST = 30;
+const RECENT_MAX = 24;
+const SOLOIST_REFRESH_DAYS = 30;
+const SOLOIST_CDN = "https://soloist-builds.spotifycdn.com";
+
+/** What the owner sets up for Spotify's own player (PocketJS setup.ts). */
+export const SETUP: SetupSpec = {
+  title: "Spotify's own player",
+  fields: [
+    {
+      id: "soloistKey",
+      label: "Soloist API key",
+      secret: true,
+      pattern: "[\\x21-\\x7e]{16,512}",
+      help: "Spotify plays to Soloist where it refuses this device's speaker. Make a key in Spotify's developer dashboard.",
+      link: { label: "developer.spotify.com/dashboard/soloist", url: "https://developer.spotify.com/dashboard/soloist" },
+    },
+  ],
+  tools: [
+    {
+      id: "soloist",
+      title: "Spotify Soloist",
+      vendor: "Spotify",
+      terms: "https://developer.spotify.com/terms",
+      note: "Spotify's headless player, fetched from Spotify for this device and never passed on.",
+      builds: {
+        "linux-arm64": { url: `${SOLOIST_CDN}/soloist_release_arm64.tar.gz`, archive: "tar.gz", binary: "soloist" },
+        "linux-x64": { url: `${SOLOIST_CDN}/soloist_release_x86_64.tar.gz`, archive: "tar.gz", binary: "soloist" },
+        "linux-arm": { url: `${SOLOIST_CDN}/soloist_release_arm32.tar.gz`, archive: "tar.gz", binary: "soloist" },
+        "darwin-arm64": { url: `${SOLOIST_CDN}/soloist_release_osx_arm64.tar.gz`, archive: "tar.gz", binary: "soloist" },
+      },
+      refreshAfterDays: SOLOIST_REFRESH_DAYS,
+    },
+  ],
+};
 
 export interface SpotifyOptions {
   /** the program; null runs none (a test serves it at `port`) */
   program?: string | null;
+  /** Soloist in place of the fetched build (tests) */
+  soloist?: string;
+  /** the platform the owner setup fetches builds for (tests) */
+  platform?: import("../vendor/pocketjs/tools/companion/setup.ts").Platform | null;
   port?: number;
   /** the key, when a test runs the program itself */
   key?: string;
@@ -60,63 +117,6 @@ class SpotifyError extends Error {
 
 const fail = (status: number, error: string, reason: Failure["reason"] = "other") => new SpotifyError(status, { error, reason });
 
-/** The program under supervision: started, restarted when it exits. */
-class Program {
-  private child: ReturnType<typeof Bun.spawn> | null = null;
-  private backoff = 1_000;
-  private timer: ReturnType<typeof setTimeout> | null = null;
-  private stopped = false;
-
-  constructor(private readonly path: string | null, private readonly argv: string[], private readonly key: string, private readonly log: (line: string) => void) {}
-
-  start() {
-    this.stopped = false;
-    if (!this.path || this.child || this.timer) return;
-    if (!existsSync(this.path)) return this.log(`spotify: ${this.path} is not installed`);
-    const child = Bun.spawn([this.path, ...this.argv], {
-      stdin: "ignore",
-      stdout: "ignore",
-      stderr: "pipe",
-      env: { ...process.env, OMARCHY_POCKET_SPOTIFY_KEY: this.key, RUST_LOG: process.env.RUST_LOG ?? "omarchy_pocket_spotify=info,librespot=warn" },
-    });
-    this.child = child;
-    void (async () => {
-      const decoder = new TextDecoder();
-      let rest = "";
-      for await (const chunk of child.stderr as ReadableStream<Uint8Array>) {
-        rest += decoder.decode(chunk, { stream: true });
-        let at: number;
-        while ((at = rest.indexOf("\n")) >= 0) {
-          const line = rest.slice(0, at).trim();
-          rest = rest.slice(at + 1);
-          if (/ WARN | ERROR /.test(line)) this.log(`spotify: ${line.replace(/^\[[^\]]*\]\s*/, "").slice(0, 240)}`);
-        }
-      }
-    })();
-    const started = Date.now();
-    void child.exited.then((code) => {
-      if (this.child !== child) return;
-      this.child = null;
-      if (this.stopped) return;
-      this.log(`spotify: the program stopped (${code}); starting it again`);
-      if (Date.now() - started > 60_000) this.backoff = 1_000;
-      this.timer = setTimeout(() => {
-        this.timer = null;
-        this.start();
-      }, this.backoff);
-      this.backoff = Math.min(30_000, this.backoff * 2);
-    });
-  }
-
-  stop() {
-    this.stopped = true;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
-    this.child?.kill();
-    this.child = null;
-  }
-}
-
 export function createSpotifyService(context: ServiceContext, options: SpotifyOptions = {}): ServiceProvider {
   const now = options.now ?? Date.now;
   const settleMs = options.settleMs ?? 450;
@@ -125,9 +125,129 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
   const key = options.key ?? randomBytes(24).toString("base64url");
   const sessionDir = join(context.storeDir, "services", "spotify", "session");
   mkdirSync(sessionDir, { recursive: true, mode: 0o700 });
-  const program = new Program(options.program === undefined ? PROGRAM : options.program, ["--cache", sessionDir, "--port", String(port), "--name", SPEAKER_NAME], key, context.log);
-  program.start();
+  const programPath = options.program === undefined ? PROGRAM : options.program;
   const cache = new Map<string, { at: number; value: unknown }>();
+  /** this device's speaker as the account's devices list it */
+  let speakerId: string | null = null;
+
+  /* ---------- the speaker's engine ---------- */
+
+  const setup = new OwnerSetup(context, "spotify", SETUP, { platform: options.platform, now, onChange: () => engineChanged() });
+  const soloistDir = join(context.storeDir, "services", "spotify", "soloist");
+  mkdirSync(soloistDir, { recursive: true, mode: 0o700 });
+  const soloistPath = () => options.soloist ?? setup.toolPath("soloist");
+  /** Soloist is the speaker: its key is set and its build fetched */
+  const soloistEngine = () => setup.value("soloistKey") !== null && soloistPath() !== null;
+  let engine: "librespot" | "soloist" = soloistEngine() ? "soloist" : "librespot";
+  /** what Soloist's log said last */
+  let soloist: { state: "off" | "starting" | "pair" | "ready" | "error"; id: string | null; message: string } = { state: "off", id: null, message: "" };
+
+  const program = new Supervised({
+    name: "spotify",
+    pidFile: join(context.storeDir, "services", "spotify", "program.pid"),
+    argv: () => (programPath && existsSync(programPath) ? [programPath, "--cache", sessionDir, "--port", String(port), "--name", SPEAKER_NAME, "--speaker", engine === "soloist" ? "none" : "librespot"] : null),
+    env: () => ({ OMARCHY_POCKET_SPOTIFY_KEY: key, RUST_LOG: process.env.RUST_LOG ?? "omarchy_pocket_spotify=info,spotatui_librespot=warn" }),
+    // the program's own warnings, never its arguments
+    onLine: (line) => {
+      if (/ WARN | ERROR /.test(line)) context.log(`spotify: ${line.replace(/^\[[^\]]*\]\s*/, "").slice(0, 240)}`);
+    },
+    log: context.log,
+  });
+  if (programPath && !existsSync(programPath)) context.log(`spotify: ${programPath} is not installed`);
+  program.start();
+
+  const soloistChild = new Supervised({
+    name: "soloist",
+    pidFile: join(context.storeDir, "services", "spotify", "soloist.pid"),
+    argv: () => {
+      const path = soloistPath();
+      const apiKey = setup.value("soloistKey");
+      if (engine !== "soloist" || !path || !apiKey) return null;
+      return [path, "-n", SPEAKER_NAME, "-k", apiKey, "-D", soloistDir, "-C", join(soloistDir, "cache"), "-z", "200", "-i", "80"];
+    },
+    onLine: (line) => soloistSaid(line),
+    onExit: () => {
+      if (soloist.state !== "error") soloist = { state: "starting", id: null, message: "" };
+    },
+    log: context.log,
+  });
+
+  /** Soloist's log, as spotatui reads it (src/infra/soloist/logline.rs). */
+  function soloistSaid(line: string) {
+    const text = line.includes("] ") ? line.slice(line.indexOf("] ") + 2) : line;
+    const ready = /ready, device_name=.*device_id=(\S+)/.exec(text);
+    if (ready) {
+      soloist = { state: "ready", id: ready[1]!, message: "" };
+      speakerId = ready[1]!;
+      setup.prompt(null);
+      cache.delete("status");
+      return;
+    }
+    if (text.includes("waiting for login")) {
+      soloist = { state: "pair", id: null, message: "" };
+      setup.prompt({ kind: "pick", title: `Pick ${SPEAKER_NAME} in Spotify`, detail: `On a phone or computer on this network, open Spotify, tap the devices icon, and pick ${SPEAKER_NAME}. Soloist keeps the login.` });
+      cache.delete("status");
+      return;
+    }
+    if (text.includes("login failed")) soloist = { ...soloist, state: "error", message: "Spotify refused Soloist's login. Pick the device again in Spotify." };
+    else if (text.includes("another session is running")) soloist = { ...soloist, state: "error", message: "Another Soloist uses this device's Soloist folder." };
+    else if (text.includes("build expired") || text.includes("client expired")) {
+      soloist = { ...soloist, state: "error", message: "The Soloist build expired; fetching the newest from Spotify." };
+      void setup.refresh("soloist").then(() => soloistChild.restart(), () => {});
+    } else if (/client expires in \d+ (hour|minute)/.test(text) || /client expires in [0-6] day/.test(text)) {
+      void setup.refresh("soloist").catch(() => {});
+    }
+    if (/ ERROR | error:/i.test(line)) context.log(`soloist: ${text.replace(/-k \S+/g, "-k ***").slice(0, 200)}`);
+  }
+
+  function engineChanged() {
+    const next = soloistEngine() ? "soloist" : "librespot";
+    cache.delete("status");
+    if (next === engine) {
+      if (next === "soloist" && !soloistChild.running) soloistChild.start();
+      return;
+    }
+    engine = next;
+    context.log(`spotify: the speaker is ${next === "soloist" ? "Spotify's Soloist" : "librespot"}`);
+    // the program starts or stops its own speaker; Soloist runs only as the speaker
+    program.restart();
+    if (next === "soloist") {
+      soloist = { state: "starting", id: null, message: "" };
+      soloistChild.start();
+    } else {
+      soloistChild.stop();
+      soloist = { state: "off", id: null, message: "" };
+      setup.prompt(null);
+    }
+  }
+  if (engine === "soloist") {
+    soloist = { state: "starting", id: null, message: "" };
+    soloistChild.start();
+  }
+
+  /* ---------- recently played ---------- */
+
+  const recentFile = join(context.storeDir, "services", "spotify", "recent.json");
+  let recent: { uri: string; at: number }[] = (() => {
+    try {
+      const kept = JSON.parse(readFileSync(recentFile, "utf8"));
+      return Array.isArray(kept) ? kept.filter((r) => typeof r?.uri === "string" && typeof r?.at === "number") : [];
+    } catch {
+      return [];
+    }
+  })();
+  const contextUri = /^spotify:(album|playlist|artist):[A-Za-z0-9]+$|^spotify:user:[^:]+:collection$/;
+  function played(uri: string | undefined) {
+    if (!uri || !contextUri.test(uri) || recent[0]?.uri === uri) return;
+    recent = [{ uri, at: now() }, ...recent.filter((r) => r.uri !== uri)].slice(0, RECENT_MAX);
+    cache.delete("home");
+    try {
+      writeFileSync(`${recentFile}.new`, JSON.stringify(recent), { mode: 0o600 });
+      renameSync(`${recentFile}.new`, recentFile);
+    } catch (cause) {
+      context.log(`spotify: recently played not kept: ${cause instanceof Error ? cause.message : String(cause)}`);
+    }
+  }
 
   /* ---------- the program ---------- */
 
@@ -175,15 +295,18 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
 
   /* ---------- sign-in ---------- */
 
-  let speakerId: string | null = null;
-
   async function status(fresh = false): Promise<Status> {
     if (fresh) cache.delete("status");
     return cached("status", CACHE_MS.status, async () => {
       const { status: code, json } = await ask("GET", "/status");
       if (code !== 200 || !json) throw fail(502, "Spotify did not answer on this device.");
       const user = json.user && typeof json.user === "object" ? { id: String(json.user.id ?? ""), name: String(json.user.name ?? json.user.id ?? ""), image: String(json.user.image ?? "") } : null;
-      const state = ["off", "starting", "ready", "error"].includes(json.speaker?.state) ? json.speaker.state : "off";
+      let state: Status["speaker"]["state"] = ["off", "starting", "ready", "error", "refused"].includes(json.speaker?.state) ? json.speaker.state : "off";
+      let message = String(json.speaker?.message ?? "");
+      if (engine === "soloist") {
+        state = json.signedIn ? soloist.state : "off";
+        message = soloist.message;
+      }
       if (state === "ready" && json.signedIn && !speakerId) await devices().catch(() => undefined);
       return {
         signedIn: json.signedIn === true,
@@ -191,7 +314,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
         premium: typeof json.premium === "boolean" ? json.premium : null,
         signIn: json.signIn?.code ? { url: String(json.signIn.url), code: String(json.signIn.code), expiresAt: Number(json.signIn.expiresAt) || 0 } : null,
         error: String(json.error ?? ""),
-        speaker: { name: SPEAKER_NAME, state, id: state === "ready" ? speakerId : null, message: String(json.speaker?.message ?? "") },
+        speaker: { name: SPEAKER_NAME, engine, state, id: state === "ready" ? speakerId : null, message, setup: !setup.state().ready },
       } satisfies Status;
     });
   }
@@ -245,6 +368,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       const title = p?.context?.uri ? await contextTitle(p.context.uri).catch(() => "") : "";
       const out = map.player(p, SPEAKER_NAME, now(), liked, title);
       if (out.device?.local) speakerId = out.device.id;
+      if (out.playing) played(out.context?.uri);
       return out;
     });
   }
@@ -270,20 +394,15 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
   async function home(): Promise<Home> {
     return cached("home", CACHE_MS.home, async () => {
       const u = await me();
-      const [recent, lists, albums, artists, likedTotal] = await Promise.all([
-        web("GET", "/me/player/recently-played?limit=20").catch(() => null),
+      const [lists, albums, artists, likedTotal] = await Promise.all([
         web("GET", "/me/playlists?limit=20").catch(() => null),
         web("GET", "/me/albums?limit=12").catch(() => null),
         web("GET", "/me/following?type=artist&limit=12").catch(() => null),
         web("GET", "/me/tracks?limit=1").catch(() => null),
       ]);
-      const seen = new Set<string>();
       const recentItems: Item[] = [];
-      for (const played of Array.isArray(recent?.items) ? recent.items : []) {
+      for (const { uri } of recent) {
         if (recentItems.length >= 12) break;
-        const uri: string = played?.context?.uri ?? "";
-        if (!uri || seen.has(uri)) continue;
-        seen.add(uri);
         const item = await contextItem(uri).catch(() => null);
         if (item) recentItems.push(item);
       }
@@ -406,6 +525,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     if (Array.isArray(body.uris)) request.uris = body.uris.filter((u: unknown) => typeof u === "string").slice(0, 100);
     if (body.offset && typeof body.offset === "object") request.offset = typeof body.offset.uri === "string" ? { uri: body.offset.uri } : { position: Number(body.offset.position) || 0 };
     if (typeof body.positionMs === "number") request.position_ms = Math.max(0, Math.round(body.positionMs));
+    if (typeof body.context === "string") played(body.context);
     return command(() => web("PUT", `/me/player/play?device_id=${encodeURIComponent(device)}`, request));
   }
 
@@ -478,6 +598,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
 
   return {
     name: "spotify",
+    setup,
     async handle(request) {
       try {
         return jsonResponse(200, await route(request));
@@ -503,6 +624,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       return { signedIn: s?.signedIn ?? false, user: s?.user?.name ?? "", speaker: s?.speaker.state ?? "off" };
     },
     close() {
+      soloistChild.stop();
       program.stop();
     },
   };

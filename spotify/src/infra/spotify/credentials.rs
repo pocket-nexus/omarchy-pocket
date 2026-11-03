@@ -213,6 +213,10 @@ pub(crate) fn proxy_url_from_candidates<'a>(
 /// pointed at a different proxy than the rest of the app; the remaining
 /// candidates follow the usual lowercase-before-uppercase convention.
 pub(crate) fn streaming_proxy_from_env() -> Option<url::Url> {
+  // omarchy-pocket: the route a sign-in found (core/route.rs)
+  if crate::core::route::direct() {
+    return None;
+  }
   let vars = [
     "SPOTATUI_STREAMING_PROXY",
     "https_proxy",

@@ -2,3 +2,4 @@
 pub mod i18n;
 pub mod migrations;
 pub mod paths;
+pub mod route;

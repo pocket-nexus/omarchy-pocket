@@ -1,7 +1,7 @@
 //! omarchy-pocket-spotify: Spotify on Omarchy Pocket, for omarchy-pocketd's
 //! spotify service (daemon/spotify.ts), which starts it and is its only caller.
 //!
-//!   omarchy-pocket-spotify --cache <dir> [--port 4471] [--name "Omarchy Pocket"] [--sink <command>]
+//!   omarchy-pocket-spotify --cache <dir> [--port 4471] [--name "Omarchy Pocket"] [--sink <command>] [--speaker librespot|none]
 //!
 //! Every request carries `x-pocket-key: $OMARCHY_POCKET_SPOTIFY_KEY` (the
 //! daemon makes one per start), and the server listens on 127.0.0.1 only:
@@ -18,7 +18,11 @@
 //! Once signed in it is this device's Spotify Connect speaker: librespot's
 //! Spirc with its player writing 16-bit PCM at 44.1 kHz to `--sink`'s stdin
 //! (pw-cat into PipeWire by default), softvol, 320 kbps, the device id kept
-//! in <dir> so a restart is the same speaker.
+//! in <dir> so a restart is the same speaker. Spotify refuses the audio keys
+//! to librespot for some accounts (`error audio key 0 1`, every track
+//! unplayable): after three unplayable tracks in a row the speaker's state is
+//! `refused`, and omarchy-pocketd offers Spotify's own player, Soloist, in its
+//! place. With `--speaker none` the program starts no speaker (Soloist is it).
 
 mod core;
 mod infra;
@@ -50,7 +54,8 @@ use tokio::sync::Mutex;
 
 const DEFAULT_PORT: u16 = 4471;
 const DEFAULT_NAME: &str = "Omarchy Pocket";
-const DEFAULT_SINK: &str = "pw-cat --playback --format s16 --rate 44100 --channels 2 --latency 120ms -";
+/// raw PCM on stdin: without --raw, pw-cat reads "-" as a sound file and refuses it
+const DEFAULT_SINK: &str = "pw-cat --playback --raw --format s16 --rate 44100 --channels 2 --latency 120ms --media-role Music -";
 const INITIAL_VOLUME: u16 = 52_428; // 80 %
 
 struct Args {
@@ -58,6 +63,7 @@ struct Args {
   port: u16,
   name: String,
   sink: String,
+  speaker: bool,
 }
 
 fn args() -> Result<Args> {
@@ -65,6 +71,7 @@ fn args() -> Result<Args> {
   let mut port = DEFAULT_PORT;
   let mut name = DEFAULT_NAME.to_string();
   let mut sink = DEFAULT_SINK.to_string();
+  let mut speaker = true;
   let mut it = std::env::args().skip(1);
   while let Some(arg) = it.next() {
     let mut value = || it.next().ok_or_else(|| anyhow!("{arg} needs a value"));
@@ -73,10 +80,17 @@ fn args() -> Result<Args> {
       "--port" => port = value()?.parse().context("--port")?,
       "--name" => name = value()?,
       "--sink" => sink = value()?,
+      "--speaker" => {
+        speaker = match value()?.as_str() {
+          "librespot" => true,
+          "none" => false,
+          other => return Err(anyhow!("--speaker is librespot or none, not {other}")),
+        }
+      }
       other => return Err(anyhow!("unknown argument {other}")),
     }
   }
-  Ok(Args { cache: cache.ok_or_else(|| anyhow!("--cache <dir> is needed"))?, port, name, sink })
+  Ok(Args { cache: cache.ok_or_else(|| anyhow!("--cache <dir> is needed"))?, port, name, sink, speaker })
 }
 
 #[derive(Default)]
@@ -107,6 +121,10 @@ struct Inner {
 
 struct App {
   key: String,
+  /// librespot is this device's speaker; false when Soloist is
+  speaker: bool,
+  /// --cache: the route file lives here
+  cache: PathBuf,
   name: String,
   sink: String,
 
@@ -141,7 +159,11 @@ fn device_id(dir: &std::path::Path) -> String {
 }
 
 fn start_speaker(app: Shared) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
-  Box::pin(start_speaker_now(app))
+  Box::pin(async move {
+    if app.speaker {
+      start_speaker_now(app).await;
+    }
+  })
 }
 
 async fn start_speaker_now(app: Shared) {
@@ -212,7 +234,7 @@ async fn start_speaker_now(app: Shared) {
   }
 }
 
-async fn open_speaker(app: &App) -> Result<(SpeakerHandle, impl std::future::Future<Output = ()> + Send + 'static)> {
+async fn open_speaker(app: &Shared) -> Result<(SpeakerHandle, impl std::future::Future<Output = ()> + Send + 'static)> {
   let dir = login_dir().ok_or_else(|| anyhow!("no login directory"))?;
   crate::core::paths::ensure_private_dir(&dir)?;
   let cache = Cache::new(Some(dir.clone()), Some(dir.clone()), None, None)?;
@@ -226,6 +248,7 @@ async fn open_speaker(app: &App) -> Result<(SpeakerHandle, impl std::future::Fut
   let backend = audio_backend::find(Some("subprocess".into())).ok_or_else(|| anyhow!("no subprocess sink"))?;
   let sink = app.sink.clone();
   let player = Player::new(player_config, session.clone(), mixer.get_soft_volume(), move || backend(Some(sink.clone()), AudioFormat::S16));
+  watch_refusals(Arc::downgrade(app), player.get_player_event_channel());
   let connect = ConnectConfig {
     name: app.name.clone(),
     device_type: DeviceType::GameConsole,
@@ -239,6 +262,42 @@ async fn open_speaker(app: &App) -> Result<(SpeakerHandle, impl std::future::Fut
   Ok((SpeakerHandle { spirc, session }, async move {
     let _ = task.await;
   }))
+}
+
+/// Three unplayable tracks in a row, none playing between them: Spotify
+/// refuses this speaker the audio keys.
+const REFUSED_AFTER: u32 = 3;
+
+fn watch_refusals(app: std::sync::Weak<App>, mut events: librespot_playback::player::PlayerEventChannel) {
+  use librespot_playback::player::PlayerEvent;
+  tokio::spawn(async move {
+    let mut unplayable = 0u32;
+    while let Some(event) = events.recv().await {
+      let Some(app) = app.upgrade() else { break };
+      match event {
+        PlayerEvent::Unavailable { .. } => {
+          unplayable += 1;
+          if unplayable == REFUSED_AFTER {
+            warn!("speaker: {REFUSED_AFTER} tracks in a row were unplayable; Spotify refuses this speaker the audio keys");
+            let mut inner = app.inner.lock().await;
+            inner.speaker_state = "refused";
+            inner.speaker_message = "Spotify does not send this speaker the audio keys for this account.".into();
+          }
+        }
+        PlayerEvent::Playing { .. } => {
+          if unplayable >= REFUSED_AFTER {
+            let mut inner = app.inner.lock().await;
+            if inner.speaker_state == "refused" {
+              inner.speaker_state = "ready";
+              inner.speaker_message.clear();
+            }
+          }
+          unplayable = 0;
+        }
+        _ => {}
+      }
+    }
+  });
 }
 
 async fn stop_speaker(app: &App) {
@@ -324,7 +383,7 @@ async fn login(State(app): State<Shared>, headers: HeaderMap) -> Response {
   let waiting = app.clone();
   let task = tokio::spawn(async move {
     let result = match pending.finish().await {
-      Ok(credentials) => session::log_in(credentials).await.map_err(|reason| reason.message().to_string()),
+      Ok(credentials) => log_in_any_route(&waiting, credentials).await,
       Err(e) => Err(format!("{e:#}")),
     };
     let ok = {
@@ -356,6 +415,57 @@ async fn login(State(app): State<Shared>, headers: HeaderMap) -> Response {
   // Spotify lets a code wait an hour; the page says so
   inner.pairing = Some(Pairing { url: url.clone(), code: code.clone(), expires_at: now_ms() + 3_600_000, task: Some(task) });
   Json(json!({ "url": url, "code": code })).into_response()
+}
+
+/// Signs in on the kept route, and on the other one when Spotify refuses it:
+/// a proxy's node may be in a country the account does not match.
+async fn log_in_any_route(app: &App, credentials: librespot_core::authentication::Credentials) -> Result<(), String> {
+  let first = session::log_in(credentials.clone()).await;
+  if !matches!(first, Err(session::Unavailable::Offline)) || !crate::core::route::proxy_named() {
+    return match first {
+      Ok(()) => Ok(()),
+      Err(reason) => Err(explain(reason, account_country(&credentials).await)),
+    };
+  }
+  let was_direct = crate::core::route::direct();
+  info!("sign-in refused {}: {}; trying {}", if was_direct { "directly" } else { "through the proxy" }, session::last_error(), if was_direct { "the proxy" } else { "directly" });
+  crate::core::route::set(&app.cache, !was_direct);
+  let second = session::log_in(credentials.clone()).await;
+  match second {
+    Ok(()) => Ok(()),
+    Err(reason) => {
+      crate::core::route::set(&app.cache, was_direct);
+      Err(explain(reason, account_country(&credentials).await))
+    }
+  }
+}
+
+/// The account's country and plan, from the Web API with the pairing's token:
+/// what to tell a reader Spotify refused for its country.
+async fn account_country(credentials: &librespot_core::authentication::Credentials) -> Option<(String, String)> {
+  let token = String::from_utf8(credentials.auth_data.clone()).ok()?;
+  let client = reqwest::Client::builder().timeout(Duration::from_secs(10)).build().ok()?;
+  let me: Value = client.get("https://api.spotify.com/v1/me").bearer_auth(token).send().await.ok()?.json().await.ok()?;
+  let country = me["country"].as_str()?.to_string();
+  Some((country, me["product"].as_str().unwrap_or("").to_string()))
+}
+
+/// What the reader sees for a failed connect.
+fn explain(reason: session::Unavailable, account: Option<(String, String)>) -> String {
+  let detail = session::last_error();
+  if reason == session::Unavailable::Offline && detail.contains("Travel restriction") {
+    if let Some((_, product)) = account.as_ref().filter(|(_, product)| !product.is_empty() && product != "premium") {
+      return format!("Spotify refused the sign-in: the account is on the {product} plan, which plays only in its own country, and this device needs Spotify Premium.");
+    }
+    if let Some((country, _)) = account {
+      return format!("Spotify refused the sign-in: the account is from {country}, and Spotify sees this device in another country. Route Spotify through a {country} node in the Proxy panel (or turn the proxy off when you are in {country}), then sign in again.");
+    }
+    return "Spotify refused the sign-in from this network's country (travel restriction): the account's country and where this device connects from must match. Pick a node in the account's country in the Proxy panel, then sign in again.".into();
+  }
+  if reason == session::Unavailable::Offline && !detail.is_empty() {
+    return format!("{}: {detail}", reason.message());
+  }
+  reason.message().to_string()
 }
 
 async fn cancel(State(app): State<Shared>, headers: HeaderMap) -> Response {
@@ -421,7 +531,8 @@ async fn main() -> Result<()> {
   if key.len() < 16 {
     return Err(anyhow!("OMARCHY_POCKET_SPOTIFY_KEY is too short"));
   }
-  let app: Shared = Arc::new(App { key, name: args.name, sink: args.sink, inner: Mutex::new(Inner { speaker_state: "off", ..Default::default() }) });
+  crate::core::route::load(&args.cache);
+  let app: Shared = Arc::new(App { key, speaker: args.speaker, cache: args.cache.clone(), name: args.name, sink: args.sink, inner: Mutex::new(Inner { speaker_state: "off", ..Default::default() }) });
 
   // signed in before: the speaker comes up now
   if credentials::streaming_credentials_are_cached().unwrap_or(false) {

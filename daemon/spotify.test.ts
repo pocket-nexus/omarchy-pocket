@@ -1,13 +1,13 @@
 // The spotify service against a stand-in for omarchy-pocket-spotify: the key
 // on every request, the pairing sign-in, Web API answers in the contract's
-// shapes (recently played as contexts, an artist's popular tracks, a playlist
+// shapes (recently played as the service saw it, an artist's popular tracks, a playlist
 // answered without its tracks), commands to the active device or this
 // speaker, and failures as reasons.
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, statSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ServiceProvider } from "../vendor/pocketjs/tools/companion/services.ts";
+import { serve, type ServiceProvider } from "../vendor/pocketjs/tools/companion/services.ts";
 import * as map from "./spotify-map.ts";
 import { createSpotifyService, SPEAKER_NAME } from "./spotify.ts";
 
@@ -29,7 +29,6 @@ const PHONE = { id: "dev-phone", name: "Pixel", type: "Smartphone", volume_perce
 function webApi(method: string, p: string): Response {
   if (!signedIn) return Response.json({ error: { status: 401, message: "Not logged in to Spotify" } }, { status: 401 });
   if (p === "/me") return Response.json({ id: "tester", display_name: "Tess Ter", images: [cover(64)] });
-  if (p === "/me/player/recently-played") return Response.json({ items: [{ context: { uri: ALBUM.uri, type: "album" }, track: { uri: TRACK.uri } }, { context: { uri: ALBUM.uri, type: "album" } }, { context: { uri: "spotify:user:tester:collection", type: "collection" } }] });
   if (p === "/me/playlists") return Response.json({ items: [{ id: "pl1", uri: "spotify:playlist:pl1", name: "Walks", images: [cover(300)], owner: { display_name: "Tess Ter" }, tracks: { total: 3 } }], total: 1, next: null });
   if (p === "/me/albums") return Response.json({ items: [{ album: ALBUM }], total: 1, next: null });
   if (p === "/me/following") return Response.json({ artists: { items: [ARTIST], next: null, cursors: { after: null } } });
@@ -89,6 +88,11 @@ afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+const until = async (check: () => Promise<boolean> | boolean, ms = 8000) => {
+  for (const end = Date.now() + ms; Date.now() < end; await Bun.sleep(50)) if (await check()) return;
+  throw new Error("timed out");
+};
+
 async function call(method: string, path: string, body?: unknown) {
   const [p, q = ""] = path.split("?");
   const response = await service.handle({
@@ -146,8 +150,11 @@ test("signing in is a pairing code; every request to the program carries its key
 });
 
 test("home, pages and search in the contract's shapes", async () => {
+  // recently played is what the service saw play: Liked Songs, then the album, newest first
+  await call("POST", "/play", { context: "spotify:user:tester:collection" });
+  await call("POST", "/play", { context: ALBUM.uri });
+  await call("POST", "/play", { context: ALBUM.uri });
   const home = (await call("GET", "/home")).json;
-  // recently played is contexts: the album twice is one tile, Liked Songs is its own
   expect(home.recent.map((i: { uri: string }) => i.uri)).toEqual([ALBUM.uri, "spotify:user:tester:collection"]);
   expect(home.recent[0]).toMatchObject({ kind: "album", title: "Night Ferry" });
   expect(home.recent[1]).toMatchObject({ kind: "liked", count: 41 });
@@ -198,6 +205,54 @@ test("play goes to the active device, the player maps, Premium is a reason, like
   expect((await call("POST", "/like", { uri: TRACK.uri, liked: false })).json).toEqual({ liked: false });
   expect(seen.at(-1)).toMatchObject({ method: "DELETE", path: `/v1/me/library?uris=${encodeURIComponent(TRACK.uri)}` });
   expect((await call("POST", "/like", { uri: "javascript:1" })).status).toBe(400);
+});
+
+test("the owner sets up Spotify's own player at /_setup; with it Soloist is the speaker", async () => {
+  // a stand-in Soloist: asks for a login, then is ready
+  const fake = join(dir, "soloist");
+  await Bun.write(fake, `#!${process.execPath}\nconst args = process.argv.slice(2);\nrequire("node:fs").writeFileSync(${JSON.stringify(join(dir, "soloist-argv.json"))}, JSON.stringify(args));\nconsole.log("[2026-11-03 10:00:00.000] [info] waiting for login");\nsetTimeout(() => console.log("[2026-11-03 10:00:01.000] [info] ready, device_name=Omarchy Pocket device_id=sol123"), 300);\nsetInterval(() => {}, 1000);\n`);
+  chmodSync(fake, 0o755);
+  const setupService = createSpotifyService({ storeDir: join(dir, "setup-store"), log: () => {} }, { program: null, port: server.port, key: KEY, settleMs: 0, soloist: fake, platform: "linux-arm64" });
+  const setupCall = async (method: "GET" | "POST", body?: unknown) => {
+    // as ServiceHost answers /_setup: a refused change is a 400
+    const response = await serve({ name: "spotify", handle: (r) => setupService.setup!.handle(r) }, {
+      method,
+      path: "/_setup",
+      query: new URLSearchParams(),
+      body: body === undefined ? new Uint8Array(0) : new TextEncoder().encode(JSON.stringify(body)),
+      maxBytes: 1 << 20,
+      console: { name: "test", address: "127.0.0.1", localAddress: "127.0.0.1" },
+      signal: new AbortController().signal,
+    });
+    return { status: response.status, json: JSON.parse(new TextDecoder().decode(response.body)) };
+  };
+  const statusOf = async () => {
+    const response = await setupService.handle({ method: "POST", path: "/cancel", query: new URLSearchParams(), body: new Uint8Array(0), maxBytes: 1 << 20, console: { name: "test", address: "127.0.0.1", localAddress: "127.0.0.1" }, signal: new AbortController().signal });
+    return JSON.parse(new TextDecoder().decode(response.body));
+  };
+  try {
+    signedIn = true;
+    const before = (await setupCall("GET")).json;
+    expect(before).toMatchObject({ service: "spotify", ready: false, fields: [{ id: "soloistKey", secret: true, set: false }], tools: [{ id: "soloist", vendor: "Spotify", consented: false }] });
+    expect((await statusOf()).speaker).toMatchObject({ engine: "librespot", setup: true });
+    expect((await setupCall("POST", { field: "soloistKey", value: "short" })).status).toBe(400);
+    const set = (await setupCall("POST", { field: "soloistKey", value: "sk_test_0123456789abcdef" })).json;
+    expect(JSON.stringify(set)).not.toContain("sk_test_0123456789abcdef");
+    // the key and a Soloist: the speaker is Soloist, which asks to be picked, then is ready
+    await until(async () => (await statusOf()).speaker.state === "pair");
+    expect((await setupCall("GET")).json.prompt).toMatchObject({ kind: "pick" });
+    await until(async () => (await statusOf()).speaker.state === "ready");
+    expect((await statusOf()).speaker).toMatchObject({ engine: "soloist", id: "sol123" });
+    const argv: string[] = JSON.parse(readFileSync(join(dir, "soloist-argv.json"), "utf8"));
+    expect(argv.slice(0, 2)).toEqual(["-n", SPEAKER_NAME]);
+    expect(argv[argv.indexOf("-k") + 1]).toBe("sk_test_0123456789abcdef");
+    expect((await setupCall("GET")).json.prompt).toBeNull();
+    // the key cleared: librespot again
+    await setupCall("POST", { field: "soloistKey", clear: true });
+    expect((await statusOf()).speaker.engine).toBe("librespot");
+  } finally {
+    setupService.close?.();
+  }
 });
 
 test("signing out reaches the program", async () => {
