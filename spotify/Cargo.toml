@@ -1,0 +1,46 @@
+# omarchy-pocket-spotify: the Spotify applet's half on the device. It signs in
+# with a pairing code (Spotify's desktop client, as a TV signs in), is this
+# device's Spotify Connect speaker, and answers Web API paths on 127.0.0.1
+# from Spotify's internal API, with the modules of spotatui
+# (github.com/LargeModGames/spotatui, MIT, src/infra/spotify/LICENSE-spotatui)
+# over its librespot fork. omarchy-pocketd's spotify service runs it
+# (daemon/spotify.ts). Its own workspace: none of the host's crates.
+[package]
+name = "omarchy-pocket-spotify"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[workspace]
+
+[dependencies]
+librespot-core = { version = "=0.8.7", package = "spotatui-librespot-core", default-features = false, features = ["rustls-tls-webpki-roots"] }
+librespot-connect = { version = "=0.8.7", package = "spotatui-librespot-connect", default-features = false }
+librespot-oauth = { version = "=0.8.7", package = "spotatui-librespot-oauth", default-features = false }
+librespot-metadata = { version = "=0.8.7", package = "spotatui-librespot-metadata", default-features = false }
+librespot-protocol = { version = "=0.8.7", package = "spotatui-librespot-protocol", default-features = false }
+librespot-playback = { version = "=0.8.7", package = "spotatui-librespot-playback", default-features = false }
+protobuf = "3.7"
+tokio = { version = "1.52", features = ["full"] }
+futures = "0.3.32"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0.102"
+chrono = "0.4.45"
+log = "0.4.32"
+env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+url = "2.5"
+rand = "0.10"
+md-5 = "0.11"
+axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "json", "query"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
+strip = true
+
+[dev-dependencies]
+rspotify = { version = "0.16", default-features = false, features = ["client-reqwest", "reqwest-rustls-tls"] }

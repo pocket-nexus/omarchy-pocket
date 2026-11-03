@@ -221,6 +221,7 @@ const MARKS: Record<string, string> = {
   weather: "\u{f0595}",
   maps: "\u{f034d}",
   podcasts: "\u{f0994}",
+  spotify: "\u{f04c7}",
   "home assistant": "\u{f07d0}",
   home: "\u{f07d0}",
 };

@@ -2,7 +2,7 @@
 // Puts what tools/build.ts built, and device/rootfs/, on a running Omarchy
 // Pocket over SSH, then restarts what changed:
 //
-//   bun tools/deploy.ts <ssh-host> [host] [shell] [daemon] [applets] [files] [asr]
+//   bun tools/deploy.ts <ssh-host> [host] [shell] [daemon] [spotify] [applets] [files] [asr]
 //
 // With no parts named, all but asr go; asr (voice input's runtime and model,
 // 120 MB) goes when named. `files` copies every file under
@@ -17,7 +17,7 @@ import { OUTPUTS, SHIM_NAMES } from "./build.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
 const ROOTFS = join(ROOT, "device", "rootfs");
-const PARTS = ["host", "shell", "daemon", "applets", "sdk", "files", "asr"] as const;
+const PARTS = ["host", "shell", "daemon", "spotify", "applets", "sdk", "files", "asr"] as const;
 type Part = (typeof PARTS)[number];
 
 const [target, ...named] = process.argv.slice(2);
@@ -43,6 +43,7 @@ if (parts.has("daemon")) {
   uploads.push([OUTPUTS.wasm, "/usr/lib/omarchy-pocket/ghostty-vt.wasm", "644"]);
   for (const name of SHIM_NAMES) uploads.push([OUTPUTS.shim, `/usr/local/bin/${name}`, "755"]);
 }
+if (parts.has("spotify")) uploads.push([OUTPUTS.spotify, "/usr/lib/omarchy-pocket/omarchy-pocket-spotify", "755"]);
 if (parts.has("applets")) {
   const built = join(ROOT, ".cache", "applets");
   for (const file of existsSync(built) ? readdirSync(built).filter((f) => f.endsWith(".pocket")) : []) {
@@ -63,6 +64,8 @@ const restart: string[] = [];
 if (parts.has("files")) restart.push("systemctl daemon-reload", "systemctl --global enable omarchy-pocketd.service", `loginctl enable-linger ${user}`);
 if (parts.has("daemon") || parts.has("files")) restart.push(`systemctl --user -M ${user}@ daemon-reload`, `systemctl --user -M ${user}@ restart omarchy-pocketd.service`);
 if (parts.has("host") || parts.has("shell") || parts.has("files")) restart.push("systemctl restart omarchy-pocket.service");
+// omarchy-pocketd starts the new one; pidof by its path, since its name and the host's share 15 characters
+if (parts.has("spotify") && !parts.has("daemon")) restart.push("{ kill $(pidof /usr/lib/omarchy-pocket/omarchy-pocket-spotify) 2>/dev/null || true; }");
 
 const ssh = (process.env.SSH_OPTS ?? "").split(" ").filter(Boolean);
 const remote = ["tar -C / -xpf -", ...restart].join(" && ");

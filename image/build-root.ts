@@ -132,6 +132,8 @@ cp -a /repo/.cache/sdk /usr/share/omarchy-pocket/sdk
 ln -sfn /usr/share/omarchy-pocket/sdk/sdk/pocket-applet.ts /usr/local/bin/pocket-applet
 install -Dm644 /repo/.cache/daemon/omarchy-pocketd.js /usr/lib/omarchy-pocket/omarchy-pocketd.js
 install -Dm644 /repo/.cache/daemon/ghostty-vt.wasm /usr/lib/omarchy-pocket/ghostty-vt.wasm
+# the Spotify applet's half (spotify/, daemon/spotify.ts)
+install -Dm755 /repo/.cache/spotify/cargo/aarch64-unknown-linux-gnu/release/omarchy-pocket-spotify /usr/lib/omarchy-pocket/omarchy-pocket-spotify
 # Chinese input: PocketJS's Rime helper over librime, and its pinyin schema
 gcc -O2 /repo/.cache/daemon/ime/rime.c -lrime -o /tmp/pocket-rime
 install -Dm755 /tmp/pocket-rime /usr/lib/omarchy-pocket/pocket-rime

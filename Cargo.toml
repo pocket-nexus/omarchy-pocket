@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
 members = ["host"]
-# vendored pocketjs crates resolve against their own workspace
-exclude = ["vendor"]
+# vendored pocketjs crates resolve against their own workspace; spotify/ is its own
+exclude = ["vendor", "spotify"]
 
 [workspace.package]
 version = "0.1.0"
