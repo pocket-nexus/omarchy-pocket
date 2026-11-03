@@ -614,6 +614,10 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       case "/signin":
         startSignIn();
         return status();
+      case "/cancel":
+        cancelSignIn();
+        error = "";
+        return status();
       case "/signout":
         signOut();
         return status();

@@ -138,6 +138,10 @@ test("a sign-in goes through the relay with PKCE; the token stays on the device;
   expect((await call("POST", "/config", { clientId: "short" })).status).toBe(400);
   expect((await call("POST", "/config", { clientId: CLIENT })).json.configured).toBe(true);
 
+  // a sign-in the reader cancels stops waiting for the phone
+  expect((await call("POST", "/signin")).json.signIn.url).toContain("/authorize?");
+  expect((await call("POST", "/cancel")).json.signIn).toBeNull();
+
   const started = (await call("POST", "/signin")).json;
   const url = new URL(started.signIn.url);
   expect(url.origin + url.pathname).toBe(`${base}/accounts/authorize`);
