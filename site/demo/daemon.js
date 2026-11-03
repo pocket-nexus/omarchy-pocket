@@ -178,7 +178,14 @@ export function createDaemon({ emit, themes, wallBase, screensaver, onStorage })
   };
   const accent = () => hexToInt(themes[current].colors.accent);
   const pushState = () => emit({ event: "state", state: { ...state } });
-  const shell = (target, method, ...args) => emit({ event: "shell", call: nextCall++, target, method, args });
+  // a call resolves with the shell's answer, as `omarchy-shell` prints it on the device
+  const answers = new Map();
+  const shell = (target, method, ...args) => {
+    const call = nextCall++;
+    const done = new Promise((resolve) => answers.set(call, resolve));
+    emit({ event: "shell", call, target, method, args });
+    return done;
+  };
 
   async function decode(url) {
     const response = await fetch(url);
@@ -243,7 +250,7 @@ export function createDaemon({ emit, themes, wallBase, screensaver, onStorage })
     run: (r) => runCommand(r.command),
     // the menu's `when` commands: a row shows unless its command needs real hardware
     conditions: (r) => r.commands.map(() => false),
-    answer: () => null,
+    answer: (r) => { answers.get(r.call)?.(r.handled ? r.output : null); answers.delete(r.call); return null; },
     wallpaper: (r) => tiles(r.path),
     termOpen: (r) => {
       const sid = nextSid++;

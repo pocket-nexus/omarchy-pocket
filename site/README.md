@@ -13,7 +13,7 @@ The landing page and the browser demo, an assets-only Worker (`wrangler.jsonc`).
 ```sh
 bun site/preview.ts                # http://127.0.0.1:4205
 bun site/build-demo.ts             # the shell, the wasm core, the host, the themes into public/demo (--skip-shell keeps the last compile)
-bun site/record.ts                 # the chord video and the panel stills, from the shell in /demo (needs the preview)
+bun site/record.ts                 # the chord video, the legends under L1 and R1 and the panel stills, from the shell in /demo (needs the preview)
 bun site/icons.ts                  # the icon family and og-image.png (needs the preview)
 bun site/shots.ts                  # device captures from the ignored .pocket-build/validation
 bun site/vs.ts                     # the iPhone Duo comparison

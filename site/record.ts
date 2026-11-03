@@ -1,4 +1,5 @@
-// Records the page's stills and the chord video from the real shell in the
+// Records the page's stills (the legends under L1 and R1, the Tailscale and
+// proxy panels, a theme) and the chord video from the real shell in the
 // browser demo, tick by tick, with the clock stopped. Needs the preview running.
 //
 //   bun site/record.ts [--port=4205]
@@ -31,7 +32,8 @@ await send("Page.navigate", { url: `http://127.0.0.1:${port}/demo/?record` });
 for (let i = 0; i < 100 && !(await js("!!window.sim")); i++) await Bun.sleep(200);
 await js("sim.stop()");
 const step = (n: number) => js(`sim.step(${n})`);
-const call = async (...a: string[]) => { await js(`sim.call(${a.map((x) => JSON.stringify(x)).join(",")})`); await step(30); };
+// the clock is stopped: a call's answer comes with the steps after it, so it is not awaited
+const call = async (...a: string[]) => { await js(`void sim.call(${a.map((x) => JSON.stringify(x)).join(",")})`); await step(30); };
 const png = async (expr: string, file: string) => { const data: string = await js(`${expr}.toDataURL("image/png")`); await Bun.write(file, Buffer.from(data.split(",")[1]!, "base64")); };
 const still = async (name: string) => {
   // a panel's data arrives through the bridge's promises, between evaluations
@@ -74,6 +76,12 @@ await $`ffmpeg -nostdin -y -loglevel error -framerate 60 -i ${FRAMES}/%04d.png -
 await $`magick ${FRAMES}/0000.png -crop 1024x768+0+0 +repage -quality 88 ${OUT}chords-top.webp`.quiet();
 await $`magick ${FRAMES}/0000.png -crop 1024x768+0+768 +repage -quality 88 ${OUT}chords-bottom.webp`.quiet();
 console.log("video", (await Bun.file(`${OUT}chords.mp4`).size) >> 10, "KiB");
+
+// a held shoulder's legend on the deck, over the three windows (kit/scenes.js)
+for (const [mask, name] of [["L1", "legend"], ["R1", "legend-move"]] as const) {
+  await hold(mask, true); await step(24); await still(name);
+  await hold(mask, false); await step(30);
+}
 
 // the shell's own panels and states, for the page's stills
 await call("shell", "summon", "omarchy.tailscale"); await still("ts");

@@ -13,14 +13,15 @@ const KEY_SAYS = {
   START: "START is Escape. Under L1 it changes the workspace's layout.",
   L2: "L2 goes to the previous workspace.",
   R2: "R2 goes to the next workspace.",
-  STICK: "The stick is for games. A package gets the buttons the window manager does not take.",
+  STICK: "Under R1 the stick resizes: the focused window's edge goes the way you push it.",
   FN1: "A system button, kept by the device.",
   FN2: "A system button, kept by the device.",
 };
 
 /**
- * Makes the model's buttons behave as the shell does: L1 and R1 are SUPER and
- * show their layer's legend while held, SELECT turns the deck's layout.
+ * Makes the model's buttons behave as the shell does: L1 and R1 are SUPER and,
+ * held, the bottom screen draws their layer's buttons with what each does;
+ * SELECT turns the deck's layout.
  * `say(text)` receives one sentence for each press.
  */
 export function attachButtons(device, { say = () => {}, rest = "split", onScene = () => {}, shoulders = null } = {}) {
@@ -28,8 +29,8 @@ export function attachButtons(device, { say = () => {}, rest = "split", onScene 
   let layout = 0, current = rest;
   const go = (id) => { current = id; show(device, id, { ms: 260 }); onScene(id); };
   device.on("press", (name) => {
-    if (name === "L1") { show(device, "legend", { ms: 120 }); say("L1 held: the window layer. Its bindings appear on the stage after a quarter second, and go with the shoulder."); return; }
-    if (name === "R1") { say("R1 held: the move layer. Swap windows, reopen one you closed, change the background."); return; }
+    if (name === "L1") { show(device, "legend", { ms: 120 }); say("L1 held: the window layer. After a quarter second the bottom screen draws the buttons around it, each with what it does."); return; }
+    if (name === "R1") { show(device, "legend-move", { ms: 120 }); say("R1 held: the move layer. Swap windows, open another, reopen one you closed; push the stick to move the window's edge."); return; }
     if (name === "SELECT") {
       layout = (layout + 1) % layouts.length;
       go(layouts[layout][1]);
@@ -38,7 +39,7 @@ export function attachButtons(device, { say = () => {}, rest = "split", onScene 
     }
     if (KEY_SAYS[name]) say(KEY_SAYS[name]);
   });
-  device.on("release", (name) => { if (name === "L1") show(device, current, { ms: 160 }); });
+  device.on("release", (name) => { if (name === "L1" || name === "R1") show(device, current, { ms: 160 }); });
   // The shoulders sit behind the hinge, out of sight from the front: two chips
   // ride on their projected positions so a pointer can reach them.
   if (shoulders) {

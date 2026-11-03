@@ -122,6 +122,8 @@ body.close .side{opacity:0;pointer-events:none}
     <button data-do="tile">Tile three windows<small>terminal, clock, activity</small></button>
     <button data-do="focus">Move the selection<small>L1 + →</small></button>
     <button data-do="swap">Swap two windows<small>R1 + →</small></button>
+    <button data-do="legend">What each button does<small>hold L1, the bottom screen shows it</small></button>
+    <button data-do="resize">Resize a window<small>R1 + stick, the edge follows it</small></button>
     <button data-do="menu">Omarchy's menu<small>L1 + A, type to filter</small></button>
     <button data-do="sheet">Every chord<small>L1 + SELECT</small></button>
     <button data-do="tailscale">Tailscale panel</button>
@@ -260,6 +262,17 @@ for (const [name, els] of Object.entries(controls)) for (const el of els) {
   el.addEventListener("pointercancel", () => buttonUp(name));
 }
 
+// The stick, pressed on the model: under R1 a push the way the press is off
+// its centre, and the focused window's edge goes that way (shell/src/stick.ts).
+function pushStick(local) {
+  if (!(sim.input.buttons & BTN.R1)) return tell("Hold R1 and push the stick: the focused window's edge goes the way you push.");
+  const x = local?.x ?? 1, y = local?.y ?? 0;
+  // the model's y goes up, the shell's down
+  const [sx, sy] = Math.abs(x) >= Math.abs(y) ? [x < 0 ? -1 : 1, 0] : [0, y > 0 ? -1 : 1];
+  sim.call("pocket.input", "stick", String(sx), String(sy), "12");
+  setTimeout(() => { for (const s of latched) set(s, false); latched.clear(); }, 400);
+}
+
 // the model's own buttons
 if (device) {
   let dpadName = null;
@@ -268,7 +281,7 @@ if (device) {
       dpadName = Math.abs(local?.x ?? 0) > Math.abs(local?.y ?? 0) ? (local.x < 0 ? "LEFT" : "RIGHT") : ((local?.y ?? 0) < 0 ? "DOWN" : "UP");
       buttonDown(dpadName);
     } else if (BTN[name]) buttonDown(name);
-    else if (name === "STICK") tell("The stick is for games: a package gets the buttons the window manager does not take.");
+    else if (name === "STICK") pushStick(local);
   });
   device.on("release", (name) => {
     if (name === "DPAD") { if (dpadName) buttonUp(dpadName); dpadName = null; }
@@ -334,6 +347,18 @@ const TASKS = {
   async tile() { open("terminal"); await wait(250); open("clock"); await wait(250); open("activity"); },
   focus: () => chord("L1", "RIGHT"),
   swap: () => chord("R1", "RIGHT"),
+  async legend() { set("L1", true); await wait(1800); set("L1", false); },
+  async resize() {
+    // two windows side by side, so there is an edge to move
+    const list = String((await sim.call("pocket.window", "list")) ?? "");
+    const here = list.split("\n").find((l) => l.includes(">")) ?? "";
+    if (here.split(/\s+/).slice(1).filter((w) => w && w !== "-").length < 2) { open("clock"); await wait(400); }
+    set("R1", true); await wait(300);
+    sim.call("pocket.input", "stick", "-1", "0", "12"); await wait(500);
+    sim.call("pocket.input", "stick", "1", "0", "12"); await wait(500);
+    set("R1", false);
+    tell("R1 + stick: the focused window's edge goes the way you push.");
+  },
   menu: () => chord("L1", "A"),
   sheet: () => chord("L1", "SELECT"),
   tailscale: () => sim.call("shell", "summon", "omarchy.tailscale"),

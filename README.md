@@ -8,7 +8,7 @@ The picture is the device's three.js model (`site/public/kit/rgds.js`) with two 
 
 ## On the device
 
-<p align="center"><img src="docs/media/screens.webp" width="840" alt="Six captures, each the upper panel over the lower: the desktop with the workspace pad, three tiled windows over the keyboard, Codex in a window, the window layer's key sheet, Hacker News and Maps over the touchpad"></p>
+<p align="center"><img src="docs/media/screens.webp" width="840" alt="Six captures, each the upper panel over the lower: the desktop with the workspace pad, three tiled windows over the keyboard, Codex in a window, three windows over the window layer's legend, Hacker News and Maps over the touchpad"></p>
 
 Both panels read back from the GPU (`tools/screenshot.ts`), the upper over the lower:
 

@@ -1,6 +1,7 @@
 // Device captures for the page: splits each 1024 × 1536 readback (tools/screenshot.ts,
 // top panel over bottom panel) into two WebPs. The sources stay in the ignored
 // .pocket-build/validation tree. An entry may take its deck from another capture.
+// The legends under a held shoulder come from the browser demo (site/record.ts).
 //
 //   bun site/shots.ts
 import { $ } from "bun";
@@ -18,7 +19,6 @@ const SHOTS: Record<string, { top: string; bottom?: string | null }> = {
   split: { top: `${D}/15-keys.png`, bottom: KEYS },
   tile3: { top: `${R}/9-three-windows-clock.png`, bottom: KEYS },
   tile4: { top: `${R}/12-notes-editing.png`, bottom: KEYS },
-  legend: { top: "deck-r2/site/legend.png", bottom: KEYS },
   pad: { top: `${D}/21-pad.png`, bottom: PAD },
   hnfull: { top: `${D}/48-hn-full.png`, bottom: PAD },
   video: { top: `${D}/38-yt-colour3.png`, bottom: PAD },

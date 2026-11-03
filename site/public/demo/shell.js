@@ -1,5 +1,5 @@
 (() => {
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/node_modules/solid-js/dist/solid.js
+  // vendor/pocketjs/node_modules/solid-js/dist/solid.js
   var sharedConfig = {
     context: undefined,
     registry: undefined,
@@ -1021,7 +1021,7 @@
     }, undefined, undefined);
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/node_modules/solid-js/universal/dist/universal.js
+  // vendor/pocketjs/node_modules/solid-js/universal/dist/universal.js
   var memo = (fn) => createMemo(() => fn());
   function createRenderer$1({
     createElement,
@@ -1283,7 +1283,7 @@
     return renderer;
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/solid-row.ts
+  // vendor/pocketjs/framework/src/solid-row.ts
   var RowContext = createContext();
   var nodeRows = new WeakMap;
   function captureNodeRow(node) {
@@ -1333,10 +1333,10 @@
     }
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/contracts/spec/binding-generation.ts
+  // vendor/pocketjs/contracts/spec/binding-generation.ts
   var POCKET_BINDING_GENERATION = 12;
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/contracts/spec/spec.ts
+  // vendor/pocketjs/contracts/spec/spec.ts
   var SCREEN_W = 480;
   var SCREEN_H = 272;
   var NODE_TYPE = {
@@ -1644,7 +1644,7 @@
   var ANALOG_CENTER = 32896;
   var FIXED_DT = 1 / 60;
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/host.ts
+  // vendor/pocketjs/framework/src/host.ts
   function hostViewport(ops) {
     return ops.__viewport ?? null;
   }
@@ -1675,9 +1675,6 @@
       return;
     if (typeof ops.__host !== "string") {
       throw new Error(`PocketJS: this bundle targets "${expected.target}" but the native host predates platform ` + "contracts — add __host/__hostAbi to its ui namespace (see framework/src/host.ts HostOps)");
-    }
-    if (ops.__host !== expected.target) {
-      throw new Error(`PocketJS: native target mismatch (bundle=${expected.target}, host=${ops.__host})`);
     }
   }
   function detectHost(injected) {
@@ -1780,7 +1777,7 @@
     return value;
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/clock.ts
+  // vendor/pocketjs/framework/src/clock.ts
   var TICKS_PER_SECOND = validTickHz(60);
   function validTickHz(hz) {
     if (!Number.isInteger(hz) || hz < 1 || hz > 240) {
@@ -1862,7 +1859,7 @@
       t.cb();
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/analog.ts
+  // vendor/pocketjs/framework/src/analog.ts
   var ANALOG_DEADZONE = 0.12;
   var analogPacked = ANALOG_CENTER;
   var rightPacked = ANALOG_CENTER;
@@ -1893,7 +1890,7 @@
     return axis(rightPacked & 255);
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/contracts/spec/motion.ts
+  // vendor/pocketjs/contracts/spec/motion.ts
   var MotionLevel = {
     Gravity: 1,
     Inertial: 2,
@@ -1983,7 +1980,7 @@
     }
   };
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/contracts/spec/microts.ts
+  // vendor/pocketjs/contracts/spec/microts.ts
   var MICROTS_NUMERIC_TYPES = ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "usize", "f32", "f64"];
   var RelativeAxis = {
     Primary: 0,
@@ -2049,7 +2046,7 @@
     embedBytes: "export declare function embedBytes(path: string): N.u8[];"
   };
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/relative-axis.ts
+  // vendor/pocketjs/framework/src/relative-axis.ts
   var pending = [0, 0];
   var current2 = [0, 0];
   var EMPTY_AXIS_DELTAS = Object.freeze([]);
@@ -2095,7 +2092,7 @@
     pending[0] = pending[1] = current2[0] = current2[1] = 0;
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/motion.ts
+  // vendor/pocketjs/framework/src/motion.ts
   var pending2 = null;
   var current3 = null;
   var QUALITIES = Object.values(MotionQuality);
@@ -2200,7 +2197,7 @@
     pending2 = current3 = null;
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/frame-dispatch.ts
+  // vendor/pocketjs/framework/src/frame-dispatch.ts
   class FrameRegistry {
     callbacks = new Set;
     placed = new Map;
@@ -2274,7 +2271,7 @@
       run(node, invoke);
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/aot-lifecycle.ts
+  // vendor/pocketjs/framework/src/aot-lifecycle.ts
   function createLifecycleScheduler(batch, update = () => {}) {
     const hooks = new Set;
     let sequence = 0;
@@ -2349,7 +2346,7 @@
     };
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/model-reactive.ts
+  // vendor/pocketjs/framework/src/model-reactive.ts
   var copy = (value) => {
     if (Array.isArray(value))
       return value.map(copy);
@@ -2371,7 +2368,7 @@
     }
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/model-tasks.ts
+  // vendor/pocketjs/framework/src/model-tasks.ts
   var services = new Map;
   var deliveries = [];
   function deliverModelResult(request, value) {
@@ -2445,7 +2442,7 @@
       run();
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/lifecycle-solid-aot.ts
+  // vendor/pocketjs/framework/src/lifecycle-solid-aot.ts
   var scheduler = createLifecycleScheduler((run) => batch(() => {
     run();
     reactModelRegions();
@@ -2495,7 +2492,7 @@
         registerModelLifecycle(region, entry.root);
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/contracts/spec/platform-types.ts
+  // vendor/pocketjs/contracts/spec/platform-types.ts
   function defineCapabilityRegistry(registry) {
     return registry;
   }
@@ -2516,15 +2513,20 @@
     "ui.compositor-surfaces",
     "ui.physics",
     "audio.pcm",
+    "audio.capture",
     "media.playback",
     "io.offload",
     "net.http",
+    "net.mqtt",
     "link.companion",
     "system.wifi",
+    "system.device",
     "camera.qr",
     "camera.photo",
     "system.agent",
+    "system.extension",
     "data.fs",
+    "data.pack",
     "host.clipboard",
     "display.viewport.live",
     "display.auxiliary",
@@ -2535,7 +2537,7 @@
     "text.layout.offload"
   ]);
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/anim.ts
+  // vendor/pocketjs/framework/src/anim.ts
   var animationClass = ANIMATION_CLASSES.includes("composited") ? "composited" : "composited";
   var EASING_BY_NAME = {
     linear: ENUMS.Easing.Linear,
@@ -2585,7 +2587,7 @@
     getOps().setProp(nodeId(node), animatablePropId(prop), encodePropValue(prop, value));
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/model-node-ref.ts
+  // vendor/pocketjs/framework/src/model-node-ref.ts
   var references = new WeakMap;
   function clearNodeReferences(node) {
     for (const child of node.children)
@@ -2595,7 +2597,7 @@
     references.delete(node);
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/model-animation.ts
+  // vendor/pocketjs/framework/src/model-animation.ts
   var pending3 = new Map;
   function installModelAnimationCommands() {
     registerModelCommandHandler((region, op, args, request) => {
@@ -2647,7 +2649,7 @@
     }
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/frame.ts
+  // vendor/pocketjs/framework/src/frame.ts
   var registry = new FrameRegistry;
   var systemRegistry = new FrameRegistry;
   var appSuspended = false;
@@ -2717,13 +2719,13 @@
     registerFrame(callback);
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/bytes.ts
+  // vendor/pocketjs/framework/src/bytes.ts
   var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   var B64_INV = {};
   for (let i = 0;i < B64.length; i++)
     B64_INV[B64[i]] = i;
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/pak.ts
+  // vendor/pocketjs/framework/src/pak.ts
   var map = null;
   var bytes = null;
   function readKey(u8, off, len) {
@@ -2802,7 +2804,7 @@
     return bytes.slice(e.off + start, e.off + stop);
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/input.ts
+  // vendor/pocketjs/framework/src/input.ts
   var root = null;
   var focused = null;
   var pressedNode = null;
@@ -3285,7 +3287,7 @@
     }
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/native-tree.ts
+  // vendor/pocketjs/framework/src/native-tree.ts
   var treeMutationHook = null;
   function setTreeMutationHook(fn) {
     treeMutationHook = fn;
@@ -3924,7 +3926,7 @@
     return String(node.type);
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/renderer-solid.ts
+  // vendor/pocketjs/framework/src/renderer-solid.ts
   function setProperty(node, name, value, prev) {
     if (name === "ref" && typeof value === "function") {
       value(node);
@@ -3964,13 +3966,13 @@
     use
   } = renderer;
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/overlay.ts
+  // vendor/pocketjs/framework/src/overlay.ts
   var overlayRoot = null;
   function setOverlayRoot(root) {
     overlayRoot = root;
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/display.ts
+  // vendor/pocketjs/framework/src/display.ts
   var roots2 = null;
   function layerStyle(width, height, overlay) {
     return overlay ? {
@@ -4040,7 +4042,7 @@
     return roots2;
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/resource-boundary.ts
+  // vendor/pocketjs/framework/src/resource-boundary.ts
   function ResourceBoundary(props) {
     const state = createMemo(props.state);
     const status = createMemo(() => state().status);
@@ -4064,12 +4066,12 @@
     });
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/resource-state.ts
+  // vendor/pocketjs/framework/src/resource-state.ts
   var PENDING2 = Object.freeze({
     status: "pending"
   });
   var pending4 = () => PENDING2;
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/primitives.ts
+  // vendor/pocketjs/framework/src/primitives.ts
   function callRef(ref, node) {
     if (!ref)
       return;
@@ -4131,27 +4133,34 @@
   function Image(props) {
     return primitive("image", props);
   }
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/hot.ts
+  // vendor/pocketjs/framework/src/hot.ts
   var lastText = new WeakMap;
   var lastProp = new WeakMap;
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/platform.ts
+  // vendor/pocketjs/contracts/spec/net.ts
+  var NET_MAX_REQUEST_BYTES = 64 * 1024;
+  var NET_DEFAULT_RESPONSE_BYTES = 128 * 1024;
+  var NET_MAX_RESPONSE_BYTES = 256 * 1024;
+  var NET_MAX_HEADER_BYTES = 8 * 1024;
+
+  // vendor/pocketjs/framework/src/platform.ts
   var features = typeof { "display.auxiliary": true, "input.buttons": true, "input.touch.auxiliary": true, "text.glyphs.baked": true } === "object" && { "display.auxiliary": true, "input.buttons": true, "input.touch.auxiliary": true, "text.glyphs.baked": true } !== null ? Object.freeze({
     ...{ "display.auxiliary": true, "input.buttons": true, "input.touch.auxiliary": true, "text.glyphs.baked": true }
   }) : Object.freeze({});
   var platform = Object.freeze({
     target: "rg-ds-plus",
     pixelRatio: Number.isInteger(2) ? 2 : 1,
-    features
+    features,
+    httpResponseBytes: Number.isInteger(4194304) && 4194304 >= NET_MAX_RESPONSE_BYTES ? 4194304 : NET_MAX_RESPONSE_BYTES
   });
   function hasFeature(feature) {
     return platform.features[feature] === true;
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/tiles.ts
+  // vendor/pocketjs/framework/src/tiles.ts
   var parsed = new Map;
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/deepzoom.ts
+  // vendor/pocketjs/framework/src/deepzoom.ts
   var TICK_SCALE = 60 / TICKS_PER_SECOND;
   var perTick = (at60) => TICK_SCALE === 1 ? at60 : at60 ** TICK_SCALE;
   var PAN_SPEED = 7 * TICK_SCALE;
@@ -4159,7 +4168,7 @@
   var ZOOM_STEP = perTick(1.035);
   var VEL_APPROACH = TICK_SCALE === 1 ? 0.35 : 1 - perTick(1 - 0.35);
   var VEL_DECAY = perTick(0.88);
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/components.ts
+  // vendor/pocketjs/framework/src/components.ts
   function renderPortalChild(child) {
     if (typeof child === "function")
       return child();
@@ -4186,7 +4195,7 @@
     });
     return null;
   }
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/touch.ts
+  // vendor/pocketjs/framework/src/touch.ts
   var LEGACY_COORD_BITS = 9;
   var LEGACY_COORD_MASK = (1 << LEGACY_COORD_BITS) - 1;
   var LEGACY_ID_SHIFT = LEGACY_COORD_BITS * 2;
@@ -4246,7 +4255,7 @@
     auxiliarySnapshot = EMPTY;
     allSnapshot = EMPTY;
   }
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/contracts/spec/input.ts
+  // vendor/pocketjs/contracts/spec/input.ts
   var INPUT_CLASSES = {
     buttons: {
       bit: 1 << 0,
@@ -4312,7 +4321,7 @@
     ...Object.fromEntries(Object.entries(MOTION_VALUES).map(([name, value]) => [`POCKET_MOTION_VALUE_${constantName(name)}`, value.id]))
   };
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/text-input.ts
+  // vendor/pocketjs/framework/src/text-input.ts
   var hasTextInput = hasFeature("input.text");
   var handlers = [];
   var pending5 = [];
@@ -4857,16 +4866,15 @@
       parent.split.ratio = clamp(parent.split.ratio + grow * RESIZE_STEP, MIN_RATIO, MAX_RATIO);
       return true;
     }
-    resizeAxis(axis, delta) {
+    resizeAxis(axis, dir) {
       if (this.layout() === "scrolling")
-        return axis === "x" && this.resize(delta);
+        return axis === "x" && this.resize(dir);
       const space = this.spaces[this.active];
       const chain = space.focus === null ? null : path(space.root, space.focus);
       const parent = chain ? [...chain].reverse().find((p) => p.split.axis === axis) : undefined;
       if (!parent)
         return false;
-      const grow = parent.side === "a" ? delta : -delta;
-      const ratio = clamp(parent.split.ratio + grow * RESIZE_STEP, MIN_RATIO, MAX_RATIO);
+      const ratio = clamp(parent.split.ratio + dir * RESIZE_STEP, MIN_RATIO, MAX_RATIO);
       if (ratio === parent.split.ratio)
         return false;
       parent.split.ratio = ratio;
@@ -5307,7 +5315,6 @@
     chevron: "absolute right-[8] top-[4] font-mono text-sm leading-[14]",
     footer: "absolute left-0 top-[298] w-[512] h-[20]",
     hint: "absolute left-[12] top-[3] font-mono text-xs leading-[14]",
-    legend: "absolute left-[12] top-[336] w-[488] h-[40] overflow-hidden rounded-md border-[1]",
     osd: "absolute top-[288] h-[48] overflow-hidden rounded-md border-[1]",
     osdIcon: "absolute left-[12] top-[10] w-[28] text-center text-2xl leading-[28]",
     osdTrack: "absolute left-[52] top-[22] w-[120] h-[4]",
@@ -12530,7 +12537,7 @@
     });
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/tools/companion/qr.ts
+  // vendor/pocketjs/tools/companion/qr.ts
   var M_BLOCKS = [
     [0, []],
     [10, [[1, 16]]],
@@ -14748,6 +14755,159 @@
     }
   }
   var stickLabel = (layer) => layer === "move" ? "resize" : "";
+  function glyphFor(action, layout) {
+    const dwindle = layout === "dwindle";
+    switch (action) {
+      case "focus.left":
+      case "focus.right":
+      case "focus.up":
+      case "focus.down":
+        return {
+          icon: "\uDB81\uDCFE",
+          word: "Focus"
+        };
+      case "swap.left":
+      case "swap.right":
+      case "swap.up":
+      case "swap.down":
+        return {
+          icon: "\uDB81\uDCE1",
+          word: "Swap"
+        };
+      case "ws.prev":
+        return {
+          icon: "\uDB80\uDD41",
+          word: "Workspace"
+        };
+      case "ws.next":
+        return {
+          icon: "\uDB80\uDD42",
+          word: "Workspace"
+        };
+      case "carry.prev":
+        return {
+          icon: "\uDB80\uDD1D",
+          word: "Carry"
+        };
+      case "carry.next":
+        return {
+          icon: "\uDB80\uDD20",
+          word: "Carry"
+        };
+      case "menu":
+        return {
+          icon: "",
+          word: "Menu",
+          small: true
+        };
+      case "close":
+        return {
+          icon: "\uDB80\uDD56",
+          word: "Close"
+        };
+      case "fullscreen":
+        return {
+          icon: "\uDB80\uDE93",
+          word: "Full"
+        };
+      case "split":
+        return dwindle ? {
+          icon: "\uDB82\uDFCC",
+          word: "Split"
+        } : {
+          icon: "\uDB81\uDCEF",
+          word: "Width"
+        };
+      case "layout":
+        return dwindle ? {
+          icon: "\uDB81\uDD6D",
+          word: "Scroll"
+        } : {
+          icon: "\uDB81\uDD74",
+          word: "Tile"
+        };
+      case "keys":
+        return {
+          icon: "\uDB80\uDF0C",
+          word: "Keys"
+        };
+      case "shrink":
+        return {
+          icon: "\uDB80\uDF74",
+          word: "Shrink"
+        };
+      case "grow":
+        return {
+          icon: "\uDB81\uDC15",
+          word: "Grow"
+        };
+      case "another":
+        return {
+          icon: "\uDB81\uDC16",
+          word: "New"
+        };
+      case "reopen":
+        return {
+          icon: "\uDB82\uDD9B",
+          word: "Reopen"
+        };
+      case "maximize":
+        return {
+          icon: "\uDB81\uDDAF",
+          word: "Max"
+        };
+      case "swapsplit":
+        return dwindle ? {
+          icon: "\uDB84\uDCE7",
+          word: "Flip"
+        } : {
+          icon: "\uDB82\uDFCB",
+          word: "Stack"
+        };
+      case "wallpaper":
+        return {
+          icon: "\uDB80\uDEE9",
+          word: "Wallpaper"
+        };
+      case "bar":
+        return {
+          icon: "\uDB85\uDD13",
+          word: "Bar"
+        };
+      case "pan.left":
+        return {
+          icon: "\uDB80\uDD41",
+          word: "Pan"
+        };
+      case "pan.right":
+        return {
+          icon: "\uDB80\uDD42",
+          word: "Pan"
+        };
+    }
+  }
+  var LAYER_GLYPH = {
+    plain: {
+      icon: "",
+      word: ""
+    },
+    window: {
+      icon: "\uDB81\uDE14",
+      word: "Window"
+    },
+    move: {
+      icon: "\uDB80\uDDBE",
+      word: "Move"
+    },
+    workspace: {
+      icon: "\uDB81\uDD6C",
+      word: "Workspace"
+    }
+  };
+  var stickGlyph = (layer) => stickLabel(layer) ? {
+    icon: "\uDB80\uDC4C",
+    word: "Resize"
+  } : null;
   function triggerLabel(layer, layout) {
     switch (layer) {
       case "window":
@@ -14829,9 +14989,6 @@
     });
     return groups;
   }
-
-  // shell/src/held.ts
-  var [held, setHeld] = createSignal("plain");
 
   // shell/src/stage/keysheet.tsx
   var [open3, setOpen] = createSignal(false);
@@ -14966,101 +15123,6 @@
             })];
           }
         });
-      }
-    });
-  }
-  var LEGEND_AFTER = 14;
-  var [legendDue, setLegendDue] = createSignal(false);
-  function tickLegend(held, frames) {
-    const due = held && frames >= LEGEND_AFTER;
-    if (due !== legendDue())
-      setLegendDue(due);
-  }
-  function legendCells(layer) {
-    if (layer === "plain")
-      return [];
-    const l = layout();
-    const cells = layer === "workspace" ? [["← →", "workspace"], ["↑ ↓", "carry window"]] : [["D-pad", labelFor(chordsOf(layer).find((c) => c.button & DPAD).action, l)]];
-    const stick = stickLabel(layer);
-    if (stick)
-      cells.push(["Stick", stick]);
-    const triggers = triggerLabel(layer, l);
-    if (triggers !== "—")
-      cells.push(["L2/R2", triggers]);
-    for (const c of chordsOf(layer))
-      if (FACE_AND_SIDE.includes(c.button))
-        cells.push([BUTTON_NAME[c.button], labelFor(c.action, l)]);
-    return cells;
-  }
-  var FACE_AND_SIDE = [BTN.CIRCLE, BTN.CROSS, BTN.TRIANGLE, BTN.SQUARE, BTN.START, BTN.SELECT];
-  var LEGEND_COLS = 3;
-  var CELL_W = 154;
-  var KEY_W = 50;
-  var LEGEND_ROW = 16;
-  var LEGEND_TOP = 23;
-  var LEGEND_BOTTOM = 376;
-  function Legend() {
-    let node;
-    const shownLayer = createMemo((last) => held() === "plain" ? last ?? "window" : held(), "window");
-    const cells = createMemo(() => legendCells(shownLayer()));
-    const height = () => LEGEND_TOP + Math.ceil(cells().length / LEGEND_COLS) * LEGEND_ROW + 6;
-    createEffect(on(legendDue, (due) => glide(node, "opacity", due ? 1 : 0, due ? 120 : 160), {
-      defer: true
-    }));
-    return createComponent2(View, {
-      get ["class"]() {
-        return C.legend;
-      },
-      get style() {
-        return {
-          insetT: LEGEND_BOTTOM - height(),
-          height: height(),
-          bgColor: color("background", 0.96),
-          borderColor: color("accent"),
-          opacity: 0
-        };
-      },
-      ref: (n) => node = n,
-      get children() {
-        return [createComponent2(Text, {
-          class: "absolute left-[12] top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]",
-          get style() {
-            return {
-              width: 464,
-              textColor: color("accent")
-            };
-          },
-          get children() {
-            return LAYER_TITLE[shownLayer()];
-          }
-        }), createComponent2(For, {
-          get each() {
-            return cells();
-          },
-          children: ([key, what], i) => [createComponent2(Text, {
-            class: "absolute h-[14] overflow-hidden font-mono text-xs leading-[14]",
-            get style() {
-              return {
-                insetL: 12 + i() % LEGEND_COLS * CELL_W,
-                insetT: LEGEND_TOP + Math.floor(i() / LEGEND_COLS) * LEGEND_ROW,
-                width: KEY_W,
-                textColor: color("bright_foreground")
-              };
-            },
-            children: key
-          }), createComponent2(Text, {
-            class: "absolute h-[14] overflow-hidden font-mono text-xs leading-[14]",
-            get style() {
-              return {
-                insetL: 12 + i() % LEGEND_COLS * CELL_W + KEY_W,
-                insetT: LEGEND_TOP + Math.floor(i() / LEGEND_COLS) * LEGEND_ROW,
-                width: CELL_W - KEY_W - 4,
-                textColor: color("foreground")
-              };
-            },
-            children: what
-          })]
-        })];
       }
     });
   }
@@ -15230,6 +15292,854 @@
     }
   };
   var inRect = (r, x, y) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+
+  // shell/src/held.ts
+  var [held, setHeld] = createSignal("plain");
+
+  // shell/src/generated/glyph-ink.ts
+  var INK = {
+    "\uDB80\uDC26": 0.159,
+    "\uDB80\uDC3B": 0.034,
+    "\uDB80\uDC45": 0.03,
+    "\uDB80\uDC4C": 0.075,
+    "\uDB80\uDC4D": 0.03,
+    "\uDB80\uDC54": 0.03,
+    "\uDB80\uDC5D": 0.03,
+    "\uDB80\uDC6E": 0.2,
+    "\uDB80\uDC85": 0.138,
+    "\uDB80\uDC86": 0.138,
+    "\uDB80\uDC87": 0.138,
+    "\uDB80\uDC88": 0.138,
+    "\uDB80\uDC89": 0.138,
+    "\uDB80\uDC8A": 0.138,
+    "\uDB80\uDC8B": 0.138,
+    "\uDB80\uDC9A": 0.075,
+    "\uDB80\uDC9B": 0.138,
+    "\uDB80\uDCB1": 0.075,
+    "\uDB80\uDCB2": 0.034,
+    "\uDB80\uDCB5": 0.096,
+    "\uDB80\uDCC9": 0.055,
+    "\uDB80\uDCDF": 0.171,
+    "\uDB80\uDD00": 0.116,
+    "\uDB80\uDD1D": 0.116,
+    "\uDB80\uDD20": 0.116,
+    "\uDB80\uDD2C": 0.065,
+    "\uDB80\uDD41": -0.011,
+    "\uDB80\uDD42": 0.012,
+    "\uDB80\uDD47": 0.075,
+    "\uDB80\uDD59": 0.116,
+    "\uDB80\uDD5A": 0.116,
+    "\uDB80\uDD5F": 0.2,
+    "\uDB80\uDD8D": 0.116,
+    "\uDB80\uDD8F": 0.096,
+    "\uDB80\uDDBD": 0.051,
+    "\uDB80\uDDBE": 0.128,
+    "\uDB80\uDDD6": 0.075,
+    "\uDB80\uDDD8": 0.034,
+    "\uDB80\uDDE7": 0.116,
+    "\uDB80\uDDE9": 0.112,
+    "\uDB80\uDE00": 0.116,
+    "\uDB80\uDE02": 0.075,
+    "\uDB80\uDE08": 0.159,
+    "\uDB80\uDE09": 0.159,
+    "\uDB80\uDE37": 0.075,
+    "\uDB80\uDE49": 0.075,
+    "\uDB80\uDE9A": 0.116,
+    "\uDB80\uDEA4": 0.116,
+    "\uDB80\uDEAD": 0.106,
+    "\uDB80\uDEAF": 0.116,
+    "\uDB80\uDECA": 0.034,
+    "\uDB80\uDECB": 0.075,
+    "\uDB80\uDEDC": 0.116,
+    "\uDB80\uDEE9": 0.075,
+    "\uDB80\uDEFC": 0.116,
+    "\uDB80\uDEFD": 0.116,
+    "\uDB80\uDF0C": 0.116,
+    "\uDB80\uDF11": 0.096,
+    "\uDB80\uDF2A": 0.116,
+    "\uDB80\uDF3E": 0.034,
+    "\uDB80\uDF43": 0.075,
+    "\uDB80\uDF4D": 0.075,
+    "\uDB80\uDF5C": 0.075,
+    "\uDB80\uDF6D": 0.075,
+    "\uDB80\uDF72": 0.096,
+    "\uDB80\uDF73": 0.116,
+    "\uDB80\uDF79": 0.159,
+    "\uDB80\uDFD3": 0.075,
+    "\uDB80\uDFD6": 0.138,
+    "\uDB80\uDFD8": 0.075,
+    "\uDB81\uDC04": 0.075,
+    "\uDB81\uDC0B": 0.075,
+    "\uDB81\uDC16": 0.075,
+    "\uDB81\uDC25": 0.034,
+    "\uDB81\uDC31": 0.138,
+    "\uDB81\uDC32": 0.075,
+    "\uDB81\uDC50": 0.034,
+    "\uDB81\uDC53": 0.138,
+    "\uDB81\uDCB1": 0.096,
+    "\uDB81\uDCB2": 0.159,
+    "\uDB81\uDCC5": 0.116,
+    "\uDB81\uDCC7": 0.116,
+    "\uDB81\uDCE1": 0.075,
+    "\uDB81\uDCEF": 0.075,
+    "\uDB81\uDCFE": 0.116,
+    "\uDB81\uDD0E": 0.122,
+    "\uDB81\uDD2B": 0.034,
+    "\uDB81\uDD36": 0.159,
+    "\uDB81\uDD44": 0.136,
+    "\uDB81\uDD6C": 0.116,
+    "\uDB81\uDD6D": 0.055,
+    "\uDB81\uDD6E": 0.075,
+    "\uDB81\uDD74": 0.055,
+    "\uDB81\uDD7E": 0.075,
+    "\uDB81\uDD82": 0.159,
+    "\uDB81\uDD95": 0.136,
+    "\uDB81\uDD9F": 0.116,
+    "\uDB81\uDDA9": 0.149,
+    "\uDB81\uDDAA": 0.154,
+    "\uDB81\uDDAF": 0.034,
+    "\uDB81\uDDB2": 0.034,
+    "\uDB81\uDDBA": 0.117,
+    "\uDB81\uDDC3": 0.116,
+    "\uDB81\uDDD8": 0.116,
+    "\uDB81\uDE07": 0.075,
+    "\uDB81\uDE14": 0.159,
+    "\uDB81\uDE36": 0.116,
+    "\uDB81\uDE6F": 0.116,
+    "\uDB81\uDEA9": 0.159,
+    "\uDB81\uDEE7": 0.2,
+    "\uDB81\uDEF3": 0.116,
+    "\uDB81\uDF09": 0.033,
+    "\uDB81\uDF5A": 0.096,
+    "\uDB81\uDF5F": 0.096,
+    "\uDB81\uDF63": 0.075,
+    "\uDB81\uDF64": 0.075,
+    "\uDB81\uDF65": 0.116,
+    "\uDB81\uDF85": 0.116,
+    "\uDB81\uDFD0": 0.14,
+    "\uDB81\uDFF5": 0.116,
+    "\uDB81\uDFF8": 0.116,
+    "\uDB82\uDC68": 0.116,
+    "\uDB82\uDC81": 0.159,
+    "\uDB82\uDC8C": 0.086,
+    "\uDB82\uDC9C": 0.138,
+    "\uDB82\uDC9D": 0.138,
+    "\uDB82\uDC9E": 0.138,
+    "\uDB82\uDCB9": 0.159,
+    "\uDB82\uDCC0": 0.054,
+    "\uDB82\uDCC7": 0.116,
+    "\uDB82\uDD01": 0.075,
+    "\uDB82\uDD1F": 0.185,
+    "\uDB82\uDD22": 0.185,
+    "\uDB82\uDD25": 0.185,
+    "\uDB82\uDD28": 0.185,
+    "\uDB82\uDD29": 0.182,
+    "\uDB82\uDD2E": 0.185,
+    "\uDB82\uDD2F": 0.185,
+    "\uDB82\uDD54": 0.116,
+    "\uDB82\uDD66": 0.034,
+    "\uDB82\uDD94": 0.138,
+    "\uDB82\uDD9B": 0.138,
+    "\uDB82\uDDD1": 0.127,
+    "\uDB82\uDDF8": 0.138,
+    "\uDB82\uDE5F": 0.075,
+    "\uDB82\uDECF": 0.116,
+    "\uDB82\uDF4C": 0.159,
+    "\uDB82\uDF79": 0.116,
+    "\uDB82\uDF8A": 0.116,
+    "\uDB82\uDFC9": 0.159,
+    "\uDB82\uDFCB": 0.075,
+    "\uDB82\uDFCC": 0.075,
+    "\uDB83\uDCFD": 0.082,
+    "\uDB83\uDD11": 0.075,
+    "\uDB83\uDD6E": 0.116,
+    "\uDB83\uDD7D": 0.075,
+    "\uDB83\uDE0C": 0.116,
+    "\uDB84\uDCA9": 0.116,
+    "\uDB84\uDCAC": 0.116,
+    "\uDB84\uDCE7": 0.075,
+    "\uDB84\uDD04": 0.159,
+    "\uDB84\uDDF1": 0.2,
+    "\uDB85\uDCDE": 0.121,
+    "\uDB85\uDCDF": 0.121,
+    "\uDB85\uDCFB": 0.075,
+    "\uDB85\uDD13": 0.116,
+    "\uDB85\uDEA1": 0.159,
+    "\uDB85\uDEA4": 0.159,
+    "\uDB85\uDEBE": 0.175,
+    "\uDB86\uDCF4": 0.116,
+    "": 0.075,
+    "": 0.141,
+    "": 0.023,
+    "": 0.137,
+    "": 0.137,
+    "": 0.132,
+    "": 0.137,
+    "": 0.137,
+    "": 0.067,
+    "": 0.068,
+    "": 0.085,
+    "": 0.1,
+    "": 0.09,
+    "": 0.086,
+    "": 0.081,
+    "": 0.1,
+    "": 0.092,
+    "": 0.091,
+    "": 0.052,
+    "": 0.101,
+    "": 0.03,
+    "": 0.088,
+    "": 0.088,
+    "": 0.1,
+    "": 0.1,
+    "": 0.1,
+    "": 0.1,
+    "": 0.137,
+    "": 0.169,
+    "": 0.013,
+    "": 0.137,
+    "": 0.137,
+    "": 0.167,
+    "": 0.137,
+    "": 0.013,
+    "": 0.137,
+    "": 0.103,
+    "": 0.145,
+    "": 0.22,
+    "": 0.162,
+    "": 0.162,
+    "": 0.167,
+    "": 0.046,
+    "": 0.177,
+    "": 0.133,
+    "": 0.133,
+    "": 0.104,
+    "": 0.104,
+    "": 0.277,
+    "": 0.162,
+    "": 0.104,
+    "": 0.147,
+    "": 0.219,
+    "": 0.162,
+    "": 0.159,
+    "": 0.158,
+    "": 0.162,
+    "": 0.046,
+    "": 0.147,
+    "": 0.162,
+    "": 0.162,
+    "": 0.162,
+    "": 0.277,
+    "": 0.219,
+    "": 0.046,
+    "": 0.079,
+    "": 0.277,
+    "": 0.147,
+    "": 0.104,
+    "": 0.274,
+    "": 0.162,
+    "": 0.143,
+    "": 0.162,
+    "": 0.104,
+    "": 0.077,
+    "": 0.2,
+    "": 0.138,
+    "": 0.138,
+    "": 0.2,
+    "": 0.2,
+    "": 0.2,
+    "": 0.075
+  };
+
+  // shell/src/ink.ts
+  var inkShift = (glyph, px) => Math.round((INK[glyph] ?? 0) * px * 2) / 2;
+
+  // shell/src/deck/legend.tsx
+  var LEGEND_AFTER = 14;
+  var [due, setDue] = createSignal(false);
+  function tickLegend(held, frames) {
+    const next = held && frames >= LEGEND_AFTER;
+    if (next !== due())
+      setDue(next);
+  }
+  var SMALL = 16;
+  var LARGE = 24;
+  var LEAD = {
+    [SMALL]: 18,
+    [LARGE]: 28
+  };
+  function Icon(props) {
+    const box = 40;
+    return createComponent2(Text, {
+      get ["class"]() {
+        return props.px === LARGE ? "absolute text-center text-2xl leading-[28]" : "absolute text-center font-mono text-base leading-[18]";
+      },
+      get style() {
+        return {
+          insetL: props.cx - box / 2 - inkShift(props.glyph, props.px),
+          insetT: props.cy - LEAD[props.px] / 2,
+          width: box,
+          height: LEAD[props.px],
+          textColor: color(props.tone)
+        };
+      },
+      get children() {
+        return props.glyph;
+      }
+    });
+  }
+  function Word(props) {
+    const w = props.w ?? 72;
+    return createComponent2(Text, {
+      class: "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]",
+      get style() {
+        return {
+          insetL: props.cx - w / 2,
+          insetT: props.top,
+          width: w,
+          textColor: color(props.tone ?? "foreground")
+        };
+      },
+      get children() {
+        return props.text;
+      }
+    });
+  }
+  var DIM = 0.32;
+  function Face(props) {
+    const r = 22;
+    return createComponent2(View, {
+      class: "absolute left-0 top-0 w-[512] h-[384]",
+      get style() {
+        return {
+          opacity: props.glyph ? 1 : DIM
+        };
+      },
+      get children() {
+        return [createComponent2(View, {
+          class: "absolute w-[44] h-[44] rounded-full border-[1]",
+          get style() {
+            return {
+              insetL: props.cx - r,
+              insetT: props.cy - r,
+              bgColor: color("dark_background"),
+              borderColor: color("muted")
+            };
+          }
+        }), createComponent2(Show, {
+          get when() {
+            return props.glyph;
+          },
+          children: (g) => createComponent2(Icon, {
+            get glyph() {
+              return g().icon;
+            },
+            get cx() {
+              return props.cx;
+            },
+            get cy() {
+              return props.cy;
+            },
+            get px() {
+              return g().small ? SMALL : LARGE;
+            },
+            tone: "bright_foreground"
+          })
+        }), createComponent2(View, {
+          class: "absolute w-[15] h-[15] rounded-full",
+          get style() {
+            return {
+              insetL: props.cx + r - 12,
+              insetT: props.cy - r - 3,
+              bgColor: color("muted")
+            };
+          }
+        }), createComponent2(Text, {
+          class: "absolute h-[15] w-[15] text-center font-mono text-xs leading-[15]",
+          get style() {
+            return {
+              insetL: props.cx + r - 12,
+              insetT: props.cy - r - 3,
+              textColor: color("darker_background")
+            };
+          },
+          get children() {
+            return props.letter;
+          }
+        }), createComponent2(Show, {
+          get when() {
+            return props.glyph;
+          },
+          children: (g) => createComponent2(Word, {
+            get text() {
+              return g().word;
+            },
+            get cx() {
+              return props.cx;
+            },
+            get top() {
+              return props.cy + r + 3;
+            }
+          })
+        })];
+      }
+    });
+  }
+  function Shoulder(props) {
+    const w = 60;
+    const h = 26;
+    const y = 8;
+    return createComponent2(View, {
+      class: "absolute left-0 top-0 w-[512] h-[384]",
+      get style() {
+        return {
+          opacity: props.lit || props.bound ? 1 : DIM
+        };
+      },
+      get children() {
+        return [createComponent2(View, {
+          class: "absolute rounded-md border-[1]",
+          get style() {
+            return {
+              insetL: props.x,
+              insetT: y,
+              width: w,
+              height: h,
+              bgColor: color(props.lit ? "accent" : "dark_background"),
+              borderColor: color(props.lit ? "accent" : "muted")
+            };
+          }
+        }), createComponent2(Show, {
+          get when() {
+            return props.glyph;
+          },
+          get fallback() {
+            return createComponent2(Text, {
+              class: "absolute text-center font-mono text-sm leading-[16]",
+              get style() {
+                return {
+                  insetL: props.x,
+                  insetT: y + 5,
+                  width: w,
+                  height: 16,
+                  textColor: color(props.lit ? "darker_background" : "foreground")
+                };
+              },
+              get children() {
+                return props.name;
+              }
+            });
+          },
+          children: (g) => [createComponent2(Text, {
+            class: "absolute font-mono text-xs leading-[14]",
+            get style() {
+              return {
+                insetL: props.x + 7,
+                insetT: y + 6,
+                width: 20,
+                height: 14,
+                textColor: color("dark_foreground")
+              };
+            },
+            get children() {
+              return props.name;
+            }
+          }), createComponent2(Icon, {
+            get glyph() {
+              return g().icon;
+            },
+            get cx() {
+              return props.x + w - 18;
+            },
+            cy: y + h / 2,
+            px: SMALL,
+            tone: "bright_foreground"
+          }), createComponent2(Word, {
+            get text() {
+              return g().word;
+            },
+            get cx() {
+              return props.x + w / 2;
+            },
+            top: y + h + 3
+          })]
+        })];
+      }
+    });
+  }
+  function Pill(props) {
+    const x = 348;
+    const w = 152;
+    const h = 30;
+    return createComponent2(View, {
+      class: "absolute left-0 top-0 w-[512] h-[384]",
+      get style() {
+        return {
+          opacity: props.glyph ? 1 : DIM
+        };
+      },
+      get children() {
+        return [createComponent2(View, {
+          class: "absolute w-[152] h-[30] rounded-full border-[1]",
+          get style() {
+            return {
+              insetL: x,
+              insetT: props.y,
+              bgColor: color("dark_background"),
+              borderColor: color("muted")
+            };
+          }
+        }), createComponent2(Text, {
+          class: "absolute font-mono text-xs leading-[14]",
+          get style() {
+            return {
+              insetL: x + 12,
+              insetT: props.y + 8,
+              width: 48,
+              height: 14,
+              textColor: color("dark_foreground")
+            };
+          },
+          get children() {
+            return props.name;
+          }
+        }), createComponent2(Show, {
+          get when() {
+            return props.glyph;
+          },
+          children: (g) => [createComponent2(Icon, {
+            get glyph() {
+              return g().icon;
+            },
+            cx: x + 70,
+            get cy() {
+              return props.y + h / 2;
+            },
+            px: SMALL,
+            tone: "bright_foreground"
+          }), createComponent2(Text, {
+            class: "absolute overflow-hidden font-mono text-xs leading-[14]",
+            get style() {
+              return {
+                insetL: x + 84,
+                insetT: props.y + 8,
+                width: w - 90,
+                height: 14,
+                textColor: color("foreground")
+              };
+            },
+            get children() {
+              return g().word;
+            }
+          })]
+        })];
+      }
+    });
+  }
+  var DPAD2 = {
+    cx: 104,
+    cy: 150,
+    arm: 40
+  };
+  var STICK = {
+    cx: 104,
+    cy: 292,
+    r: 28
+  };
+  var FACES = {
+    cx: 408,
+    cy: 150,
+    step: 54
+  };
+  function Dpad(props) {
+    const arms = createMemo(() => {
+      const l = layout();
+      return [[BTN.LEFT, -1, 0, "\uDB80\uDD41"], [BTN.RIGHT, 1, 0, "\uDB80\uDD42"], [BTN.UP, 0, -1, "\uDB80\uDD43"], [BTN.DOWN, 0, 1, "\uDB80\uDD40"]].map(([button, dx, dy, arrow]) => {
+        const chord = chordFor(props.layer, button);
+        return {
+          dx,
+          dy,
+          arrow,
+          glyph: chord ? glyphFor(chord.action, l) : null
+        };
+      });
+    });
+    const one = createMemo(() => new Set(arms().map((a) => a.glyph?.word ?? "")).size === 1);
+    const word = createMemo(() => one() ? arms()[0].glyph?.word ?? "" : `${arms()[0].glyph?.word ?? ""} · ${arms()[2].glyph?.word ?? ""}`);
+    const {
+      cx,
+      cy,
+      arm
+    } = DPAD2;
+    return [createComponent2(View, {
+      class: "absolute rounded-md",
+      get style() {
+        return {
+          insetL: cx - 1.5 * arm,
+          insetT: cy - arm / 2,
+          width: 3 * arm,
+          height: arm,
+          bgColor: color("dark_background")
+        };
+      }
+    }), createComponent2(View, {
+      class: "absolute rounded-md",
+      get style() {
+        return {
+          insetL: cx - arm / 2,
+          insetT: cy - 1.5 * arm,
+          width: arm,
+          height: 3 * arm,
+          bgColor: color("dark_background")
+        };
+      }
+    }), createComponent2(For, {
+      get each() {
+        return arms();
+      },
+      children: (a) => createComponent2(Icon, {
+        get glyph() {
+          return memo2(() => !!one())() ? a.arrow : a.glyph?.icon ?? a.arrow;
+        },
+        get cx() {
+          return cx + a.dx * arm;
+        },
+        get cy() {
+          return cy + a.dy * arm;
+        },
+        px: SMALL,
+        get tone() {
+          return one() ? "dark_foreground" : "bright_foreground";
+        }
+      })
+    }), createComponent2(Show, {
+      get when() {
+        return memo2(() => !!one())() && arms()[0].glyph;
+      },
+      get children() {
+        return createComponent2(Icon, {
+          get glyph() {
+            return arms()[0].glyph.icon;
+          },
+          cx,
+          cy,
+          px: LARGE,
+          tone: "bright_foreground"
+        });
+      }
+    }), createComponent2(Word, {
+      get text() {
+        return word();
+      },
+      cx,
+      top: cy + 1.5 * arm + 6,
+      w: 150
+    })];
+  }
+  function Stick(props) {
+    const glyph = () => stickGlyph(props.layer);
+    const {
+      cx,
+      cy,
+      r
+    } = STICK;
+    return createComponent2(View, {
+      class: "absolute left-0 top-0 w-[512] h-[384]",
+      get style() {
+        return {
+          opacity: glyph() ? 1 : DIM
+        };
+      },
+      get children() {
+        return [createComponent2(View, {
+          class: "absolute w-[56] h-[56] rounded-full border-[1]",
+          get style() {
+            return {
+              insetL: cx - r,
+              insetT: cy - r,
+              bgColor: color("dark_background"),
+              borderColor: color("muted")
+            };
+          }
+        }), createComponent2(View, {
+          class: "absolute w-[28] h-[28] rounded-full",
+          get style() {
+            return {
+              insetL: cx - r / 2,
+              insetT: cy - r / 2,
+              bgColor: color("muted", 0.5)
+            };
+          }
+        }), createComponent2(Show, {
+          get when() {
+            return glyph();
+          },
+          children: (g) => [createComponent2(Icon, {
+            get glyph() {
+              return g().icon;
+            },
+            cx,
+            cy,
+            px: LARGE,
+            tone: "bright_foreground"
+          }), createComponent2(Word, {
+            get text() {
+              return g().word;
+            },
+            cx,
+            top: cy + r + 4
+          })]
+        })];
+      }
+    });
+  }
+  function DeckLegend() {
+    let node;
+    const layer = createMemo((last) => held() === "plain" ? last ?? "window" : held(), "window");
+    const face = (button) => {
+      const chord = chordFor(layer(), button);
+      return chord ? glyphFor(chord.action, layout()) : null;
+    };
+    const trigger = (button) => triggerLabel(layer(), layout()) === "—" ? null : face(button);
+    const title = () => LAYER_GLYPH[layer()];
+    createEffect(on(due, (d) => glide(node, "opacity", d ? 1 : 0, d ? 120 : 160), {
+      defer: true
+    }));
+    return createComponent2(View, {
+      class: "absolute left-0 top-0 w-[512] h-[384] contain-strict",
+      get style() {
+        return {
+          bgColor: color("darker_background"),
+          opacity: 0
+        };
+      },
+      ref: (n) => node = n,
+      get children() {
+        return [createComponent2(Shoulder, {
+          name: "L1",
+          x: 12,
+          get lit() {
+            return layer() !== "move";
+          },
+          glyph: null,
+          bound: true
+        }), createComponent2(Shoulder, {
+          name: "L2",
+          x: 80,
+          lit: false,
+          get glyph() {
+            return trigger(BTN.ZL);
+          },
+          get bound() {
+            return !!trigger(BTN.ZL);
+          }
+        }), createComponent2(Shoulder, {
+          name: "R2",
+          x: 372,
+          lit: false,
+          get glyph() {
+            return trigger(BTN.ZR);
+          },
+          get bound() {
+            return !!trigger(BTN.ZR);
+          }
+        }), createComponent2(Shoulder, {
+          name: "R1",
+          x: 440,
+          get lit() {
+            return layer() !== "window";
+          },
+          glyph: null,
+          bound: true
+        }), createComponent2(Icon, {
+          get glyph() {
+            return title().icon;
+          },
+          cx: 256,
+          cy: 136,
+          px: LARGE,
+          tone: "accent"
+        }), createComponent2(Text, {
+          class: "absolute left-[156] w-[200] text-center font-mono text-base leading-[18]",
+          get style() {
+            return {
+              insetT: 156,
+              height: 18,
+              textColor: color("bright_foreground")
+            };
+          },
+          get children() {
+            return title().word;
+          }
+        }), createComponent2(Dpad, {
+          get layer() {
+            return layer();
+          }
+        }), createComponent2(Stick, {
+          get layer() {
+            return layer();
+          }
+        }), createComponent2(Face, {
+          letter: "X",
+          get cx() {
+            return FACES.cx;
+          },
+          get cy() {
+            return FACES.cy - FACES.step;
+          },
+          get glyph() {
+            return face(BTN.TRIANGLE);
+          }
+        }), createComponent2(Face, {
+          letter: "Y",
+          get cx() {
+            return FACES.cx - FACES.step;
+          },
+          get cy() {
+            return FACES.cy;
+          },
+          get glyph() {
+            return face(BTN.SQUARE);
+          }
+        }), createComponent2(Face, {
+          letter: "A",
+          get cx() {
+            return FACES.cx + FACES.step;
+          },
+          get cy() {
+            return FACES.cy;
+          },
+          get glyph() {
+            return face(BTN.CIRCLE);
+          }
+        }), createComponent2(Face, {
+          letter: "B",
+          get cx() {
+            return FACES.cx;
+          },
+          get cy() {
+            return FACES.cy + FACES.step;
+          },
+          get glyph() {
+            return face(BTN.CROSS);
+          }
+        }), createComponent2(Pill, {
+          name: "START",
+          y: 278,
+          get glyph() {
+            return face(BTN.START);
+          }
+        }), createComponent2(Pill, {
+          name: "SELECT",
+          y: 318,
+          get glyph() {
+            return face(BTN.SELECT);
+          }
+        })];
+      }
+    });
+  }
 
   // shell/src/stage/card.tsx
   var card = () => pickerOpen() ? "picker" : panel() ? "panel" : menuOpen() ? "menu" : null;
@@ -15443,247 +16353,6 @@
   function cycleLayout() {
     chooseLayout(ORDER[(ORDER.indexOf(layout2()) + 1) % ORDER.length]);
   }
-
-  // shell/src/generated/glyph-ink.ts
-  var INK = {
-    "\uDB80\uDC26": 0.159,
-    "\uDB80\uDC3B": 0.034,
-    "\uDB80\uDC45": 0.03,
-    "\uDB80\uDC4D": 0.03,
-    "\uDB80\uDC54": 0.03,
-    "\uDB80\uDC5D": 0.03,
-    "\uDB80\uDC6E": 0.2,
-    "\uDB80\uDC85": 0.138,
-    "\uDB80\uDC86": 0.138,
-    "\uDB80\uDC87": 0.138,
-    "\uDB80\uDC88": 0.138,
-    "\uDB80\uDC89": 0.138,
-    "\uDB80\uDC8A": 0.138,
-    "\uDB80\uDC8B": 0.138,
-    "\uDB80\uDC9A": 0.075,
-    "\uDB80\uDC9B": 0.138,
-    "\uDB80\uDCB1": 0.075,
-    "\uDB80\uDCB2": 0.034,
-    "\uDB80\uDCB5": 0.096,
-    "\uDB80\uDCC9": 0.055,
-    "\uDB80\uDCDF": 0.171,
-    "\uDB80\uDD00": 0.116,
-    "\uDB80\uDD2C": 0.065,
-    "\uDB80\uDD41": -0.011,
-    "\uDB80\uDD42": 0.012,
-    "\uDB80\uDD47": 0.075,
-    "\uDB80\uDD59": 0.116,
-    "\uDB80\uDD5A": 0.116,
-    "\uDB80\uDD5F": 0.2,
-    "\uDB80\uDD8D": 0.116,
-    "\uDB80\uDD8F": 0.096,
-    "\uDB80\uDDBD": 0.051,
-    "\uDB80\uDDBE": 0.128,
-    "\uDB80\uDDD6": 0.075,
-    "\uDB80\uDDD8": 0.034,
-    "\uDB80\uDDE7": 0.116,
-    "\uDB80\uDDE9": 0.112,
-    "\uDB80\uDE00": 0.116,
-    "\uDB80\uDE02": 0.075,
-    "\uDB80\uDE08": 0.159,
-    "\uDB80\uDE09": 0.159,
-    "\uDB80\uDE37": 0.075,
-    "\uDB80\uDE49": 0.075,
-    "\uDB80\uDE9A": 0.116,
-    "\uDB80\uDEA4": 0.116,
-    "\uDB80\uDEAD": 0.106,
-    "\uDB80\uDEAF": 0.116,
-    "\uDB80\uDECA": 0.034,
-    "\uDB80\uDECB": 0.075,
-    "\uDB80\uDEDC": 0.116,
-    "\uDB80\uDEFC": 0.116,
-    "\uDB80\uDEFD": 0.116,
-    "\uDB80\uDF0C": 0.116,
-    "\uDB80\uDF11": 0.096,
-    "\uDB80\uDF2A": 0.116,
-    "\uDB80\uDF3E": 0.034,
-    "\uDB80\uDF43": 0.075,
-    "\uDB80\uDF4D": 0.075,
-    "\uDB80\uDF5C": 0.075,
-    "\uDB80\uDF6D": 0.075,
-    "\uDB80\uDF72": 0.096,
-    "\uDB80\uDF73": 0.116,
-    "\uDB80\uDF79": 0.159,
-    "\uDB80\uDFD3": 0.075,
-    "\uDB80\uDFD6": 0.138,
-    "\uDB80\uDFD8": 0.075,
-    "\uDB81\uDC04": 0.075,
-    "\uDB81\uDC0B": 0.075,
-    "\uDB81\uDC25": 0.034,
-    "\uDB81\uDC31": 0.138,
-    "\uDB81\uDC32": 0.075,
-    "\uDB81\uDC50": 0.034,
-    "\uDB81\uDC53": 0.138,
-    "\uDB81\uDCB1": 0.096,
-    "\uDB81\uDCB2": 0.159,
-    "\uDB81\uDCC5": 0.116,
-    "\uDB81\uDCC7": 0.116,
-    "\uDB81\uDD0E": 0.122,
-    "\uDB81\uDD2B": 0.034,
-    "\uDB81\uDD36": 0.159,
-    "\uDB81\uDD44": 0.136,
-    "\uDB81\uDD6E": 0.075,
-    "\uDB81\uDD7E": 0.075,
-    "\uDB81\uDD82": 0.159,
-    "\uDB81\uDD95": 0.136,
-    "\uDB81\uDD9F": 0.116,
-    "\uDB81\uDDA9": 0.149,
-    "\uDB81\uDDAA": 0.154,
-    "\uDB81\uDDB2": 0.034,
-    "\uDB81\uDDBA": 0.117,
-    "\uDB81\uDDC3": 0.116,
-    "\uDB81\uDDD8": 0.116,
-    "\uDB81\uDE07": 0.075,
-    "\uDB81\uDE36": 0.116,
-    "\uDB81\uDE6F": 0.116,
-    "\uDB81\uDEA9": 0.159,
-    "\uDB81\uDEE7": 0.2,
-    "\uDB81\uDEF3": 0.116,
-    "\uDB81\uDF09": 0.033,
-    "\uDB81\uDF5A": 0.096,
-    "\uDB81\uDF5F": 0.096,
-    "\uDB81\uDF63": 0.075,
-    "\uDB81\uDF64": 0.075,
-    "\uDB81\uDF65": 0.116,
-    "\uDB81\uDF85": 0.116,
-    "\uDB81\uDFD0": 0.14,
-    "\uDB81\uDFF5": 0.116,
-    "\uDB81\uDFF8": 0.116,
-    "\uDB82\uDC68": 0.116,
-    "\uDB82\uDC81": 0.159,
-    "\uDB82\uDC8C": 0.086,
-    "\uDB82\uDC9C": 0.138,
-    "\uDB82\uDC9D": 0.138,
-    "\uDB82\uDC9E": 0.138,
-    "\uDB82\uDCB9": 0.159,
-    "\uDB82\uDCC0": 0.054,
-    "\uDB82\uDCC7": 0.116,
-    "\uDB82\uDD01": 0.075,
-    "\uDB82\uDD1F": 0.185,
-    "\uDB82\uDD22": 0.185,
-    "\uDB82\uDD25": 0.185,
-    "\uDB82\uDD28": 0.185,
-    "\uDB82\uDD29": 0.182,
-    "\uDB82\uDD2E": 0.185,
-    "\uDB82\uDD2F": 0.185,
-    "\uDB82\uDD54": 0.116,
-    "\uDB82\uDD66": 0.034,
-    "\uDB82\uDD94": 0.138,
-    "\uDB82\uDDD1": 0.127,
-    "\uDB82\uDDF8": 0.138,
-    "\uDB82\uDE5F": 0.075,
-    "\uDB82\uDECF": 0.116,
-    "\uDB82\uDF4C": 0.159,
-    "\uDB82\uDF79": 0.116,
-    "\uDB82\uDF8A": 0.116,
-    "\uDB82\uDFC9": 0.159,
-    "\uDB83\uDCFD": 0.082,
-    "\uDB83\uDD11": 0.075,
-    "\uDB83\uDD6E": 0.116,
-    "\uDB83\uDD7D": 0.075,
-    "\uDB83\uDE0C": 0.116,
-    "\uDB84\uDCA9": 0.116,
-    "\uDB84\uDCAC": 0.116,
-    "\uDB84\uDD04": 0.159,
-    "\uDB84\uDDF1": 0.2,
-    "\uDB85\uDCDE": 0.121,
-    "\uDB85\uDCDF": 0.121,
-    "\uDB85\uDCFB": 0.075,
-    "\uDB85\uDEA1": 0.159,
-    "\uDB85\uDEA4": 0.159,
-    "\uDB85\uDEBE": 0.175,
-    "\uDB86\uDCF4": 0.116,
-    "": 0.075,
-    "": 0.141,
-    "": 0.023,
-    "": 0.137,
-    "": 0.137,
-    "": 0.132,
-    "": 0.137,
-    "": 0.137,
-    "": 0.067,
-    "": 0.068,
-    "": 0.085,
-    "": 0.1,
-    "": 0.09,
-    "": 0.086,
-    "": 0.081,
-    "": 0.1,
-    "": 0.092,
-    "": 0.091,
-    "": 0.052,
-    "": 0.101,
-    "": 0.03,
-    "": 0.088,
-    "": 0.088,
-    "": 0.1,
-    "": 0.1,
-    "": 0.1,
-    "": 0.1,
-    "": 0.137,
-    "": 0.169,
-    "": 0.013,
-    "": 0.137,
-    "": 0.137,
-    "": 0.167,
-    "": 0.137,
-    "": 0.013,
-    "": 0.137,
-    "": 0.103,
-    "": 0.145,
-    "": 0.22,
-    "": 0.162,
-    "": 0.162,
-    "": 0.167,
-    "": 0.046,
-    "": 0.177,
-    "": 0.133,
-    "": 0.133,
-    "": 0.104,
-    "": 0.104,
-    "": 0.277,
-    "": 0.162,
-    "": 0.104,
-    "": 0.147,
-    "": 0.219,
-    "": 0.162,
-    "": 0.159,
-    "": 0.158,
-    "": 0.162,
-    "": 0.046,
-    "": 0.147,
-    "": 0.162,
-    "": 0.162,
-    "": 0.162,
-    "": 0.277,
-    "": 0.219,
-    "": 0.046,
-    "": 0.079,
-    "": 0.277,
-    "": 0.147,
-    "": 0.104,
-    "": 0.274,
-    "": 0.162,
-    "": 0.143,
-    "": 0.162,
-    "": 0.104,
-    "": 0.077,
-    "": 0.2,
-    "": 0.138,
-    "": 0.138,
-    "": 0.2,
-    "": 0.2,
-    "": 0.2,
-    "": 0.075
-  };
-
-  // shell/src/ink.ts
-  var inkShift = (glyph, px) => Math.round((INK[glyph] ?? 0) * px * 2) / 2;
 
   // shell/src/deck/press.ts
   var LINGER = 5;
@@ -16277,7 +16946,7 @@
     })];
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/contracts/spec/ime.ts
+  // vendor/pocketjs/contracts/spec/ime.ts
   var IME = Object.freeze({
     keys: 128,
     candidates: 5,
@@ -16423,7 +17092,7 @@
   function stickTick(active) {
     const [x, y] = active ? read2() : [0, 0];
     step(0, x);
-    step(1, -y);
+    step(1, y);
   }
 
   // shell/src/clock-format.ts
@@ -16667,8 +17336,8 @@
   }
 
   // shell/src/term/grid.tsx
-  var CELL_W2 = 6.4;
-  var TRACK = CELL_W2 - 7.2;
+  var CELL_W = 6.4;
+  var TRACK = CELL_W - 7.2;
   var CELL_H3 = 14;
   var PAD = 3;
   var hex = (rgb) => "#" + rgb.toString(16).padStart(6, "0");
@@ -16684,8 +17353,8 @@
           class: "absolute top-0",
           get style() {
             return {
-              insetL: props.run[0] * CELL_W2,
-              width: runColumns(props.run) * CELL_W2,
+              insetL: props.run[0] * CELL_W,
+              width: runColumns(props.run) * CELL_W,
               height: CELL_H3,
               bgColor: hex(props.run[3])
             };
@@ -16700,7 +17369,7 @@
         class: "absolute top-0 font-mono text-xs",
         get style() {
           return {
-            insetL: (props.run[0] + i() * step()) * CELL_W2,
+            insetL: (props.run[0] + i() * step()) * CELL_W,
             lineHeight: CELL_H3,
             fontSlot: props.run[4],
             textColor: props.run[2] >= 0 ? hex(props.run[2]) : color("foreground")
@@ -16732,8 +17401,8 @@
               class: "absolute top-0",
               get style() {
                 return {
-                  insetL: props.run()[0] * CELL_W2,
-                  width: runColumns(props.run()) * CELL_W2,
+                  insetL: props.run()[0] * CELL_W,
+                  width: runColumns(props.run()) * CELL_W,
                   height: CELL_H3,
                   bgColor: hex(props.run()[3])
                 };
@@ -16744,7 +17413,7 @@
           class: "absolute top-0 font-mono text-xs",
           get style() {
             return {
-              insetL: props.run()[0] * CELL_W2,
+              insetL: props.run()[0] * CELL_W,
               lineHeight: CELL_H3,
               tracking: TRACK,
               textColor: props.run()[2] >= 0 ? hex(props.run()[2]) : color("foreground")
@@ -16758,7 +17427,7 @@
     });
   }
   function TermGrid(props) {
-    const cols = () => Math.max(8, Math.min(TERM_COLS, Math.floor((props.w - 2 * PAD) / CELL_W2)));
+    const cols = () => Math.max(8, Math.min(TERM_COLS, Math.floor((props.w - 2 * PAD) / CELL_W)));
     const rows = () => Math.max(2, Math.min(TERM_ROWS, Math.floor((props.h - 2 * PAD) / CELL_H3)));
     let settle = 0;
     createEffect(on([cols, rows], ([c, r]) => {
@@ -16790,9 +17459,9 @@
                 class: "absolute",
                 get style() {
                   return {
-                    insetL: s.cursor()[0] * CELL_W2,
+                    insetL: s.cursor()[0] * CELL_W,
                     insetT: s.cursor()[1] * CELL_H3,
-                    width: CELL_W2,
+                    width: CELL_W,
                     height: CELL_H3,
                     bgColor: color("accent", 0.6)
                   };
@@ -16808,7 +17477,7 @@
               get style() {
                 return {
                   insetT: y * CELL_H3,
-                  width: cols() * CELL_W2,
+                  width: cols() * CELL_W,
                   height: CELL_H3
                 };
               },
@@ -18645,7 +19314,7 @@
     stop: () => (stopScreensaver(), "ok"),
     status: () => active2() ? "running" : "stopped"
   });
-  var CELL_W3 = 6;
+  var CELL_W2 = 6;
   var CELL_H4 = 14;
   var HOLD = 7;
   var OUT = 1.6;
@@ -18653,7 +19322,7 @@
     const lines = source.split(`
 `);
     const cols = Math.max(1, ...lines.map((l) => [...l].length));
-    const left = Math.round((512 - cols * CELL_W3) / 2);
+    const left = Math.round((512 - cols * CELL_W2) / 2);
     const top = Math.round((384 - lines.length * CELL_H4) / 2);
     const cells = [];
     lines.forEach((line, row) => [...line].forEach((ch, col) => {
@@ -18662,7 +19331,7 @@
           ch,
           col,
           row,
-          x: left + col * CELL_W3,
+          x: left + col * CELL_W2,
           y: top + row * CELL_H4
         });
     }));
@@ -19050,7 +19719,7 @@
         return [createComponent2(Wallpaper, {}), createComponent2(Windows, {}), createComponent2(Bar, {
           now,
           focused: panel
-        }), createComponent2(Card, {}), createComponent2(KeySheet, {}), createComponent2(QrSheet, {}), createComponent2(Legend, {}), createComponent2(Osd, {}), createComponent2(Toasts, {}), createComponent2(Pointer, {
+        }), createComponent2(Card, {}), createComponent2(KeySheet, {}), createComponent2(QrSheet, {}), createComponent2(Osd, {}), createComponent2(Toasts, {}), createComponent2(Pointer, {
           shown: () => !locked() && (layout2() === "pad" ? !surfacePackage() : layout2() === "keys" && pointerAwake())
         }), createComponent2(LockStage, {
           clock: time,
@@ -19141,7 +19810,7 @@
                           mode: "full"
                         });
                       }
-                    })];
+                    }), createComponent2(DeckLegend, {})];
                   }
                 });
               }
@@ -19152,7 +19821,7 @@
     });
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/devtools.ts
+  // vendor/pocketjs/framework/src/devtools.ts
   var TAPE_CAP = 36000;
   var TOUCH_CHUNK_BITS = 7;
   var TOUCH_CHUNK_SIZE = 1 << TOUCH_CHUNK_BITS;
@@ -19972,7 +20641,7 @@
     }
   };
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/styles.ts
+  // vendor/pocketjs/framework/src/styles.ts
   var verbatim = new Map;
   var sortedAlias = new Map;
   function normalize(cls) {
@@ -20001,7 +20670,7 @@
     return alias === ALIAS_AMBIGUOUS ? undefined : alias;
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/gesture-core.ts
+  // vendor/pocketjs/framework/src/gesture-core.ts
   var MAX_TRACKS = 8;
   var HIST = 8;
   var VELOCITY_WINDOW = 3;
@@ -20477,14 +21146,14 @@
     }
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/gesture.ts
+  // vendor/pocketjs/framework/src/gesture.ts
   function createGesture(opts) {
     const handle = attachGesture(opts);
     onCleanup(() => handle.dispose());
     return handle;
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/touch-activation.ts
+  // vendor/pocketjs/framework/src/touch-activation.ts
   function installTouchActivation() {
     const install = (surface) => createGesture({
       surface,
@@ -20522,7 +21191,7 @@
     };
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/effects.ts
+  // vendor/pocketjs/framework/src/effects.ts
   var nextId2 = 1;
   var pending7 = new Map;
   var queue = [];
@@ -20558,7 +21227,7 @@
     }
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/services.ts
+  // vendor/pocketjs/framework/src/services.ts
   var pumps = new Set;
   function runServicePumps() {
     if (pumps.size === 0)
@@ -20567,7 +21236,7 @@
       pump();
   }
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/system-layers.ts
+  // vendor/pocketjs/framework/src/system-layers.ts
   var layers = [];
   var filter = null;
   var input = {
@@ -20600,7 +21269,7 @@
     return input;
   }
 
-  // pocketjs-generated-styles:/Users/evan/.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/styles.generated.ts
+  // pocketjs-generated-styles:/Users/evan/code/omarchy-pocket/vendor/pocketjs/framework/src/styles.generated.ts
   var STYLE_IDS = {
     "absolute left-0 top-0 w-[512] h-[384]": 0,
     "absolute left-0 top-0 w-[512] h-[384] contain-strict": 1,
@@ -20631,113 +21300,122 @@
     "absolute right-[8] top-[4] font-mono text-sm leading-[14]": 26,
     "absolute left-0 top-[298] w-[512] h-[20]": 27,
     "absolute left-[12] top-[3] font-mono text-xs leading-[14]": 28,
-    "absolute left-[12] top-[336] w-[488] h-[40] overflow-hidden rounded-md border-[1]": 29,
-    "absolute top-[288] h-[48] overflow-hidden rounded-md border-[1]": 30,
-    "absolute left-[12] top-[10] w-[28] text-center text-2xl leading-[28]": 31,
-    "absolute left-[52] top-[22] w-[120] h-[4]": 32,
-    "absolute right-[12] top-[15] font-mono text-base leading-[18]": 33,
-    "absolute left-[48] top-[15] font-mono text-base leading-[18]": 34,
-    "absolute right-[8] w-[248] h-[52] overflow-hidden rounded-md border-[1]": 35,
-    "absolute left-[10] top-[8] w-[18] font-mono text-sm leading-[16]": 36,
-    "absolute left-[32] top-[8] w-[136] h-[16] overflow-hidden font-mono text-sm leading-[16]": 37,
-    "absolute right-[8] top-[9] font-mono text-xs leading-[14]": 38,
-    "absolute left-[32] top-[28] w-[206] h-[16] overflow-hidden font-mono text-xs leading-[14]": 39,
-    "absolute left-0 top-[118] w-[512] text-center text-2xl leading-[28]": 40,
-    "absolute left-0 top-[160] w-[512] text-center text-2xl leading-[28]": 41,
-    "absolute left-0 top-[202] w-[512] text-center font-mono text-sm leading-[16]": 42,
-    "absolute font-mono text-xs leading-[14]": 43,
-    "absolute text-right font-mono text-xs leading-[14]": 44,
-    "absolute h-[6] rounded-sm": 45,
-    "absolute left-[12] top-[8] text-sm leading-[16]": 46,
-    "absolute left-[12] top-[28] text-2xl leading-[28]": 47,
-    "absolute left-[12] top-[62] font-mono text-xs leading-[14]": 48,
-    "absolute text-sm leading-[16]": 49,
-    "absolute rounded-sm": 50,
-    absolute: 51,
-    "absolute top-0 w-[2]": 52,
-    "absolute font-mono text-sm leading-[16]": 53,
-    "absolute left-[12] top-[8] font-mono text-xs leading-[14]": 54,
-    "absolute right-[12] top-[8] font-mono text-xs leading-[14]": 55,
-    "absolute left-[6] top-[3] h-[14] overflow-hidden font-mono text-sm leading-[14]": 56,
-    "absolute right-[6] top-[3] font-mono text-xs leading-[14]": 57,
-    "absolute left-0 text-center text-2xl leading-[28]": 58,
-    "absolute left-0 h-[20] overflow-hidden text-center text-base leading-[20]": 59,
-    "absolute left-0 h-[16] text-center font-mono text-sm leading-[16]": 60,
-    "absolute text-center font-mono text-xs leading-[14]": 61,
-    "absolute left-0 top-[4] text-center font-mono text-sm leading-[16]": 62,
-    "absolute top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]": 63,
-    "absolute h-[18] overflow-hidden font-mono text-sm leading-[18]": 64,
-    "absolute w-[2] h-[16]": 65,
-    "absolute left-[12] top-[6] font-mono text-xs leading-[14]": 66,
-    "absolute left-[6] top-[4] w-[16] font-mono text-sm leading-[14]": 67,
-    "absolute left-[26] top-[4] h-[14] overflow-hidden font-mono text-sm leading-[14]": 68,
-    "absolute top-0 w-[1]": 69,
-    "absolute left-0 top-0": 70,
-    "absolute left-0 text-center font-mono text-sm leading-[16]": 71,
-    "absolute left-0": 72,
-    "absolute left-[8] top-[2] h-[14] overflow-hidden font-mono text-xs leading-[14]": 73,
-    "absolute overflow-hidden contain-strict": 74,
-    "absolute left-0 top-0 rounded-sm": 75,
-    "absolute left-0 w-[512] text-center text-lg leading-[24]": 76,
-    "absolute left-0 w-[512] text-center font-mono text-xs leading-[14]": 77,
-    "absolute rounded-md": 78,
-    "absolute left-0 text-center font-mono text-base leading-[18]": 79,
-    "absolute overflow-hidden rounded-md": 80,
-    "absolute left-[2] top-[2] overflow-hidden rounded-sm": 81,
-    "absolute right-[12] top-[6] font-mono text-xs leading-[16]": 82,
-    "absolute left-0 top-0 h-[4]": 83,
-    "absolute left-[12] top-[24] w-[488] h-[348] rounded-md border-[1]": 84,
-    "absolute left-[12] top-[8] font-mono text-sm leading-[16]": 85,
-    "absolute right-[12] top-[9] font-mono text-xs leading-[14]": 86,
-    "absolute left-[12] top-[30] w-[464] h-[1]": 87,
-    "absolute bg-white": 88,
-    "absolute bg-black": 89,
-    "absolute left-[12] top-[60] font-mono text-xs leading-[14]": 90,
-    "absolute left-[12] h-[14] overflow-hidden font-mono text-xs leading-[14] text-center": 91,
-    "absolute left-0 top-0 w-[256] h-[256]": 92,
-    "absolute left-[256] top-0 w-[256] h-[256]": 93,
-    "absolute left-0 top-[256] w-[256] h-[128]": 94,
-    "absolute left-[256] top-[256] w-[256] h-[128]": 95,
-    "absolute left-0 top-0 w-[20] h-[24]": 96,
-    "absolute left-[-3] top-[-2] text-xl leading-[24]": 97,
-    "absolute top-[2] h-[14] w-[12] rounded-sm": 98,
-    "absolute top-[2] text-right font-mono text-xs leading-[14]": 99,
-    "absolute left-0 text-center text-xl leading-[24]": 100,
-    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 101,
-    "absolute left-0 h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 102,
-    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 103,
-    "absolute overflow-hidden rounded-md contain-strict": 104,
-    "absolute left-[6] top-[1] h-[14] overflow-hidden font-mono text-xs leading-[14]": 105,
-    "absolute left-0 overflow-hidden contain-strict": 106,
-    "absolute top-0": 107,
-    "absolute top-0 font-mono text-xs": 108,
-    "absolute overflow-hidden": 109,
-    "absolute h-[15] overflow-hidden font-mono text-xs leading-[15]": 110,
-    "absolute left-[12] top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]": 111,
-    "absolute h-[14] overflow-hidden font-mono text-xs leading-[14]": 112,
-    "absolute left-[2] top-[2] overflow-hidden": 113,
-    "absolute left-0 text-center font-mono text-base leading-[20]": 114,
-    "absolute top-[1] w-[12] text-center font-mono text-xs leading-[12]": 115,
-    "absolute top-[1] rounded-sm": 116,
-    "absolute top-[7] w-[20] text-center font-mono text-base leading-[18]": 117,
-    "absolute left-[34] top-[9] h-[14] overflow-hidden font-mono text-xs leading-[14]": 118,
-    "absolute top-[8] w-[16] text-center font-mono text-xs leading-[16]": 119,
-    "absolute overflow-hidden rounded-sm": 120,
-    "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]": 121,
-    "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 122,
-    "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 123,
-    "absolute left-0 top-0 w-[512]": 124,
-    "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]": 125,
-    "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 126,
-    "absolute rounded-lg": 127,
-    "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]": 128,
-    "absolute text-center text-lg leading-[24]": 129,
-    "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 130,
-    "absolute w-[44] h-[44] rounded-full": 131,
-    "absolute left-0 top-0 w-[512] h-[384] overflow-hidden": 132
+    "absolute top-[288] h-[48] overflow-hidden rounded-md border-[1]": 29,
+    "absolute left-[12] top-[10] w-[28] text-center text-2xl leading-[28]": 30,
+    "absolute left-[52] top-[22] w-[120] h-[4]": 31,
+    "absolute right-[12] top-[15] font-mono text-base leading-[18]": 32,
+    "absolute left-[48] top-[15] font-mono text-base leading-[18]": 33,
+    "absolute right-[8] w-[248] h-[52] overflow-hidden rounded-md border-[1]": 34,
+    "absolute left-[10] top-[8] w-[18] font-mono text-sm leading-[16]": 35,
+    "absolute left-[32] top-[8] w-[136] h-[16] overflow-hidden font-mono text-sm leading-[16]": 36,
+    "absolute right-[8] top-[9] font-mono text-xs leading-[14]": 37,
+    "absolute left-[32] top-[28] w-[206] h-[16] overflow-hidden font-mono text-xs leading-[14]": 38,
+    "absolute left-0 top-[118] w-[512] text-center text-2xl leading-[28]": 39,
+    "absolute left-0 top-[160] w-[512] text-center text-2xl leading-[28]": 40,
+    "absolute left-0 top-[202] w-[512] text-center font-mono text-sm leading-[16]": 41,
+    "absolute font-mono text-xs leading-[14]": 42,
+    "absolute text-right font-mono text-xs leading-[14]": 43,
+    "absolute h-[6] rounded-sm": 44,
+    "absolute left-[12] top-[8] text-sm leading-[16]": 45,
+    "absolute left-[12] top-[28] text-2xl leading-[28]": 46,
+    "absolute left-[12] top-[62] font-mono text-xs leading-[14]": 47,
+    "absolute text-sm leading-[16]": 48,
+    "absolute rounded-sm": 49,
+    absolute: 50,
+    "absolute top-0 w-[2]": 51,
+    "absolute font-mono text-sm leading-[16]": 52,
+    "absolute left-[12] top-[8] font-mono text-xs leading-[14]": 53,
+    "absolute right-[12] top-[8] font-mono text-xs leading-[14]": 54,
+    "absolute left-[6] top-[3] h-[14] overflow-hidden font-mono text-sm leading-[14]": 55,
+    "absolute right-[6] top-[3] font-mono text-xs leading-[14]": 56,
+    "absolute left-0 text-center text-2xl leading-[28]": 57,
+    "absolute left-0 h-[20] overflow-hidden text-center text-base leading-[20]": 58,
+    "absolute left-0 h-[16] text-center font-mono text-sm leading-[16]": 59,
+    "absolute text-center font-mono text-xs leading-[14]": 60,
+    "absolute left-0 top-[4] text-center font-mono text-sm leading-[16]": 61,
+    "absolute top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]": 62,
+    "absolute h-[18] overflow-hidden font-mono text-sm leading-[18]": 63,
+    "absolute w-[2] h-[16]": 64,
+    "absolute left-[12] top-[6] font-mono text-xs leading-[14]": 65,
+    "absolute left-[6] top-[4] w-[16] font-mono text-sm leading-[14]": 66,
+    "absolute left-[26] top-[4] h-[14] overflow-hidden font-mono text-sm leading-[14]": 67,
+    "absolute top-0 w-[1]": 68,
+    "absolute left-0 top-0": 69,
+    "absolute left-0 text-center font-mono text-sm leading-[16]": 70,
+    "absolute left-0": 71,
+    "absolute left-[8] top-[2] h-[14] overflow-hidden font-mono text-xs leading-[14]": 72,
+    "absolute overflow-hidden contain-strict": 73,
+    "absolute left-0 top-0 rounded-sm": 74,
+    "absolute left-0 w-[512] text-center text-lg leading-[24]": 75,
+    "absolute left-0 w-[512] text-center font-mono text-xs leading-[14]": 76,
+    "absolute rounded-md": 77,
+    "absolute left-0 text-center font-mono text-base leading-[18]": 78,
+    "absolute overflow-hidden rounded-md": 79,
+    "absolute left-[2] top-[2] overflow-hidden rounded-sm": 80,
+    "absolute right-[12] top-[6] font-mono text-xs leading-[16]": 81,
+    "absolute left-0 top-0 h-[4]": 82,
+    "absolute left-[12] top-[24] w-[488] h-[348] rounded-md border-[1]": 83,
+    "absolute left-[12] top-[8] font-mono text-sm leading-[16]": 84,
+    "absolute right-[12] top-[9] font-mono text-xs leading-[14]": 85,
+    "absolute left-[12] top-[30] w-[464] h-[1]": 86,
+    "absolute bg-white": 87,
+    "absolute bg-black": 88,
+    "absolute left-[12] top-[60] font-mono text-xs leading-[14]": 89,
+    "absolute left-[12] h-[14] overflow-hidden font-mono text-xs leading-[14] text-center": 90,
+    "absolute left-0 top-0 w-[256] h-[256]": 91,
+    "absolute left-[256] top-0 w-[256] h-[256]": 92,
+    "absolute left-0 top-[256] w-[256] h-[128]": 93,
+    "absolute left-[256] top-[256] w-[256] h-[128]": 94,
+    "absolute left-0 top-0 w-[20] h-[24]": 95,
+    "absolute left-[-3] top-[-2] text-xl leading-[24]": 96,
+    "absolute top-[2] h-[14] w-[12] rounded-sm": 97,
+    "absolute top-[2] text-right font-mono text-xs leading-[14]": 98,
+    "absolute left-0 text-center text-xl leading-[24]": 99,
+    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 100,
+    "absolute left-0 h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 101,
+    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 102,
+    "absolute overflow-hidden rounded-md contain-strict": 103,
+    "absolute left-[6] top-[1] h-[14] overflow-hidden font-mono text-xs leading-[14]": 104,
+    "absolute left-0 overflow-hidden contain-strict": 105,
+    "absolute top-0": 106,
+    "absolute top-0 font-mono text-xs": 107,
+    "absolute overflow-hidden": 108,
+    "absolute h-[15] overflow-hidden font-mono text-xs leading-[15]": 109,
+    "absolute text-center text-2xl leading-[28]": 110,
+    "absolute text-center font-mono text-base leading-[18]": 111,
+    "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 112,
+    "absolute w-[44] h-[44] rounded-full border-[1]": 113,
+    "absolute w-[15] h-[15] rounded-full": 114,
+    "absolute h-[15] w-[15] text-center font-mono text-xs leading-[15]": 115,
+    "absolute rounded-md border-[1]": 116,
+    "absolute text-center font-mono text-sm leading-[16]": 117,
+    "absolute w-[152] h-[30] rounded-full border-[1]": 118,
+    "absolute overflow-hidden font-mono text-xs leading-[14]": 119,
+    "absolute w-[56] h-[56] rounded-full border-[1]": 120,
+    "absolute w-[28] h-[28] rounded-full": 121,
+    "absolute left-[156] w-[200] text-center font-mono text-base leading-[18]": 122,
+    "absolute left-[2] top-[2] overflow-hidden": 123,
+    "absolute left-0 text-center font-mono text-base leading-[20]": 124,
+    "absolute top-[1] w-[12] text-center font-mono text-xs leading-[12]": 125,
+    "absolute top-[1] rounded-sm": 126,
+    "absolute top-[7] w-[20] text-center font-mono text-base leading-[18]": 127,
+    "absolute left-[34] top-[9] h-[14] overflow-hidden font-mono text-xs leading-[14]": 128,
+    "absolute top-[8] w-[16] text-center font-mono text-xs leading-[16]": 129,
+    "absolute overflow-hidden rounded-sm": 130,
+    "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]": 131,
+    "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 132,
+    "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 133,
+    "absolute left-0 top-0 w-[512]": 134,
+    "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]": 135,
+    "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 136,
+    "absolute rounded-lg": 137,
+    "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]": 138,
+    "absolute text-center text-lg leading-[24]": 139,
+    "absolute w-[44] h-[44] rounded-full": 140,
+    "absolute left-0 top-0 w-[512] h-[384] overflow-hidden": 141
   };
 
-  // ../../.superset/worktrees/pocketjs/quartz-jester-350b52c9/framework/src/index.ts
+  // vendor/pocketjs/framework/src/index.ts
   if (typeof globalThis.queueMicrotask !== "function") {
     globalThis.queueMicrotask = (fn) => {
       Promise.resolve().then(fn);
