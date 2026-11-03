@@ -6,8 +6,8 @@
 //                               Omarchy tiles Hyprland (wm.ts) and moved on
 //                               the core's tracks (workspaces.ts), Omarchy's
 //                               bar, the card (the menu, the panels, the
-//                               theme picker), the OSD, notices, the legend
-//                               and the key sheet.
+//                               theme picker), the OSD, notices and the
+//                               key sheet.
 //   The deck is the keyboard.   The bottom panel is a laptop's lower half: a
 //                               function row, keys and a trackpad. It has three
 //                               layouts and one rule picks them (focus.ts):
@@ -15,7 +15,9 @@
 //                               for a touch app, home when nothing has focus.
 //                               The keyboard button and Home pick one by hand
 //                               until the focus changes; the row's logo opens
-//                               Omarchy's menu.
+//                               Omarchy's menu. While a shoulder is held the
+//                               deck draws the controls around it and what
+//                               each does (deck/legend.tsx).
 //   The gamepad is SUPER.       L1, R1 and both are the chord layers of
 //                               chords.ts and last as long as the shoulder;
 //                               with no shoulder the buttons are keys for
@@ -41,6 +43,7 @@ import { appletOf, type Applet } from "./applets/applet.ts";
 import { request, type SystemState } from "./bridge.ts";
 import { chordFor, layerOf, MODIFIERS } from "./chords.ts";
 import { BODY_H, BODY_TOP, STRIP_H } from "./deck/geometry.ts";
+import { DeckLegend, tickLegend } from "./deck/legend.tsx";
 import { Home, homeTarget, homeTouch } from "./deck/home.tsx";
 import { pressAt } from "./deck/press.ts";
 import { Strip, stripTarget, stripTouch } from "./deck/strip.tsx";
@@ -56,7 +59,7 @@ import { remoteButtons } from "./remote-input.ts";
 import { stickTick } from "./stick.ts";
 import { Bar } from "./stage/bar.tsx";
 import { Card } from "./stage/card.tsx";
-import { KeySheet, Legend, tickLegend } from "./stage/keysheet.tsx";
+import { KeySheet } from "./stage/keysheet.tsx";
 import { closeQr, qrOpen, QrSheet } from "./stage/qrsheet.tsx";
 import { lock, locked, LockStage } from "./stage/lock.tsx";
 import { Osd } from "./stage/osd.tsx";
@@ -259,7 +262,6 @@ export default function Shell() {
       <Card />
       <KeySheet />
       <QrSheet />
-      <Legend />
       <Osd />
       <Toasts />
       <Pointer shown={() => !locked() && (layout() === "pad" ? !surfacePackage() : layout() === "keys" && pointerAwake())} />
@@ -293,6 +295,8 @@ export default function Shell() {
             <View class="absolute left-0 top-0 w-[512] h-[384] contain-strict" style={{ opacity: locked() ? 1 : 0 }}>
               <Keyboard mode="full" />
             </View>
+            {/* over the deck while a shoulder is held: the controls around it and what they do */}
+            <DeckLegend />
           </Show>
         </View>
       </AuxiliarySurface>

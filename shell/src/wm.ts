@@ -378,17 +378,19 @@ export class WindowManager {
     return true;
   }
 
-  /** Grows (+1) or shrinks (-1) the focused window along one axis: in
-   *  dwindle the nearest split across that axis, in scrolling the column's
-   *  width (x only). */
-  resizeAxis(axis: "x" | "y", delta: number): boolean {
-    if (this.layout() === "scrolling") return axis === "x" && this.resize(delta);
+  /** Moves the focused window's edge across one axis a step toward `dir`
+   *  (+1 right or down, -1 left or up), as a finger dragging that edge does
+   *  (splitAt): in dwindle the nearest split across the axis, so the
+   *  divider goes the way the stick is pushed whichever side the focused
+   *  window is on; in scrolling the column's right edge (x only). */
+  resizeAxis(axis: "x" | "y", dir: number): boolean {
+    if (this.layout() === "scrolling") return axis === "x" && this.resize(dir);
     const space = this.spaces[this.active]!;
     const chain = space.focus === null ? null : path(space.root, space.focus);
     const parent = chain ? [...chain].reverse().find((p) => p.split.axis === axis) : undefined;
     if (!parent) return false;
-    const grow = parent.side === "a" ? delta : -delta;
-    const ratio = clamp(parent.split.ratio + grow * RESIZE_STEP, MIN_RATIO, MAX_RATIO);
+    // a split's ratio is its first (left or top) half's share: the divider's place
+    const ratio = clamp(parent.split.ratio + dir * RESIZE_STEP, MIN_RATIO, MAX_RATIO);
     if (ratio === parent.split.ratio) return false;
     parent.split.ratio = ratio;
     return true;
