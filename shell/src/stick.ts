@@ -1,7 +1,8 @@
 // R1 and a stick resize the focused window as the stick is pushed (chords.ts):
-// right makes it wider and left narrower, up taller and down shorter. In
-// dwindle the nearest split across that direction moves; in scrolling the
-// column's width changes. A push past DEAD takes one RESIZE_STEP at once and
+// the focused window's edge goes the way the stick goes, as a finger dragging
+// it would. In dwindle the nearest split across that direction moves, so
+// pushing right moves the divider right, widening a window on its left and
+// narrowing one on its right; in scrolling the column's right edge moves. A push past DEAD takes one RESIZE_STEP at once and
 // another every few frames while it holds, sooner the further the stick
 // goes, as a held key repeats. Either stick does it; `omarchy-shell
 // pocket.input stick <x> <y> [frames]` stands in for one over SSH.
@@ -40,7 +41,7 @@ function step(axis: 0 | 1, push: number) {
 /** Once per frame: `active` while R1's layer is held. */
 export function stickTick(active: boolean) {
   const [x, y] = active ? read() : [0, 0];
+  // the stick's y grows downward, as the panel's does
   step(0, x);
-  // the stick's y grows downward; up makes the window taller
-  step(1, -y);
+  step(1, y);
 }

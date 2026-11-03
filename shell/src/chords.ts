@@ -11,10 +11,10 @@
 //
 // L2/R2 under a shoulder do what the 3DS's circle pad does: resize under L1,
 // pan the scrolling strip under R1. Under R1 either stick resizes the focused
-// window as it is pushed (stick.ts): right and up make it wider and taller.
-// The dispatcher (app.tsx), the legend
-// while a shoulder is held and the key sheet read this table, so a label
-// cannot describe what its button does not do. A layer lasts as long as its
+// window as it is pushed (stick.ts): its edge goes the way the stick goes.
+// The dispatcher (app.tsx), the deck's legend while a shoulder is held
+// (deck/legend.tsx) and the key sheet read this table, so a label cannot
+// describe what its button does not do. A layer lasts as long as its
 // shoulder: nothing on the deck latches one.
 import { BTN } from "@pocketjs/framework/input";
 import type { Layout } from "./wm.ts";
@@ -161,6 +161,83 @@ export function dpadLabel(layer: Layer): string {
 
 /** What a stick does under a layer, or "" for nothing. */
 export const stickLabel = (layer: Layer) => (layer === "move" ? "resize" : "");
+
+/** An action as the deck's legend draws it: a Nerd Font icon and one word. */
+export interface Glyph {
+  icon: string;
+  word: string;
+  /** drawn at the small size: Omarchy's logo fills its em */
+  small?: boolean;
+}
+
+/** The legend's picture of an action, for the layout it would act on. */
+export function glyphFor(action: Action, layout: Layout): Glyph {
+  const dwindle = layout === "dwindle";
+  switch (action) {
+    case "focus.left":
+    case "focus.right":
+    case "focus.up":
+    case "focus.down":
+      return { icon: "\u{f04fe}", word: "Focus" };
+    case "swap.left":
+    case "swap.right":
+    case "swap.up":
+    case "swap.down":
+      return { icon: "\u{f04e1}", word: "Swap" };
+    case "ws.prev":
+      return { icon: "\u{f0141}", word: "Workspace" };
+    case "ws.next":
+      return { icon: "\u{f0142}", word: "Workspace" };
+    case "carry.prev":
+      return { icon: "\u{f011d}", word: "Carry" };
+    case "carry.next":
+      return { icon: "\u{f0120}", word: "Carry" };
+    case "menu":
+      // Omarchy's logo, as the function row's menu key
+      return { icon: "\u{e900}", word: "Menu", small: true };
+    case "close":
+      return { icon: "\u{f0156}", word: "Close" };
+    case "fullscreen":
+      return { icon: "\u{f0293}", word: "Full" };
+    case "split":
+      return dwindle ? { icon: "\u{f0bcc}", word: "Split" } : { icon: "\u{f04ef}", word: "Width" };
+    case "layout":
+      return dwindle ? { icon: "\u{f056d}", word: "Scroll" } : { icon: "\u{f0574}", word: "Tile" };
+    case "keys":
+      return { icon: "\u{f030c}", word: "Keys" };
+    case "shrink":
+      return { icon: "\u{f0374}", word: "Shrink" };
+    case "grow":
+      return { icon: "\u{f0415}", word: "Grow" };
+    case "another":
+      return { icon: "\u{f0416}", word: "New" };
+    case "reopen":
+      return { icon: "\u{f099b}", word: "Reopen" };
+    case "maximize":
+      return { icon: "\u{f05af}", word: "Max" };
+    case "swapsplit":
+      return dwindle ? { icon: "\u{f10e7}", word: "Flip" } : { icon: "\u{f0bcb}", word: "Stack" };
+    case "wallpaper":
+      return { icon: "\u{f02e9}", word: "Wallpaper" };
+    case "bar":
+      return { icon: "\u{f1513}", word: "Bar" };
+    case "pan.left":
+      return { icon: "\u{f0141}", word: "Pan" };
+    case "pan.right":
+      return { icon: "\u{f0142}", word: "Pan" };
+  }
+}
+
+/** A held layer's name and icon, for the legend's middle. */
+export const LAYER_GLYPH: Record<Layer, Glyph> = {
+  plain: { icon: "", word: "" },
+  window: { icon: "\u{f0614}", word: "Window" },
+  move: { icon: "\u{f01be}", word: "Move" },
+  workspace: { icon: "\u{f056c}", word: "Workspace" },
+};
+
+/** What a stick does under a layer, as the legend draws it, or null. */
+export const stickGlyph = (layer: Layer): Glyph | null => (stickLabel(layer) ? { icon: "\u{f004c}", word: "Resize" } : null);
 
 /** What L2/R2 do under a layer. */
 export function triggerLabel(layer: Layer, layout: Layout): string {

@@ -54,18 +54,23 @@ test("resize, toggle split and fullscreen", () => {
   expect(ps.find((p) => p.id !== a)!.hidden).toBe(true);
 });
 
-test("a stick resizes along its own axis: the nearest split across it", () => {
+test("a stick moves the focused window's edge the way it is pushed: the nearest split across it", () => {
   const wm = new WindowManager();
-  wm.open(term(1));
+  const a = wm.open(term(1));
   const b = wm.open(term(2));
   const c = wm.open(term(3));
-  // c is the lower half of the right column: wider moves the column split, taller the row split
+  // c is the lower half of the right column: its left edge is the column
+  // split, its top edge the row split
   const rect = (id: number) => wm.placements().find((p) => p.id === id)!.rect;
   const before = rect(c);
+  // right: the column split goes right, so c, right of it, narrows
   expect(wm.resizeAxis("x", 1)).toBe(true);
-  expect(rect(c).w).toBeGreaterThan(before.w);
+  expect(rect(c).x).toBeGreaterThan(before.x);
+  expect(rect(c).w).toBeLessThan(before.w);
   expect(rect(c).h).toBe(before.h);
-  expect(wm.resizeAxis("y", 1)).toBe(true);
+  // up: the row split goes up, so c, under it, grows and b shrinks
+  expect(wm.resizeAxis("y", -1)).toBe(true);
+  expect(rect(c).y).toBeLessThan(before.y);
   expect(rect(c).h).toBeGreaterThan(before.h);
   expect(rect(b).h).toBeLessThan(before.h);
   // a window with no split across an axis does not move along it
@@ -77,6 +82,11 @@ test("a stick resizes along its own axis: the nearest split across it", () => {
   while (wm.resizeAxis("x", -1)) steps++;
   expect(steps).toBeGreaterThan(0);
   expect(wm.resizeAxis("x", -1)).toBe(false);
+  // the window left of the split: right widens it
+  wm.focusWin(a);
+  const narrow = rect(a).w;
+  expect(wm.resizeAxis("x", 1)).toBe(true);
+  expect(rect(a).w).toBeGreaterThan(narrow);
 });
 
 test("the scrolling strip keeps the focused column whole and toggles back", () => {

@@ -1,8 +1,8 @@
 // The chord layer the shoulders hold (chords.ts): window under L1, move
 // under R1, workspace under both, plain with neither. It is the layer in
-// force for the gamepad, and the bar names it while it lasts; the stage shows
+// force for the gamepad, and the bar names it while it lasts; the deck shows
 // the layer's bindings once a shoulder has been held a moment
-// (stage/keysheet.tsx). It lets go with the shoulder: nothing latches it.
+// (deck/legend.tsx). It lets go with the shoulder: nothing latches it.
 import { createSignal } from "solid-js";
 import type { Layer } from "./chords.ts";
 
