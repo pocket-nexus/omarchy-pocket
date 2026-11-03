@@ -7,7 +7,7 @@
 // A URL on companion.pocket goes to the service it names, as Pocket Companion
 // answers a console's request on a Mac: PocketJS's own providers
 // (vendor/pocketjs/tools/companion/services: x, discord, youtube, store,
-// podcasts, maps, homeassistant), their
+// podcasts, maps, homeassistant) and this daemon's spotify (spotify.ts), their
 // files under ~/.local/share/omarchy-pocket/companion/services/<name>/ (the
 // Mac's `services/x/session.json`, `services/discord/token` copied there
 // sign this device in), glyphs from this daemon's own baker at the device's
@@ -27,6 +27,7 @@ import { NET_ERROR } from "../vendor/pocketjs/contracts/spec/net.ts";
 import { NetFailure, normalizeNetRequest, performNet, type NetResponse } from "../vendor/pocketjs/tools/companion/fetch.ts";
 import { bytesResponse, jsonResponse, readJson, SERVICE_FACTORIES, ServiceHost, type ServiceProvider } from "../vendor/pocketjs/tools/companion/services.ts";
 import { createXService } from "../vendor/pocketjs/tools/companion/services/x.ts";
+import { createSpotifyService } from "./spotify.ts";
 import { encodeImageEntry } from "../vendor/pocketjs/framework/compiler/pak.ts";
 import { IMG_FLAG_LINEAR, PSM } from "../vendor/pocketjs/contracts/spec/spec.ts";
 import { manifest } from "./apps.ts";
@@ -144,7 +145,11 @@ export class AppNet {
     // what an install or a removal changes is read again at the next request
     SERVICE_FACTORIES.images = () => imagesService(join(home, ".cache", "omarchy-pocket", "images"));
     SERVICE_FACTORIES.appstore = () => createAppStoreService(home, () => this.callers.clear());
+    // the Spotify sign-in, the Web API and librespot as this device's speaker
+    SERVICE_FACTORIES.spotify = (context) => createSpotifyService(context);
     this.services = new ServiceHost({ storeDir, log: (line) => log(line) });
+    // signed in to Spotify before: its speaker comes up with the daemon, for a phone to find
+    if (existsSync(join(storeDir, "services", "spotify", "token.json"))) void this.services.command("spotify", ["status"]).catch(() => {});
   }
 
   /** The app behind a package and the services its manifest declares. */

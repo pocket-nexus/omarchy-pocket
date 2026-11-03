@@ -66,6 +66,8 @@ const PACKAGES = [
   "bluez-tools", "qrencode", "inotify-tools",
   // backgrounds: vipsthumbnail as in Omarchy's omarchy-menu-images; magick for omarchy-bar-text-color
   "libvips", "imagemagick",
+  // the Spotify applet's speaker: Spotify Connect to PipeWire (daemon/spotify.ts)
+  "librespot",
   // run-time CJK glyphs (daemon/glyphs.ts) and Chinese input (daemon/ime.ts)
   "wqy-microhei", "librime", "rime-luna-pinyin", "rime-prelude", "rime-essay", "gcc",
 ];
