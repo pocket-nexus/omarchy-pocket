@@ -1,6 +1,7 @@
 // The deck's keyboard: ten keys to a row with a letters layer and two symbol
-// layers (123, #+=), Return at the end of the home row, and along the bottom
-// the modifiers, the space bar and the arrows as an inverted T. It is the top
+// layers (123, #+=), Backspace at the end of the home row and Return under it
+// at the end of the next, as on a laptop, and along the bottom the modifiers,
+// the space bar and the four arrows in a row, each a full key. It is the top
 // half of the deck's `keys` layout (deck/geometry.ts), with the trackpad under
 // it, and the whole deck while the screen is locked, where it sits on the
 // bottom edge under the password field. Esc, Tab and the keys a target wants
@@ -41,26 +42,26 @@ interface Key {
   ime?: boolean;
   /** repeats while held */
   repeat?: boolean;
-  /** half a row high: the top half shares its column with the bottom half that follows */
-  half?: "up" | "down";
 }
 
 const BACKSPACE = "\u{f006e}";
 const ENTER = "\u{f0311}";
 const chars = (row: string, shifted = row.toUpperCase(), w?: number): Key[] => [...row].map((ch, i) => ({ label: ch, key: ch, shifted: shifted[i], w }));
-const backspace: Key = { label: BACKSPACE, key: "Backspace", w: 1.5, repeat: true };
-const enter: Key = { label: ENTER, key: "Enter", w: 1.45 };
-const ARROW = 0.95;
+/** the home row's last key: Backspace, with Return under it */
+const backspace: Key = { label: BACKSPACE, key: "Backspace", w: 1.45, repeat: true };
+const enter: Key = { label: ENTER, key: "Enter", w: 1.5 };
+/** an arrow's width: four in a row, each as tall as a letter */
+const ARROW = 0.85;
 const bottom = (layer: Layer): Key[] => [
-  layer === "abc" ? { label: "123", key: "", w: 1.2, layer: "123" } : { label: "ABC", key: "", w: 1.2, layer: "abc" },
-  { label: "EN", key: "", w: 0.9, ime: true },
-  { label: "Ctrl", key: "", modifier: "ctrl" },
-  { label: "Alt", key: "", modifier: "alt" },
-  { label: "", key: " ", w: 2.3 },
-  { label: ".", key: ".", w: 0.75 },
+  layer === "abc" ? { label: "123", key: "", w: 1.1, layer: "123" } : { label: "ABC", key: "", w: 1.1, layer: "abc" },
+  { label: "EN", key: "", w: 0.85, ime: true },
+  { label: "Ctrl", key: "", w: 0.95, modifier: "ctrl" },
+  { label: "Alt", key: "", w: 0.95, modifier: "alt" },
+  { label: "", key: " ", w: 2.05 },
+  { label: ".", key: ".", w: 0.7 },
   { label: "\u{2190}", key: "Left", w: ARROW, repeat: true },
-  { label: "\u{2191}", key: "Up", w: ARROW, repeat: true, half: "up" },
-  { label: "\u{2193}", key: "Down", w: ARROW, repeat: true, half: "down" },
+  { label: "\u{2191}", key: "Up", w: ARROW, repeat: true },
+  { label: "\u{2193}", key: "Down", w: ARROW, repeat: true },
   { label: "\u{2192}", key: "Right", w: ARROW, repeat: true },
 ];
 const SHORT = 0.95;
@@ -68,18 +69,18 @@ const LAYERS: Record<Layer, { rows: Key[][]; inset: number[] }> = {
   abc: {
     rows: [
       chars("qwertyuiop"),
-      [...chars("asdfghjkl", undefined, SHORT), enter],
-      [{ label: "\u{21e7}", key: "", w: 1.5, modifier: "shift" }, ...chars("zxcvbnm"), backspace],
+      [...chars("asdfghjkl", undefined, SHORT), backspace],
+      [{ label: "\u{21e7}", key: "", w: 1.5, modifier: "shift" }, ...chars("zxcvbnm"), enter],
       bottom("abc"),
     ],
     inset: [0, 0, 0, 0],
   },
   "123": {
-    rows: [chars("1234567890", "1234567890"), [...chars("-/:;()$&@", "-/:;()$&@", SHORT), enter], [{ label: "#+=", key: "", w: 1.5, layer: "sym" }, ...chars(".,?!'\"", ".,?!'\"", 7 / 6), backspace], bottom("123")],
+    rows: [chars("1234567890", "1234567890"), [...chars("-/:;()$&@", "-/:;()$&@", SHORT), backspace], [{ label: "#+=", key: "", w: 1.5, layer: "sym" }, ...chars(".,?!'\"", ".,?!'\"", 7 / 6), enter], bottom("123")],
     inset: [0, 0, 0, 0],
   },
   sym: {
-    rows: [chars("[]{}#%^*+=", "[]{}#%^*+="), [...chars("_\\|~<>`¥£", "_\\|~<>`¥£", SHORT), enter], [{ label: "123", key: "", w: 1.5, layer: "123" }, ...chars(".,?!'•", ".,?!'•", 7 / 6), backspace], bottom("sym")],
+    rows: [chars("[]{}#%^*+=", "[]{}#%^*+="), [...chars("_\\|~<>`¥£", "_\\|~<>`¥£", SHORT), backspace], [{ label: "123", key: "", w: 1.5, layer: "123" }, ...chars(".,?!'•", ".,?!'•", 7 / 6), enter], bottom("sym")],
     inset: [0, 0, 0, 0],
   },
 };
@@ -115,9 +116,8 @@ const placeRow = (row: Key[], inset: number, y: number, h: number): Placed[] => 
   return row.map((key) => {
     const w = (key.w ?? 1) * UNIT;
     const [lit, setLit] = createSignal(false);
-    const half = key.half ? h / 2 : h;
-    const p: Placed = { ...key, x, y: key.half === "down" ? y + half : y, w, h: half, char: [...key.key].length === 1 && key.key !== " ", lit, setLit };
-    if (key.half !== "up") x += w;
+    const p: Placed = { ...key, x, y, w, h, char: [...key.key].length === 1 && key.key !== " ", lit, setLit };
+    x += w;
     return p;
   });
 };
@@ -268,8 +268,8 @@ export function keyboardTouch(frame: TouchFrame, mode: KeyboardMode) {
 export function Keyboard(props: { mode: KeyboardMode }) {
   const current = () => layout(props.mode, layer());
   const latched = (k: Placed) => (!!k.modifier && mods()[k.modifier]) || (k.modifier === "shift" && capsLock());
-  /** a word on a key, or half a key: the smaller type */
-  const small = (k: Placed) => !!k.half || k.modifier === "ctrl" || k.modifier === "alt" || !!k.layer || !!k.ime;
+  /** a word on a key: the smaller type */
+  const small = (k: Placed) => k.modifier === "ctrl" || k.modifier === "alt" || !!k.layer || !!k.ime;
   const fnKey = (k: Placed) => !k.char && k.key !== " ";
   const label = (k: Placed) => {
     if (k.ime) return chinese() ? "中" : "EN";
