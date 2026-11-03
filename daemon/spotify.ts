@@ -118,6 +118,8 @@ export interface SpotifyOptions {
   now?: () => number;
   /** how long after a command the player is read again, for Spotify to catch up */
   settleMs?: number;
+  /** what plays on this device changed: the bar's play/pause (SystemState.media) */
+  onMedia?: (media: { playing: boolean; title: string; artist: string } | null) => void;
 }
 
 class SpotifyError extends Error {
@@ -251,6 +253,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     }
   }
 
+  let mediaSaid = "null";
   function linkChanged() {
     if (link.state.loggedIn && soloist.state !== "ready") {
       soloist = { ...soloist, state: "ready", message: "" };
@@ -258,6 +261,14 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     }
     cache.delete("status");
     forgetPlayer();
+    // what plays here, for the bar: Soloist's item while it is the account's active device
+    const s = link.state;
+    const media = soloistHere() && s.active && s.item?.uri && s.status !== "idle" ? { playing: s.status === "playing" || s.status === "buffering", title: s.item.title, artist: s.item.subtitle } : null;
+    const said = JSON.stringify(media);
+    if (said !== mediaSaid) {
+      mediaSaid = said;
+      options.onMedia?.(media);
+    }
   }
 
   function engineChanged() {
@@ -816,6 +827,13 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       }
     },
     async command(args) {
+      // the bar's play/pause: what plays on this device
+      if (args[0] === "toggle") {
+        if (!soloistHere()) return "nothing plays here";
+        const playing = link.state.active && (link.state.status === "playing" || link.state.status === "buffering");
+        await link.send(playing ? "pause" : "play");
+        return playing ? "paused" : "playing";
+      }
       if (args[0] === "signout") {
         await signOut().catch(() => undefined);
         return "signed out";

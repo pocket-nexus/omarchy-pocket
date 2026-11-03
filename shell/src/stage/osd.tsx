@@ -1,12 +1,14 @@
 // Omarchy's on-screen display (`omarchy-osd`, `omarchy-shell osd show <json>`)
 // near the bottom of the stage: an icon with a progress bar and percentage, or
 // an icon with a message. Omarchy's OsdModel turns the payload into what to
-// draw, as it does for Quickshell's Osd.qml.
+// draw, as it does for Quickshell's Osd.qml. omarchy-pocketd sends the same
+// payload as an `osd` event (a volume key's step, daemon/volume-keys.ts).
 import { createSignal, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { stateForShow } from "../generated/osd-model.js";
 import { C } from "../classes.ts";
+import { onEvent } from "../bridge.ts";
 import { serve } from "../system.ts";
 import { color } from "../theme.ts";
 
@@ -39,6 +41,10 @@ export function showOsd(payloadJson: string) {
   const mine = ++generation;
   if (next.duration > 0) after(next.duration / 1000, () => mine === generation && setShown(null));
 }
+
+onEvent((event) => {
+  if (event.event === "osd") showOsd(JSON.stringify(event.osd));
+});
 
 serve("osd", {
   show: (payloadJson) => (showOsd(payloadJson), "ok"),

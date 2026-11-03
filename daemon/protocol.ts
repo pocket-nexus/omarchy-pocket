@@ -86,6 +86,8 @@ export type Request =
   | { id: number; method: "tailscale" }
   | { id: number; method: "tailscaleSet"; running?: boolean; up?: boolean; logout?: boolean }
   | { id: number; method: "powerSet"; profile?: string; brightness?: number }
+  /** pause what plays on this device, or play it again (SystemState.media) */
+  | { id: number; method: "mediaToggle" }
   | { id: number; method: "bluetooth"; scan?: boolean }
   | { id: number; method: "bluetoothPower"; on: boolean }
   | { id: number; method: "bluetoothConnect"; mac: string }
@@ -338,6 +340,8 @@ export interface SystemState {
   tailscale: { state: string; ip: string } | null;
   /** Omarchy's current theme: its name and colors.toml */
   theme: { name: string; colors: Record<string, string> } | null;
+  /** what plays on this device's own player (Spotify's), playing or paused; null when nothing does */
+  media: { playing: boolean; title: string; artist: string } | null;
   bar: BarSettings;
   idle: IdleSettings;
 }
@@ -370,6 +374,8 @@ export type Event =
   /** logind is about to suspend: the shell locks first. */
   | { event: "sleep" }
   | { event: "notify"; notice: Notice }
+  /** Omarchy's on-screen display, as `omarchy-shell osd show <json>` takes it (a volume key's step) */
+  | { event: "osd"; osd: { icon: string; value?: number; max?: number; progressText?: string; message?: string } }
   /** reason: 1 expired, 2 dismissed, 3 closed by the program */
   | { event: "notifyClosed"; notice: number; reason: number };
 
