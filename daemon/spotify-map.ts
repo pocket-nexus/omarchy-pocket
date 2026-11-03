@@ -1,5 +1,5 @@
 // The Web API's objects as the spotify service's (vendor/applets/spotify/contract.ts):
-// pure functions, tested in daemon/test/spotify.test.ts. The Web API's shapes
+// pure functions, tested in daemon/spotify.test.ts. The Web API's shapes
 // are those of 2026: a playlist's tracks are under `items` and each entry's
 // track under `item` (the February 2026 migration renamed `tracks`/`track`;
 // both names are read), and a list of something the reader cannot see comes

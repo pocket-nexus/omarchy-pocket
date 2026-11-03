@@ -6,7 +6,7 @@
 // an SSID or a password is only ever data.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { AudioDevice, AudioPanel, BluetoothDevice, BluetoothPanel, NetworkPanel, PowerPanel, WifiNetwork } from "./protocol.ts";
+import { VOLUME_MAX, type AudioDevice, type AudioPanel, type BluetoothDevice, type BluetoothPanel, type NetworkPanel, type PowerPanel, type WifiNetwork } from "./protocol.ts";
 
 async function exec(argv: string[], input?: string): Promise<{ code: number; stdout: string; stderr: string }> {
   const child = Bun.spawn(argv, { stdin: input === undefined ? "ignore" : new TextEncoder().encode(input), stdout: "pipe", stderr: "pipe" });
@@ -127,7 +127,7 @@ export async function audio(): Promise<AudioPanel> {
 
 export async function audioSet(kind: "sink" | "source", name: string, change: { volume?: number; muted?: boolean; current?: boolean }) {
   // wpctl talks to PipeWire itself; pactl goes through pipewire-pulse and answers later
-  if (change.volume !== undefined) await must(["wpctl", "set-volume", name, `${Math.max(0, Math.min(150, Math.round(change.volume)))}%`]);
+  if (change.volume !== undefined) await must(["wpctl", "set-volume", name, `${Math.max(0, Math.min(VOLUME_MAX, Math.round(change.volume)))}%`]);
   if (change.muted !== undefined) await must(["pactl", `set-${kind}-mute`, name, change.muted ? "1" : "0"]);
   if (change.current) await must(["pactl", `set-default-${kind}`, name]);
 }

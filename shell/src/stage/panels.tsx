@@ -20,7 +20,7 @@ import { after } from "@pocketjs/framework/clock";
 import { request } from "../bridge.ts";
 import type { AudioDevice, AudioPanel, BluetoothPanel, NetworkPanel, PowerPanel, ProxyPanel, TailscalePanel } from "../../../daemon/protocol.ts";
 import { C } from "../classes.ts";
-import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
+import { CJK_SLOT_14, levelOsd, VOLUME_MAX } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
 import { isAddressLike } from "../generated/bluetooth-model.js";
 import { wifiIconFor } from "../generated/network-model.js";
@@ -154,9 +154,7 @@ const sliding = new Map<string, { inFlight: boolean; next: number | null; send(v
  *  comes back once the last request lands. */
 function slide(id: string, value: number, send: (value: number) => Promise<unknown>, title: string, osd: { icon: string; max?: number }) {
   setAsked((a) => ({ ...a, [id]: value }));
-  // a boost range (volume to 150%) is the bar's span only once the value is past 100
-  const max = osd.max && osd.max > 100 && value <= 100 ? 100 : (osd.max ?? 100);
-  showOsd(JSON.stringify({ icon: osd.icon, value, max, progressText: `${Math.round(value)}%` }));
+  showOsd(JSON.stringify(levelOsd(osd.icon, value, osd.max)));
   const s = sliding.get(id) ?? { inFlight: false, next: null, send, title };
   s.send = send;
   sliding.set(id, s);
@@ -242,9 +240,9 @@ function deviceRows(kind: "sink" | "source", list: AudioDevice[], title: string,
       value: current.muted ? "Muted" : `${Math.round(level())}%`,
       activate: () => change("", request({ method: "audioSet", kind, name: current.name, muted: !current.muted }), title),
       adjust: (delta) =>
-        slide(id, Math.max(0, Math.min(150, level() + delta * STEP)), (volume) => request({ method: "audioSet", kind, name: current.name, volume }), title, {
+        slide(id, Math.max(0, Math.min(VOLUME_MAX, level() + delta * STEP)), (volume) => request({ method: "audioSet", kind, name: current.name, volume }), title, {
           icon: kind === "sink" ? "\u{f057e}" : "\u{f036c}",
-          max: 150,
+          max: VOLUME_MAX,
         }),
     });
   }

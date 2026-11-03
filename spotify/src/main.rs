@@ -523,7 +523,7 @@ async fn web(State(app): State<Shared>, method: Method, headers: HeaderMap, Path
 
 #[tokio::main]
 async fn main() -> Result<()> {
-  env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("omarchy_pocket_spotify=info,librespot=warn")).init();
+  env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("omarchy_pocket_spotify=info,spotatui_librespot=warn")).init();
   let args = args()?;
   crate::core::paths::ensure_private_dir(&args.cache)?;
   crate::core::paths::set_cache_dir(args.cache.clone());

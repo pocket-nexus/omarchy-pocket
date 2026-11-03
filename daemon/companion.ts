@@ -6,7 +6,7 @@
 //
 // A URL on companion.pocket goes to the service it names, as Pocket Companion
 // answers a console's request on a Mac: PocketJS's own providers
-// (vendor/pocketjs/tools/companion/services: x, discord, youtube, store,
+// (vendor/pocket-hub/tools/companion/services: x, discord, youtube, store,
 // podcasts, maps, homeassistant) and this daemon's spotify (spotify.ts), their
 // files under ~/.local/share/omarchy-pocket/companion/services/<name>/ (the
 // Mac's `services/x/session.json`, `services/discord/token` copied there
@@ -24,10 +24,11 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { NET_ERROR } from "../vendor/pocketjs/contracts/spec/net.ts";
-import { NetFailure, normalizeNetRequest, performNet, type NetResponse } from "../vendor/pocketjs/tools/companion/fetch.ts";
-import { bytesResponse, jsonResponse, readJson, SERVICE_FACTORIES, ServiceHost, type ServiceProvider } from "../vendor/pocketjs/tools/companion/services.ts";
-import { createXService } from "../vendor/pocketjs/tools/companion/services/x.ts";
-import { createSpotifyService } from "./spotify.ts";
+import { NetFailure, normalizeNetRequest, performNet, type NetResponse } from "../vendor/pocketjs/tools/pocket-link/fetch.ts";
+import { bytesResponse, jsonResponse, readJson, SERVICE_FACTORIES, ServiceHost, type ServiceProvider } from "../vendor/pocket-hub/tools/companion/services.ts";
+import { createXService } from "../vendor/pocket-hub/tools/companion/services/x.ts";
+import { createSpotifyService, signedInBefore } from "./spotify.ts";
+import type { Media } from "./protocol.ts";
 import { encodeImageEntry } from "../vendor/pocketjs/framework/compiler/pak.ts";
 import { IMG_FLAG_LINEAR, PSM } from "../vendor/pocketjs/contracts/spec/spec.ts";
 import { manifest } from "./apps.ts";
@@ -133,8 +134,8 @@ export class AppNet {
   private readonly baker: AtlasBaker;
   private readonly open = new Map<number, AbortController>();
   private readonly callers = new Map<string, { app: string; services: string[]; isolated: boolean; hosts: string[] }>();
-  /** what plays on this device changed (the Spotify service's player) */
-  onMedia: (media: { playing: boolean; title: string; artist: string } | null) => void = () => {};
+  /** what Soloist plays on this device changed (SystemState.media) */
+  onMedia: (media: Media | null) => void = () => {};
 
   constructor(private readonly home: string, runtime: string, private readonly log: (...parts: unknown[]) => void) {
     const storeDir = join(home, ".local", "share", "omarchy-pocket", "companion");
@@ -151,7 +152,7 @@ export class AppNet {
     SERVICE_FACTORIES.spotify = (context) => createSpotifyService(context, { onMedia: (media) => this.onMedia(media) });
     this.services = new ServiceHost({ storeDir, log: (line) => log(line) });
     // signed in to Spotify before: its speaker comes up with the daemon, for a phone to find
-    if (existsSync(join(storeDir, "services", "spotify", "session", "streaming_cache", "credentials.json"))) void this.services.command("spotify", ["status"]).catch(() => {});
+    if (signedInBefore(storeDir)) void this.services.command("spotify", ["status"]).catch(() => {});
   }
 
   /** Pause what plays on this device, or play it again. */

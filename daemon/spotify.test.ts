@@ -7,7 +7,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { serve, type ServiceProvider } from "../vendor/pocketjs/tools/companion/services.ts";
+import { serve, type ServiceProvider } from "../vendor/pocket-hub/tools/companion/services.ts";
 import * as map from "./spotify-map.ts";
 import { createSpotifyService, SPEAKER_NAME } from "./spotify.ts";
 
@@ -33,6 +33,8 @@ function webApi(method: string, p: string): Response {
   if (p === "/me/albums") return Response.json({ items: [{ album: ALBUM }], total: 1, next: null });
   if (p === "/me/following") return Response.json({ artists: { items: [ARTIST], next: null, cursors: { after: null } } });
   if (p === "/me/tracks") return Response.json({ items: [{ track: TRACK }], total: 41, next: "x" });
+  // Spotify's own list (spclient's recently-played): a playlist played an hour ago
+  if (p === "/me/player/recently-played") return Response.json({ items: [{ played_at: new Date(Date.now() - 3_600_000).toISOString(), context: { uri: "spotify:playlist:pl1", type: "playlist" } }], next: null });
   if (p === "/playlists/pl1") return Response.json({ id: "pl1", uri: "spotify:playlist:pl1", name: "Walks", images: [cover(300)], owner: { display_name: "Tess Ter" }, description: "For <b>walks</b>", tracks: { total: 1, items: [{ track: TRACK }], next: null } });
   // a playlist answered without its tracks, which come from /items
   if (p === "/playlists/editorial") return Response.json({ id: "editorial", uri: "spotify:playlist:editorial", name: "Mix", images: [], owner: { display_name: "Someone" }, description: "" });
@@ -150,12 +152,13 @@ test("signing in is a pairing code; every request to the program carries its key
 });
 
 test("home, pages and search in the contract's shapes", async () => {
-  // recently played is what the service saw play: Liked Songs, then the album, newest first
+  // recently played: what the service saw play (Liked Songs, then the album)
+  // and Spotify's own list (a playlist an hour ago), newest first, each once
   await call("POST", "/play", { context: "spotify:user:tester:collection" });
   await call("POST", "/play", { context: ALBUM.uri });
   await call("POST", "/play", { context: ALBUM.uri });
   const home = (await call("GET", "/home")).json;
-  expect(home.recent.map((i: { uri: string }) => i.uri)).toEqual([ALBUM.uri, "spotify:user:tester:collection"]);
+  expect(home.recent.map((i: { uri: string }) => i.uri)).toEqual([ALBUM.uri, "spotify:user:tester:collection", "spotify:playlist:pl1"]);
   expect(home.recent[0]).toMatchObject({ kind: "album", title: "Night Ferry" });
   expect(home.recent[1]).toMatchObject({ kind: "liked", count: 41 });
   expect(home.playlists[0]).toMatchObject({ kind: "liked", uri: "spotify:user:tester:collection", count: 41 });
@@ -238,7 +241,7 @@ setTimeout(() => { console.log("[f:12] logged in as tester"); console.log("[f:30
 `,
   );
   chmodSync(fake, 0o755);
-  const setupService = createSpotifyService({ storeDir: join(dir, "setup-store"), log: () => {} }, { program: null, port: server.port, key: KEY, settleMs: 0, soloist: fake, platform: "linux-arm64" });
+  const setupService = createSpotifyService({ storeDir: join(dir, "setup-store"), log: () => {} }, { program: null, port: server.port, key: KEY, settleMs: 0, soloist: fake, platform: "linux-arm64", onMedia: (m) => media.push(m) });
   const setupCall = async (method: "GET" | "POST", body?: unknown) => {
     // as ServiceHost answers /_setup: a refused change is a 400
     const response = await serve({ name: "spotify", handle: (r) => setupService.setup!.handle(r) }, {
@@ -252,8 +255,9 @@ setTimeout(() => { console.log("[f:12] logged in as tester"); console.log("[f:30
     });
     return { status: response.status, json: JSON.parse(new TextDecoder().decode(response.body)) };
   };
+  const media: unknown[] = [];
   const statusOf = async () => {
-    const response = await setupService.handle({ method: "POST", path: "/cancel", query: new URLSearchParams(), body: new Uint8Array(0), maxBytes: 1 << 20, console: { name: "test", address: "127.0.0.1", localAddress: "127.0.0.1" }, signal: new AbortController().signal });
+    const response = await setupService.handle({ method: "GET", path: "/status", query: new URLSearchParams(), body: new Uint8Array(0), maxBytes: 1 << 20, console: { name: "test", address: "127.0.0.1", localAddress: "127.0.0.1" }, signal: new AbortController().signal });
     return JSON.parse(new TextDecoder().decode(response.body));
   };
   try {
@@ -292,9 +296,17 @@ setTimeout(() => { console.log("[f:12] logged in as tester"); console.log("[f:30
     expect(commands().at(-1)).toMatchObject({ command: "pause" });
     expect((await service("GET", "/queue")).json).toMatchObject({ now: { uri: "spotify:track:t1" }, next: [{ uri: "spotify:track:next1" }] });
     expect(seen.some((s) => /\/v1\/me\/player\/(pause|queue)/.test(s.path))).toBe(false);
-    // the key cleared: librespot again
+    // what plays here, for the shell (SystemState.media), and its toggle
+    expect(media).toContainEqual({ playing: true, title: "Ferry Lights", artist: "Nova Tide" });
+    expect(media.at(-1)).toEqual({ playing: false, title: "Ferry Lights", artist: "Nova Tide" });
+    expect(await setupService.command!(["toggle"])).toBe("playing");
+    expect(commands().at(-1)).toMatchObject({ command: "play" });
+    await until(async () => (media.at(-1) as { playing: boolean } | null)?.playing === true);
+    // the key cleared: librespot again, and nothing plays here
     await setupCall("POST", { field: "soloistKey", clear: true });
     expect((await statusOf()).speaker.engine).toBe("librespot");
+    await until(async () => media.at(-1) === null);
+    expect(await setupService.command!(["toggle"])).toBe("nothing plays here");
   } finally {
     setupService.close?.();
   }

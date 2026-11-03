@@ -4,9 +4,9 @@
 // asks it, and answers the applet in the contract's objects.
 //
 // The program. It listens on 127.0.0.1:PORT and takes a request only with the
-// key this service hands it in OMARCHY_POCKET_SPOTIFY_KEY, made anew at each
-// start (an app's realm reaches 127.0.0.1 for media streams; it never has the
-// key). It keeps the login in <storeDir>/services/spotify/session/ (0700). It
+// key this service hands it in OMARCHY_POCKET_SPOTIFY_KEY, made once per
+// service and kept across the program's restarts (an app's realm reaches
+// 127.0.0.1 for media streams; it never has the key). It keeps the login in <storeDir>/services/spotify/session/ (0700). It
 // is restarted when it exits, a second later, then at most every 30 s.
 //
 // Sign-in. POST /signin asks it for a pairing code: Spotify's own desktop
@@ -20,7 +20,7 @@
 // speaker, SPEAKER_NAME, writing PCM to pw-cat (PipeWire) at 320 kbps.
 // Spotify refuses the audio keys to librespot for some accounts; the program
 // then reports the speaker `refused`, and the owner can set up Spotify's own
-// player, Soloist, in its place: the service's owner setup (PocketJS
+// player, Soloist, in its place: the service's owner setup (Pocket Hub's
 // tools/companion/setup.ts, answered at /_setup) holds the Soloist API key the
 // owner makes in Spotify's developer dashboard and Spotify's Soloist build,
 // fetched from Spotify on the owner's consent and again every
@@ -41,10 +41,12 @@
 // Spotify Connect to this device's id (the program's connect-state), as
 // Soloist's play takes no offset; when that fails, the chosen track plays.
 //
-// Recently played. Spotify's own list is not one the program can ask for, so
-// the service keeps one: every album, playlist, artist or Liked Songs it
-// sees playing (on any of the account's devices) or is asked to play, newest
-// first, at most RECENT_MAX, in services/spotify/recent.json.
+// Recently played. Home's shelf is Spotify's own list (the program's
+// /me/player/recently-played, spclient's) merged with the one this service
+// keeps, newest first: every album, playlist, artist or Liked Songs it sees
+// playing (on any of the account's devices) or is asked to play, at most
+// RECENT_MAX, in services/spotify/recent.json. Spotify's list lags and starts
+// empty for a new account; the service's has what played here since then.
 //
 // Answers. The program answers Web API paths (GET /v1/me/player, /v1/search,
 // /v1/albums/<id>, PUT /v1/me/player/play, …) in the Web API's JSON, from the
@@ -55,18 +57,19 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { jsonResponse, readJson, ServiceError, type ServiceContext, type ServiceProvider, type ServiceRequest } from "../vendor/pocketjs/tools/companion/services.ts";
-import { OwnerSetup, type SetupSpec } from "../vendor/pocketjs/tools/companion/setup.ts";
-import { Supervised } from "../vendor/pocketjs/tools/companion/supervise.ts";
+import { jsonResponse, readJson, ServiceError, type ServiceContext, type ServiceProvider, type ServiceRequest } from "../vendor/pocket-hub/tools/companion/services.ts";
+import { OwnerSetup, type SetupSpec } from "../vendor/pocket-hub/tools/companion/setup.ts";
+import { Supervised } from "../vendor/pocket-hub/tools/companion/supervise.ts";
 import type { AlbumPage, ArtistPage, Device, Failure, Home, Item, Page, Player, PlaylistPage, Queue, Status } from "../vendor/applets/spotify/contract.ts";
 import * as map from "./spotify-map.ts";
+import type { Media } from "./protocol.ts";
 import { SoloistLink, type SoloistEntity } from "./soloist-link.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Json = any;
 
 export const SPEAKER_NAME = "Omarchy Pocket";
-export const PROGRAM = "/usr/lib/omarchy-pocket/omarchy-pocket-spotify";
+const PROGRAM = "/usr/lib/omarchy-pocket/omarchy-pocket-spotify";
 const PORT = 4471;
 const CACHE_MS = { home: 60_000, library: 60_000, page: 300_000, search: 120_000, player: 1_000, devices: 3_000, queue: 2_000, liked: 30_000, status: 1_500 } as const;
 const LIST = 30;
@@ -75,7 +78,7 @@ const SOLOIST_REFRESH_DAYS = 30;
 const SOLOIST_CDN = "https://soloist-builds.spotifycdn.com";
 
 /** What the owner sets up for Spotify's own player (PocketJS setup.ts). */
-export const SETUP: SetupSpec = {
+const SETUP: SetupSpec = {
   title: "Spotify's own player",
   fields: [
     {
@@ -111,15 +114,15 @@ export interface SpotifyOptions {
   /** Soloist in place of the fetched build (tests) */
   soloist?: string;
   /** the platform the owner setup fetches builds for (tests) */
-  platform?: import("../vendor/pocketjs/tools/companion/setup.ts").Platform | null;
+  platform?: import("../vendor/pocket-hub/tools/companion/setup.ts").Platform | null;
   port?: number;
   /** the key, when a test runs the program itself */
   key?: string;
   now?: () => number;
   /** how long after a command the player is read again, for Spotify to catch up */
   settleMs?: number;
-  /** what plays on this device changed: the bar's play/pause (SystemState.media) */
-  onMedia?: (media: { playing: boolean; title: string; artist: string } | null) => void;
+  /** what Soloist plays on this device changed (SystemState.media) */
+  onMedia?: (media: Media | null) => void;
 }
 
 class SpotifyError extends Error {
@@ -130,13 +133,21 @@ class SpotifyError extends Error {
 
 const fail = (status: number, error: string, reason: Failure["reason"] = "other") => new SpotifyError(status, { error, reason });
 
+/** Where the program keeps the login (spotify/src/infra/spotify/credentials.rs). */
+const sessionDirOf = (storeDir: string) => join(storeDir, "services", "spotify", "session");
+
+/** The account signed in before: the program's cached credentials are there. */
+export function signedInBefore(storeDir: string): boolean {
+  return existsSync(join(sessionDirOf(storeDir), "streaming_cache", "credentials.json"));
+}
+
 export function createSpotifyService(context: ServiceContext, options: SpotifyOptions = {}): ServiceProvider {
   const now = options.now ?? Date.now;
   const settleMs = options.settleMs ?? 450;
   const port = options.port ?? PORT;
   const base = `http://127.0.0.1:${port}`;
   const key = options.key ?? randomBytes(24).toString("base64url");
-  const sessionDir = join(context.storeDir, "services", "spotify", "session");
+  const sessionDir = sessionDirOf(context.storeDir);
   mkdirSync(sessionDir, { recursive: true, mode: 0o700 });
   const programPath = options.program === undefined ? PROGRAM : options.program;
   const cache = new Map<string, { at: number; value: unknown }>();
@@ -261,7 +272,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     }
     cache.delete("status");
     forgetPlayer();
-    // what plays here, for the bar: Soloist's item while it is the account's active device
+    // what plays here (SystemState.media): Soloist's item while it is the account's active device
     const s = link.state;
     const media = soloistHere() && s.active && s.item?.uri && s.status !== "idle" ? { playing: s.status === "playing" || s.status === "buffering", title: s.item.title, artist: s.item.subtitle } : null;
     const said = JSON.stringify(media);
@@ -510,14 +521,20 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
   async function home(): Promise<Home> {
     return cached("home", CACHE_MS.home, async () => {
       const u = await me();
-      const [lists, albums, artists, likedTotal] = await Promise.all([
+      const [lists, albums, artists, likedTotal, played] = await Promise.all([
         web("GET", "/me/playlists?limit=20").catch(() => null),
         web("GET", "/me/albums?limit=12").catch(() => null),
         web("GET", "/me/following?type=artist&limit=12").catch(() => null),
         web("GET", "/me/tracks?limit=1").catch(() => null),
+        web("GET", "/me/player/recently-played?limit=20").catch(() => null),
       ]);
+      // Spotify's list and this service's, newest first, each context once
+      const theirs = (Array.isArray(played?.items) ? played.items : [])
+        .map((entry: Json) => ({ uri: String(entry?.context?.uri ?? ""), at: Date.parse(String(entry?.played_at ?? "")) || 0 }))
+        .filter((r: { uri: string }) => contextUri.test(r.uri));
+      const merged = [...recent, ...theirs].sort((a, b) => b.at - a.at).filter((r, i, all) => all.findIndex((o) => o.uri === r.uri) === i);
       const recentItems: Item[] = [];
-      for (const { uri } of recent) {
+      for (const { uri } of merged) {
         if (recentItems.length >= 12) break;
         const item = await contextItem(uri).catch(() => null);
         if (item) recentItems.push(item);
@@ -619,7 +636,6 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     });
   }
 
-  /** Where a command goes: the device asked for, else the active one, else this speaker. */
   /** Where a play goes: the device asked for, else this device's own speaker. */
   async function target(asked?: string): Promise<string | null> {
     if (asked) return asked;
@@ -827,7 +843,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       }
     },
     async command(args) {
-      // the bar's play/pause: what plays on this device
+      // SystemState.media's play/pause: what Soloist plays on this device
       if (args[0] === "toggle") {
         if (!soloistHere()) return "nothing plays here";
         const playing = link.state.active && (link.state.status === "playing" || link.state.status === "buffering");

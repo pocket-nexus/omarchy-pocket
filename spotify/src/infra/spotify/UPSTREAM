@@ -1,1 +1,13 @@
 985f28d3d09e03a663bb7899ca9645f2d66bca86 2026-11-02T13:40:43+01:00
+github.com/LargeModGames/spotatui src/infra/spotify, MIT (LICENSE-spotatui)
+
+Files as upstream: browse.rs catalog.rs json.rs library.rs lyrics.rs metadata.rs player.rs playlists.rs router.rs search.rs
+
+Local edits, each marked `omarchy-pocket:` in the code:
+- credentials.rs: a sign-in that found the direct route (core/route.rs) sets no proxy.
+- session.rs: last_error() keeps why the last connect failed, for the sign-in to show and try the other route.
+- mod.rs: the module list (no live_tests; lyrics private) and its header.
+
+Replaced:
+- listening.rs: Spotify's own recently-played from spclient (/recently-played/v3); upstream's reads the app's own history.
+- cast.rs, lan.rs, zeroconf.rs: stubs; this device lists the account's devices and signs no network speaker in.

@@ -4,8 +4,11 @@
 // events: each press and each auto-repeat is one step. Every
 // /dev/input/event* whose key capabilities have both codes is read (a
 // Bluetooth keyboard's volume keys too), and the list is read again every
-// RESCAN_MS for devices that came later.
+// RESCAN_MS for devices that came later. volumeStepper turns the steps into
+// volume changes: one wpctl round at a time, the steps that arrive meanwhile
+// summed into the next round, and Omarchy's volume OSD after each.
 import { createReadStream, readdirSync, readFileSync } from "node:fs";
+import { levelOsd, VOLUME_MAX, type OsdPayload } from "./protocol.ts";
 
 const EV_KEY = 1;
 const KEY_VOLUMEDOWN = 114;
@@ -59,6 +62,7 @@ const RESCAN_MS = 30_000;
 /** Calls `step` for every volume key press and repeat until the returned stop(). */
 export function watchVolumeKeys(step: (delta: number) => void, log: (...args: unknown[]) => void, root = "/sys/class/input"): () => void {
   const open = new Map<string, ReturnType<typeof createReadStream>>();
+  const logged = new Set<string>();
   const scan = () => {
     for (const path of volumeKeyDevices(root)) {
       if (open.has(path)) continue;
@@ -72,8 +76,11 @@ export function watchVolumeKeys(step: (delta: number) => void, log: (...args: un
         for (const delta of volumeSteps(data.subarray(0, whole))) step(delta);
       });
       stream.on("error", (error: NodeJS.ErrnoException) => {
-        // ENODEV: the device went away, and close follows
-        if (error.code !== "ENODEV") log(`volume keys: ${path}: ${error.message}`);
+        // ENODEV: the device went away, and close follows; any other error once per device and kind
+        const said = `${path}:${error.code}`;
+        if (error.code === "ENODEV" || logged.has(said)) return;
+        logged.add(said);
+        log(`volume keys: ${path}: ${error.message}`);
       });
       // gone (a keyboard switched off): the next scan opens it again
       stream.on("close", () => open.delete(path));
@@ -85,5 +92,59 @@ export function watchVolumeKeys(step: (delta: number) => void, log: (...args: un
     clearInterval(timer);
     for (const stream of open.values()) stream.destroy();
     open.clear();
+  };
+}
+
+/** a volume key's step, in percent */
+export const VOLUME_STEP = 5;
+/** PipeWire answers get-volume with the old value for a moment after a set:
+ *  steps this close to the last one build on the value the keys set */
+const SETTLE_MS = 1500;
+const SPEAKER = "\u{f057e}";
+const MUTED = "\u{f075f}";
+
+export interface VolumeControl {
+  /** the default sink's volume (percent) and mute, or null */
+  read(): Promise<{ volume: number; muted: boolean } | null>;
+  /** set the volume, unmuting first when asked; false when wpctl failed */
+  set(volume: number, unmute: boolean): Promise<boolean>;
+  /** the OSD for a set that took */
+  shown(osd: OsdPayload): void;
+  now?: () => number;
+}
+
+/** A step function for watchVolumeKeys: 0 to VOLUME_MAX as the Sound panel's
+ *  slider goes; a step up unmutes; a held key's repeats sum while a round runs. */
+export function volumeStepper(control: VolumeControl): (delta: number) => void {
+  const now = control.now ?? Date.now;
+  let pending = 0;
+  let running = false;
+  let keyed: { volume: number; at: number } | null = null;
+  const round = async () => {
+    running = true;
+    try {
+      while (pending !== 0) {
+        const delta = pending;
+        pending = 0;
+        const current = await control.read();
+        if (!current) continue;
+        const base = keyed && now() - keyed.at < SETTLE_MS ? keyed.volume : current.volume;
+        const next = Math.max(0, Math.min(VOLUME_MAX, base + delta * VOLUME_STEP));
+        const unmute = delta > 0 && current.muted;
+        if (!(await control.set(next, unmute))) {
+          keyed = null;
+          continue;
+        }
+        keyed = { volume: next, at: now() };
+        const muted = current.muted && !unmute;
+        control.shown(levelOsd(muted || next === 0 ? MUTED : SPEAKER, next, VOLUME_MAX, muted ? "Muted" : undefined));
+      }
+    } finally {
+      running = false;
+    }
+  };
+  return (delta) => {
+    pending += delta;
+    if (!running) void round();
   };
 }
