@@ -1,12 +1,12 @@
 // A QR code over the stage: a link the device cannot open itself (a
 // Tailscale login) drawn for a phone to scan, with the link's text under it.
 // Any button closes it (app.tsx press). The code comes from PocketJS's
-// encoder (tools/companion/qr.ts), byte mode, as the pairing QR does; each
+// encoder (tools/pocket-link/qr.ts), byte mode, as the pairing QR does; each
 // row's dark modules merge into runs, one View per run.
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { animate, jump } from "@pocketjs/framework/animation";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
-import { encodeQr } from "../../../vendor/pocketjs/tools/companion/qr.ts";
+import { encodeQr } from "../../../vendor/pocketjs/tools/pocket-link/qr.ts";
 import { color } from "../theme.ts";
 
 const [sheet, setSheet] = createSignal<{ title: string; url: string } | null>(null);

@@ -7,7 +7,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { serve, type ServiceProvider } from "../vendor/pocketjs/tools/companion/services.ts";
+import { serve, type ServiceProvider } from "../vendor/pocket-hub/tools/companion/services.ts";
 import * as map from "./spotify-map.ts";
 import { createSpotifyService, SPEAKER_NAME } from "./spotify.ts";
 

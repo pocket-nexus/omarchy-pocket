@@ -48,7 +48,7 @@ if (process.argv[2] === "atlas-baker") {
 
 // systemd stops this unit with SIGTERM to its main process only
 // (KillMode=process): exit through process.exit so the programs services
-// supervise stop with it (PocketJS tools/companion/supervise.ts)
+// supervise stop with it (Pocket Hub's tools/companion/supervise.ts)
 for (const signal of ["SIGTERM", "SIGINT"] as const) process.once(signal, () => process.exit(0));
 
 const HOME = process.env.HOME ?? "/home/omarchy";

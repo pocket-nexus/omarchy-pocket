@@ -7,3 +7,6 @@
 [submodule "vendor/applets"]
 	path = vendor/applets
 	url = https://github.com/pocket-nexus/applets.git
+[submodule "vendor/pocket-hub"]
+	path = vendor/pocket-hub
+	url = https://github.com/pocket-nexus/pocket-hub.git

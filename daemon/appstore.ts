@@ -18,7 +18,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, 
 import { join } from "node:path";
 import { encodeImageEntry, decodePng } from "../vendor/pocketjs/framework/compiler/pak.ts";
 import { IMG_FLAG_LINEAR, PSM } from "../vendor/pocketjs/contracts/spec/spec.ts";
-import { bytesResponse, jsonResponse, type ServiceProvider, type ServiceRequest } from "../vendor/pocketjs/tools/companion/services.ts";
+import { bytesResponse, jsonResponse, type ServiceProvider, type ServiceRequest } from "../vendor/pocket-hub/tools/companion/services.ts";
 import { OPEN_SERVICES, packageFacts, sha256, signatureValid } from "../vendor/applets/store/src/shared.ts";
 import { apps } from "./apps.ts";
 

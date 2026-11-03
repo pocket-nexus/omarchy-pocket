@@ -20,7 +20,7 @@
 // speaker, SPEAKER_NAME, writing PCM to pw-cat (PipeWire) at 320 kbps.
 // Spotify refuses the audio keys to librespot for some accounts; the program
 // then reports the speaker `refused`, and the owner can set up Spotify's own
-// player, Soloist, in its place: the service's owner setup (PocketJS
+// player, Soloist, in its place: the service's owner setup (Pocket Hub's
 // tools/companion/setup.ts, answered at /_setup) holds the Soloist API key the
 // owner makes in Spotify's developer dashboard and Spotify's Soloist build,
 // fetched from Spotify on the owner's consent and again every
@@ -57,9 +57,9 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { jsonResponse, readJson, ServiceError, type ServiceContext, type ServiceProvider, type ServiceRequest } from "../vendor/pocketjs/tools/companion/services.ts";
-import { OwnerSetup, type SetupSpec } from "../vendor/pocketjs/tools/companion/setup.ts";
-import { Supervised } from "../vendor/pocketjs/tools/companion/supervise.ts";
+import { jsonResponse, readJson, ServiceError, type ServiceContext, type ServiceProvider, type ServiceRequest } from "../vendor/pocket-hub/tools/companion/services.ts";
+import { OwnerSetup, type SetupSpec } from "../vendor/pocket-hub/tools/companion/setup.ts";
+import { Supervised } from "../vendor/pocket-hub/tools/companion/supervise.ts";
 import type { AlbumPage, ArtistPage, Device, Failure, Home, Item, Page, Player, PlaylistPage, Queue, Status } from "../vendor/applets/spotify/contract.ts";
 import * as map from "./spotify-map.ts";
 import type { Media } from "./protocol.ts";
@@ -114,7 +114,7 @@ export interface SpotifyOptions {
   /** Soloist in place of the fetched build (tests) */
   soloist?: string;
   /** the platform the owner setup fetches builds for (tests) */
-  platform?: import("../vendor/pocketjs/tools/companion/setup.ts").Platform | null;
+  platform?: import("../vendor/pocket-hub/tools/companion/setup.ts").Platform | null;
   port?: number;
   /** the key, when a test runs the program itself */
   key?: string;
