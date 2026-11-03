@@ -40,7 +40,7 @@ type Json = any;
 const name = (e: Json): string => String(e?.decorations?.identity?.name ?? e?.name ?? "");
 
 /** An entity of the API as the applet's fields need it. */
-export function entity(e: Json): SoloistEntity | null {
+function entity(e: Json): SoloistEntity | null {
   if (!e || typeof e !== "object") return null;
   const uri = String(e.uri ?? "");
   const d = e.decorations ?? {};
@@ -68,15 +68,13 @@ const initial = (): SoloistState => ({ connected: false, loggedIn: false, active
 
 export class SoloistLink {
   state: SoloistState = initial();
-  /** how many state events have arrived: a command's effect is the next one */
-  events = 0;
   private socket: WebSocket | null = null;
   private address = "";
   private timer: ReturnType<typeof setTimeout> | null = null;
   private waiting: { command: string; resolve: (v: Json) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }[] = [];
   private closed = true;
 
-  constructor(private readonly options: { onChange?: () => void; log?: (line: string) => void }) {}
+  constructor(private readonly options: { onChange?: () => void }) {}
 
   /** Connect to `address` (host:port) and stay connected until close(). */
   open(address: string) {
@@ -209,10 +207,7 @@ export class SoloistLink {
         else w!.resolve(m);
       }
     }
-    if (m.type !== "command_result" && m.type !== "error") {
-      this.events++;
-      this.options.onChange?.();
-    }
+    if (m.type !== "command_result" && m.type !== "error") this.options.onChange?.();
   }
 
   private position(p: Json) {

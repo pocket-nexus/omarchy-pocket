@@ -328,6 +328,31 @@ export interface BarSettings {
   hidden: boolean;
 }
 
+/** A track playing or paused on this device (SystemState.media). */
+export interface Media {
+  playing: boolean;
+  title: string;
+  artist: string;
+}
+
+/** Omarchy's OSD payload, as `omarchy-shell osd show <json>` takes it. */
+export interface OsdPayload {
+  icon: string;
+  value?: number;
+  max?: number;
+  progressText?: string;
+  message?: string;
+}
+
+/** The Sound panel's and the volume keys' range: 0 to 100%, and a boost to 150%. */
+export const VOLUME_MAX = 150;
+
+/** A level's OSD (a volume, a brightness): its bar spans 100%, and a boost
+ *  range past 100 only once the value is in it. */
+export function levelOsd(icon: string, value: number, max = 100, text = `${Math.round(value)}%`): OsdPayload {
+  return { icon, value, max: max > 100 && value <= 100 ? 100 : max, progressText: text };
+}
+
 export interface SystemState {
   battery: { percent: number; charging: boolean } | null;
   network: { kind: "wifi" | "ethernet" | "none"; name: string; signal: number | null };
@@ -340,8 +365,8 @@ export interface SystemState {
   tailscale: { state: string; ip: string } | null;
   /** Omarchy's current theme: its name and colors.toml */
   theme: { name: string; colors: Record<string, string> } | null;
-  /** what plays on this device's own player (Spotify's), playing or paused; null when nothing does */
-  media: { playing: boolean; title: string; artist: string } | null;
+  /** what Spotify's Soloist plays on this device, playing or paused; null when nothing does, and with librespot as the speaker */
+  media: Media | null;
   bar: BarSettings;
   idle: IdleSettings;
 }
@@ -375,7 +400,7 @@ export type Event =
   | { event: "sleep" }
   | { event: "notify"; notice: Notice }
   /** Omarchy's on-screen display, as `omarchy-shell osd show <json>` takes it (a volume key's step) */
-  | { event: "osd"; osd: { icon: string; value?: number; max?: number; progressText?: string; message?: string } }
+  | { event: "osd"; osd: OsdPayload }
   /** reason: 1 expired, 2 dismissed, 3 closed by the program */
   | { event: "notifyClosed"; notice: number; reason: number };
 
