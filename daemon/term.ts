@@ -12,7 +12,10 @@ import { resolveCell, rowKey, rowRuns, type Cell } from "../vendor/pocket-term/h
 import { encodeKey } from "../vendor/pocket-term/host/keys.ts";
 import { CJK_SLOT_12, EMOJI_ICONS, needsRuntimeGlyph, TERM_COLS, TERM_ROWS, type Cursor, type TermRow } from "./protocol.ts";
 
-const SCROLLBACK = 2000;
+// No history kept above the screen: the shell has no scroll-back view, so
+// history only fed the reflow of a resize, which drew rows a clear (Ctrl+L)
+// had pushed away back above the prompt when a window narrowed.
+const SCROLLBACK = 0;
 const FLUSH_MS = 16;
 const BACKLOG_LIMIT = 1024 * 1024;
 
