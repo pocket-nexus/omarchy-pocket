@@ -133,6 +133,8 @@ export class AppNet {
   private readonly baker: AtlasBaker;
   private readonly open = new Map<number, AbortController>();
   private readonly callers = new Map<string, { app: string; services: string[]; isolated: boolean; hosts: string[] }>();
+  /** what plays on this device changed (the Spotify service's player) */
+  onMedia: (media: { playing: boolean; title: string; artist: string } | null) => void = () => {};
 
   constructor(private readonly home: string, runtime: string, private readonly log: (...parts: unknown[]) => void) {
     const storeDir = join(home, ".local", "share", "omarchy-pocket", "companion");
@@ -146,10 +148,15 @@ export class AppNet {
     SERVICE_FACTORIES.images = () => imagesService(join(home, ".cache", "omarchy-pocket", "images"));
     SERVICE_FACTORIES.appstore = () => createAppStoreService(home, () => this.callers.clear());
     // Spotify: omarchy-pocket-spotify's pairing sign-in, internal API and speaker
-    SERVICE_FACTORIES.spotify = (context) => createSpotifyService(context);
+    SERVICE_FACTORIES.spotify = (context) => createSpotifyService(context, { onMedia: (media) => this.onMedia(media) });
     this.services = new ServiceHost({ storeDir, log: (line) => log(line) });
     // signed in to Spotify before: its speaker comes up with the daemon, for a phone to find
     if (existsSync(join(storeDir, "services", "spotify", "session", "streaming_cache", "credentials.json"))) void this.services.command("spotify", ["status"]).catch(() => {});
+  }
+
+  /** Pause what plays on this device, or play it again. */
+  async mediaToggle(): Promise<string> {
+    return this.services.command("spotify", ["toggle"]);
   }
 
   /** The app behind a package and the services its manifest declares. */

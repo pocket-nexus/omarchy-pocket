@@ -154,7 +154,9 @@ const sliding = new Map<string, { inFlight: boolean; next: number | null; send(v
  *  comes back once the last request lands. */
 function slide(id: string, value: number, send: (value: number) => Promise<unknown>, title: string, osd: { icon: string; max?: number }) {
   setAsked((a) => ({ ...a, [id]: value }));
-  showOsd(JSON.stringify({ icon: osd.icon, value, max: osd.max ?? 100, progressText: `${Math.round(value)}%` }));
+  // a boost range (volume to 150%) is the bar's span only once the value is past 100
+  const max = osd.max && osd.max > 100 && value <= 100 ? 100 : (osd.max ?? 100);
+  showOsd(JSON.stringify({ icon: osd.icon, value, max, progressText: `${Math.round(value)}%` }));
   const s = sliding.get(id) ?? { inFlight: false, next: null, send, title };
   s.send = send;
   sliding.set(id, s);

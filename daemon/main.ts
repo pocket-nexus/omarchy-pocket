@@ -35,6 +35,7 @@ import { Bar } from "./bar.ts";
 import * as applets from "./applets.ts";
 import { RUNTIME } from "./paths.ts";
 import { Voice } from "./voice.ts";
+import { watchVolumeKeys } from "./volume-keys.ts";
 
 if (process.argv[2] === "bake") {
   await (await import("./glyphs.ts")).bakeMain(process.argv[3]!);
@@ -178,6 +179,7 @@ async function systemState(): Promise<SystemState> {
     proxy: proxied,
     tailscale: tailnet,
     theme: theme(),
+    media,
     bar: bar.settings(),
     idle: bar.idle(),
   };
@@ -185,6 +187,39 @@ async function systemState(): Promise<SystemState> {
 
 const bar = new Bar(HOME);
 const appNet = new AppNet(HOME, RUNTIME, log);
+/** what plays on this device (SystemState.media), from the Spotify service's player */
+let media: SystemState["media"] = null;
+appNet.onMedia = (next) => {
+  media = next;
+  if (state) publish({ ...state, media });
+};
+
+// ---- the volume keys ------------------------------------------------------
+
+/** a volume key's step, in percent; 0 to 150 as the Sound panel's slider goes */
+const VOLUME_STEP = 5;
+let volumeSteps: Promise<void> = Promise.resolve();
+/** the volume the keys set last, and when: PipeWire answers get-volume with
+ *  the old value for a moment after a set, so steps in a row build on this */
+let keyed: { volume: number; at: number } | null = null;
+watchVolumeKeys((delta) => {
+  // one wpctl at a time: a held key's repeats land in order
+  volumeSteps = volumeSteps
+    .then(async () => {
+      const now = await audio();
+      if (!now) return;
+      const base = keyed && Date.now() - keyed.at < 1500 ? keyed.volume : now.volume;
+      const next = Math.max(0, Math.min(150, base + delta * VOLUME_STEP));
+      keyed = { volume: next, at: Date.now() };
+      if (delta > 0 && now.muted) await output(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "0"]);
+      await output(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", `${next}%`]);
+      const muted = now.muted && delta < 0;
+      // the bar spans 100%, and the boost to 150% when the volume is past 100
+      broadcast({ event: "osd", osd: { icon: muted || next === 0 ? "\u{f075f}" : "\u{f057e}", value: next, max: next > 100 ? 150 : 100, progressText: muted ? "Muted" : `${next}%` } });
+      void refreshPart("audio");
+    })
+    .catch((error) => log("volume keys:", error));
+}, log);
 
 /** omarchy-theme-set keeps the current theme in ~/.local/state/omarchy/current. */
 function theme(): SystemState["theme"] {
@@ -395,6 +430,9 @@ async function handle(socket: Socket<Peer>, request: Request) {
         await panels.audioSet(request.kind, request.name, request);
         void refreshPart("audio");
         result = null;
+        break;
+      case "mediaToggle":
+        result = await appNet.mediaToggle();
         break;
       case "power":
         result = await panels.power();

@@ -4,11 +4,13 @@
 // and its control keys; a touch app gets Back, which it hears as the Cross
 // button; an empty workspace gets Layout (Terminal is a pin on Home); the
 // menu, Pin for the app it has selected. Home's side column steps the workspaces, so this row
-// does not. While a pinyin composition is open (the 中 key, term/ime.ts) the
+// does not. While something plays on this device (Spotify), play/pause sits
+// before Home. While a pinyin composition is open (the 中 key, term/ime.ts) the
 // row holds its preedit and candidates.
 import { createMemo, createRoot, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { perform, toggleMenu } from "../actions.ts";
+import { request } from "../bridge.ts";
 import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
 import { keySink, layout, toggleHome } from "../focus.ts";
 import { cjk } from "../glyphs.ts";
@@ -18,6 +20,7 @@ import { appletTyping, pressBack } from "../packages.ts";
 import { card } from "../stage/card.tsx";
 import { allApps, menuOpen, selectedItem } from "../stage/menu.tsx";
 import { composing, pick, snapshot } from "../term/ime.ts";
+import { state } from "../system.ts";
 import { sendCtrl, sendKey } from "../term/keyboard.tsx";
 import { color } from "../theme.ts";
 import type { TouchFrame } from "../touch.ts";
@@ -30,6 +33,8 @@ const LOGO = "\u{e900}";
 const HOME = "\u{f02dc}";
 const CLOSE = "\u{f0156}";
 const LEFT = "\u{f0141}";
+const PLAY = "\u{f040a}";
+const PAUSE = "\u{f03e4}";
 
 const EDGE = 4;
 const GAP = 4;
@@ -87,7 +92,10 @@ const row = createRoot(() =>
       { id: "menu", label: "", glyph: LOGO, run: toggleMenu, lit: menuOpen },
       { id: "esc", label: "Esc", run: () => sendKey("Escape") },
     ];
+    const media = state()?.media;
     const end: Chip[] = [
+      // what plays here: pause it, or play it again
+      ...(media ? [{ id: "media", label: "", glyph: media.playing ? PAUSE : PLAY, run: () => void request({ method: "mediaToggle" }).catch(() => {}), lit: () => state()?.media?.playing === true }] : []),
       ...(close ? [{ id: "close", label: "", glyph: CLOSE, run: () => keySink().close?.(), danger: true }] : []),
       { id: "home", label: "", glyph: HOME, run: toggleHome, lit: () => layout() === "home" },
     ];
