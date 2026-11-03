@@ -26,10 +26,20 @@
 // fetched from Spotify on the owner's consent and again every
 // SOLOIST_REFRESH_DAYS (Spotify's builds stop working 90 days after their
 // release). With both, Soloist is the speaker under the same name (the
-// program runs with --speaker none): the owner picks it once in Spotify on a
-// phone on the same network, and it keeps that login in
-// services/spotify/soloist/. Its key is on its command line, as Soloist takes
-// it; its log lines never reach the daemon's log.
+// program runs with --speaker none). Soloist's first login comes from a
+// Spotify app on the same network picking it (Spotify's one way in for it);
+// it keeps that login in services/spotify/soloist/. Its key is on its command
+// line, as Soloist takes it; its log reaches the daemon's log only as its
+// errors and sign-in steps, with the key, tokens and account ids taken out.
+//
+// Playing here. The applet plays on this device: a play, a pause, a skip or a
+// volume goes to this device's own speaker unless the applet names another
+// device (its Devices page). With Soloist that is its local WebSocket API
+// (soloist-link.ts, `--ws 127.0.0.1:0`): play takes a track, album, playlist
+// or episode, and the player, the queue and the controls are Soloist's own. A
+// start inside an album or playlist, Liked Songs and an artist go through
+// Spotify Connect to this device's id (the program's connect-state), as
+// Soloist's play takes no offset; when that fails, the chosen track plays.
 //
 // Recently played. Spotify's own list is not one the program can ask for, so
 // the service keeps one: every album, playlist, artist or Liked Songs it
@@ -48,8 +58,9 @@ import { join } from "node:path";
 import { jsonResponse, readJson, ServiceError, type ServiceContext, type ServiceProvider, type ServiceRequest } from "../vendor/pocketjs/tools/companion/services.ts";
 import { OwnerSetup, type SetupSpec } from "../vendor/pocketjs/tools/companion/setup.ts";
 import { Supervised } from "../vendor/pocketjs/tools/companion/supervise.ts";
-import type { AlbumPage, ArtistPage, Failure, Home, Item, Page, Player, PlaylistPage, Status } from "../vendor/applets/spotify/contract.ts";
+import type { AlbumPage, ArtistPage, Device, Failure, Home, Item, Page, Player, PlaylistPage, Queue, Status } from "../vendor/applets/spotify/contract.ts";
 import * as map from "./spotify-map.ts";
+import { SoloistLink, type SoloistEntity } from "./soloist-link.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Json = any;
@@ -141,6 +152,10 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
   let engine: "librespot" | "soloist" = soloistEngine() ? "soloist" : "librespot";
   /** what Soloist's log said last */
   let soloist: { state: "off" | "starting" | "pair" | "ready" | "error"; id: string | null; message: string } = { state: "off", id: null, message: "" };
+  /** Soloist's local WebSocket: its state and the commands this device plays with */
+  const link = new SoloistLink({ onChange: () => linkChanged() });
+  /** Soloist plays here: signed in, its WebSocket open */
+  const soloistHere = () => engine === "soloist" && link.ready;
 
   const program = new Supervised({
     name: "spotify",
@@ -163,28 +178,57 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       const path = soloistPath();
       const apiKey = setup.value("soloistKey");
       if (engine !== "soloist" || !path || !apiKey) return null;
-      return [path, "-n", SPEAKER_NAME, "-k", apiKey, "-D", soloistDir, "-C", join(soloistDir, "cache"), "-z", "200", "-i", "80"];
+      // -v: its sign-in and connection steps are in the verbose log only;
+      // --ws: the local API this device plays with, on a port of the OS's choosing
+      return [path, "-n", SPEAKER_NAME, "-k", apiKey, "-D", soloistDir, "-C", join(soloistDir, "cache"), "-z", "200", "-i", "80", "-v", "-w", "127.0.0.1:0"];
     },
+    // the route the program's sign-in found works (spotify/src/core/route.rs):
+    // its proxy (HTTPS_PROXY, mihomo's), or directly to Spotify
+    env: () => (readRoute() === "direct" ? { NO_PROXY: "*", no_proxy: "*" } : {}),
     onLine: (line) => soloistSaid(line),
     onExit: () => {
       if (soloist.state !== "error") soloist = { state: "starting", id: null, message: "" };
+      link.close();
     },
     log: context.log,
   });
 
+  function readRoute(): "proxy" | "direct" {
+    try {
+      return readFileSync(join(sessionDir, "route"), "utf8").trim() === "direct" ? "direct" : "proxy";
+    } catch {
+      return "proxy";
+    }
+  }
+
+  /** Soloist's verbose lines worth the log: its sign-in and how it reaches Spotify */
+  const SOLOIST_STEPS = /session|login|logged|credential|authori[sz]|access ?point|\bap\b|apresolve|connection|connect(ed|ing)? (to|failed)|proxy|offline|reachab|premium|country|restrict|denied|refus|fail/i;
+
   /** Soloist's log, as spotatui reads it (src/infra/soloist/logline.rs). */
-  function soloistSaid(line: string) {
+  function soloistSaid(raw: string) {
+    // colour codes out; its level is one letter: "11:02:37.787 E [f:247 ] ..."
+    const line = raw.replace(/\x1b\[[0-9;]*m/g, "");
     const text = line.includes("] ") ? line.slice(line.indexOf("] ") + 2) : line;
+    // its Connect device: up, signed in or not
     const ready = /ready, device_name=.*device_id=(\S+)/.exec(text);
     if (ready) {
-      soloist = { state: "ready", id: ready[1]!, message: "" };
+      soloist = { ...soloist, id: ready[1]!, message: "" };
       speakerId = ready[1]!;
-      setup.prompt(null);
       cache.delete("status");
       return;
     }
+    const listening = /websocket server listening on (\S+)/.exec(text);
+    if (listening) {
+      link.open(listening[1]!);
+      return;
+    }
+    if (/logged in as /.test(text)) {
+      soloist = { ...soloist, state: "ready", message: "" };
+      setup.prompt(null);
+      cache.delete("status");
+    }
     if (text.includes("waiting for login")) {
-      soloist = { state: "pair", id: null, message: "" };
+      soloist = { state: "pair", id: soloist.id, message: "" };
       setup.prompt({ kind: "pick", title: `Pick ${SPEAKER_NAME} in Spotify`, detail: `On a phone or computer on this network, open Spotify, tap the devices icon, and pick ${SPEAKER_NAME}. Soloist keeps the login.` });
       cache.delete("status");
       return;
@@ -197,7 +241,23 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     } else if (/client expires in \d+ (hour|minute)/.test(text) || /client expires in [0-6] day/.test(text)) {
       void setup.refresh("soloist").catch(() => {});
     }
-    if (/ ERROR | error:/i.test(line)) context.log(`soloist: ${text.replace(/-k \S+/g, "-k ***").slice(0, 200)}`);
+    // its errors, and the steps of a sign-in and of reaching Spotify; never the key, a token or an account id
+    if (/^\S+ [EW] \[| ERROR /.test(line) || SOLOIST_STEPS.test(text)) {
+      const apiKey = setup.value("soloistKey");
+      let said = text.replace(/-k \S+/g, "-k ***").trim();
+      if (apiKey) said = said.split(apiKey).join("***");
+      said = said.replace(/[A-Za-z0-9+/_=-]{40,}/g, "<long>").replace(/\b[a-z0-9]{25,}\b/g, "<id>");
+      context.log(`soloist: ${said.slice(0, 200)}`);
+    }
+  }
+
+  function linkChanged() {
+    if (link.state.loggedIn && soloist.state !== "ready") {
+      soloist = { ...soloist, state: "ready", message: "" };
+      setup.prompt(null);
+    }
+    cache.delete("status");
+    forgetPlayer();
   }
 
   function engineChanged() {
@@ -216,6 +276,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       soloistChild.start();
     } else {
       soloistChild.stop();
+      link.close();
       soloist = { state: "off", id: null, message: "" };
       setup.prompt(null);
     }
@@ -304,7 +365,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       let state: Status["speaker"]["state"] = ["off", "starting", "ready", "error", "refused"].includes(json.speaker?.state) ? json.speaker.state : "off";
       let message = String(json.speaker?.message ?? "");
       if (engine === "soloist") {
-        state = json.signedIn ? soloist.state : "off";
+        state = json.signedIn ? (link.ready ? "ready" : soloist.state) : "off";
         message = soloist.message;
       }
       if (state === "ready" && json.signedIn && !speakerId) await devices().catch(() => undefined);
@@ -341,8 +402,14 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       return (Array.isArray(answer?.devices) ? answer.devices : []).map((d: Json) => map.device(d, SPEAKER_NAME));
     });
     speakerId = list.find((d: { local: boolean }) => d.local)?.id ?? speakerId;
+    const all: Device[] = soloistHere() && !list.some((d: Device) => d.local) ? [localDevice(), ...list] : list;
     // the local speaker first
-    return [...list].sort((a: { local: boolean }, b: { local: boolean }) => Number(b.local) - Number(a.local));
+    return [...all].sort((a, b) => Number(b.local) - Number(a.local));
+  }
+
+  /** this device's own player, as the contract's Device */
+  function localDevice(): Device {
+    return { id: speakerId ?? soloist.id ?? "", name: SPEAKER_NAME, type: "GameConsole", volume: link.state.volume, active: link.state.active, local: true, restricted: false };
   }
 
   /* ---------- answers ---------- */
@@ -359,10 +426,48 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     return cached("me", CACHE_MS.page, async () => ({ id: String((await web("GET", "/me"))?.id ?? "") }));
   }
 
+  /** A Soloist entity as the contract's Item. */
+  function soloistItem(e: SoloistEntity): Item {
+    const ref = (r: { uri: string; title: string }) => ({ id: r.uri.split(":")[2] ?? "", uri: r.uri, name: r.title });
+    return {
+      kind: e.kind === "episode" ? "episode" : "track",
+      id: e.uri.split(":")[2] ?? "",
+      uri: e.uri,
+      title: e.title,
+      subtitle: e.subtitle,
+      image: e.image,
+      ...(e.durationMs !== null ? { durationMs: e.durationMs } : {}),
+      explicit: e.explicit,
+      ...(e.album ? { album: ref(e.album) } : {}),
+      artists: e.artists.map(ref),
+    };
+  }
+
+  /** What Soloist plays, from its WebSocket. */
+  async function localPlayer(): Promise<Player> {
+    const s = link.state;
+    const item = s.item?.uri ? soloistItem(s.item) : null;
+    const liked = item ? ((await likedSet([item.uri]).catch(() => [false]))[0] ?? false) : false;
+    const contextUri = s.context?.uri ?? "";
+    const title = contextUri ? s.context?.title || (await contextTitle(contextUri).catch(() => "")) : "";
+    const playing = s.status === "playing" || s.status === "buffering";
+    if (playing && contextUri) played(contextUri);
+    return { active: item !== null, playing, item, progressMs: link.positionNow(), at: now(), shuffle: s.shuffle, repeat: s.repeat, context: contextUri ? { uri: contextUri, title } : null, device: localDevice(), liked };
+  }
+
   async function playerNow(fresh = false): Promise<Player> {
     if (fresh) forgetPlayer();
+    if (soloistHere() && link.state.active) return localPlayer();
     return cached("player", CACHE_MS.player, async () => {
-      const p = await web("GET", "/me/player?additional_types=episode");
+      let p: Json;
+      try {
+        p = await web("GET", "/me/player?additional_types=episode");
+      } catch (cause) {
+        // Spotify's view is out of reach; this device's own still answers
+        if (soloistHere()) return localPlayer();
+        throw cause;
+      }
+      if (!p?.device && soloistHere()) return localPlayer();
       const uri = p?.item?.uri;
       const liked = uri ? ((await likedSet([uri]).catch(() => [false]))[0] ?? false) : false;
       const title = p?.context?.uri ? await contextTitle(p.context.uri).catch(() => "") : "";
@@ -504,10 +609,60 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
   }
 
   /** Where a command goes: the device asked for, else the active one, else this speaker. */
+  /** Where a play goes: the device asked for, else this device's own speaker. */
   async function target(asked?: string): Promise<string | null> {
     if (asked) return asked;
-    const list = await devices();
-    return list.find((d: { active: boolean }) => d.active)?.id ?? list.find((d: { local: boolean }) => d.local)?.id ?? null;
+    const list = await devices().catch(() => [] as Device[]);
+    return list.find((d) => d.local)?.id ?? speakerId ?? null;
+  }
+
+  /** The player once Soloist's events say `done`, or after ms. */
+  async function settled(done: () => boolean, ms = 4000): Promise<Player> {
+    for (const end = Date.now() + ms; Date.now() < end && !done(); ) await Bun.sleep(100);
+    forgetPlayer();
+    return playerNow(true);
+  }
+
+  const wsPlays = (uri: string) => /^spotify:(track|album|playlist|episode):[A-Za-z0-9]+$/.test(uri);
+
+  /** Play on this device's Soloist. */
+  async function playHere(body: Json): Promise<Player> {
+    const contextUri = typeof body.context === "string" ? body.context : "";
+    const uris: string[] = Array.isArray(body.uris) ? body.uris.filter((u: unknown): u is string => typeof u === "string").slice(0, 100) : [];
+    const offset = body.offset && typeof body.offset === "object" ? (typeof body.offset.uri === "string" ? { uri: body.offset.uri as string } : { position: Number(body.offset.position) || 0 }) : null;
+    const positionMs = typeof body.positionMs === "number" ? Math.max(0, Math.round(body.positionMs)) : 0;
+    if (contextUri) played(contextUri);
+    const before = link.state.item?.uri ?? "";
+    // a start inside a context, Liked Songs, an artist: Spotify Connect, to this device
+    if (contextUri && (offset || !wsPlays(contextUri))) {
+      const id = speakerId ?? soloist.id;
+      if (id) {
+        try {
+          await web("PUT", `/me/player/play?device_id=${encodeURIComponent(id)}`, { context_uri: contextUri, ...(offset ? { offset } : {}), ...(positionMs ? { position_ms: positionMs } : {}) });
+          return settled(() => link.state.active && (link.state.item?.uri ?? "") !== before && link.state.status === "playing");
+        } catch (cause) {
+          context.log(`spotify: a start inside ${contextUri.split(":")[1]} through Spotify Connect: ${cause instanceof Error ? cause.message : String(cause)}; playing the track here`);
+        }
+      }
+    }
+    const first = (offset && "uri" in offset ? offset.uri : "") || (contextUri && wsPlays(contextUri) ? contextUri : "") || uris[0] || "";
+    if (!first) throw fail(502, "Spotify did not start that here. Try a track from it.");
+    await link.send("play", { uri: first });
+    for (const uri of uris.slice(1, LIST)) await link.send("add_to_queue", { uri }).catch(() => undefined);
+    if (positionMs) await link.send("seek", { position_ms: positionMs }).catch(() => undefined);
+    return settled(() => (link.state.item?.uri ?? "") !== before && link.state.status === "playing");
+  }
+
+  /**
+   * A control: to Soloist when it plays here, answered once its events show
+   * `effect` (or after 1.5 s); else to the account's active device.
+   */
+  async function control(local: () => Promise<unknown>, remote: () => Promise<unknown>, effect: () => boolean): Promise<Player> {
+    if (soloistHere() && link.state.active) {
+      await local();
+      return settled(effect, 1500);
+    }
+    return command(remote);
   }
 
   async function command(run: () => Promise<unknown>): Promise<Player> {
@@ -518,7 +673,9 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
   }
 
   async function play(body: Json): Promise<Player> {
-    const device = await target(typeof body.deviceId === "string" ? body.deviceId : undefined);
+    const asked = typeof body.deviceId === "string" && body.deviceId ? body.deviceId : undefined;
+    if (soloistHere() && (!asked || asked === (speakerId ?? soloist.id))) return playHere(body);
+    const device = await target(asked);
     if (!device) throw fail(409, "Nothing to play on. This device's speaker joins once you are signed in.", "nodevice");
     const request: Json = {};
     if (typeof body.context === "string") request.context_uri = body.context;
@@ -544,7 +701,13 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       if (path.startsWith("/tracks/") || path.startsWith("/albums/")) return morePage(path, next);
       if (path === "/player") return playerNow();
       if (path === "/devices") return devices();
-      if (path === "/queue") return cached("queue", CACHE_MS.queue, async () => map.queue(await web("GET", "/me/player/queue")));
+      if (path === "/queue") {
+        if (soloistHere() && link.state.active) {
+          await link.send("get_queue", { limit: LIST }).catch(() => undefined);
+          return { now: link.state.item?.uri ? soloistItem(link.state.item) : null, next: link.state.upcoming.filter((e) => e.uri).map(soloistItem) } satisfies Queue;
+        }
+        return cached("queue", CACHE_MS.queue, async () => map.queue(await web("GET", "/me/player/queue")));
+      }
       throw fail(404, `no spotify endpoint GET ${path}`);
     }
     if (r.method !== "POST") throw fail(405, "the spotify service takes GET and POST");
@@ -559,30 +722,72 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       case "/play":
         return play(body());
       case "/pause":
-        return command(() => web("PUT", "/me/player/pause"));
-      case "/resume":
-        return command(async () => {
-          const device = await target();
-          return web("PUT", `/me/player/play${device ? `?device_id=${encodeURIComponent(device)}` : ""}`);
-        });
+        return control(() => link.send("pause"), () => web("PUT", "/me/player/pause"), () => link.state.status !== "playing");
+      case "/resume": {
+        // nothing playing elsewhere: resume here
+        if (soloistHere() && !link.state.active) {
+          const elsewhere = await web("GET", "/me/player").catch(() => null);
+          if (!elsewhere?.device) {
+            await link.send("play");
+            return settled(() => link.state.status === "playing");
+          }
+        }
+        return control(
+          () => link.send("play"),
+          async () => {
+            const device = await target();
+            return web("PUT", `/me/player/play${device ? `?device_id=${encodeURIComponent(device)}` : ""}`);
+          },
+          () => link.state.status === "playing",
+        );
+      }
       case "/next":
-        return command(() => web("POST", "/me/player/next"));
-      case "/previous":
-        return command(() => web("POST", "/me/player/previous"));
-      case "/seek":
-        return command(() => web("PUT", `/me/player/seek?position_ms=${Math.max(0, Math.round(Number(body().positionMs) || 0))}`));
-      case "/volume":
-        return command(() => web("PUT", `/me/player/volume?volume_percent=${Math.max(0, Math.min(100, Math.round(Number(body().percent) || 0)))}`));
-      case "/shuffle":
-        return command(() => web("PUT", `/me/player/shuffle?state=${body().on === true}`));
+      case "/previous": {
+        const was = link.state.item?.uri ?? "";
+        const at = link.positionNow();
+        // a previous within a track's first seconds goes back a track, later it restarts it
+        return control(
+          () => link.send(path === "/next" ? "skip_next" : "skip_prev"),
+          () => web("POST", `/me/player/${path.slice(1)}`),
+          () => (link.state.item?.uri ?? "") !== was || (path === "/previous" && link.positionNow() < Math.min(at, 3000)),
+        );
+      }
+      case "/seek": {
+        const ms = Math.max(0, Math.round(Number(body().positionMs) || 0));
+        return control(() => link.send("seek", { position_ms: ms }), () => web("PUT", `/me/player/seek?position_ms=${ms}`), () => Math.abs(link.positionNow() - ms) < 2000);
+      }
+      case "/volume": {
+        const percent = Math.max(0, Math.min(100, Math.round(Number(body().percent) || 0)));
+        return control(() => link.send("set_volume", { volume: percent }), () => web("PUT", `/me/player/volume?volume_percent=${percent}`), () => link.state.volume === percent);
+      }
+      case "/shuffle": {
+        const on = body().on === true;
+        return control(() => link.send("set_shuffle", { enabled: on }), () => web("PUT", `/me/player/shuffle?state=${on}`), () => link.state.shuffle === on);
+      }
       case "/repeat": {
         const mode = String(body().mode ?? "off");
         if (!["off", "context", "track"].includes(mode)) throw fail(400, "repeat is off, context or track");
-        return command(() => web("PUT", `/me/player/repeat?state=${mode}`));
+        // Soloist's two flags, the one that turns off first
+        const local = async () => {
+          if (mode === "track") {
+            await link.send("set_repeat_context", { enabled: false });
+            await link.send("set_repeat_track", { enabled: true });
+          } else {
+            await link.send("set_repeat_track", { enabled: false });
+            await link.send("set_repeat_context", { enabled: mode === "context" });
+          }
+        };
+        return control(local, () => web("PUT", `/me/player/repeat?state=${mode}`), () => link.state.repeat === mode);
       }
       case "/transfer": {
         const b = body();
         if (typeof b.deviceId !== "string" || !b.deviceId) throw fail(400, "transfer needs a deviceId");
+        // to this device: Soloist takes the account's playback itself
+        if (soloistHere() && b.deviceId === (speakerId ?? soloist.id)) {
+          await link.send("activate");
+          if (b.play !== false) await link.send("play").catch(() => undefined);
+          return settled(() => link.state.active);
+        }
         return command(() => web("PUT", "/me/player", { device_ids: [b.deviceId], play: b.play !== false }));
       }
       case "/like": {
@@ -624,6 +829,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       return { signedIn: s?.signedIn ?? false, user: s?.user?.name ?? "", speaker: s?.speaker.state ?? "off" };
     },
     close() {
+      link.close();
       soloistChild.stop();
       program.stop();
     },

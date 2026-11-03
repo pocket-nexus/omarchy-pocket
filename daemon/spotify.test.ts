@@ -4,7 +4,7 @@
 // answered without its tracks), commands to the active device or this
 // speaker, and failures as reasons.
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { serve, type ServiceProvider } from "../vendor/pocketjs/tools/companion/services.ts";
@@ -183,20 +183,21 @@ test("home, pages and search in the contract's shapes", async () => {
   expect((await call("GET", "/library/tracks")).json).toMatchObject({ total: 41, next: "o1" });
 });
 
-test("play goes to the active device, the player maps, Premium is a reason, likes are library writes", async () => {
+test("play goes to this device's speaker, another only when named; the player maps, Premium is a reason, likes are library writes", async () => {
   const devices = (await call("GET", "/devices")).json;
   expect(devices[0]).toMatchObject({ id: "dev-local", local: true, type: "GameConsole" });
 
   seen.length = 0;
   const player = (await call("POST", "/play", { context: ALBUM.uri, offset: { uri: TRACK.uri } })).json;
   const put = seen.find((s) => s.method === "PUT" && s.path.startsWith("/v1/me/player/play"))!;
-  // the phone is the active device
-  expect(put.path).toBe("/v1/me/player/play?device_id=dev-phone");
+  // the phone is the active device; the play is this device's all the same
+  expect(put.path).toBe("/v1/me/player/play?device_id=dev-local");
   expect(JSON.parse(put.body)).toEqual({ context_uri: ALBUM.uri, offset: { uri: TRACK.uri } });
   expect(player).toMatchObject({ active: true, playing: true, progressMs: 1234, repeat: "context", liked: true, context: { uri: ALBUM.uri, title: "Night Ferry" }, device: { local: true } });
 
-  expect((await call("POST", "/play", { uris: [TRACK.uri], deviceId: "dev-local" })).status).toBe(200);
-  expect(seen.filter((s) => s.path.startsWith("/v1/me/player/play")).pop()!.path).toBe("/v1/me/player/play?device_id=dev-local");
+  // the Devices page names the phone
+  expect((await call("POST", "/play", { uris: [TRACK.uri], deviceId: "dev-phone" })).status).toBe(200);
+  expect(seen.filter((s) => s.path.startsWith("/v1/me/player/play")).pop()!.path).toBe("/v1/me/player/play?device_id=dev-phone");
 
   const premium = await call("POST", "/next");
   expect(premium.status).toBe(403);
@@ -210,7 +211,32 @@ test("play goes to the active device, the player maps, Premium is a reason, like
 test("the owner sets up Spotify's own player at /_setup; with it Soloist is the speaker", async () => {
   // a stand-in Soloist: asks for a login, then is ready
   const fake = join(dir, "soloist");
-  await Bun.write(fake, `#!${process.execPath}\nconst args = process.argv.slice(2);\nrequire("node:fs").writeFileSync(${JSON.stringify(join(dir, "soloist-argv.json"))}, JSON.stringify(args));\nconsole.log("[2026-11-03 10:00:00.000] [info] waiting for login");\nsetTimeout(() => console.log("[2026-11-03 10:00:01.000] [info] ready, device_name=Omarchy Pocket device_id=sol123"), 300);\nsetInterval(() => {}, 1000);\n`);
+  const said = join(dir, "soloist-commands.jsonl");
+  // a stand-in Soloist: its Connect device, a login it waits for, then its WebSocket API
+  await Bun.write(
+    fake,
+    `#!${process.execPath}
+const fs = require("node:fs");
+fs.writeFileSync(${JSON.stringify(join(dir, "soloist-argv.json"))}, JSON.stringify(process.argv.slice(2)));
+const item = (uri) => ({ uri, entity_type: "track", decorations: { identity: { name: "Ferry Lights" }, visual_identity: { cover: [{ url: "https://i.scdn.co/image/cover", size: "default" }] }, creators: [{ uri: "spotify:artist:ar1", entity: { decorations: { identity: { name: "Nova Tide" } } } }], parent: { entity: { uri: "spotify:album:alb1", decorations: { identity: { name: "Night Ferry" } } } }, playback: { duration_ms: 201000 } } });
+const state = { status: "idle", item: null, active: false };
+const server = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch(req, srv) { return srv.upgrade(req) ? undefined : new Response("ws only", { status: 400 }); }, websocket: {
+  open(ws) { ws.send(JSON.stringify({ type: "auth_state", logged_in: true, is_active: false, device_name: "Omarchy Pocket" })); },
+  message(ws, raw) {
+    const m = JSON.parse(String(raw));
+    fs.appendFileSync(${JSON.stringify(said)}, JSON.stringify(m) + "\\n");
+    if (m.command === "get_queue") return ws.send(JSON.stringify({ type: "queue_changed", previous: [], upcoming: [{ uid: "u1", source: "context", item: item("spotify:track:next1") }] }));
+    ws.send(JSON.stringify({ type: "command_result", command: m.command }));
+    if (m.command === "play") { state.status = "playing"; state.active = true; if (m.uri) state.item = item(m.uri.startsWith("spotify:track:") ? m.uri : "spotify:track:first1"); }
+    if (m.command === "pause") state.status = "paused";
+    ws.send(JSON.stringify({ type: "playback_state", status: state.status, item: state.item, context: { uri: "" }, position: { position_ms: 5000, timestamp_ms: Date.now(), speed: state.status === "playing" ? 1 : 0 }, volume: 80, is_active: state.active, options: { shuffle: false, repeat: "off" } }));
+  },
+} });
+console.log("[f:462] ready, device_name=Omarchy Pocket device_id=sol123");
+console.log("[f:475] waiting for login");
+setTimeout(() => { console.log("[f:12] logged in as tester"); console.log("[f:30] websocket server listening on 127.0.0.1:" + server.port); }, 300);
+`,
+  );
   chmodSync(fake, 0o755);
   const setupService = createSpotifyService({ storeDir: join(dir, "setup-store"), log: () => {} }, { program: null, port: server.port, key: KEY, settleMs: 0, soloist: fake, platform: "linux-arm64" });
   const setupCall = async (method: "GET" | "POST", body?: unknown) => {
@@ -238,7 +264,7 @@ test("the owner sets up Spotify's own player at /_setup; with it Soloist is the 
     expect((await setupCall("POST", { field: "soloistKey", value: "short" })).status).toBe(400);
     const set = (await setupCall("POST", { field: "soloistKey", value: "sk_test_0123456789abcdef" })).json;
     expect(JSON.stringify(set)).not.toContain("sk_test_0123456789abcdef");
-    // the key and a Soloist: the speaker is Soloist, which asks to be picked, then is ready
+    // the key and a Soloist: the speaker is Soloist, which asks to be picked, then is signed in
     await until(async () => (await statusOf()).speaker.state === "pair");
     expect((await setupCall("GET")).json.prompt).toMatchObject({ kind: "pick" });
     await until(async () => (await statusOf()).speaker.state === "ready");
@@ -246,7 +272,26 @@ test("the owner sets up Spotify's own player at /_setup; with it Soloist is the 
     const argv: string[] = JSON.parse(readFileSync(join(dir, "soloist-argv.json"), "utf8"));
     expect(argv.slice(0, 2)).toEqual(["-n", SPEAKER_NAME]);
     expect(argv[argv.indexOf("-k") + 1]).toBe("sk_test_0123456789abcdef");
+    expect(argv.slice(argv.indexOf("-w"), argv.indexOf("-w") + 2)).toEqual(["-w", "127.0.0.1:0"]);
     expect((await setupCall("GET")).json.prompt).toBeNull();
+
+    // playing here: a track goes to Soloist's WebSocket, not to Spotify's devices
+    const service = async (method: "GET" | "POST", path: string, body?: unknown) => {
+      const response = await setupService.handle({ method, path, query: new URLSearchParams(), body: body === undefined ? new Uint8Array(0) : new TextEncoder().encode(JSON.stringify(body)), maxBytes: 1 << 20, console: { name: "test", address: "127.0.0.1", localAddress: "127.0.0.1" }, signal: new AbortController().signal });
+      return { status: response.status, json: JSON.parse(new TextDecoder().decode(response.body)) };
+    };
+    await until(async () => existsSync(said) || (await service("GET", "/player")).status === 200);
+    seen.length = 0;
+    const playing = (await service("POST", "/play", { uris: ["spotify:track:t1", "spotify:track:t2"] })).json;
+    expect(playing).toMatchObject({ active: true, playing: true, item: { uri: "spotify:track:t1", title: "Ferry Lights", subtitle: "Nova Tide", album: { name: "Night Ferry" }, durationMs: 201000 }, device: { local: true, name: SPEAKER_NAME } });
+    expect(seen.some((s) => s.path.startsWith("/v1/me/player/play"))).toBe(false);
+    const commands = () => readFileSync(said, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    expect(commands().filter((c) => c.command !== "get_queue").slice(0, 2)).toEqual([{ type: "command", command: "play", uri: "spotify:track:t1" }, { type: "command", command: "add_to_queue", uri: "spotify:track:t2" }]);
+    // the controls and the queue are Soloist's too
+    expect((await service("POST", "/pause")).json).toMatchObject({ playing: false, device: { local: true } });
+    expect(commands().at(-1)).toMatchObject({ command: "pause" });
+    expect((await service("GET", "/queue")).json).toMatchObject({ now: { uri: "spotify:track:t1" }, next: [{ uri: "spotify:track:next1" }] });
+    expect(seen.some((s) => /\/v1\/me\/player\/(pause|queue)/.test(s.path))).toBe(false);
     // the key cleared: librespot again
     await setupCall("POST", { field: "soloistKey", clear: true });
     expect((await statusOf()).speaker.engine).toBe("librespot");
