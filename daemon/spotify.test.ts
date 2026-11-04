@@ -4,7 +4,7 @@
 // answered without its tracks), commands to the active device or this
 // speaker, and failures as reasons.
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { serve, type ServiceProvider } from "../vendor/pocket-hub/tools/companion/services.ts";
@@ -309,6 +309,42 @@ setTimeout(() => { console.log("[f:12] logged in as tester"); console.log("[f:30
     expect(await setupService.command!(["toggle"])).toBe("nothing plays here");
   } finally {
     setupService.close?.();
+  }
+});
+
+test("a Soloist signed in to another Spotify account is signed out, and the pick names this device's account", async () => {
+  // a stand-in Soloist: its folder's session is another account's; with no session it waits
+  const fake = join(dir, "soloist-other");
+  await Bun.write(
+    fake,
+    `#!${process.execPath}
+const fs = require("node:fs");
+const d = process.argv[process.argv.indexOf("-D") + 1];
+console.log("[f:462] ready, device_name=Omarchy Pocket device_id=sol789");
+if (fs.existsSync(d + "/session")) console.log("[f:12] logged in as someone-else");
+else console.log("[f:475] waiting for login");
+setInterval(() => {}, 1000);
+`,
+  );
+  chmodSync(fake, 0o755);
+  const store = join(dir, "other-store");
+  const soloistDir = join(store, "services", "spotify", "soloist");
+  mkdirSync(soloistDir, { recursive: true });
+  writeFileSync(join(soloistDir, "session"), "the other account's");
+  writeFileSync(join(soloistDir, ".device_id"), "sol789");
+  const service = createSpotifyService({ storeDir: store, log: () => {} }, { program: null, port: server.port, key: KEY, settleMs: 0, soloist: fake, platform: "linux-arm64" });
+  const request = (method: "GET" | "POST", path: string, body?: unknown) => ({ method, path, query: new URLSearchParams(), body: body === undefined ? new Uint8Array(0) : new TextEncoder().encode(JSON.stringify(body)), maxBytes: 1 << 20, console: { name: "test", address: "127.0.0.1", localAddress: "127.0.0.1" }, signal: new AbortController().signal });
+  const setupState = async () => JSON.parse(new TextDecoder().decode((await serve({ name: "spotify", handle: (r) => service.setup!.handle(r) }, request("GET", "/_setup"))).body));
+  try {
+    signedIn = true;
+    await serve({ name: "spotify", handle: (r) => service.setup!.handle(r) }, request("POST", "/_setup", { field: "soloistKey", value: "sk_test_0123456789abcdef" }));
+    // signed out of the other account: the session gone, the device id kept, a pick asked for by name
+    await until(async () => (await setupState()).prompt?.kind === "pick");
+    expect(existsSync(join(soloistDir, "session"))).toBe(false);
+    expect(readFileSync(join(soloistDir, ".device_id"), "utf8")).toBe("sol789");
+    expect((await setupState()).prompt.detail).toContain("signed in as Tess Ter");
+  } finally {
+    service.close?.();
   }
 });
 

@@ -55,7 +55,7 @@
 // objects; they are cached for a few seconds to a few minutes (CACHE_MS), and
 // a command clears the player's.
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { jsonResponse, readJson, ServiceError, type ServiceContext, type ServiceProvider, type ServiceRequest } from "../vendor/pocket-hub/tools/companion/services.ts";
 import { OwnerSetup, type SetupSpec } from "../vendor/pocket-hub/tools/companion/setup.ts";
@@ -214,6 +214,46 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     }
   }
 
+  /**
+   * The pick that gives Soloist its login, naming the account it must come
+   * from: a Spotify app signed in to another account (a phone's free one)
+   * gives Soloist that account, whose ads and shuffle-only play the applet
+   * cannot steer.
+   */
+  async function pickPrompt() {
+    const name = (await status().catch(() => null))?.user?.name ?? "";
+    const signedInAs = name ? ` signed in as ${name}` : " signed in to this device's account";
+    setup.prompt({ kind: "pick", title: `Pick ${SPEAKER_NAME} in Spotify`, detail: `On a phone or computer on this network, open Spotify${signedInAs}, tap the devices icon, and pick ${SPEAKER_NAME}. Soloist keeps the login.` });
+  }
+
+  /**
+   * Soloist signed in to `user` (its log's "logged in as"). Another account
+   * than the one this device signed in to cannot be steered from the applet
+   * (Spotify Connect commands go to this device's account, and that account
+   * might be free: ads, shuffle only). Soloist is signed out of it: its
+   * folder starts over with the same device id, and it waits for a pick
+   * from the right account.
+   */
+  async function sameAccount(user: string) {
+    const account = await me().catch(() => null);
+    if (!account?.id || account.id === user || engine !== "soloist") return;
+    context.log("spotify: Soloist signed in to another Spotify account than this device's; signing it out");
+    soloist = { ...soloist, state: "pair", message: "Omarchy Pocket was signed in to another Spotify account. Pick it again from Spotify signed in to this device's account." };
+    await soloistChild.stop();
+    const deviceId = (() => {
+      try {
+        return readFileSync(join(soloistDir, ".device_id"));
+      } catch {
+        return null;
+      }
+    })();
+    rmSync(soloistDir, { recursive: true, force: true });
+    mkdirSync(soloistDir, { recursive: true, mode: 0o700 });
+    if (deviceId) writeFileSync(join(soloistDir, ".device_id"), deviceId, { mode: 0o644 });
+    cache.delete("status");
+    soloistChild.start();
+  }
+
   /** Soloist's verbose lines worth the log: its sign-in and how it reaches Spotify */
   const SOLOIST_STEPS = /session|login|logged|credential|authori[sz]|access ?point|\bap\b|apresolve|connection|connect(ed|ing)? (to|failed)|proxy|offline|reachab|premium|country|restrict|denied|refus|fail/i;
 
@@ -235,14 +275,16 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       link.open(listening[1]!);
       return;
     }
-    if (/logged in as /.test(text)) {
+    const loggedIn = /logged in as (\S+)/.exec(text);
+    if (loggedIn) {
       soloist = { ...soloist, state: "ready", message: "" };
       setup.prompt(null);
       cache.delete("status");
+      void sameAccount(loggedIn[1]!);
     }
     if (text.includes("waiting for login")) {
-      soloist = { state: "pair", id: soloist.id, message: "" };
-      setup.prompt({ kind: "pick", title: `Pick ${SPEAKER_NAME} in Spotify`, detail: `On a phone or computer on this network, open Spotify, tap the devices icon, and pick ${SPEAKER_NAME}. Soloist keeps the login.` });
+      soloist = { state: "pair", id: soloist.id, message: soloist.message };
+      void pickPrompt();
       cache.delete("status");
       return;
     }
