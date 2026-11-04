@@ -312,7 +312,7 @@ setTimeout(() => { console.log("[f:12] logged in as tester"); console.log("[f:30
   }
 });
 
-test("a Soloist signed in to another Spotify account is signed out, and the pick names this device's account", async () => {
+test("a Soloist signed in to another Spotify account is reported, the pick names this device's account, and a play is refused", async () => {
   // a stand-in Soloist: its folder's session is another account's; with no session it waits
   const fake = join(dir, "soloist-other");
   await Bun.write(
@@ -338,11 +338,14 @@ setInterval(() => {}, 1000);
   try {
     signedIn = true;
     await serve({ name: "spotify", handle: (r) => service.setup!.handle(r) }, request("POST", "/_setup", { field: "soloistKey", value: "sk_test_0123456789abcdef" }));
-    // signed out of the other account: the session gone, the device id kept, a pick asked for by name
+    // reported, not restarted: a pick from this device's account takes Soloist over
     await until(async () => (await setupState()).prompt?.kind === "pick");
-    expect(existsSync(join(soloistDir, "session"))).toBe(false);
-    expect(readFileSync(join(soloistDir, ".device_id"), "utf8")).toBe("sol789");
     expect((await setupState()).prompt.detail).toContain("signed in as Tess Ter");
+    expect(existsSync(join(soloistDir, "session"))).toBe(true);
+    const status = JSON.parse(new TextDecoder().decode((await service.handle(request("GET", "/status"))).body));
+    expect(status.speaker.message).toContain("another Spotify account");
+    const refused = await service.handle(request("POST", "/play", { uris: ["spotify:track:t1"] }));
+    expect(refused.status).toBe(409);
   } finally {
     service.close?.();
   }
