@@ -203,6 +203,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     onLine: (line) => soloistSaid(line),
     onExit: () => {
       if (soloist.state !== "error") soloist = { state: "starting", id: null, message: "" };
+      noSoloistUser();
       link.close();
     },
     log: context.log,
@@ -231,28 +232,52 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
   /** An account id's short fingerprint for the log, never the id itself. */
   const fingerprint = (id: string) => createHash("sha256").update(id).digest("hex").slice(0, 6);
 
+  /** the account Soloist logged in as (its log's "logged in as"), and the device account it was checked against */
+  let soloistUser: string | null = null;
+  let accountChecked = "";
+
   /**
-   * Soloist signed in to `user` (its log's "logged in as"). Another account
-   * than the one this device signed in to cannot be steered from the applet
-   * (Spotify Connect commands go to this device's account, and that account
-   * might be free: ads, shuffle only). The applet says so and asks for the
-   * pick from this device's account, which takes Soloist over (a pick
-   * replaces its login). Soloist is not restarted: an app on the other
-   * account that played on it last takes a speaker that comes back.
+   * An account conflict: Soloist plays for another account than the one this
+   * device signed in to. The applet cannot steer it (Spotify Connect
+   * commands go to this device's account, and the other account might be
+   * free: ads, shuffle only), so the speaker's state is `conflict`, a play
+   * here is refused with reason `conflict`, and the setup's prompt says how
+   * to give Soloist this device's account: a pick from Spotify signed in to
+   * it, which replaces Soloist's login. Soloist is not restarted for it: an
+   * app on the other account that played on it last takes a speaker that
+   * comes back. Checked when Soloist logs in (`user`) and when this
+   * device's account changes.
    */
-  async function sameAccount(user: string) {
-    const account = await me().catch(() => null);
-    if (!account?.id || engine !== "soloist") return;
-    if (account.id === user) {
-      soloistOther = false;
+  async function sameAccount(user?: string) {
+    if (user !== undefined) soloistUser = user;
+    if (!soloistUser || engine !== "soloist") return;
+    const s = await status().catch(() => null);
+    const account = s?.user?.id;
+    if (!account) return;
+    accountChecked = account;
+    const other = account !== soloistUser;
+    if (other === soloistOther) return;
+    soloistOther = other;
+    cache.delete("status");
+    if (!other) {
+      soloist = { ...soloist, message: "" };
+      setup.prompt(null);
       return;
     }
-    soloistOther = true;
-    context.log(`spotify: Soloist signed in to another Spotify account (${fingerprint(user)}) than this device's (${fingerprint(account.id)})`);
-    const name = (await status().catch(() => null))?.user?.name ?? "";
-    soloist = { ...soloist, message: `Omarchy Pocket plays for another Spotify account. Pick it from Spotify signed in${name ? ` as ${name}` : " to this device's account"}.` };
-    await pickPrompt();
-    cache.delete("status");
+    context.log(`spotify: account conflict: Soloist plays for another Spotify account (${fingerprint(soloistUser)}) than this device's (${fingerprint(account)})`);
+    const name = s?.user?.name || "this device's account";
+    soloist = { ...soloist, message: `${SPEAKER_NAME} is playing for another Spotify account. Pick it again in Spotify signed in as ${name}.` };
+    setup.prompt({
+      kind: "pick",
+      title: `Another Spotify account is playing on ${SPEAKER_NAME}`,
+      detail: `This device is signed in to Spotify as ${name}. On a phone or computer on this Wi-Fi, open Spotify signed in as ${name}, tap the devices icon and pick ${SPEAKER_NAME}. If another phone takes it back, pick a different device in that phone's Spotify.`,
+    });
+  }
+
+  /** Soloist is signed in to nobody (it waits, or it stopped): no conflict. */
+  function noSoloistUser() {
+    soloistUser = null;
+    soloistOther = false;
   }
 
   /** Soloist's verbose lines worth the log: its sign-in and how it reaches Spotify */
@@ -284,7 +309,8 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       void sameAccount(loggedIn[1]!);
     }
     if (text.includes("waiting for login")) {
-      soloist = { state: "pair", id: soloist.id, message: soloist.message };
+      noSoloistUser();
+      soloist = { state: "pair", id: soloist.id, message: "" };
       void pickPrompt();
       cache.delete("status");
       return;
@@ -430,8 +456,10 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
       let state: Status["speaker"]["state"] = ["off", "starting", "ready", "error", "refused"].includes(json.speaker?.state) ? json.speaker.state : "off";
       let message = String(json.speaker?.message ?? "");
       if (engine === "soloist") {
-        state = json.signedIn ? (link.ready ? "ready" : soloist.state) : "off";
+        state = !json.signedIn ? "off" : soloistOther ? "conflict" : link.ready ? "ready" : soloist.state;
         message = soloist.message;
+        // this device signed in to another account: Soloist's is checked again
+        if (user?.id && soloistUser && user.id !== accountChecked) queueMicrotask(() => void sameAccount());
       }
       if (state === "ready" && json.signedIn && !speakerId) await devices().catch(() => undefined);
       return {
@@ -746,7 +774,7 @@ export function createSpotifyService(context: ServiceContext, options: SpotifyOp
     const asked = typeof body.deviceId === "string" && body.deviceId ? body.deviceId : undefined;
     const here = !asked || asked === (speakerId ?? soloist.id);
     // another account's Soloist plays what that account allows, not what was asked
-    if (engine === "soloist" && soloistOther && here) throw fail(409, soloist.message, "other");
+    if (engine === "soloist" && soloistOther && here) throw fail(409, soloist.message, "conflict");
     if (soloistHere() && here) return playHere(body);
     const device = await target(asked);
     if (!device) throw fail(409, "Nothing to play on. This device's speaker joins once you are signed in.", "nodevice");

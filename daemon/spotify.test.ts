@@ -15,6 +15,8 @@ const dir = mkdtempSync(join(tmpdir(), "spotify-test-"));
 const KEY = "test-key-0123456789abcdef";
 const seen: { method: string; path: string; body: string; key: string }[] = [];
 let signedIn = false;
+/** the account the fake program is signed in to */
+let accountId = "tester";
 let pairing: { url: string; code: string; expiresAt: number } | null = null;
 let server: ReturnType<typeof Bun.serve>;
 let service: ServiceProvider;
@@ -63,7 +65,7 @@ beforeAll(() => {
       seen.push({ method: request.method, path: url.pathname + url.search, body, key });
       if (key !== KEY) return Response.json({ error: { status: 403, message: "no key" } }, { status: 403 });
       if (url.pathname === "/status") {
-        return Response.json({ signedIn, user: signedIn ? { id: "tester", name: "Tess Ter", image: "" } : null, premium: signedIn ? true : null, signIn: pairing, error: "", speaker: { name: SPEAKER_NAME, state: signedIn ? "ready" : "off", message: "" } });
+        return Response.json({ signedIn, user: signedIn ? { id: accountId, name: "Tess Ter", image: "" } : null, premium: signedIn ? true : null, signIn: pairing, error: "", speaker: { name: SPEAKER_NAME, state: signedIn ? "ready" : "off", message: "" } });
       }
       if (url.pathname === "/login" && request.method === "POST") {
         pairing = { url: "https://spotify.com/pair?code=QK7FTM", code: "QK7FTM", expiresAt: Date.now() + 3_600_000 };
@@ -312,8 +314,9 @@ setTimeout(() => { console.log("[f:12] logged in as tester"); console.log("[f:30
   }
 });
 
-test("a Soloist signed in to another Spotify account is reported, the pick names this device's account, and a play is refused", async () => {
-  // a stand-in Soloist: its folder's session is another account's; with no session it waits
+test("an account conflict: Soloist on another account is reported and refused, and a pick from this device's account ends it", async () => {
+  // a stand-in Soloist: its folder's session is another account's; a pick
+  // from this device's account (the file pick-right) takes it over
   const fake = join(dir, "soloist-other");
   await Bun.write(
     fake,
@@ -323,6 +326,11 @@ const d = process.argv[process.argv.indexOf("-D") + 1];
 console.log("[f:462] ready, device_name=Omarchy Pocket device_id=sol789");
 if (fs.existsSync(d + "/session")) console.log("[f:12] logged in as someone-else");
 else console.log("[f:475] waiting for login");
+const right = setInterval(() => {
+  if (!fs.existsSync(d + "/pick-right")) return;
+  clearInterval(right);
+  console.log("[f:12] logged in as tester");
+}, 50);
 setInterval(() => {}, 1000);
 `,
   );
@@ -338,15 +346,28 @@ setInterval(() => {}, 1000);
   try {
     signedIn = true;
     await serve({ name: "spotify", handle: (r) => service.setup!.handle(r) }, request("POST", "/_setup", { field: "soloistKey", value: "sk_test_0123456789abcdef" }));
-    // reported, not restarted: a pick from this device's account takes Soloist over
-    await until(async () => (await setupState()).prompt?.kind === "pick");
-    expect((await setupState()).prompt.detail).toContain("signed in as Tess Ter");
+    const statusOf = async () => JSON.parse(new TextDecoder().decode((await service.handle(request("GET", "/status"))).body));
+    // the conflict: said in the speaker's state and the setup's prompt, Soloist not restarted
+    await until(async () => (await statusOf()).speaker.state === "conflict");
+    expect((await statusOf()).speaker.message).toBe("Omarchy Pocket is playing for another Spotify account. Pick it again in Spotify signed in as Tess Ter.");
+    const prompt = (await setupState()).prompt;
+    expect(prompt).toMatchObject({ kind: "pick", title: "Another Spotify account is playing on Omarchy Pocket" });
+    expect(prompt.detail).toContain("open Spotify signed in as Tess Ter");
     expect(existsSync(join(soloistDir, "session"))).toBe(true);
-    const status = JSON.parse(new TextDecoder().decode((await service.handle(request("GET", "/status"))).body));
-    expect(status.speaker.message).toContain("another Spotify account");
+    // a play on this device is refused with the reason and the sentence
     const refused = await service.handle(request("POST", "/play", { uris: ["spotify:track:t1"] }));
     expect(refused.status).toBe(409);
+    expect(JSON.parse(new TextDecoder().decode(refused.body))).toMatchObject({ reason: "conflict", error: expect.stringContaining("another Spotify account") });
+    // a pick from this device's account ends it
+    writeFileSync(join(soloistDir, "pick-right"), "");
+    await until(async () => (await statusOf()).speaker.state !== "conflict");
+    expect((await statusOf()).speaker.message).toBe("");
+    expect((await setupState()).prompt).toBeNull();
+    // this device signs in to another account: Soloist's is checked again
+    accountId = "tess-two";
+    await until(async () => (await statusOf()).speaker.state === "conflict");
   } finally {
+    accountId = "tester";
     service.close?.();
   }
 });
