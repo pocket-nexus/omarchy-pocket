@@ -1,11 +1,13 @@
 // The deck's bands: the function row along the top and the body under it (the
 // layout: keys, pad or home). Body components draw in their own coordinates,
-// 512 x BODY_H. The keys layout is a laptop's lower half: four rows of keys
+// DECK_W x BODY_H (512 x 350 on the RG DS Plus, 413 x 326 on the AYN Thor). The keys layout is a laptop's lower half: four rows of keys
 // and under them a trackpad with two round buttons on either side. The pad
 // layout folds the keys away and the same trackpad takes their room.
+import { DECK_H, DECK_W } from "../screen.ts";
+
 export const STRIP_H = 34;
 export const BODY_TOP = STRIP_H;
-export const BODY_H = 384 - STRIP_H;
+export const BODY_H = DECK_H - STRIP_H;
 
 export interface Rect {
   x: number;
@@ -18,7 +20,7 @@ export const KEYS_TOP = 2;
 export const KEY_PITCH = 44;
 export const KEYS_BOTTOM = KEYS_TOP + 4 * KEY_PITCH;
 const PAD_X = 62;
-const PAD_W = 512 - 2 * PAD_X;
+const PAD_W = DECK_W - 2 * PAD_X;
 const PAD_BOTTOM = BODY_H - 6;
 export const PAD_SMALL: Rect = { x: PAD_X, y: KEYS_BOTTOM + 6, w: PAD_W, h: PAD_BOTTOM - KEYS_BOTTOM - 6 };
 export const PAD_LARGE: Rect = { x: PAD_X, y: 6, w: PAD_W, h: PAD_BOTTOM - 6 };
@@ -28,7 +30,7 @@ export const PAD_LARGE: Rect = { x: PAD_X, y: 6, w: PAD_W, h: PAD_BOTTOM - 6 };
 export const ROUND = 44;
 const ROUND_GAP = 8;
 const LEFT_X = (PAD_X - ROUND) / 2;
-const RIGHT_X = 512 - PAD_X + LEFT_X;
+const RIGHT_X = DECK_W - PAD_X + LEFT_X;
 export const ROUNDS = {
   voice: { x: LEFT_X, y: PAD_BOTTOM - 2 * ROUND - ROUND_GAP, w: ROUND, h: ROUND },
   hold: { x: LEFT_X, y: PAD_BOTTOM - ROUND, w: ROUND, h: ROUND },

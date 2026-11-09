@@ -11,6 +11,7 @@ import { C } from "../classes.ts";
 import { onEvent } from "../bridge.ts";
 import { serve } from "../system.ts";
 import { color } from "../theme.ts";
+import { STAGE_H, STAGE_W } from "../screen.ts";
 
 interface Shown {
   icon: string;
@@ -62,7 +63,7 @@ export function Osd() {
         return (
           <View
             class={C.osd}
-            style={{ insetL: Math.round((512 - width()) / 2), width: width(), bgColor: color("background", 0.97), borderColor: color("accent") }}
+            style={{ insetL: Math.round((STAGE_W - width()) / 2), insetT: STAGE_H - 96, width: width(), bgColor: color("background", 0.97), borderColor: color("accent") }}
           >
             <Text class={C.osdIcon} style={{ textColor: color("foreground") }}>{osd().icon}</Text>
             <Show

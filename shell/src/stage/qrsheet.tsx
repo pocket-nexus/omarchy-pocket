@@ -8,13 +8,15 @@ import { animate, jump } from "@pocketjs/framework/animation";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { encodeQr } from "../../../vendor/pocketjs/tools/pocket-link/qr.ts";
 import { color } from "../theme.ts";
+import { SHEET_H, SHEET_W } from "./geometry.ts";
 
 const [sheet, setSheet] = createSignal<{ title: string; url: string } | null>(null);
 export const qrOpen = () => sheet() !== null;
 export const closeQr = () => setSheet(null);
 export const showQr = (title: string, url: string) => setSheet({ title, url });
 
-const BOX = 260;
+/** the code's side: what the sheet holds over its link line */
+const BOX = Math.min(260, SHEET_H - 88);
 const QUIET = 2;
 
 interface Run {
@@ -56,8 +58,8 @@ export function QrSheet() {
     <Show when={sheet()}>
       {(s) => (
         <View
-          class="absolute left-[12] top-[24] w-[488] h-[348] rounded-md border-[1]"
-          style={{ bgColor: color("background", 0.96), borderColor: color("accent") }}
+          class="absolute left-[12] top-[24] rounded-md border-[1]"
+          style={{ width: SHEET_W, height: SHEET_H, bgColor: color("background", 0.96), borderColor: color("accent") }}
           ref={(node: NodeMirror) => {
             jump(node, "opacity", 0);
             animate(node, "opacity", 1, { dur: 150, easing: "out" });
@@ -65,10 +67,10 @@ export function QrSheet() {
         >
           <Text class="absolute left-[12] top-[8] font-mono text-sm leading-[16]" style={{ textColor: color("bright_foreground") }}>{s().title}</Text>
           <Text class="absolute right-[12] top-[9] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>any button closes</Text>
-          <View class="absolute left-[12] top-[30] w-[464] h-[1]" style={{ bgColor: color("muted") }} />
+          <View class="absolute left-[12] top-[30] h-[1]" style={{ width: SHEET_W - 24, bgColor: color("muted") }} />
           <Show when={code()}>
             {(q) => (
-              <View class="absolute bg-white" style={{ insetL: (488 - q().side) / 2, insetT: 40, width: q().side, height: q().side }}>
+              <View class="absolute bg-white" style={{ insetL: (SHEET_W - q().side) / 2, insetT: 40, width: q().side, height: q().side }}>
                 <For each={q().runs}>
                   {(run) => <View class="absolute bg-black" style={{ insetL: (run.x + QUIET) * q().cell, insetT: (run.y + QUIET) * q().cell, width: run.w * q().cell, height: q().cell }} />}
                 </For>
@@ -78,7 +80,7 @@ export function QrSheet() {
           <Show when={!code()}>
             <Text class="absolute left-[12] top-[60] font-mono text-xs leading-[14]" style={{ textColor: color("foreground") }}>The link is too long for a code; type it instead.</Text>
           </Show>
-          <Text class="absolute left-[12] h-[14] overflow-hidden font-mono text-xs leading-[14] text-center" style={{ insetT: 348 - 26, width: 464, textColor: color("foreground") }}>{s().url}</Text>
+          <Text class="absolute left-[12] h-[14] overflow-hidden font-mono text-xs leading-[14] text-center" style={{ insetT: SHEET_H - 26, width: SHEET_W - 24, textColor: color("foreground") }}>{s().url}</Text>
         </View>
       )}
     </Show>

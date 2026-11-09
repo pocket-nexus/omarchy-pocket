@@ -34,6 +34,7 @@ import { settled, type TouchFrame } from "../touch.ts";
 import { focused, type Win } from "../workspaces.ts";
 import { BODY_H, inRect, PAD_LARGE, PAD_SMALL, ROUND, ROUNDS, type Rect } from "./geometry.ts";
 import { pressed } from "./press.ts";
+import { DECK_H, DECK_W } from "../screen.ts";
 
 const padFor = (l: Layout): Rect => (l === "keys" ? PAD_SMALL : PAD_LARGE);
 type RoundName = keyof typeof ROUNDS;
@@ -108,7 +109,7 @@ export function touchpadTouch(frame: TouchFrame): number[] {
     for (const c of frame.down) {
       const x = (c.x - SURFACE_X) / SCALE;
       const y = c.y / SCALE;
-      if (x >= 0 && x < 512 && y >= 0 && y < 384) contacts.push(c.id, x, y);
+      if (x >= 0 && x < DECK_W && y >= 0 && y < DECK_H) contacts.push(c.id, x, y);
     }
     return contacts;
   }
@@ -166,10 +167,11 @@ export function touchpadTouch(frame: TouchFrame): number[] {
   return [];
 }
 
-const SCALE = Math.min(512 / 512, BODY_H / 384);
-const SURFACE_W = 512 * SCALE;
-const SURFACE_H = 384 * SCALE;
-const SURFACE_X = (512 - SURFACE_W) / 2;
+/** a package's touch surface is the deck's size (the profile's auxiliary display) */
+const SCALE = Math.min(1, BODY_H / DECK_H);
+const SURFACE_W = DECK_W * SCALE;
+const SURFACE_H = DECK_H * SCALE;
+const SURFACE_X = (DECK_W - SURFACE_W) / 2;
 
 /** A package's own touch surface, letterboxed into the body. The texture is
  *  a GL framebuffer, first row at the bottom, so the image flips on Y. */
@@ -192,12 +194,26 @@ function Surface(props: { win: AppWin }) {
 
 export function Touchpad() {
   return (
-    <View class={C.deck}>
+    <View class={C.deck} style={{ width: DECK_W, height: BODY_H }}>
       <Show when={layout() === "pad" && surfacePackage()} keyed fallback={<Pad />}>
         {(w) => <Surface win={w} />}
       </Show>
     </View>
   );
+}
+
+/** JetBrains Mono at text-xs: 0.6 em of 12 points */
+const XS_ADVANCE = 7.2;
+
+/** Two lines when one is wider than `width`: the break goes at the
+ *  separator nearest the middle (the Thor's pad is 289 points wide, the RG
+ *  DS Plus's 388). */
+function fit(text: string, width: number): string {
+  if (text.length * XS_ADVANCE <= width) return text;
+  const middle = text.length / 2;
+  let best = -1;
+  for (let at = text.indexOf(" · "); at >= 0; at = text.indexOf(" · ", at + 1)) if (best < 0 || Math.abs(at - middle) < Math.abs(best - middle)) best = at;
+  return best < 0 ? text : `${text.slice(0, best)}\n${text.slice(best + 3)}`;
 }
 
 /** The line along the trackpad's bottom edge: what a chord sent, what the keys do here. */
@@ -230,7 +246,7 @@ function Pad() {
             class="absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]"
             style={{ insetL: rect().x + 12, insetT: rect().y + rect().h - 34, width: rect().w - 24, textColor: color(voiceState() !== "idle" || chordSent() ? "accent" : "muted") }}
           >
-            {line()}
+            {fit(line(), rect().w - 24)}
           </Text>
         }
       >

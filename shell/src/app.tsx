@@ -1,4 +1,5 @@
-// Omarchy Pocket's shell on the RG DS Plus's two 512x384-point panels.
+// Omarchy Pocket's shell on two panels: the RG DS Plus's two of 512 x 384
+// points, or the AYN Thor's 640 x 360 over 413 x 360 (screen.ts).
 // docs/interaction.md states the system in three lines:
 //
 //   The stage is the monitor.   The top panel takes no touch: the wallpaper,
@@ -76,6 +77,7 @@ import { color } from "./theme.ts";
 import { band, trackTouches, type TouchFrame } from "./touch.ts";
 import "./windows.ts";
 import { current, focused, revision, visibleWindows, windowsOn, WORKSPACES } from "./workspaces.ts";
+import { DECK_H, DECK_W, STAGE_H, STAGE_W } from "./screen.ts";
 
 const REPEATS = BTN.UP | BTN.DOWN | BTN.LEFT | BTN.RIGHT;
 const REPEAT_AFTER = 18;
@@ -250,12 +252,12 @@ export default function Shell() {
     const first = touch.down[0];
     pressAt(!first ? null : first.start.y < STRIP_H ? stripTarget(first.x) : layout() === "home" ? homeTarget(first.x, first.y - BODY_TOP) : roundTarget(first.x, first.y - BODY_TOP));
     stripTouch(band(touch, 0, STRIP_H));
-    const contacts = bodyTouch(band(touch, BODY_TOP, 384));
+    const contacts = bodyTouch(band(touch, BODY_TOP, DECK_H));
     feed(buttons, contacts);
   });
 
   return (
-    <View class="absolute left-0 top-0 w-[512] h-[384]">
+    <View class="absolute left-0 top-0" style={{ width: STAGE_W, height: STAGE_H }}>
       <Wallpaper />
       <Windows />
       <Bar now={now} focused={openPanel} />
@@ -268,23 +270,23 @@ export default function Shell() {
       <LockStage clock={time} date={date} />
       <Screensaver />
       <AuxiliarySurface>
-        <View class="absolute left-0 top-0 w-[512] h-[384]" style={{ bgColor: color("darker_background") }}>
+        <View class="absolute left-0 top-0" style={{ width: DECK_W, height: DECK_H, bgColor: color("darker_background") }}>
           <Show when={!screensaverActive()} fallback={<ScreensaverDeck />}>
             {/* the deck and the lock's keyboard both stay mounted and show by
                 opacity: unlocking repaints the deck instead of building it */}
-            <View class="absolute left-0 top-0 w-[512] h-[384] contain-strict" style={{ opacity: locked() ? 0 : 1 }}>
-              <View class="absolute left-0 w-[512] overflow-hidden contain-strict" style={{ insetT: BODY_TOP, height: BODY_H }}>
+            <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: DECK_H, opacity: locked() ? 0 : 1 }}>
+              <View class="absolute left-0 overflow-hidden contain-strict" style={{ width: DECK_W, insetT: BODY_TOP, height: BODY_H }}>
                 {/* everything stays mounted and shows by opacity, so a change of
                     focus repaints instead of building a layout */}
-                <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: BODY_H, opacity: layout() === "home" ? 1 : 0 }}>
+                <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: BODY_H, opacity: layout() === "home" ? 1 : 0 }}>
                   <Home />
                 </View>
-                <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: BODY_H, opacity: layout() === "home" ? 0 : 1 }}>
+                <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: BODY_H, opacity: layout() === "home" ? 0 : 1 }}>
                   <Touchpad />
                 </View>
                 <View
-                  class="absolute left-0 top-0 w-[512] contain-strict"
-                  style={{ height: BODY_H, opacity: untrack(layout) === "keys" ? 1 : 0, translateY: untrack(layout) === "keys" ? 0 : -14 }}
+                  class="absolute left-0 top-0 contain-strict"
+                  style={{ width: DECK_W, height: BODY_H, opacity: untrack(layout) === "keys" ? 1 : 0, translateY: untrack(layout) === "keys" ? 0 : -14 }}
                   ref={(n: NodeMirror) => (keysNode = n)}
                 >
                   <Keyboard mode="body" />
@@ -292,7 +294,7 @@ export default function Shell() {
               </View>
               <Strip />
             </View>
-            <View class="absolute left-0 top-0 w-[512] h-[384] contain-strict" style={{ opacity: locked() ? 1 : 0 }}>
+            <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: DECK_H, opacity: locked() ? 1 : 0 }}>
               <Keyboard mode="full" />
             </View>
             {/* over the deck while a shoulder is held: the controls around it and what they do */}

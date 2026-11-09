@@ -28,6 +28,7 @@ import { focused } from "../workspaces.ts";
 import { STRIP_H } from "./geometry.ts";
 import { PIN, pinIds, pinnable, togglePin, UNPIN } from "./pins.ts";
 import { pressed } from "./press.ts";
+import { DECK_SCALE, DECK_W } from "../screen.ts";
 
 const LOGO = "\u{e900}";
 const HOME = "\u{f02dc}";
@@ -44,9 +45,9 @@ const LOGO_W = 36;
 const ESC_W = 44;
 const END_W = 40;
 const MAX_W = 84;
-/** the preedit's width, then five candidates */
-const PREEDIT_W = 132;
-const CANDIDATE_W = (512 - PREEDIT_W) / 5;
+/** the preedit's width, then five candidates (132 on the RG DS Plus's 512 points) */
+const PREEDIT_W = Math.round(132 * DECK_SCALE);
+const CANDIDATE_W = (DECK_W - PREEDIT_W) / 5;
 
 interface Chip {
   id: string;
@@ -107,7 +108,7 @@ const row = createRoot(() =>
     ];
     const middle = context();
     const ends = LOGO_W + ESC_W + end.length * END_W;
-    const room = 512 - 2 * EDGE - ends - (2 + middle.length + end.length - 1) * GAP;
+    const room = DECK_W - 2 * EDGE - ends - (2 + middle.length + end.length - 1) * GAP;
     const w = middle.length ? Math.min(MAX_W, Math.floor(room / middle.length)) : 0;
     let x = EDGE;
     const place = (chip: Chip, width: number): Placed => {
@@ -116,7 +117,7 @@ const row = createRoot(() =>
       return placed;
     };
     const out = [place(start[0]!, LOGO_W), place(start[1]!, ESC_W), ...middle.map((c) => place(c, w))];
-    x = 512 - EDGE - end.length * END_W - (end.length - 1) * GAP;
+    x = DECK_W - EDGE - end.length * END_W - (end.length - 1) * GAP;
     return [...out, ...end.map((c) => place(c, END_W))];
   }),
 );
@@ -143,7 +144,7 @@ export function stripTouch(frame: TouchFrame) {
 
 export function Strip() {
   return (
-    <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: STRIP_H }}>
+    <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: STRIP_H }}>
       <Show
         when={composing()}
         fallback={
@@ -169,7 +170,7 @@ export function Strip() {
           </For>
         }
       >
-        <View class="absolute left-0 top-0 w-[512]" style={{ height: STRIP_H, bgColor: color("dark_background") }}>
+        <View class="absolute left-0 top-0" style={{ width: DECK_W, height: STRIP_H, bgColor: color("dark_background") }}>
           <Text class="absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]" style={{ width: PREEDIT_W - 14, textColor: color("accent"), ...cjk(snapshot()?.preedit ?? "", CJK_SLOT_14) }}>
             {snapshot()?.preedit ?? ""}
           </Text>

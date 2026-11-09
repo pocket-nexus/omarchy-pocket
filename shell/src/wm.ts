@@ -16,8 +16,8 @@
 // panel's scale: the bar's height off one edge, GAP_OUT around the tiled
 // area, every window inset GAP_IN, so neighbours sit 2 * GAP_IN apart.
 
-export const STAGE_W = 512;
-export const STAGE_H = 384;
+export { STAGE_H, STAGE_W } from "./screen.ts";
+import { STAGE_H, STAGE_W } from "./screen.ts";
 export const BAR_H = 18;
 export const GAP_OUT = 6;
 export const GAP_IN = 3;

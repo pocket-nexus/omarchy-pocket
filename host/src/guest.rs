@@ -12,6 +12,10 @@
 //! cross the JSON bridge or the JS heap. A loaded atlas changes no draw list,
 //! so it asks for the next frame to be presented (`Repaint`).
 //!
+//! `omarchyBridge.density` is the profile's raster density (2 on the RG DS
+//! Plus, 3 on the AYN Thor); the shell reads the surfaces' logical sizes
+//! from `ui.__viewport` and `ui.__auxiliarySurface` (shell/src/screen.ts).
+//!
 //! `omarchyBridge.powerProfile(name)` hands the host the power profile the
 //! daemon reports (performance, balanced, power-saver); the clock floors
 //! apply it at the next tick.
@@ -33,6 +37,26 @@ use std::{
     path::PathBuf,
     rc::Rc,
 };
+
+/// Where the daemon's absolute paths are on this system's filesystem. On the
+/// RG DS Plus the daemon and the host share one root; on the AYN Thor the
+/// daemon runs in the app's Linux root under proot, so a path the shell hands
+/// over (a wallpaper tile, a glyph atlas, an applet package) lies under that
+/// root's directory, which the Android program sets once (`set_guest_root`).
+static GUEST_ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+#[allow(dead_code)] // the Android program's
+pub fn set_guest_root(root: PathBuf) {
+    let _ = GUEST_ROOT.set(root);
+}
+
+/// A path from the daemon, as this program opens it.
+pub fn host_path(path: &str) -> PathBuf {
+    match (GUEST_ROOT.get(), path.strip_prefix('/')) {
+        (Some(root), Some(relative)) => root.join(relative),
+        _ => PathBuf::from(path),
+    }
+}
 
 /// Set when the next frame must be presented though its draw lists are unchanged.
 pub type Repaint = Rc<Cell<bool>>;
@@ -72,6 +96,10 @@ pub struct BridgedGuest {
     profile: ProfileRequest,
     children: children::Shared,
     net: net::Shared,
+    /// lines for the shell from the platform itself (the Android app's), delivered with the daemon's
+    injected: Option<Box<dyn FnMut() -> Vec<String>>>,
+    /// the profile's raster density, published as `omarchyBridge.density`
+    density: u32,
 }
 
 /// PSM_8888, the RGBA texture format of spec ops
@@ -80,7 +108,7 @@ const TEXTURE_MAX: usize = 512;
 
 /// Reads a FONT ATLAS file and loads it into the slot its header names.
 fn load_font_atlas(ops: &OpContext, path: &str) -> bool {
-    let Ok(bytes) = std::fs::read(path) else { return false };
+    let Ok(bytes) = std::fs::read(host_path(path)) else { return false };
     match ops.dispatch(op::LOAD_FONT_ATLAS as u16, &[OpArg::Bytes(&bytes)]) {
         Ok(OpResult::Integer(ok)) => ok != 0,
         Ok(_) => true,
@@ -96,7 +124,7 @@ fn load_texture(ops: &OpContext, path: &str, w: usize, h: usize) -> i64 {
     if !(w.is_power_of_two() && h.is_power_of_two() && w <= TEXTURE_MAX && h <= TEXTURE_MAX) {
         return -1;
     }
-    let Ok(bytes) = std::fs::read(path) else { return -1 };
+    let Ok(bytes) = std::fs::read(host_path(path)) else { return -1 };
     if bytes.len() != w * h * 4 {
         return -1;
     }
@@ -113,7 +141,14 @@ fn load_texture(ops: &OpContext, path: &str, w: usize, h: usize) -> i64 {
 
 impl BridgedGuest {
     pub fn new(bridge: Rc<RefCell<Bridge>>, repaint: Repaint, traffic: Traffic, profile: ProfileRequest, children: children::Shared, net: net::Shared) -> Self {
-        Self { inner: RquickjsGuest::default(), bridge, ops: None, repaint, traffic, profile, children, net }
+        Self { inner: RquickjsGuest::default(), bridge, ops: None, repaint, traffic, profile, children, net, injected: None, density: 2 }
+    }
+
+    /// Lines the platform hands the shell as if the daemon had sent them,
+    /// taken at the start of each guest turn.
+    #[allow(dead_code)] // the Android program's
+    pub fn set_injected(&mut self, source: Box<dyn FnMut() -> Vec<String>>) {
+        self.injected = Some(source);
     }
 
     fn install(&self) -> Result<(), RuntimeError> {
@@ -159,7 +194,7 @@ impl BridgedGuest {
                 "openApp",
                 // w, h: the touch surface's logical size, the tile's
                 Function::new(ctx.clone(), move |path: String, w: Opt<u32>, h: Opt<u32>| -> i64 {
-                    let path = PathBuf::from(path);
+                    let path = host_path(&path);
                     if path.extension().is_some_and(|e| e == "pocket") && path.is_file() {
                         apps.borrow_mut().open(path, w.0.zip(h.0).map(|(w, h)| [w, h])) as i64
                     } else {
@@ -199,6 +234,9 @@ impl BridgedGuest {
                     apps.borrow_mut().input(id, buttons, contacts);
                 })?,
             )?;
+            // the surfaces' pixels per point: the wallpaper's tiles and the
+            // run-time glyph atlases are made for it
+            object.set("density", self.density)?;
             ctx.globals().set("omarchyBridge", object)
         });
         match installed {
@@ -250,6 +288,7 @@ impl BridgedGuest {
 impl Guest for BridgedGuest {
     fn initialize(&mut self, ops: OpContext, environment: &GuestEnvironment<'_>) -> Result<(), RuntimeError> {
         self.ops = Some(ops.clone());
+        self.density = environment.raster_density;
         let initialized = self.inner.initialize(ops, environment);
         self.report("initialize", initialized)?;
         self.install()
@@ -275,6 +314,9 @@ impl Guest for BridgedGuest {
             lines.retain(|line| !net.reply(line));
         }
         lines.extend(self.children.borrow_mut().take_events());
+        if let Some(source) = self.injected.as_mut() {
+            lines.extend(source());
+        }
         if !lines.is_empty() {
             self.deliver(lines);
         }

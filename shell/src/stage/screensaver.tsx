@@ -16,6 +16,7 @@ import { CJK_SLOT_12 } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
 import { serve } from "../system.ts";
 import { palette } from "../theme.ts";
+import { DECK_H, DECK_W, STAGE_H, STAGE_W } from "../screen.ts";
 
 const [active, setActive] = createSignal(false);
 const [text, setText] = createSignal("");
@@ -59,8 +60,8 @@ interface Cell {
 function cellsOf(source: string): { cells: Cell[]; cols: number } {
   const lines = source.split("\n");
   const cols = Math.max(1, ...lines.map((l) => [...l].length));
-  const left = Math.round((512 - cols * CELL_W) / 2);
-  const top = Math.round((384 - lines.length * CELL_H) / 2);
+  const left = Math.round((STAGE_W - cols * CELL_W) / 2);
+  const top = Math.round((STAGE_H - lines.length * CELL_H) / 2);
   const cells: Cell[] = [];
   lines.forEach((line, row) =>
     [...line].forEach((ch, col) => {
@@ -115,8 +116,8 @@ const EFFECTS: Effect[] = [
   {
     enter(nodes, cells, final) {
       cells.forEach((c, i) => {
-        jump(nodes[i]!, "translateX", 256 - c.x);
-        jump(nodes[i]!, "translateY", 192 - c.y);
+        jump(nodes[i]!, "translateX", STAGE_W / 2 - c.x);
+        jump(nodes[i]!, "translateY", STAGE_H / 2 - c.y);
         jump(nodes[i]!, "opacity", 0);
         jump(nodes[i]!, "textColor", final(c));
         const delay = rand(500);
@@ -167,8 +168,8 @@ const EFFECTS: Effect[] = [
   {
     enter(nodes, cells, final) {
       cells.forEach((c, i) => {
-        jump(nodes[i]!, "translateX", 256 - c.x + rand(80) - 40);
-        jump(nodes[i]!, "translateY", 400 - c.y);
+        jump(nodes[i]!, "translateX", STAGE_W / 2 - c.x + rand(80) - 40);
+        jump(nodes[i]!, "translateY", STAGE_H + 16 - c.y);
         jump(nodes[i]!, "opacity", 0);
         jump(nodes[i]!, "textColor", final(c));
         const delay = rand(1600);
@@ -186,7 +187,7 @@ function leave(nodes: Node[], cells: Cell[]) {
   const fall = Math.random() < 0.5;
   cells.forEach((c, i) => {
     if (!nodes[i]) return;
-    if (fall) tween(nodes[i]!, "translateY", 420 - c.y, 700, rand(900), "in");
+    if (fall) tween(nodes[i]!, "translateY", STAGE_H + 36 - c.y, 700, rand(900), "in");
     else tween(nodes[i]!, "opacity", 0, 400, rand(1000));
   });
 }
@@ -243,7 +244,7 @@ function Art() {
 export function Screensaver() {
   return (
     <Show when={active()}>
-      <View class="absolute left-0 top-0 w-[512] h-[384] overflow-hidden" style={{ bgColor: "#000000" }}>
+      <View class="absolute left-0 top-0 overflow-hidden" style={{ width: STAGE_W, height: STAGE_H, bgColor: "#000000" }}>
         <Art />
       </View>
     </Show>
@@ -251,5 +252,5 @@ export function Screensaver() {
 }
 
 export function ScreensaverDeck() {
-  return <View class="absolute left-0 top-0 w-[512] h-[384]" style={{ bgColor: "#000000" }} />;
+  return <View class="absolute left-0 top-0" style={{ width: DECK_W, height: DECK_H, bgColor: "#000000" }} />;
 }

@@ -26,6 +26,7 @@ import { color } from "../theme.ts";
 import { chinese, route, toggleChinese } from "./ime.ts";
 import type { Contact, TouchFrame } from "../touch.ts";
 import { KEY_PITCH, KEYS_BOTTOM, KEYS_TOP } from "../deck/geometry.ts";
+import { DECK_H, DECK_W } from "../screen.ts";
 
 type Layer = "abc" | "123" | "sym";
 
@@ -85,7 +86,8 @@ const LAYERS: Record<Layer, { rows: Key[][]; inset: number[] }> = {
   },
 };
 
-const UNIT = 512 / 10;
+/** ten keys across the deck (51.2 points on the RG DS Plus, 41.3 on the Thor) */
+const UNIT = DECK_W / 10;
 const GAP = 5;
 /** Row height on the lock, where the keys have the deck to themselves. */
 const FULL_PITCH = 46;
@@ -126,9 +128,9 @@ const placeRow = (row: Key[], inset: number, y: number, h: number): Placed[] => 
 function layoutFor(mode: KeyboardMode, layer: Layer) {
   const rows = LAYERS[layer].rows;
   const pitch = mode === "full" ? FULL_PITCH : KEY_PITCH;
-  const top = mode === "full" ? 384 - EDGE - rows.length * FULL_PITCH : KEYS_TOP;
+  const top = mode === "full" ? DECK_H - EDGE - rows.length * FULL_PITCH : KEYS_TOP;
   const keys = rows.flatMap((row, r) => placeRow(row, LAYERS[layer].inset[r]!, top + r * pitch, pitch));
-  return { keys, top, bottom: mode === "full" ? 384 : KEYS_BOTTOM };
+  return { keys, top, bottom: mode === "full" ? DECK_H : KEYS_BOTTOM };
 }
 const LAYOUTS = new Map<string, ReturnType<typeof layoutFor>>();
 const layout = (mode: KeyboardMode, layer: Layer) => {
@@ -277,16 +279,16 @@ export function Keyboard(props: { mode: KeyboardMode }) {
     return (mods().shift || capsLock()) && k.shifted ? k.shifted : k.label;
   };
   return (
-    <View class="absolute left-0 top-0 w-[512] contain-strict" style={{ height: props.mode === "full" ? 384 : KEYS_BOTTOM + 2 }}>
+    <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: props.mode === "full" ? DECK_H : KEYS_BOTTOM + 2 }}>
       <Show when={props.mode === "full" && keySink().field}>
         {(field) => (
-          <Text class="absolute left-0 w-[512] text-center text-lg leading-[24]" style={{ insetT: current().top / 2 - 22, textColor: color("bright_foreground") }}>
+          <Text class="absolute left-0 text-center text-lg leading-[24]" style={{ width: DECK_W, insetT: current().top / 2 - 22, textColor: color("bright_foreground") }}>
             {field()()}
           </Text>
         )}
       </Show>
       <Show when={props.mode === "full"}>
-        <Text class="absolute left-0 w-[512] text-center font-mono text-xs leading-[14]" style={{ insetT: current().top / 2 + 10, textColor: color("dark_foreground") }}>
+        <Text class="absolute left-0 text-center font-mono text-xs leading-[14]" style={{ width: DECK_W, insetT: current().top / 2 + 10, textColor: color("dark_foreground") }}>
           {keySink().hint?.() ?? ""}
         </Text>
       </Show>

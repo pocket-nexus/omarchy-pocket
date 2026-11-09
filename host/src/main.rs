@@ -23,6 +23,10 @@ use std::{
 mod bridge;
 mod children;
 #[cfg(target_os = "linux")]
+mod compositor;
+#[cfg(target_os = "linux")]
+mod egl;
+#[cfg(target_os = "linux")]
 mod floor;
 #[cfg(target_os = "linux")]
 mod gpu;
@@ -280,7 +284,7 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
     })
     .map_err(error)?;
     #[cfg(target_os = "linux")]
-    let mut compositor: Option<gpu::Compositor> = None;
+    let mut compositor: Option<compositor::Compositor> = None;
     #[cfg(target_os = "linux")]
     let mut probe: Option<floor::InputProbe> = None;
     let mut shot = match options.shot.clone() {
@@ -418,7 +422,7 @@ fn attach_devices(
     runtime: &mut Runtime,
     profile: &Profile,
     options: &Options,
-) -> Result<(gpu::Compositor, floor::InputProbe), Box<dyn Error>> {
+) -> Result<(compositor::Compositor, floor::InputProbe), Box<dyn Error>> {
     use gpu::PanelSpec;
     use pocket_drivers::{DisplayRole, InputSource};
     let (renderer, displays, compositor) = gpu::open(

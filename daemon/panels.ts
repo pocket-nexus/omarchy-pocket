@@ -6,6 +6,7 @@
 // an SSID or a password is only ever data.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { ANDROID, androidCommand, androidState } from "./android.ts";
 import { VOLUME_MAX, type AudioDevice, type AudioPanel, type BluetoothDevice, type BluetoothPanel, type NetworkPanel, type PowerPanel, type WifiNetwork } from "./protocol.ts";
 
 async function exec(argv: string[], input?: string): Promise<{ code: number; stdout: string; stderr: string }> {
@@ -37,6 +38,12 @@ function fields(line: string): string[] {
 }
 
 export async function network(rescan: boolean): Promise<NetworkPanel> {
+  // Android lists nearby networks to apps with location access only: the panel shows the connected one
+  if (ANDROID) {
+    const s = androidState();
+    const networks = s.network?.kind === "wifi" ? [{ ssid: s.network.name, signal: s.network.signal ?? 0, secure: true, active: true, known: true }] : [];
+    return { enabled: s.wifi, networks, address: s.address };
+  }
   const enabled = (await exec(["nmcli", "-t", "-f", "WIFI", "general"])).stdout.trim() === "enabled";
   const known = new Set(
     (await exec(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"])).stdout
@@ -63,6 +70,8 @@ export async function network(rescan: boolean): Promise<NetworkPanel> {
 }
 
 export async function wifiConnect(ssid: string, password?: string): Promise<void> {
+  // Android's Wi-Fi panel picks and joins networks
+  if (ANDROID) return androidCommand({ command: "settings", panel: "wifi" });
   const known = (await exec(["nmcli", "-t", "-f", "NAME", "connection", "show"])).stdout.split("\n").map((l) => fields(l)[0]);
   if (known.includes(ssid) && !password) {
     await must(["nmcli", "connection", "up", "id", ssid]);
@@ -72,14 +81,17 @@ export async function wifiConnect(ssid: string, password?: string): Promise<void
 }
 
 export async function wifiDisconnect(): Promise<void> {
+  if (ANDROID) return androidCommand({ command: "settings", panel: "wifi" });
   await must(["nmcli", "device", "disconnect", "wlan0"]);
 }
 
 export async function wifiForget(ssid: string): Promise<void> {
+  if (ANDROID) return androidCommand({ command: "settings", panel: "wifi" });
   await must(["nmcli", "connection", "delete", "id", ssid]);
 }
 
 export async function wifiPower(on: boolean): Promise<void> {
+  if (ANDROID) return androidCommand({ command: "settings", panel: "wifi" });
   await must(["nmcli", "radio", "wifi", on ? "on" : "off"]);
 }
 
@@ -116,6 +128,11 @@ function devices(json: string, fallback: string): AudioDevice[] {
 }
 
 export async function audio(): Promise<AudioPanel> {
+  // one output: Android's media volume
+  if (ANDROID) {
+    const a = androidState().audio;
+    return { outputs: a ? [{ name: "android", label: "Media", volume: a.volume, muted: a.muted, current: true }] : [], inputs: [] };
+  }
   const [sinks, sources, sink, source] = await Promise.all([
     exec(["pactl", "-f", "json", "list", "sinks"]),
     exec(["pactl", "-f", "json", "list", "sources"]),
@@ -126,6 +143,11 @@ export async function audio(): Promise<AudioPanel> {
 }
 
 export async function audioSet(kind: "sink" | "source", name: string, change: { volume?: number; muted?: boolean; current?: boolean }) {
+  if (ANDROID) {
+    if (change.volume !== undefined) androidCommand({ command: "volume", percent: Math.max(0, Math.min(100, Math.round(change.volume))) });
+    if (change.muted !== undefined) androidCommand({ command: "mute", muted: change.muted });
+    return;
+  }
   // wpctl talks to PipeWire itself; pactl goes through pipewire-pulse and answers later
   if (change.volume !== undefined) await must(["wpctl", "set-volume", name, `${Math.max(0, Math.min(VOLUME_MAX, Math.round(change.volume)))}%`]);
   if (change.muted !== undefined) await must(["pactl", `set-${kind}-mute`, name, change.muted ? "1" : "0"]);
@@ -198,6 +220,7 @@ async function setProfile(name: string) {
 }
 
 export async function power(): Promise<PowerPanel> {
+  if (ANDROID) return { profiles: [...PROFILES], profile: profile(), brightness: androidState().brightness };
   return { profiles: [...PROFILES], profile: profile(), brightness: brightness() };
 }
 
@@ -214,7 +237,9 @@ async function setBacklight(device: string, percent: number) {
 
 export async function powerSet(change: { profile?: string; brightness?: number }) {
   if (change.profile) await setProfile(change.profile);
-  if (change.brightness !== undefined) {
+  if (change.brightness !== undefined && ANDROID) {
+    androidCommand({ command: "brightness", percent: Math.max(5, Math.min(100, Math.round(change.brightness))) });
+  } else if (change.brightness !== undefined) {
     const percent = Math.max(5, Math.min(100, Math.round(change.brightness)));
     await Promise.all(BACKLIGHTS.map((device) => setBacklight(device, percent)));
   }
@@ -232,6 +257,11 @@ async function btDevices(filter?: string): Promise<Map<string, string>> {
 }
 
 export async function bluetooth(scan: boolean): Promise<BluetoothPanel> {
+  // Android pairs and connects in its own Bluetooth settings
+  if (ANDROID) {
+    const b = androidState().bluetooth;
+    return { adapter: b !== null, powered: b?.powered ?? false, devices: [] };
+  }
   const show = await exec(["bluetoothctl", "show"]);
   if (show.code !== 0 || !/Controller/.test(show.stdout)) return { adapter: false, powered: false, devices: [] };
   const powered = /Powered: yes/.test(show.stdout);
@@ -243,11 +273,13 @@ export async function bluetooth(scan: boolean): Promise<BluetoothPanel> {
 }
 
 export async function bluetoothPower(on: boolean) {
+  if (ANDROID) return androidCommand({ command: "settings", panel: "bluetooth" });
   await must(["bluetoothctl", "power", on ? "on" : "off"]);
 }
 
 /** Pairs (Just Works: no PIN on either side), trusts and connects. */
 export async function bluetoothConnect(mac: string) {
+  if (ANDROID) return androidCommand({ command: "settings", panel: "bluetooth" });
   const paired = await btDevices("Paired");
   if (!paired.has(mac)) {
     await must(["bluetoothctl", "--agent", "NoInputNoOutput", "--timeout", "20", "pair", mac]);
@@ -257,9 +289,11 @@ export async function bluetoothConnect(mac: string) {
 }
 
 export async function bluetoothDisconnect(mac: string) {
+  if (ANDROID) return androidCommand({ command: "settings", panel: "bluetooth" });
   await must(["bluetoothctl", "disconnect", mac]);
 }
 
 export async function bluetoothForget(mac: string) {
+  if (ANDROID) return androidCommand({ command: "settings", panel: "bluetooth" });
   await must(["bluetoothctl", "remove", mac]);
 }

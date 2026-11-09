@@ -10,6 +10,10 @@ import { C } from "../classes.ts";
 import { setFieldSink } from "../keys.ts";
 import { serve } from "../system.ts";
 import { color } from "../theme.ts";
+import { STAGE_H, STAGE_W } from "../screen.ts";
+
+/** the clock's block sits on the stage's middle (192 on the RG DS Plus) */
+const MIDDLE = Math.round(STAGE_H / 2);
 
 const LOCK = "\u{f033e}";
 const [locked, setLocked] = createSignal(false);
@@ -64,10 +68,10 @@ onEvent((event) => {
 export function LockStage(props: { clock: () => string; date: () => string }) {
   return (
     <Show when={locked()}>
-      <View class={C.cover} style={{ bgColor: color("background", 0.85) }}>
-        <Text class={C.lockIcon} style={{ textColor: color("accent") }}>{LOCK}</Text>
-        <Text class={C.lockClock} style={{ textColor: color("bright_foreground") }}>{props.clock()}</Text>
-        <Text class={C.lockDate} style={{ textColor: color("foreground") }}>{props.date()}</Text>
+      <View class={C.cover} style={{ width: STAGE_W, height: STAGE_H, bgColor: color("background", 0.85) }}>
+        <Text class={C.lockIcon} style={{ width: STAGE_W, insetT: MIDDLE - 74, textColor: color("accent") }}>{LOCK}</Text>
+        <Text class={C.lockClock} style={{ width: STAGE_W, insetT: MIDDLE - 32, textColor: color("bright_foreground") }}>{props.clock()}</Text>
+        <Text class={C.lockDate} style={{ width: STAGE_W, insetT: MIDDLE + 10, textColor: color("foreground") }}>{props.date()}</Text>
       </View>
     </Show>
   );

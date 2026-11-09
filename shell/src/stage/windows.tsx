@@ -17,6 +17,7 @@ import { TermGrid } from "../term/grid.tsx";
 import { color } from "../theme.ts";
 import { BORDER, sameRect, type Rect } from "../wm.ts";
 import { bindGhost, bindWindow, focused, ghosts, placements, visibleWindows, WINDOW_ORIGIN, type Win } from "../workspaces.ts";
+import { STAGE_H, STAGE_W } from "../screen.ts";
 
 export const HEADER_H = 16;
 const NO_RECT: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -52,7 +53,7 @@ function AppView(props: { app: number; title: string; applet: boolean; w: number
     });
   }
   /** the surface as it is now, drawn to fit the tile */
-  const surface = () => (props.applet ? appletFit(props.app) : null) ?? (props.applet ? null : { w: 512, h: 384, scale: 1 });
+  const surface = () => (props.applet ? appletFit(props.app) : null) ?? (props.applet ? null : { w: STAGE_W, h: STAGE_H, scale: 1 });
   const drawn = () => {
     const s = surface();
     if (!s) return { x: 0, y: 0, w: 0, h: 0 };

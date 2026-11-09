@@ -4,27 +4,32 @@
 // vipsthumbnail shrinks on load and crops to the top panel's 1024 x 768
 // pixels, as Omarchy's own omarchy-menu-images does for its thumbnails. The
 // result is cut into the textures the shell can upload (a power of two of at
-// most 512 per side): raw RGBA8888 files the host program reads itself.
+// most 512 per side): raw RGBA8888 files the host program reads itself. The
+// shell names the panel's size (1920 x 1080 on the AYN Thor); a tile at the
+// right or bottom edge is padded to a power of two and runs off the panel.
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { WallTile } from "./protocol.ts";
 
-const [W, H] = [1024, 768];
+/** the RG DS Plus's top panel, for a request that names no size */
+const PANEL: [number, number] = [1024, 768];
 const TILE = 512;
+const pow2 = (n: number) => 2 ** Math.ceil(Math.log2(n));
 /** backgrounds whose tiles stay in the runtime directory (tmpfs: RAM), for the picker's previews */
 const KEEP = 4;
 
-export async function wallpaper(runtime: string, home: string, requested?: string, fit = false): Promise<WallTile[]> {
+export async function wallpaper(runtime: string, home: string, requested?: string, fit = false, size: [number, number] = PANEL): Promise<WallTile[]> {
+  const [W, H] = size.length === 2 && size.every((v) => Number.isInteger(v) && v > 0 && v <= 4096) ? size : PANEL;
   const source = realpathSync(requested || join(home, ".local", "state", "omarchy", "current", "background"));
   const stat = statSync(source);
-  const key = new Bun.CryptoHasher("md5").update(`${source}\n${stat.mtimeMs}\n${stat.size}\n${fit}`).digest("hex").slice(0, 12);
+  const key = new Bun.CryptoHasher("md5").update(`${source}\n${stat.mtimeMs}\n${stat.size}\n${fit}\n${W}x${H}`).digest("hex").slice(0, 12);
   const dir = join(runtime, "omarchy-pocket", "wall");
   mkdirSync(dir, { recursive: true });
   const tiles: WallTile[] = [];
   for (let row = 0; row * TILE < H; row++) {
     for (let col = 0; col * TILE < W; col++) {
-      const w = Math.min(TILE, W - col * TILE);
-      const h = Math.min(TILE, H - row * TILE);
+      const w = pow2(Math.min(TILE, W - col * TILE));
+      const h = pow2(Math.min(TILE, H - row * TILE));
       tiles.push({ file: join(dir, `${key}-${col}-${row}.rgba`), x: col * TILE, y: row * TILE, w, h });
     }
   }
@@ -52,10 +57,11 @@ export async function wallpaper(runtime: string, home: string, requested?: strin
 
   for (const t of tiles) {
     const out = new Uint8Array(t.w * t.h * 4);
-    for (let y = 0; y < t.h; y++) {
+    // the padding past the panel's edge stays transparent black
+    for (let y = 0; y < Math.min(t.h, H - t.y); y++) {
       let from = ((t.y + y) * W + t.x) * bands;
       let to = y * t.w * 4;
-      for (let x = 0; x < t.w; x++, from += bands, to += 4) {
+      for (let x = 0; x < Math.min(t.w, W - t.x); x++, from += bands, to += 4) {
         out[to] = pixels[from]!;
         out[to + 1] = pixels[from + 1]!;
         out[to + 2] = pixels[from + 2]!;

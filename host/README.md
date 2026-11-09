@@ -21,3 +21,5 @@ bun tools/build.ts shot --script "30:shot 40:DOWN 50:shot"
 ```
 
 `--check` admits the package against the compiled profile without opening devices. Default package: `/usr/share/pocketjs/omarchy-pocket.pocket`.
+
+**The AYN Thor.** The crate's library target (`src/android.rs`) is the same program for Android: `libomarchy_pocket.so`, loaded by the app in `android/`, with the Thor's profile (`android/pocket.host.json`) compiled in. It renders both displays through Android's EGL on the windows the app lends it (`src/gpu_android.rs`); the apps in the shell's windows share `src/compositor.rs` with the RG DS Plus, and the EGL and GLES entry points both back ends call are in `src/egl.rs`. On every other target the library is empty. `bun tools/android.ts lib` builds it; [docs/ayn-thor.md](../docs/ayn-thor.md) describes it.

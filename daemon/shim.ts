@@ -18,26 +18,35 @@
 //              monitor through Hyprland; this one starts the shell's
 //              screensaver, unless the screensaver-off toggle is on and the
 //              argument is not `force`
+//
+// On the AYN Thor (the Android app's root, daemon/android.ts) two more:
+//
+//   wpctl      get-volume, set-volume and set-mute on Android's media volume
+//              (Omarchy's scripts call wpctl for the default sink)
+//   xdg-open   a URL opens in Android's browser; a file goes to /usr/bin/xdg-open
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { shellPath } from "./paths.ts";
+import { ANDROID, androidCommand, androidState } from "./android.ts";
 
 const name = basename(process.argv[1] ?? "");
 const args = process.argv.slice(2);
 
-const PANELS = [
-  { id: 0, name: "DSI-1", description: "RG DS Plus top panel", focused: true, y: 0 },
-  { id: 1, name: "DSI-2", description: "RG DS Plus bottom panel", focused: false, y: 384 },
-].map((panel) => ({
+const PANELS = (ANDROID
+  ? [
+      { id: 0, name: "DSI-1", description: "AYN Thor upper display", focused: true, y: 0, width: 1920, height: 1080, make: "AYN", model: "Thor" },
+      { id: 1, name: "DSI-2", description: "AYN Thor lower display", focused: false, y: 360, width: 1239, height: 1080, make: "AYN", model: "Thor" },
+    ]
+  : [
+      { id: 0, name: "DSI-1", description: "RG DS Plus top panel", focused: true, y: 0, width: 1024, height: 768, make: "Anbernic", model: "RG DS Plus" },
+      { id: 1, name: "DSI-2", description: "RG DS Plus bottom panel", focused: false, y: 384, width: 1024, height: 768, make: "Anbernic", model: "RG DS Plus" },
+    ]
+).map((panel) => ({
   ...panel,
-  make: "Anbernic",
-  model: "RG DS Plus",
   serial: "",
-  width: 1024,
-  height: 768,
   refreshRate: 60,
   x: 0,
-  scale: 2,
+  scale: ANDROID ? 3 : 2,
   transform: 0,
   activeWorkspace: { id: 1, name: "1" },
   specialWorkspace: { id: 0, name: "" },
@@ -180,6 +189,37 @@ async function omasnap(argv: string[]) {
   }
 }
 
+/** wpctl on Android's media volume: what Omarchy's scripts ask of the default sink. */
+function wpctl(argv: string[]) {
+  const words = argv.filter((a) => !a.startsWith("-"));
+  const audio = androidState().audio;
+  switch (words[0]) {
+    case "get-volume":
+      if (!audio) process.exit(1);
+      return console.log(`Volume: ${(audio.volume / 100).toFixed(2)}${audio.muted ? " [MUTED]" : ""}`);
+    case "set-volume": {
+      // 50%, 0.5, 5%+, 5%-
+      const m = /^([\d.]+)(%?)([+-]?)$/.exec(words[2] ?? "");
+      if (!m || !audio) process.exit(1);
+      const value = Number(m[1]) * (m[2] ? 1 : 100);
+      const percent = m[3] === "+" ? audio.volume + value : m[3] === "-" ? audio.volume - value : value;
+      return androidCommand({ command: "volume", percent: Math.max(0, Math.min(100, Math.round(percent))) });
+    }
+    case "set-mute":
+      return androidCommand({ command: "mute", muted: words[2] === "toggle" ? "toggle" : words[2] === "1" });
+    default:
+      return;
+  }
+}
+
+/** A URL opens in Android's browser; anything else in the root's own xdg-open. */
+function xdgOpen(argv: string[]): never | void {
+  const target = argv[0] ?? "";
+  if (/^(https?|mailto|tel|geo|market):/i.test(target)) return androidCommand({ command: "open", url: target });
+  const child = Bun.spawnSync(["/usr/bin/xdg-open", ...argv], { stdio: ["inherit", "inherit", "inherit"] });
+  process.exit(child.exitCode ?? 1);
+}
+
 function launchScreensaver(argv: string[]): never {
   const home = process.env.HOME ?? "/home/omarchy";
   if (existsSync(join(home, ".local", "state", "omarchy", "toggles", "screensaver-off")) && argv[0] !== "force") process.exit(1);
@@ -204,6 +244,13 @@ switch (name) {
     break;
   case "uwsm-app":
     run(args.includes("--") ? args.slice(args.indexOf("--") + 1) : args);
+    break;
+  case "wpctl":
+    if (ANDROID) wpctl(args);
+    else run(["/usr/bin/wpctl", ...args]);
+    break;
+  case "xdg-open":
+    xdgOpen(args);
     break;
   default:
     console.error(`omarchy-pocket shim: unknown name ${name}`);

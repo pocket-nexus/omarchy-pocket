@@ -8,6 +8,7 @@ import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { keySheet } from "../chords.ts";
 import { color } from "../theme.ts";
 import { layout } from "../workspaces.ts";
+import { SHEET_H, SHEET_W } from "./geometry.ts";
 
 const [open, setOpen] = createSignal(false);
 export const sheetOpen = open;
@@ -15,7 +16,8 @@ export const toggleSheet = () => setOpen((o) => !o);
 export const closeSheet = () => setOpen(false);
 
 const LINE = 15;
-const COL_W = 236;
+/** two columns across the sheet (236 on the RG DS Plus) */
+const COL_W = Math.floor((SHEET_W - 16) / 2);
 const KEYS_W = 96;
 
 interface Line {
@@ -62,8 +64,8 @@ export function KeySheet() {
   return (
     <Show when={open()}>
       <View
-        class="absolute left-[12] top-[24] w-[488] h-[348] rounded-md border-[1]"
-        style={{ bgColor: color("background", 0.96), borderColor: color("accent") }}
+        class="absolute left-[12] top-[24] rounded-md border-[1]"
+        style={{ width: SHEET_W, height: SHEET_H, bgColor: color("background", 0.96), borderColor: color("accent") }}
         ref={(node: NodeMirror) => {
           jump(node, "opacity", 0);
           animate(node, "opacity", 1, { dur: 150, easing: "out" });
@@ -71,7 +73,7 @@ export function KeySheet() {
       >
         <Text class="absolute left-[12] top-[8] font-mono text-sm leading-[16]" style={{ textColor: color("bright_foreground") }}>Keys</Text>
         <Text class="absolute right-[12] top-[9] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>L1 + SELECT closes</Text>
-        <View class="absolute left-[12] top-[30] w-[464] h-[1]" style={{ bgColor: color("muted") }} />
+        <View class="absolute left-[12] top-[30] h-[1]" style={{ width: SHEET_W - 24, bgColor: color("muted") }} />
         <Column x={0 + 12} groups={[0, 3]} />
         <Column x={12 + COL_W} groups={[1, 2]} />
       </View>
