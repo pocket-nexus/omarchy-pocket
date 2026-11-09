@@ -1,0 +1,36 @@
+{
+  "format": "pocket-host/2",
+  "id": "ayn-thor",
+  "platform": "android",
+  "form": "takeover",
+  "cadences": [60],
+  "display": {
+    "logicalViewports": [[640, 360]],
+    "presentations": ["native"],
+    "rasterDensity": 3,
+    "animation": "composited",
+    "auxiliary": {
+      "logicalViewports": [[413, 360]],
+      "presentations": ["native"],
+      "rasterDensity": 3
+    }
+  },
+  "panel": {
+    "primary": [1920, 1080],
+    "auxiliary": [1239, 1080]
+  },
+  "capabilities": [
+    "display.auxiliary",
+    "input.buttons",
+    "input.touch.auxiliary",
+    "media.playback",
+    "net.http",
+    "runtime.worker",
+    "text.glyphs.baked"
+  ],
+  "worker": {
+    "nodes": { "http": 1 },
+    "channels": { "recordBytes": 16384, "capacity": 64 },
+    "http": { "responseBytes": 4194304 }
+  }
+}

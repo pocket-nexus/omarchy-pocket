@@ -29,45 +29,101 @@ import { audioGlyph, batteryGlyph, bluetoothGlyph, networkGlyph } from "../indic
 import { closePanel, openPanel, showPanel, type PanelName } from "../stage/panels.tsx";
 import { state } from "../system.ts";
 import { pressAt, pressed } from "./press.ts";
+import { DECK_W } from "../screen.ts";
+import { BODY_H } from "./geometry.ts";
 
-export const MAP_SCALE = 0.7;
+/** A cell of the layout, in body coordinates. */
+interface Cell {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+const inCell = (c: Cell, x: number, y: number) => x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h;
+
+const PANEL_LIST: PanelName[] = ["tailscale", "proxy", "bluetooth", "network", "audio", "power"];
+const panels = () => PANEL_LIST.filter((p) => (p !== "proxy" || state()?.proxy) && (p !== "tailscale" || state()?.tailscale));
+
+/**
+ * Two arrangements of the same parts.
+ *
+ * The RG DS Plus's 512-point deck holds the stage at 0.7 between two
+ * columns, the workspaces and the layout on the left and the panels on the
+ * right, each as tall as the map, with the pins in a row of icons under it.
+ *
+ * A narrower deck (the AYN Thor's 413 x 326-point body) has no room for
+ * columns beside a 16:9 stage. Its parts follow Omarchy's bar instead: one
+ * row along the top with the workspaces and the layout on the left and the
+ * panels on the right, the map across the width under it (0.62), and the
+ * pins in a row of icons along the bottom edge.
+ */
+const COMPACT = DECK_W < 480;
+const CELL_GAP = 6;
+
+// the RG DS Plus: the columns
+const SIDE_W = 60;
+const COLUMN_ROW = 40;
+const COLUMN_TOP = 28;
+
+// a compact deck: the top row and the bottom row
+const EDGE = 6;
+const TAB_H = 36;
+const TAB_GAP = 4;
+/** between the workspaces' group and the panels' */
+const TAB_SPLIT = 12;
+/** the layout badge is this many tabs wide: it says "scroll" */
+const BADGE_UNITS = 1.4;
+const DOCK_H = 40;
+const DOCK_Y = BODY_H - EDGE - DOCK_H;
+const MAP_ROOM_Y = EDGE + TAB_H + CELL_GAP;
+const MAP_ROOM_H = DOCK_Y - CELL_GAP - MAP_ROOM_Y;
+
+/** The stage on the deck: 0.7 on the RG DS Plus, as large as the room
+ *  between the rows allows on a compact deck. */
+export const MAP_SCALE = COMPACT ? Math.min(MAP_ROOM_H / STAGE_H, (DECK_W - 2 * EDGE) / STAGE_W) : 0.7;
 const MAP_W = STAGE_W * MAP_SCALE;
 const MAP_H = STAGE_H * MAP_SCALE;
-const MAP_X = (512 - MAP_W) / 2;
-const MAP_Y = 28;
-
-/** the side columns: the workspaces and the layout on the left, the panels on the right */
-const SIDE_W = 60;
+const MAP_X = (DECK_W - MAP_W) / 2;
+const MAP_Y = COMPACT ? MAP_ROOM_Y + (MAP_ROOM_H - MAP_H) / 2 : COLUMN_TOP;
 const LEFT_X = (MAP_X - SIDE_W) / 2;
-const RIGHT_X = 512 - MAP_X + (MAP_X - SIDE_W) / 2;
-const CELL_H = 40;
-const CELL_GAP = 6;
-const LAYOUT_Y = MAP_Y + WORKSPACES * (CELL_H + CELL_GAP);
-const PANEL_LIST: PanelName[] = ["tailscale", "proxy", "bluetooth", "network", "audio", "power"];
-const cellAt = (y: number) => {
-  const i = Math.floor((y - MAP_Y) / (CELL_H + CELL_GAP));
-  return y >= MAP_Y && y - MAP_Y - i * (CELL_H + CELL_GAP) < CELL_H ? i : -1;
+const RIGHT_X = DECK_W - LEFT_X - SIDE_W;
+
+/** a top-row tab's width: the five workspaces, the badge and `n` panels share the row */
+const tabW = (n: number) => (DECK_W - 2 * EDGE - TAB_SPLIT - (4 + n) * TAB_GAP) / (5 + BADGE_UNITS + n);
+/** the workspace tab `i`, or the layout badge at `WORKSPACES` */
+const leftCell = (i: number): Cell => {
+  if (!COMPACT) return { x: LEFT_X, y: COLUMN_TOP + i * (COLUMN_ROW + CELL_GAP), w: SIDE_W, h: COLUMN_ROW };
+  const w = tabW(panels().length);
+  return { x: EDGE + i * (w + TAB_GAP), y: EDGE, w: i === WORKSPACES ? w * BADGE_UNITS : w, h: TAB_H };
+};
+/** the panel `i` of `n`: the right column, or the top row's right end */
+const panelCell = (i: number, n: number): Cell => {
+  if (!COMPACT) return { x: RIGHT_X, y: COLUMN_TOP + i * (COLUMN_ROW + CELL_GAP), w: SIDE_W, h: COLUMN_ROW };
+  const w = tabW(n);
+  const left = DECK_W - EDGE - n * w - (n - 1) * TAB_GAP;
+  return { x: left + i * (w + TAB_GAP), y: EDGE, w, h: TAB_H };
 };
 /** the workspace tab under body point (x, y), or -1 */
-const wsTabAt = (x: number, y: number) => {
-  const i = x >= LEFT_X && x < LEFT_X + SIDE_W ? cellAt(y) : -1;
-  return i < WORKSPACES ? i : -1;
-};
-const onBadge = (x: number, y: number) => x >= LEFT_X && x < LEFT_X + SIDE_W && y >= LAYOUT_Y && y < LAYOUT_Y + CELL_H;
-const panels = () => PANEL_LIST.filter((p) => (p !== "proxy" || state()?.proxy) && (p !== "tailscale" || state()?.tailscale));
+const wsTabAt = (x: number, y: number) => Array.from({ length: WORKSPACES }, (_, i) => i).find((i) => inCell(leftCell(i), x, y)) ?? -1;
+const onBadge = (x: number, y: number) => inCell(leftCell(WORKSPACES), x, y);
 /** the panel under body point (x, y) */
-const panelAt = (x: number, y: number): PanelName | undefined => (x >= RIGHT_X && x < RIGHT_X + SIDE_W ? panels()[cellAt(y)] : undefined);
+const panelAt = (x: number, y: number): PanelName | undefined => {
+  const list = panels();
+  return list.find((_, i) => inCell(panelCell(i, list.length), x, y));
+};
 const panelGlyph = (p: PanelName) => {
   const s = state();
   return p === "tailscale" ? "\u{f0318}" : p === "proxy" ? "\u{f0582}" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
 };
 
-/** the pinned apps' row under the map: icons only, seven cells (six pins and
- *  the add cell) exactly as wide as the map, a shorter row centred under it */
+/** The pinned apps: a row of icons, seven cells at most (six pins and the
+ *  add cell), a shorter row centred. On the RG DS Plus the row is exactly as
+ *  wide as the map, under it; on a compact deck it sits on the body's bottom
+ *  edge, as far from it as the top row is from the strip. */
 const PIN_GAP = 6;
-const PIN_W = (MAP_W - MAX_PINS * PIN_GAP) / (MAX_PINS + 1);
-const PIN_H = 40;
-const PIN_Y = MAP_Y + MAP_H + 7;
+const PIN_W = COMPACT ? 52 : (MAP_W - MAX_PINS * PIN_GAP) / (MAX_PINS + 1);
+const PIN_H = COMPACT ? DOCK_H : 40;
+const PIN_Y = COMPACT ? DOCK_Y : MAP_Y + MAP_H + 7;
 const PIN_STEP = PIN_W + PIN_GAP;
 const ADD = "\u{f0415}";
 const DONE = "\u{f012c}";
@@ -76,14 +132,14 @@ const pinned = (): MenuItem[] => {
   const apps = allApps();
   return pinIds(apps).flatMap((id) => apps.find((a) => a.id === id) ?? []);
 };
-/** the cells' left edges: the pins, then the add cell */
-const pinXs = () => {
+/** the cells: the pins, then the add cell */
+const pinCells = (): Cell[] => {
   const n = pinned().length + 1;
-  const left = 256 - ((n - 1) * PIN_STEP + PIN_W) / 2;
-  return Array.from({ length: n }, (_, i) => left + i * PIN_STEP);
+  const left = DECK_W / 2 - ((n - 1) * PIN_STEP + PIN_W) / 2;
+  return Array.from({ length: n }, (_, i) => ({ x: left + i * PIN_STEP, y: PIN_Y, w: PIN_W, h: PIN_H }));
 };
 /** the cell under body point (x, y): a pin's index, the add cell's (pins' count), or -1 */
-const pinAt = (x: number, y: number) => (y >= PIN_Y && y < PIN_Y + PIN_H ? pinXs().findIndex((left) => x >= left && x < left + PIN_W) : -1);
+const pinAt = (x: number, y: number) => pinCells().findIndex((c) => inCell(c, x, y));
 
 /** While pins are edited, the map's place holds every app. */
 const [editing, setEditing] = createSignal(false);
@@ -231,16 +287,16 @@ function Tile(props: { win: Win }) {
   );
 }
 
-/** One cell of the pins' row: the app's icon, drawn as the side columns draw
- *  theirs; while editing, a pin wears a small × in its corner. */
-function PinCell(props: { x: number; icon: string; target: string; tone?: "dim" | "accent"; removable?: boolean }) {
+/** One cell of the pins: the app's icon, drawn as the panels draw theirs;
+ *  while editing, a pin wears a small × in its corner. */
+function PinCell(props: { cell: Cell; icon: string; target: string; tone?: "dim" | "accent"; removable?: boolean }) {
   return (
-    <View class="absolute rounded-md" style={{ insetL: props.x, insetT: PIN_Y, width: PIN_W, height: PIN_H, bgColor: color(pressed(props.target) ? "selection" : "dark_background") }}>
-      <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: PIN_H / 2 - 9, insetL: -inkShift(props.icon, 16), width: PIN_W, textColor: color(props.tone === "dim" ? "dark_foreground" : props.tone === "accent" ? "accent" : "foreground") }}>
+    <View class="absolute rounded-md" style={{ insetL: props.cell.x, insetT: props.cell.y, width: props.cell.w, height: props.cell.h, bgColor: color(pressed(props.target) ? "selection" : "dark_background") }}>
+      <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: props.cell.h / 2 - 9, insetL: -inkShift(props.icon, 16), width: props.cell.w, textColor: color(props.tone === "dim" ? "dark_foreground" : props.tone === "accent" ? "accent" : "foreground") }}>
         {props.icon}
       </Text>
       <Show when={props.removable}>
-        <Text class="absolute top-[1] w-[12] text-center font-mono text-xs leading-[12]" style={{ insetL: PIN_W - 13, textColor: color("dark_foreground") }}>
+        <Text class="absolute top-[1] w-[12] text-center font-mono text-xs leading-[12]" style={{ insetL: props.cell.w - 13, textColor: color("dark_foreground") }}>
           {REMOVE}
         </Text>
       </Show>
@@ -304,22 +360,22 @@ export function Home() {
         </Show>
       </View>
       <AppList />
-      <For each={pinned()}>{(item, i) => <PinCell x={pinXs()[i()]!} icon={item.icon} target={`home:pin${i()}`} removable={editing()} />}</For>
-      <PinCell x={pinXs()[pinned().length]!} icon={editing() ? DONE : ADD} target={`home:pin${pinned().length}`} tone={editing() ? "accent" : "dim"} />
+      <For each={pinned()}>{(item, i) => <PinCell cell={pinCells()[i()]!} icon={item.icon} target={`home:pin${i()}`} removable={editing()} />}</For>
+      <PinCell cell={pinCells()[pinned().length]!} icon={editing() ? DONE : ADD} target={`home:pin${pinned().length}`} tone={editing() ? "accent" : "dim"} />
       <For each={Array.from({ length: WORKSPACES }, (_, i) => i)}>
         {(n) => (
           <View
             class="absolute rounded-md"
-            style={{ insetL: LEFT_X, insetT: MAP_Y + n * (CELL_H + CELL_GAP), width: SIDE_W, height: CELL_H, bgColor: color(current() === n || pressed(`home:ws${n}`) ? "selection" : "dark_background") }}
+            style={{ insetL: leftCell(n).x, insetT: leftCell(n).y, width: leftCell(n).w, height: leftCell(n).h, bgColor: color(current() === n || pressed(`home:ws${n}`) ? "selection" : "dark_background") }}
           >
-            <Text class="absolute left-0 text-center font-mono text-sm leading-[16]" style={{ insetT: CELL_H / 2 - 8, width: SIDE_W, textColor: color(current() === n ? "accent" : occupied(n) ? "foreground" : "muted") }}>
+            <Text class="absolute left-0 text-center font-mono text-sm leading-[16]" style={{ insetT: leftCell(n).h / 2 - 8, width: leftCell(n).w, textColor: color(current() === n ? "accent" : occupied(n) ? "foreground" : "muted") }}>
               {String(n + 1)}
             </Text>
           </View>
         )}
       </For>
-      <View class="absolute rounded-md" style={{ insetL: LEFT_X, insetT: LAYOUT_Y, width: SIDE_W, height: CELL_H, bgColor: color(pressed("home:layout") ? "selection" : "background") }}>
-        <Text class="absolute left-0 text-center font-mono text-xs leading-[14]" style={{ insetT: CELL_H / 2 - 7, width: SIDE_W, textColor: color("dark_foreground") }}>
+      <View class="absolute rounded-md" style={{ insetL: leftCell(WORKSPACES).x, insetT: leftCell(WORKSPACES).y, width: leftCell(WORKSPACES).w, height: leftCell(WORKSPACES).h, bgColor: color(pressed("home:layout") ? "selection" : "background") }}>
+        <Text class="absolute left-0 text-center font-mono text-xs leading-[14]" style={{ insetT: leftCell(WORKSPACES).h / 2 - 7, width: leftCell(WORKSPACES).w, textColor: color("dark_foreground") }}>
           {layout() === "dwindle" ? "tile" : "scroll"}
         </Text>
       </View>
@@ -327,9 +383,9 @@ export function Home() {
         {(p, i) => (
           <View
             class="absolute rounded-md"
-            style={{ insetL: RIGHT_X, insetT: MAP_Y + i() * (CELL_H + CELL_GAP), width: SIDE_W, height: CELL_H, bgColor: color(openPanel() === p || pressed(`home:${p}`) ? "selection" : "dark_background") }}
+            style={{ insetL: panelCell(i(), panels().length).x, insetT: panelCell(i(), panels().length).y, width: panelCell(i(), panels().length).w, height: panelCell(i(), panels().length).h, bgColor: color(openPanel() === p || pressed(`home:${p}`) ? "selection" : "dark_background") }}
           >
-            <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: CELL_H / 2 - 9, insetL: -inkShift(panelGlyph(p), 16), width: SIDE_W, textColor: color(openPanel() === p ? "accent" : (p === "proxy" && state()?.proxy?.running === false) || (p === "tailscale" && state()?.tailscale?.state !== "Running") ? "muted" : "foreground") }}>
+            <Text class="absolute left-0 text-center font-mono text-base leading-[18]" style={{ insetT: panelCell(i(), panels().length).h / 2 - 9, insetL: -inkShift(panelGlyph(p), 16), width: panelCell(i(), panels().length).w, textColor: color(openPanel() === p ? "accent" : (p === "proxy" && state()?.proxy?.running === false) || (p === "tailscale" && state()?.tailscale?.state !== "Running") ? "muted" : "foreground") }}>
               {panelGlyph(p)}
             </Text>
           </View>

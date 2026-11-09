@@ -61,8 +61,9 @@ export type Request =
   /** Recent notifications, newest first. */
   | { id: number; method: "notifyList" }
   /** Omarchy's current background (or `path`) as wallpaper textures; `fit`
-   *  letterboxes the whole image instead of cropping it to the panel. */
-  | { id: number; method: "wallpaper"; path?: string; fit?: boolean }
+   *  letterboxes the whole image instead of cropping it to the panel;
+   *  `size` is the panel's pixels (1024 x 768 when absent). */
+  | { id: number; method: "wallpaper"; path?: string; fit?: boolean; size?: [number, number] }
   /** Omarchy's screensaver text (~/.config/omarchy/branding/screensaver.txt) */
   | { id: number; method: "screensaver" }
   | { id: number; method: "systemStats" }
@@ -220,8 +221,9 @@ export const EMOJI_ICONS: Record<number, number> = {
 export const CJK_SLOT_12 = 21;
 export const CJK_SLOT_14 = 22;
 
-/** One wallpaper texture: a raw RGBA8888 file of w x h pixels at (x, y) on
- *  the top panel's 1024 x 768 pixels. */
+/** One wallpaper texture: a raw RGBA8888 file of w x h pixels (powers of
+ *  two) at (x, y) on the top panel's pixels (1024 x 768 unless the request
+ *  names a size). */
 export interface WallTile {
   file: string;
   x: number;

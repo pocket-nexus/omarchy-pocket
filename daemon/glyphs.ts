@@ -25,7 +25,9 @@ export const ATLASES = [
   { slot: 21, px: 12 },
   { slot: 22, px: 14 },
 ] as const;
-const DENSITY = 2;
+/** the shell's raster density: 2 on the RG DS Plus, 3 on the AYN Thor (the
+ *  Android app sets OMARCHY_POCKET_DENSITY) */
+const DENSITY = Number(process.env.OMARCHY_POCKET_DENSITY) === 3 ? 3 : 2;
 const DEBOUNCE_MS = 300;
 const CACHE_KEEP = 3;
 /** Characters every atlas carries, so a mixed line drawn in its slot is whole. */

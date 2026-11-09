@@ -21,6 +21,7 @@ import type { SystemState } from "../../../daemon/protocol.ts";
 import type { PanelName } from "./panels.tsx";
 import { color } from "../theme.ts";
 import { current, layout, occupied, WORKSPACES } from "../workspaces.ts";
+import { STAGE_H, STAGE_W } from "../screen.ts";
 
 const NUMBERS = Array.from({ length: WORKSPACES }, (_, i) => i);
 /** The indicators from the right edge: Omarchy's order, Bluetooth leftmost. */
@@ -48,12 +49,12 @@ export function barIndicators(s: SystemState | null): { name: PanelName; glyph: 
 export function Bar(props: { now: () => Date; focused: () => string | null }) {
   const settings = () => state()?.bar;
   const clock = () => formatClock(settings()?.clock ?? "dddd HH:mm", props.now());
-  const top = () => (settings()?.position === "bottom" ? 384 - H : 0);
+  const top = () => (settings()?.position === "bottom" ? STAGE_H - H : 0);
   const indicators = () => barIndicators(state());
-  const statusRight = () => 512 - 8 - SLOT * indicators().length - 8;
+  const statusRight = () => STAGE_W - 8 - SLOT * indicators().length - 8;
   return (
     <Show when={!settings()?.hidden}>
-      <View class={C.bar} style={{ insetT: top(), bgColor: color("background", ALPHA[settings()?.background ?? "opaque"] ?? 1) }}>
+      <View class={C.bar} style={{ width: STAGE_W, insetT: top(), bgColor: color("background", ALPHA[settings()?.background ?? "opaque"] ?? 1) }}>
         {/* centred on the bar's middle (9): Omarchy's logo sits high in its em, 2 points down; the digits half a point */}
         <Text class={C.barText} style={{ insetL: 6, insetT: 4, textColor: color("foreground") }}>{"\u{e900}"}</Text>
         <View
@@ -68,7 +69,7 @@ export function Bar(props: { now: () => Date; focused: () => string | null }) {
             </Text>
           )}
         </For>
-        <Text class={C.barCenter} style={{ textColor: color("foreground") }}>{clock()}</Text>
+        <Text class={C.barCenter} style={{ width: STAGE_W, textColor: color("foreground") }}>{clock()}</Text>
         <Text class="absolute top-[2] text-right font-mono text-xs leading-[14]" style={{ insetL: statusRight() - 160, width: 160, opacity: layer() === "plain" ? 1 : 0, textColor: color("dark_foreground") }}>
           {layout()}
         </Text>
@@ -81,7 +82,7 @@ export function Bar(props: { now: () => Date; focused: () => string | null }) {
         </For>
         <For each={indicators()}>
           {(i, n) => (
-            <Text class={C.barText} style={{ insetL: 512 - 8 - SLOT * (n() + 1) + 4, textColor: color(props.focused() === i.name ? "accent" : "off" in i && i.off ? "muted" : "foreground") }}>
+            <Text class={C.barText} style={{ insetL: STAGE_W - 8 - SLOT * (n() + 1) + 4, textColor: color(props.focused() === i.name ? "accent" : "off" in i && i.off ? "muted" : "foreground") }}>
               {i.glyph}
             </Text>
           )}

@@ -17,6 +17,7 @@ import { pinnable, togglePin } from "../deck/pins.ts";
 import { allApps, closeMenu, MenuCard, menuKey, menuOpen, menuText, menuTitle, menuTouch, selectedItem } from "./menu.tsx";
 import { closePanel, openPanel, panelKey, panelTitle, Panels, panelTouch } from "./panels.tsx";
 import { Picker, pickerKey, pickerOpen, pickerTitle, pickerTouch } from "./picker.tsx";
+import { STAGE_H, STAGE_W } from "../screen.ts";
 
 export type CardKind = "picker" | "panel" | "menu";
 
@@ -129,7 +130,7 @@ export function Card() {
   );
   return (
     <>
-      <View class="absolute left-0 top-0 w-[512] h-[384]" style={{ bgColor: color("background", 0.45), opacity: 0 }} ref={(n: NodeMirror) => (dim = n)} />
+      <View class="absolute left-0 top-0" style={{ width: STAGE_W, height: STAGE_H, bgColor: color("background", 0.45), opacity: 0 }} ref={(n: NodeMirror) => (dim = n)} />
       <View
         class="absolute overflow-hidden rounded-md"
         style={{ insetL: CARD_X - 2, insetT: CARD_Y - 2, width: CARD_W + 4, height: CARD_H + 4, bgColor: color("accent"), opacity: 0, translateY: 10 }}

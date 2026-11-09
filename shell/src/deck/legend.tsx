@@ -1,6 +1,7 @@
 // What the buttons do while a shoulder is held, drawn on the deck as the
 // controls that sit around it: the D-pad and the stick left of the panel,
-// A B X Y and START/SELECT right of it, the shoulders along the top, each
+// A B X Y and START/SELECT right of it (on the Thor the stick above the D-pad
+// and the faces in Xbox order, screen.ts), the shoulders along the top, each
 // control at its side of the panel with the icon of what it does and one
 // word. The held layer's name is in the middle. It shows once a shoulder has
 // been held LEGEND_AFTER frames (a chord pressed at once never sees it) and
@@ -16,6 +17,7 @@ import { inkShift } from "../ink.ts";
 import { glide } from "../motion.ts";
 import { color } from "../theme.ts";
 import { layout } from "../workspaces.ts";
+import { DECK_H, DECK_SCALE, DECK_W, XBOX_FACES } from "../screen.ts";
 
 /** frames a shoulder is held before the legend shows */
 export const LEGEND_AFTER = 14;
@@ -62,7 +64,7 @@ function Face(props: { letter: string; cx: number; cy: number; glyph: Glyph | nu
   // the literal's w-[44] h-[44]: rounded-full needs a size known at build time
   const r = 22;
   return (
-    <View class="absolute left-0 top-0 w-[512] h-[384]" style={{ opacity: props.glyph ? 1 : DIM }}>
+    <View class="absolute left-0 top-0" style={{ width: DECK_W, height: DECK_H, opacity: props.glyph ? 1 : DIM }}>
       <View class="absolute w-[44] h-[44] rounded-full border-[1]" style={{ insetL: props.cx - r, insetT: props.cy - r, bgColor: color("dark_background"), borderColor: color("muted") }} />
       <Show when={props.glyph}>
         {(g) => <Icon glyph={g().icon} cx={props.cx} cy={props.cy} px={g().small ? SMALL : LARGE} tone="bright_foreground" />}
@@ -83,7 +85,7 @@ function Shoulder(props: { name: string; x: number; lit: boolean; glyph: Glyph |
   const h = 26;
   const y = 8;
   return (
-    <View class="absolute left-0 top-0 w-[512] h-[384]" style={{ opacity: props.lit || props.bound ? 1 : DIM }}>
+    <View class="absolute left-0 top-0" style={{ width: DECK_W, height: DECK_H, opacity: props.lit || props.bound ? 1 : DIM }}>
       <View class="absolute rounded-md border-[1]" style={{ insetL: props.x, insetT: y, width: w, height: h, bgColor: color(props.lit ? "accent" : "dark_background"), borderColor: color(props.lit ? "accent" : "muted") }} />
       <Show
         when={props.glyph}
@@ -109,12 +111,12 @@ function Shoulder(props: { name: string; x: number; lit: boolean; glyph: Glyph |
 
 /** START or SELECT: a pill with its name, the icon and the word beside it. */
 function Pill(props: { name: string; y: number; glyph: Glyph | null }) {
-  const x = 348;
+  const x = DECK_W - 164;
   // the literal's w-[152] h-[30]
   const w = 152;
   const h = 30;
   return (
-    <View class="absolute left-0 top-0 w-[512] h-[384]" style={{ opacity: props.glyph ? 1 : DIM }}>
+    <View class="absolute left-0 top-0" style={{ width: DECK_W, height: DECK_H, opacity: props.glyph ? 1 : DIM }}>
       <View class="absolute w-[152] h-[30] rounded-full border-[1]" style={{ insetL: x, insetT: props.y, bgColor: color("dark_background"), borderColor: color("muted") }} />
       <Text class="absolute font-mono text-xs leading-[14]" style={{ insetL: x + 12, insetT: props.y + 8, width: 48, height: 14, textColor: color("dark_foreground") }}>
         {props.name}
@@ -133,10 +135,21 @@ function Pill(props: { name: string; y: number; glyph: Glyph | null }) {
   );
 }
 
-const DPAD = { cx: 104, cy: 150, arm: 40 } as const;
+/** the controls' columns, 104 points in from each side of the RG DS Plus's
+ *  512 and closer on a narrower deck */
+const SIDE = Math.round(104 * DECK_SCALE);
+const DPAD = { cx: SIDE, cy: XBOX_FACES ? 238 : 150, arm: Math.round(40 * DECK_SCALE) } as const;
 /** r matches the stick's w-[56] literal */
-const STICK = { cx: 104, cy: 292, r: 28 } as const;
-const FACES = { cx: 408, cy: 150, step: 54 } as const;
+const STICK = { cx: SIDE, cy: XBOX_FACES ? 106 : 292, r: 28 } as const;
+const FACES = { cx: DECK_W - SIDE, cy: XBOX_FACES ? 128 : 150, step: Math.round(54 * DECK_SCALE) } as const;
+/** START and SELECT along the bottom right (278 and 318 on the RG DS Plus) */
+const PILL_Y = [DECK_H - 106, DECK_H - 66] as const;
+const TITLE_W = Math.round(200 * DECK_SCALE);
+/** the face buttons by place: their letters and buttons */
+type FacePlace = "top" | "left" | "right" | "bottom";
+const FACE_AT: Record<FacePlace, [letter: string, button: number]> = XBOX_FACES
+  ? { top: ["Y", BTN.SQUARE], left: ["X", BTN.TRIANGLE], right: ["B", BTN.CROSS], bottom: ["A", BTN.CIRCLE] }
+  : { top: ["X", BTN.TRIANGLE], left: ["Y", BTN.SQUARE], right: ["A", BTN.CIRCLE], bottom: ["B", BTN.CROSS] };
 
 /** The D-pad: a cross, an arrow at each arm's end. When the four arms do one
  *  thing its icon sits in the middle; when the axes differ (the workspace
@@ -177,7 +190,7 @@ function Stick(props: { layer: Layer }) {
   const glyph = () => stickGlyph(props.layer);
   const { cx, cy, r } = STICK;
   return (
-    <View class="absolute left-0 top-0 w-[512] h-[384]" style={{ opacity: glyph() ? 1 : DIM }}>
+    <View class="absolute left-0 top-0" style={{ width: DECK_W, height: DECK_H, opacity: glyph() ? 1 : DIM }}>
       <View class="absolute w-[56] h-[56] rounded-full border-[1]" style={{ insetL: cx - r, insetT: cy - r, bgColor: color("dark_background"), borderColor: color("muted") }} />
       <View class="absolute w-[28] h-[28] rounded-full" style={{ insetL: cx - r / 2, insetT: cy - r / 2, bgColor: color("muted", 0.5) }} />
       <Show when={glyph()}>
@@ -206,27 +219,27 @@ export function DeckLegend() {
   const title = () => LAYER_GLYPH[layer()];
   createEffect(on(due, (d) => glide(node, "opacity", d ? 1 : 0, d ? 120 : 160), { defer: true }));
   return (
-    <View class="absolute left-0 top-0 w-[512] h-[384] contain-strict" style={{ bgColor: color("darker_background"), opacity: 0 }} ref={(n: NodeMirror) => (node = n)}>
+    <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: DECK_H, bgColor: color("darker_background"), opacity: 0 }} ref={(n: NodeMirror) => (node = n)}>
       <Shoulder name="L1" x={12} lit={layer() !== "move"} glyph={null} bound />
       <Shoulder name="L2" x={80} lit={false} glyph={trigger(BTN.ZL)} bound={!!trigger(BTN.ZL)} />
-      <Shoulder name="R2" x={372} lit={false} glyph={trigger(BTN.ZR)} bound={!!trigger(BTN.ZR)} />
-      <Shoulder name="R1" x={440} lit={layer() !== "window"} glyph={null} bound />
+      <Shoulder name="R2" x={DECK_W - 140} lit={false} glyph={trigger(BTN.ZR)} bound={!!trigger(BTN.ZR)} />
+      <Shoulder name="R1" x={DECK_W - 72} lit={layer() !== "window"} glyph={null} bound />
 
-      <Icon glyph={title().icon} cx={256} cy={136} px={LARGE} tone="accent" />
-      <Text class="absolute left-[156] w-[200] text-center font-mono text-base leading-[18]" style={{ insetT: 156, height: 18, textColor: color("bright_foreground") }}>
+      <Icon glyph={title().icon} cx={DECK_W / 2} cy={136} px={LARGE} tone="accent" />
+      <Text class="absolute text-center font-mono text-base leading-[18]" style={{ insetL: (DECK_W - TITLE_W) / 2, width: TITLE_W, insetT: 156, height: 18, textColor: color("bright_foreground") }}>
         {title().word}
       </Text>
 
       <Dpad layer={layer()} />
       <Stick layer={layer()} />
 
-      <Face letter="X" cx={FACES.cx} cy={FACES.cy - FACES.step} glyph={face(BTN.TRIANGLE)} />
-      <Face letter="Y" cx={FACES.cx - FACES.step} cy={FACES.cy} glyph={face(BTN.SQUARE)} />
-      <Face letter="A" cx={FACES.cx + FACES.step} cy={FACES.cy} glyph={face(BTN.CIRCLE)} />
-      <Face letter="B" cx={FACES.cx} cy={FACES.cy + FACES.step} glyph={face(BTN.CROSS)} />
+      <Face letter={FACE_AT.top[0]} cx={FACES.cx} cy={FACES.cy - FACES.step} glyph={face(FACE_AT.top[1])} />
+      <Face letter={FACE_AT.left[0]} cx={FACES.cx - FACES.step} cy={FACES.cy} glyph={face(FACE_AT.left[1])} />
+      <Face letter={FACE_AT.right[0]} cx={FACES.cx + FACES.step} cy={FACES.cy} glyph={face(FACE_AT.right[1])} />
+      <Face letter={FACE_AT.bottom[0]} cx={FACES.cx} cy={FACES.cy + FACES.step} glyph={face(FACE_AT.bottom[1])} />
 
-      <Pill name="START" y={278} glyph={face(BTN.START)} />
-      <Pill name="SELECT" y={318} glyph={face(BTN.SELECT)} />
+      <Pill name="START" y={PILL_Y[0]} glyph={face(BTN.START)} />
+      <Pill name="SELECT" y={PILL_Y[1]} glyph={face(BTN.SELECT)} />
     </View>
   );
 }

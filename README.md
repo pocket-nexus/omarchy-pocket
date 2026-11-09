@@ -15,6 +15,16 @@ Both panels read back from the GPU (`tools/screenshot.ts`), the upper over the l
 - **Top row:** the desktop with the workspace pad; a terminal, Activity and Clock tiled, over the keyboard deck; Codex in a window.
 - **Bottom row:** the window layer's key sheet (hold L1); Hacker News and Maps over the touchpad.
 
+## On the AYN Thor
+
+The AYN Thor (Snapdragon 8 Gen 2, Android 13, a 1920×1080 upper display over a 1240×1080 touch display) runs Omarchy Pocket as an installable Android app: the same shell on both displays at raster density 3 (640×360 points over 413×360), the same host program built as `libomarchy_pocket.so` on the Adreno through EGL, the Odin controller as the gamepad, and Omarchy's CLI with omarchy-pocketd in the RG DS Plus image's Arch Linux ARM root, run by the app under proot. Android stands in for systemd, NetworkManager, PipeWire and BlueZ. [docs/ayn-thor.md](docs/ayn-thor.md) has the details.
+
+```sh
+bun tools/android.ts all            # the app: lib, proot, daemon, shell, applets, apk, adb install
+bun tools/android.ts rootfs         # the Linux root, from the RG DS Plus image
+bun tools/android.ts push-rootfs    # the app installs it at its next start
+```
+
 ## Applets
 
 <p align="center"><img src="docs/media/applets.webp" width="840" alt="Nine applets on sample data: Weather, Hacker News, GitHub, X, Discord, YouTube, Podcasts, Maps and Home"></p>
@@ -27,15 +37,18 @@ The windows' applets come from [pocket-nexus/applets](https://github.com/pocket-
 - [docs/features.md](docs/features.md): Omarchy's desktop features and where each stands in Omarchy Pocket.
 - [docs/device.md](docs/device.md): hardware, partitions, boot chain, kernel and GPU stack of the stock firmware.
 - [docs/usb-link.md](docs/usb-link.md): SSH and port forwarding from a Mac over the OTG USB port, with measurements.
+- [docs/ayn-thor.md](docs/ayn-thor.md): the AYN Thor as an Android app: displays, the shell's geometry, input, the Linux root under proot, Android in place of the system services.
 - [docs/hyprland-on-libmali.md](docs/hyprland-on-libmali.md): Omarchy's Hyprland on the stock kernel through libmali (the first approach, kept as a record).
 
 | Path | Contents |
 |---|---|
 | `shell/` | the PocketJS shell (Solid) |
-| `host/` | omarchy-pocket-host, the device program (Rust) |
+| `host/` | omarchy-pocket-host, the device program (Rust); `libomarchy_pocket.so` for the AYN Thor (`src/android.rs`, `src/gpu_android.rs`) |
+| `android/` | the AYN Thor's Android app (Java, Gradle), its host profile (`pocket.host.json`) and the Linux root's `start.sh` |
 | `daemon/` | omarchy-pocketd (bridge, `omarchy-shell` socket, terminals, the companion's services) and the `hyprctl`/`uwsm`/`omarchy-pocket-term` shims (Bun) |
 | `spotify/` | omarchy-pocket-spotify, the Spotify service's program (Rust, on spotatui's modules) |
 | `tools/build.ts`, `tools/deploy.ts`, `tools/screenshot.ts` | build the programs, put them on a device over SSH, read both panels back from the GPU |
+| `tools/android.ts` | the AYN Thor's app, its applets and its Linux root; `exec` runs a command in the root over adb |
 | `tools/omarchy-assets.ts` | Omarchy's menu, theme, wallpaper and fonts for the shell, from the pinned rc packages |
 | `image/build-root.ts`, `image/install.ts` | the system image and its installer |
 | `device/` | files for the Omarchy root (`rootfs/`) and the stock root (`stock/`: boot chooser, rescue USB link) |

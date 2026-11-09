@@ -1,7 +1,7 @@
 //! Pocket apps in the shell's windows. A PocketJS package the shell opens
 //! (`omarchyBridge.openApp(path)`) runs in a Runtime and realm of its own
 //! beside the shell's, on the same profile, and draws its displays into
-//! textures on the GPU (gpu::Compositor); the shell's window shows them by
+//! textures on the GPU (compositor.rs); the shell's window shows them by
 //! a core texture handle bound to each. The shell decides everything else:
 //! which window an app has, whether it is on the current workspace
 //! (`showApp`, an app off screen is not advanced), and what input it gets
@@ -85,8 +85,8 @@ struct App {
     primary: Vec<u32>,
     auxiliary: Vec<u32>,
     /// resizes the touch surface's texture
-    #[cfg(target_os = "linux")]
-    surface: crate::gpu::AppSize,
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    surface: crate::compositor::AppSize,
     resized: Rc<Cell<Option<[u32; 2]>>>,
     media: Rc<RefCell<Option<media::Handle>>>,
     /// its media player streams: the shell keeps the device awake
@@ -264,8 +264,8 @@ impl Children {
     /// After the shell's guest turn: opens and closes what was asked for and
     /// runs one frame of every app on the current workspace. True when an app
     /// rendered, so the shell's panels show its new frame.
-    #[cfg(target_os = "linux")]
-    pub fn tick(&mut self, shell: &mut Runtime, profile: &Profile, compositor: &crate::gpu::Compositor) -> bool {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    pub fn tick(&mut self, shell: &mut Runtime, profile: &Profile, compositor: &crate::compositor::Compositor) -> bool {
         for request in std::mem::take(&mut self.requests) {
             match request {
                 Request::Open(id, path, size) => match self.boot(id, &path, shell, profile, compositor) {
@@ -321,8 +321,8 @@ impl Children {
         rendered
     }
 
-    #[cfg(target_os = "linux")]
-    fn boot(&mut self, id: u32, path: &PathBuf, shell: &mut Runtime, profile: &Profile, compositor: &crate::gpu::Compositor) -> Result<Vec<i32>, Box<dyn Error>> {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    fn boot(&mut self, id: u32, path: &PathBuf, shell: &mut Runtime, profile: &Profile, compositor: &crate::compositor::Compositor) -> Result<Vec<i32>, Box<dyn Error>> {
         use pocket_drivers::DisplayRole;
         let error = |e: pocket_runtime::RuntimeError| format!("{e:?}");
         let top = [profile.viewport[0], profile.viewport[1]];
@@ -376,7 +376,7 @@ impl Children {
     /// Gives the app's touch surface `size` logical points: the texture, the
     /// Runtime, then the realm before its next frame. A size the Runtime
     /// refuses leaves the old one in place.
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     fn resize_now(&mut self, id: u32, size: [u32; 2], density: u32) {
         let Some(app) = self.apps.iter_mut().find(|a| a.id == id) else { return };
         let physical = [size[0] * density, size[1] * density];
@@ -397,8 +397,8 @@ impl Children {
         app.auxiliary.clear();
     }
 
-    #[cfg(target_os = "linux")]
-    fn end(&mut self, id: u32, shell: &mut Runtime, compositor: &crate::gpu::Compositor) {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    fn end(&mut self, id: u32, shell: &mut Runtime, compositor: &crate::compositor::Compositor) {
         let Some(at) = self.apps.iter().position(|a| a.id == id) else { return };
         let mut app = self.apps.remove(at);
         let ops = shell.op_context();

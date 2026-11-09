@@ -24,10 +24,11 @@ import { CARD_X, CARD_Y } from "./geometry.ts";
 import { barIndicators } from "./bar.tsx";
 import { showPanel } from "./panels.tsx";
 import { HEADER_H } from "./windows.tsx";
+import { STAGE_H, STAGE_W } from "../screen.ts";
 
 const BAR_H = 18;
-let x = 256;
-let y = 192;
+let x = Math.round(STAGE_W / 2);
+let y = Math.round(STAGE_H / 2);
 let node: NodeMirror | undefined;
 
 export const pointer = () => ({ x, y });
@@ -77,8 +78,8 @@ const SLOT = 20;
 function barClick(px: number) {
   for (let n = 0; n < WORKSPACES; n++) if (px >= 22 + n * 14 && px < 36 + n * 14) return focus(n);
   const indicators = barIndicators(state());
-  const at = Math.floor((512 - 8 - px) / SLOT);
-  if (px < 512 - 8 && at >= 0 && at < indicators.length) showPanel(indicators[at]!.name);
+  const at = Math.floor((STAGE_W - 8 - px) / SLOT);
+  if (px < STAGE_W - 8 && at >= 0 && at < indicators.length) showPanel(indicators[at]!.name);
 }
 
 /** A touch the pointer holds on an applet at stage point `at`: down while
@@ -87,8 +88,8 @@ function barClick(px: number) {
 let touch: { app: number; frames: number; held: boolean; follow: boolean; at: { x: number; y: number } } | null = null;
 
 export function movePointer(dx: number, dy: number) {
-  const nx = Math.max(0, Math.min(511, x + dx));
-  const ny = Math.max(0, Math.min(383, y + dy));
+  const nx = Math.max(0, Math.min(STAGE_W - 1, x + dx));
+  const ny = Math.max(0, Math.min(STAGE_H - 1, y + dy));
   if (touch?.held && touch.follow) {
     touch.at.x += nx - x;
     touch.at.y += ny - y;
@@ -129,7 +130,7 @@ export function click() {
     const at: Contact = { id: 1, x: x - CARD_X, y: y - CARD_Y, frames: 2, start: { x: x - CARD_X, y: y - CARD_Y }, dx: 0, dy: 0, moved: false };
     return cardTouch({ raw: 0, down: [], presses: [], taps: [at] } satisfies TouchFrame);
   }
-  const top = state()?.bar?.position === "bottom" ? 384 - BAR_H : 0;
+  const top = state()?.bar?.position === "bottom" ? STAGE_H - BAR_H : 0;
   if (!state()?.bar?.hidden && y >= top && y < top + BAR_H) return barClick(x);
   const id = windowAt(x, y);
   if (id === null) return;

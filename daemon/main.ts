@@ -36,6 +36,7 @@ import * as applets from "./applets.ts";
 import { RUNTIME } from "./paths.ts";
 import { Voice } from "./voice.ts";
 import { volumeStepper, watchVolumeKeys } from "./volume-keys.ts";
+import { ANDROID, androidState, watchAndroid } from "./android.ts";
 
 if (process.argv[2] === "bake") {
   await (await import("./glyphs.ts")).bakeMain(process.argv[3]!);
@@ -122,6 +123,7 @@ async function output(argv: string[]): Promise<string | null> {
 /** The RG DS Plus has two Battery supplies: the CW2015 fuel gauge and the
  * charger's estimate; the gauge is the one to show. */
 function battery(): SystemState["battery"] {
+  if (ANDROID) return androidState().battery;
   const root = "/sys/class/power_supply";
   let names: string[];
   try {
@@ -137,6 +139,7 @@ function battery(): SystemState["battery"] {
 }
 
 async function network(): Promise<SystemState["network"]> {
+  if (ANDROID) return androidState().network;
   const devices = (await output(["nmcli", "-t", "-f", "TYPE,STATE,CONNECTION", "device", "status"])) ?? "";
   for (const kind of ["ethernet", "wifi"] as const) {
     const line = devices.split("\n").find((l) => l.startsWith(`${kind}:connected:`));
@@ -151,12 +154,14 @@ async function network(): Promise<SystemState["network"]> {
 }
 
 async function audio(): Promise<SystemState["audio"]> {
+  if (ANDROID) return androidState().audio;
   const text = await output(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]);
   const match = text && /Volume:\s*([\d.]+)/.exec(text);
   return match ? { volume: Math.round(Number(match[1]) * 100), muted: text.includes("[MUTED]") } : null;
 }
 
 async function bluetooth(): Promise<SystemState["bluetooth"]> {
+  if (ANDROID) return androidState().bluetooth;
   const text = await output(["busctl", "--system", "get-property", "org.bluez", "/org/bluez/hci0", "org.bluez.Adapter1", "Powered"]);
   return text ? { powered: text === "b true" } : null;
 }
@@ -196,7 +201,8 @@ appNet.onMedia = (next) => {
 
 // ---- the volume keys (volume-keys.ts) ---------------------------------------
 
-watchVolumeKeys(
+// on Android the app takes the volume keys (daemon/android.ts)
+if (!ANDROID) watchVolumeKeys(
   volumeStepper({
     read: audio,
     set: async (volume, unmute) => {
@@ -366,7 +372,7 @@ async function handle(socket: Socket<Peer>, request: Request) {
         result = notifications.list();
         break;
       case "wallpaper":
-        result = await wallpaper(RUNTIME, HOME, request.path, request.fit);
+        result = await wallpaper(RUNTIME, HOME, request.path, request.fit, request.size);
         break;
       case "screensaver":
         result = applets.screensaverText(HOME);
@@ -555,7 +561,9 @@ const notifications = new Notifications({
   closed: (notice, reason) => broadcast({ event: "notifyClosed", notice, reason }),
 });
 notifications.start().catch((error) => log("notifications:", error instanceof Error ? error.message : error));
-watchSleep(() => broadcast({ event: "sleep" })).catch((error) => log("logind:", error instanceof Error ? error.message : error));
+// on Android the app tells the shell when the screen goes off
+if (!ANDROID) watchSleep(() => broadcast({ event: "sleep" })).catch((error) => log("logind:", error instanceof Error ? error.message : error));
+else watchAndroid(() => void refresh(), log);
 
 listen(bridgePath, {
   open(socket) {

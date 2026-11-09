@@ -12,6 +12,15 @@ publish = false
 name = "omarchy-pocket-host"
 path = "src/main.rs"
 
+# The AYN Thor's program, loaded by the Android app (android/app); empty on
+# every other target.
+[lib]
+name = "omarchy_pocket"
+path = "src/android.rs"
+crate-type = ["cdylib"]
+test = false
+doctest = false
+
 [dependencies]
 pocket-runtime.workspace = true
 pocket-drivers.workspace = true
@@ -31,6 +40,17 @@ libc = "0.2.191"
 pocket-gles.workspace = true
 pocket-gles2.workspace = true
 drm = { version = "0.14.1", default-features = false }
+
+[target.'cfg(target_os = "android")'.dependencies]
+pocket-gles.workspace = true
+pocket-gles2.workspace = true
+jni = { version = "0.21", default-features = false }
+# rquickjs ships no bindings for aarch64-linux-android; bindgen writes them
+# against the NDK's headers (libclang from the Xcode command line tools)
+rquickjs = { workspace = true, features = ["bindgen"] }
+# the app's Linux root arrives as a .tar.zst (android.rs install_root)
+tar = { version = "0.4", default-features = false }
+zstd = { version = "0.13", default-features = false }
 
 [build-dependencies]
 pocket-profile-build.workspace = true
