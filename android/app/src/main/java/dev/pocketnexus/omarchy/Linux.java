@@ -22,6 +22,8 @@ final class Linux {
     /** The archive's name, in the app's external files directory (adb push
      *  writes there without any permission) or chosen with the picker. */
     static final String ARCHIVE = "omarchy-pocket-root.tar.zst";
+    /** Where the published releases are: the app and this archive. */
+    static final String RELEASES = "github.com/pocket-nexus/omarchy-pocket/releases";
     /** omarchy-pocketd's names for daemon/shim.ts in /usr/local/bin */
     private static final String[] SHIMS = {"hyprctl", "uwsm", "uwsm-app", "omarchy-pocket-term", "omasnap", "omarchy-launch-screensaver", "wpctl", "xdg-open"};
 

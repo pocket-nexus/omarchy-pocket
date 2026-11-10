@@ -82,7 +82,7 @@ public final class LinuxService extends Service {
         if (!Linux.installed(this)) {
             File archive = Linux.archive(this);
             if (!archive.isFile()) {
-                Status.set(Status.State.MISSING, "No Linux root installed. Push " + Linux.ARCHIVE + " to Android/data/" + getPackageName() + "/files (bun tools/android.ts push-rootfs), or press START to choose it.", -1);
+                Status.set(Status.State.MISSING, "No Linux root installed. Download " + Linux.ARCHIVE + " from " + Linux.RELEASES + ", then press START and choose it.", -1);
                 foreground("No Linux root installed");
                 return;
             }

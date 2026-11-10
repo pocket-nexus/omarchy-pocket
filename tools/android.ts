@@ -16,6 +16,9 @@
 //                                   through run-as (a debuggable build: apk --debug), as SSH
 //                                   reaches the RG DS Plus
 //   bun tools/android.ts all        lib, proot, daemon, shell, applets, apk, install
+//   bun tools/android.ts release    lib, proot, daemon, shell, applets, apk, rootfs, then the
+//                                   release's files in dist/android/<version>/: the APK
+//                                   signed with the release key, the root, SHA256SUMS
 //
 // Outputs:
 //   android/app/src/main/jniLibs/arm64-v8a/libomarchy_pocket.so   (ignored)
@@ -25,12 +28,13 @@
 //   android/app/src/main/assets/linux/                            (ignored: omarchy-pocketd.js, ghostty-vt.wasm, shim.js)
 //   android/app/build/outputs/apk/release/app-release.apk
 //   .cache/android/omarchy-pocket-root.tar.zst
+//   dist/android/<version>/omarchy-pocket-<version>.apk, omarchy-pocket-root.tar.zst, SHA256SUMS
 //
 // Needs the Android SDK and NDK (ANDROID_HOME, ANDROID_NDK_HOME or their
 // Homebrew places), cargo-ndk, the aarch64-linux-android Rust target and
 // libclang (rquickjs's bindings for Android come from bindgen).
 import { $ } from "bun";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
@@ -149,11 +153,16 @@ async function daemon() {
 /** What only the RG DS Plus uses: its GPU blob, the host program and the
  *  package it runs, its boot and device services, the RG DS Plus's applet
  *  builds (the app carries the Thor's), voice input's model (proot reaches
- *  no microphone), and documentation. */
+ *  no microphone), and documentation. And the secret half of the pacman
+ *  keyring's local master key, which pacman-key --init made when the image
+ *  was built: a published root would give every device the same one.
+ *  Signature checks need only the public keyring and trustdb, which stay;
+ *  pacman-key --init makes a device its own key. */
 const ROOTFS_EXCLUDE = [
   "./boot/*", "./usr/lib/mali", "./usr/bin/omarchy-pocket-host", "./usr/share/pocketjs", "./usr/lib/pocket-rgds",
   "./usr/share/omarchy-pocket/applets/*", "./usr/lib/omarchy-pocket/asr", "./usr/lib/modules", "./usr/lib/firmware",
   "./var/cache/pacman/pkg/*", "./usr/share/doc/*", "./usr/share/man/*", "./usr/share/info/*", "./usr/share/gtk-doc/*",
+  "./etc/pacman.d/gnupg/private-keys-v1.d/*", "./etc/pacman.d/gnupg/openpgp-revocs.d/*", "./etc/pacman.d/gnupg/secring.gpg",
 ];
 
 async function rootfs() {
@@ -275,6 +284,14 @@ function manifest(): string {
 
 async function shell() {
   if (!existsSync(join(ROOT, "shell", "src", "generated", "menu.ts"))) throw new Error("no generated menu; run: bun tools/omarchy-assets.ts");
+  // the shell imports solid-js from the project root, where the compiler resolves
+  // it; the copy is PocketJS's own (vendor/pocketjs, after its bun install)
+  const solid = join(ROOT, "node_modules", "solid-js");
+  if (!existsSync(join(POCKETJS, "node_modules", "solid-js"))) throw new Error("no solid-js in vendor/pocketjs; run bun install there");
+  if (!existsSync(solid)) {
+    mkdirSync(join(ROOT, "node_modules"), { recursive: true });
+    symlinkSync(join("..", "vendor", "pocketjs", "node_modules", "solid-js"), solid);
+  }
   const path = manifest();
   mkdirSync(join(OUTPUTS.shell, ".."), { recursive: true });
   await $`bun ${join(POCKETJS, "tools", "pocket.ts")} compile --manifest ${path} --project-root . --host-config ${CONFIG} --plan-dir ${join(CACHE, "shell", "plan")} --output ${OUTPUTS.shell}`.cwd(ROOT);
@@ -288,6 +305,54 @@ async function apk() {
   if (!existsSync(join(OUTPUTS.linux, "omarchy-pocketd.js"))) throw new Error(`no daemon in ${OUTPUTS.linux}; run: bun tools/android.ts daemon`);
   await $`./gradlew --quiet ${DEBUG ? "assembleDebug" : "assembleRelease"}`.cwd(join(ROOT, "android")).env({ ...process.env, ANDROID_HOME: sdk });
   console.log(`apk: ${OUTPUTS.apk}`);
+}
+
+/** The release key's properties file (android/app/build.gradle.kts reads the same one). */
+const SIGNING = process.env.OMARCHY_POCKET_SIGNING ?? join(process.env.HOME ?? "", ".config", "omarchy-pocket", "signing.properties");
+
+/** The SHA-256 of the certificate that signs an APK, from apksigner. */
+async function signer(apk: string): Promise<string> {
+  const tools = join(sdk, "build-tools");
+  const version = readdirSync(tools).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).at(-1);
+  const out = await $`${join(tools, version!, "apksigner")} verify --print-certs ${apk}`.text();
+  const digest = out.match(/certificate SHA-256 digest: ([0-9a-f]{64})/)?.[1];
+  if (!digest) throw new Error(`apksigner printed no certificate for ${apk}`);
+  return digest;
+}
+
+/** A release's files: every step from source, the APK signed with the release
+ *  key, the root, and their SHA-256 sums, in dist/android/<version>/. The
+ *  version is the app's versionName. */
+async function release() {
+  if (DEBUG) throw new Error("a release is the release build; drop --debug");
+  if (!existsSync(SIGNING)) throw new Error(`no ${SIGNING}: the release key's properties (storeFile, storePassword, keyAlias, keyPassword)`);
+  const gradle = readFileSync(join(APP, "build.gradle.kts"), "utf8");
+  const version = gradle.match(/versionName = "([^"]+)"/)?.[1];
+  if (!version) throw new Error("no versionName in android/app/build.gradle.kts");
+  await lib();
+  await proot();
+  await daemon();
+  await shell();
+  await applets([]);
+  await apk();
+  await rootfs();
+  const debugKey = join(process.env.HOME ?? "", ".android", "debug.keystore");
+  const cert = await signer(OUTPUTS.apk);
+  if (existsSync(debugKey)) {
+    const debugCert = (await $`keytool -exportcert -keystore ${debugKey} -alias androiddebugkey -storepass android`.arrayBuffer());
+    const digest = new Bun.CryptoHasher("sha256").update(new Uint8Array(debugCert)).digest("hex");
+    if (digest === cert) throw new Error("the APK is signed with the debug key; check the release key's properties");
+  }
+  const out = join(ROOT, "dist", "android", version);
+  rmSync(out, { recursive: true, force: true });
+  mkdirSync(out, { recursive: true });
+  const files = [`omarchy-pocket-${version}.apk`, "omarchy-pocket-root.tar.zst"];
+  await $`cp ${OUTPUTS.apk} ${join(out, files[0]!)}`;
+  await $`cp ${OUTPUTS.rootfs} ${join(out, files[1]!)}`;
+  await $`shasum -a 256 ${files} > SHA256SUMS`.cwd(out);
+  console.log(`release ${version}: ${out}`);
+  console.log(`  signer certificate SHA-256: ${cert}`);
+  console.log((await $`cat SHA256SUMS`.cwd(out).text()).trimEnd());
 }
 
 async function install() {
@@ -306,6 +371,7 @@ switch (command) {
   case "install": await install(); break;
   case "rootfs": await rootfs(); break;
   case "push-rootfs": await pushRootfs(); break;
+  case "release": await release(); break;
   case "exec": await exec(process.argv.slice(3).filter((a) => a !== "--debug").join(" ")); break;
   case "all":
     await lib();
@@ -317,6 +383,6 @@ switch (command) {
     await install();
     break;
   default:
-    console.error("usage: bun tools/android.ts lib|proot|daemon|shell|applets|apk|install|rootfs|push-rootfs|exec|all [--debug]");
+    console.error("usage: bun tools/android.ts lib|proot|daemon|shell|applets|apk|install|rootfs|push-rootfs|exec|all|release [--debug]");
     process.exit(2);
 }

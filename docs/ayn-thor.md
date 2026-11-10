@@ -135,7 +135,7 @@ The Network panel is PocketJS's `system.wifi` ([omarchy-pocket.md](omarchy-pocke
 
 ## Build and install
 
-Needs the Android SDK and NDK (Homebrew's `android-commandlinetools` places are the defaults), `cargo-ndk`, the `aarch64-linux-android` Rust target, libclang (rquickjs ships no bindings for Android; bindgen writes them against the NDK's headers), zstd and bsdtar.
+Needs the Android SDK and NDK (Homebrew's `android-commandlinetools` places are the defaults), `cargo-ndk`, the `aarch64-linux-android` Rust target, libclang (rquickjs ships no bindings for Android; bindgen writes them against the NDK's headers), zstd and bsdtar. The tools run on Bun 1.4.2 (`vendor/pocketjs/.bun-version`; an older Bun cannot read the lockfiles), after `bun install` in `vendor/pocketjs` and `daemon`, and `POCKETJS_ROOT=../pocketjs bun tools/setup.ts` in `vendor/applets` (it links the applets to PocketJS's packages).
 
 ```sh
 bun tools/omarchy-assets.ts         # once, as for the RG DS Plus
@@ -146,7 +146,25 @@ bun tools/android.ts apk --debug && bun tools/android.ts install --debug
 bun tools/android.ts exec 'omarchy-shell pocket.window list'   # a command in the root (debug builds: run-as)
 ```
 
-The APK is signed with the debug key in both build types, so either replaces the other.
+**Signing.** The release build is signed with the release key when its properties file exists, and with the debug key otherwise; the debug build always takes the debug key. The file is `~/.config/omarchy-pocket/signing.properties`, or the path in `OMARCHY_POCKET_SIGNING`, outside the repository: `storeFile` (relative to the file), `storePassword`, `keyAlias`, `keyPassword`. Android installs an update only over an app signed with the same certificate, so a device with a debug build uninstalls it, and the root with it, before it takes a release. The release certificate's SHA-256 is `b5:57:19:34:62:c8:13:f8:73:c3:02:f9:ae:88:5f:3a:5b:78:1c:2c:87:5e:d1:84:ae:cd:8a:e1:c6:41:7f:5a` (CN=Omarchy Pocket, O=Pocket Nexus, RSA 4096, valid to 2054).
+
+## Releases
+
+`bun tools/android.ts release` runs every step from source (`lib`, `proot`, `daemon`, `shell`, `applets`, `apk`, `rootfs`) and writes `dist/android/<version>/`:
+
+| File | What |
+|---|---|
+| `omarchy-pocket-<version>.apk` | the app, signed with the release key; the command stops when the APK's certificate is the debug key's |
+| `omarchy-pocket-root.tar.zst` | the Linux root |
+| `SHA256SUMS` | both files' SHA-256 |
+
+The version is `versionName` in `android/app/build.gradle.kts`; a release raises `versionCode` with it. The files go to a GitHub release tagged `v<version>` (`gh release create v<version> dist/android/<version>/*`), which the app's status band names when no root is installed.
+
+**Without a computer.** The app's status band asks for the root while none is installed; START opens Android's file picker, the app copies the archive it is given and installs it. A later release installs over the app and keeps the root: each start puts that release's daemon, `start.sh`, shims and applets into the root (`Linux.prepare`).
+
+**What the root carries.** `image/build-root.ts` makes the user `omarchy` with the password `omarchy` (root's is `root`) and writes no network, SSH, Tailscale or account state: `/etc/NetworkManager/system-connections` and `/root/.ssh` are empty and the image has no SSH host keys. `pacman-key --init` made the keyring's local master key when the image was built; `rootfs` leaves out its secret half (`private-keys-v1.d`, `openpgp-revocs.d`, `secring.gpg`), so devices do not share one. Signature checks read only the public keyring and the trustdb, which stay.
+
+**Third-party programs in the release.** The APK carries Termux's proot 5.1.107 (GPL-2.0, [termux/proot](https://github.com/termux/proot)), libtalloc 2.5.0 (LGPL-3.0, [talloc.samba.org](https://talloc.samba.org/)) and libandroid-shmem 0.7 (BSD-3-Clause, [termux/libandroid-shmem](https://github.com/termux/libandroid-shmem)), unmodified apart from proot's NEEDED entry; the root is Arch Linux ARM's packages, each with its licence in `/usr/share/licenses`, built from the PKGBUILDs at [archlinuxarm/PKGBUILDs](https://github.com/archlinuxarm/PKGBUILDs) and Arch's [packaging repositories](https://gitlab.archlinux.org/archlinux/packaging/packages), and Omarchy ([basecamp/omarchy](https://github.com/basecamp/omarchy), MIT).
 
 ## Limits
 
