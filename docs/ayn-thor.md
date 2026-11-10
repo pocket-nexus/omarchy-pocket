@@ -31,7 +31,7 @@ The runtime requires an auxiliary display of exactly its logical size times the 
 - **Stage:** the window manager's area, the bar, the card (centred: 140 points from each side on the Thor), the OSD (96 points above the bottom), the lock clock (on the stage's middle), the screensaver, the key sheet and the QR sheet (12 points from the sides, 24 from the top).
 - **Wallpaper:** the daemon cuts the background to the stage's pixels (`size` in the `wallpaper` request) in tiles of at most 512 texels, padded to a power of two at the right and bottom edges: 4 × 3 tiles on the Thor's 1920 × 1080, 2 × 2 on the RG DS Plus. The shell places each at its texels over the density, inside a frame that clips the padding. The package's own four tiles (4:3) cover the stage, scaled, until the daemon answers.
 - **Deck:** the keys are a tenth of the deck's width; the trackpad is the width less two 62-point margins (289 points); the strip's preedit is 106 points; the pad's hint goes on two lines when one is wider than the pad.
-- **Home** (`shell/src/deck/home.tsx`): the RG DS Plus's columns beside the map (the workspaces and the layout on the left, the panels on the right) leave a 16:9 map at 0.43 on a 413-point deck, half the columns' height. A deck narrower than 480 points lays Home out as Omarchy's bar does: one 36-point row along the top with the workspaces and the layout badge on the left and the panels on the right, the map across the width under it (401 × 226 points, 0.63), and the pins as a row of 52 × 40-point icons on the bottom edge, 6 points in, as the top row is from the strip. The tabs share the row's width with the panels (34 points each with four panels).
+- **The pad layout** (`shell/src/deck/strip.tsx`, `shell/src/deck/dock.tsx`): the function row holds the logo, Esc, the workspaces, the layout badge (46 points) and the panels in one row, 26 points a tab with four panels (22 with a touch app's Back arrow); the pins sit along the bottom between Hold and Close (37 × 44-point icons in the trackpad's 289-point width), and the trackpad takes the 289 × 264 points above them. With the keys unfolded the trackpad is 289 × 136.
 - **Legend:** the controls' columns sit 84 points in from each side. `XBOX_FACES` (the Thor) draws the faces in Xbox order (Y top, X left, B right, A bottom) and the stick above the D-pad, as on the device; the RG DS Plus keeps Nintendo order. A button keeps its meaning by its label: A confirms on both.
 
 ## The app
@@ -105,11 +105,23 @@ A press and release inside one tick still counts (the input source latches press
 | `bluetooth` | the adapter's state |
 | power panel's brightness | the system brightness, or what the panel set |
 
-The daemon hands the app commands as one JSON file each in `$XDG_RUNTIME_DIR/omarchy-pocket/android-commands/`, renamed into place; a FileObserver runs and removes them: `volume`, `mute`, `brightness` (both windows' `screenBrightness`, no permission needed), `settings` (Android's Wi-Fi, Internet, Bluetooth, volume, display or battery panel) and `open` (a URL). The panels (`daemon/panels.ts`) use them: the Sound panel's slider sets the media volume; Wi-Fi and Bluetooth actions open Android's panels, where Android lists, joins and pairs (an app lists nearby networks only with location access). The daemon watches neither logind nor evdev there: the app sends the shell `sleep` when the screen goes off and handles the volume keys.
+The daemon hands the app commands as one JSON file each in `$XDG_RUNTIME_DIR/omarchy-pocket/android-commands/`, renamed into place; a FileObserver runs and removes them: `volume`, `mute`, `brightness` (both windows' `screenBrightness`, no permission needed), `settings` (Android's Wi-Fi, Internet, Bluetooth, volume, display or battery panel) and `open` (a URL). The panels (`daemon/panels.ts`) use them: the Sound panel's slider sets the media volume; Bluetooth actions open Android's Bluetooth panel, where Android pairs. The Network panel is not the daemon's here (next section). The daemon watches neither logind nor evdev there: the app sends the shell `sleep` when the screen goes off and handles the volume keys.
 
 Two more shims for Omarchy's scripts, installed by the app in `/usr/local/bin`: `wpctl` (`get-volume`, `set-volume`, `set-mute` on the media volume) and `xdg-open` (a URL opens in Android's browser; anything else goes to `/usr/bin/xdg-open`). `hyprctl monitors` describes the Thor's two displays.
 
 **Verified:** the bar shows the battery charging, the volume and Bluetooth from Android; with no network connected it shows none, and an applet's request fails at DNS (`EAI_AGAIN`) in the daemon.
+
+## Wi-Fi
+
+The Network panel is PocketJS's `system.wifi` ([omarchy-pocket.md](omarchy-pocket.md), System capabilities), the same shell code as on the RG DS Plus. `host/src/android.rs` `AndroidWifi` answers it: `Native.start` hands the program the app's `Wifi` object, and each op is a JNI call on the shell's thread (`status`, `setEnabled`, `scan`, `join`, `connect`, `forget`, `disconnect`, `openSettings`). `Wifi.java` keeps the status JSON, built again on the main thread when a Wi-Fi, network, scan, RSSI, supplicant or location-mode broadcast arrives, so `status` reads a string and never waits on Android.
+
+- **targetSdk 28** (`android/app/build.gradle.kts`): Android answers an app that targets Android 9 with Android 9's WifiManager, which turns the radio on and off, adds and enables networks, lists every saved network and removes the ones the app added. Apps that target Android 10 and later get none of these. The modern path stays in `Wifi.java` behind `legacy` (the system's "add network" dialog with a `WifiNetworkSuggestion`).
+- **Location:** Android lists networks only to an app with location access and with location on. The first scan asks for it on the upper screen (`MainActivity.ASK_LOCATION`); until then the panel shows the reason as its error row.
+- **Join:** `addNetwork` with WPA2-PSK, SAE when the scan shows an SAE-only network, or no key without a passphrase, then `enableNetwork`. An enterprise (EAP) network opens Android's Wi-Fi panel. A passphrase the network refuses comes back in the supplicant broadcast's `ERROR_AUTHENTICATING`, and the panel shows "Wrong password for <ssid>".
+- **Saved networks:** the slots are `getConfiguredNetworks` in Android's order, which lists the networks Android's own settings saved as well (three on the test unit). Connect enables any of them; forget removes the ones this app added, and a network Android's own settings saved opens Android's panel with the reason.
+- **System Wi-Fi settings:** a row that opens `Settings.Panel.ACTION_WIFI` over the stage.
+
+**Verified** (2026-11-10, Android 13): the panel lists the scan with signal and lock icons and follows new networks while open; Wi-Fi off and on from the panel (`cmd wifi status`); a scan (`WifiService: startScan uid=10117`); the location prompt on the upper screen; Android's Wi-Fi panel opens over the stage and Back returns to it; a join with a wrong passphrase saves the network (`cmd wifi list-networks`), Android reports `ERROR_AUTH_FAILURE_WRONG_PSWD` and the panel shows the reason; Y forgets it and Android's list is as before. A successful join, the connected row and disconnect were not run (no passphrase for a network in range).
 
 ## Applets
 
@@ -140,6 +152,6 @@ The APK is signed with the debug key in both build types, so either replaces the
 
 - **Sound from the root:** no PipeWire runs in it, so the media plane's `pw-play`, Spotify's speaker and anything a terminal program plays are silent. Android's volume and mute work.
 - **Voice input:** proot reaches no microphone; the image's ASR model is left out.
-- **Wi-Fi:** the network panel shows the connected network only; joining goes through Android's panel.
+- **Wi-Fi:** a network Android's own settings saved is forgotten in Android's panel, not from Omarchy's. A saved network with a wrong passphrase is forgotten (Y) and joined again.
 - **Burn-in protection:** the Thor's own "Burn-in Protection Refresher" (AYN's Odin settings) covers both displays from time to time while they are static, and takes the next input; Android lets an app neither turn it off nor draw over it.
 - **Applets:** GitHub and Weather wait for the applet budget or their atlases to fit at density 3.

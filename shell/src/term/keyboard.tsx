@@ -21,6 +21,7 @@ import { after } from "@pocketjs/framework/clock";
 import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
 import { keySink } from "../focus.ts";
+import { sendRepeat } from "../keys.ts";
 import { watching } from "../remote-input.ts";
 import { color } from "../theme.ts";
 import { chinese, route, toggleChinese } from "./ime.ts";
@@ -261,7 +262,7 @@ export function keyboardTouch(frame: TouchFrame, mode: KeyboardMode) {
     const key = keyAt(keys, c.x, c.y);
     if (key?.repeat && h.repeats < REPEAT_MAX && h.frames > REPEAT_AFTER && (h.frames - REPEAT_AFTER) % REPEAT_EVERY === 0) {
       h.repeats++;
-      press(key);
+      sendRepeat(() => press(key));
     }
   }
   for (const t of frame.taps) held.delete(t.id);

@@ -25,9 +25,9 @@
 #![cfg(target_os = "android")]
 
 use jni::{
-    objects::{JClass, JObject, JString},
+    objects::{GlobalRef, JClass, JObject, JString, JValue},
     sys::{jboolean, jfloat, jint, JNI_TRUE},
-    JNIEnv,
+    JNIEnv, JavaVM,
 };
 use pocket_drivers::{AxisSample, CancelledContact, Clock, Contact, DisplayRole, InputClasses, InputFrameBuilder, InputSource};
 use pocket_linux_hooks::{FileSource, MonotonicClock};
@@ -55,6 +55,7 @@ mod gpu;
 mod guest;
 mod media;
 mod net;
+mod system;
 
 #[allow(dead_code)] // The export defines every fact; the program reads some.
 mod profile {
@@ -183,6 +184,79 @@ impl InputSource for AndroidInput {
     }
 }
 
+// ---- PocketJS's system.wifi on Android ---------------------------------------------
+
+/// `system.wifi` answered by the app's `Wifi` (Wifi.java: WifiManager), called
+/// over JNI from the shell's thread, which attaches to the VM once.
+struct AndroidWifi {
+    /// the VM and the app's `Wifi`, from `Native.start`
+    java: &'static (JavaVM, GlobalRef),
+}
+
+impl AndroidWifi {
+    /// Runs `f` on the shell's thread's JNI environment; None when it threw.
+    fn with_env<T>(&self, f: impl FnOnce(&mut JNIEnv<'_>, &JObject<'_>) -> jni::errors::Result<T>) -> Option<T> {
+        let (vm, wifi) = self.java;
+        let mut env = vm.attach_current_thread_permanently().ok()?;
+        let result = f(&mut env, wifi.as_obj());
+        if env.exception_check().unwrap_or(false) {
+            let _ = env.exception_describe();
+            let _ = env.exception_clear();
+            return None;
+        }
+        result.ok()
+    }
+    fn call_bool(&self, name: &str, signature: &str, args: &[JValue]) -> bool {
+        self.with_env(|env, wifi| env.call_method(wifi, name, signature, args)?.z()).unwrap_or(false)
+    }
+}
+
+impl system::Wifi for AndroidWifi {
+    fn status(&mut self) -> String {
+        self.with_env(|env, wifi| {
+            let text = JString::from(env.call_method(wifi, "status", "()Ljava/lang/String;", &[])?.l()?);
+            let status = env.get_string(&text).map(String::from);
+            env.delete_local_ref(text)?;
+            status
+        })
+        .unwrap_or_default()
+    }
+    fn set_enabled(&mut self, on: bool) -> bool {
+        self.call_bool("setEnabled", "(Z)Z", &[JValue::Bool(u8::from(on))])
+    }
+    fn connect(&mut self, slot: u32) -> bool {
+        self.call_bool("connect", "(I)Z", &[JValue::Int(slot as i32)])
+    }
+    fn scan(&mut self) -> bool {
+        self.call_bool("scan", "()Z", &[])
+    }
+    fn join(&mut self, ssid: &str, passphrase: &str) -> bool {
+        self.with_env(|env, wifi| {
+            let (ssid, passphrase) = (env.new_string(ssid)?, env.new_string(passphrase)?);
+            let joined = env.call_method(wifi, "join", "(Ljava/lang/String;Ljava/lang/String;)Z", &[JValue::Object(&ssid), JValue::Object(&passphrase)])?.z();
+            env.delete_local_ref(ssid)?;
+            env.delete_local_ref(passphrase)?;
+            joined
+        })
+        .unwrap_or(false)
+    }
+    fn forget(&mut self, slot: u32) -> bool {
+        self.call_bool("forget", "(I)Z", &[JValue::Int(slot as i32)])
+    }
+    fn disconnect(&mut self) -> bool {
+        self.call_bool("disconnect", "()Z", &[])
+    }
+    fn has_settings(&self) -> bool {
+        true
+    }
+    fn open_settings(&mut self) -> bool {
+        self.call_bool("openSettings", "()Z", &[])
+    }
+}
+
+/// The VM and the app's `Wifi`, from `Native.start`.
+static WIFI: OnceLock<(JavaVM, GlobalRef)> = OnceLock::new();
+
 // ---- the shell's thread ----------------------------------------------------------
 
 struct Options {
@@ -276,6 +350,10 @@ fn run(options: Options) -> Result<(), Box<dyn Error>> {
     let children = children::Children::new(net.clone());
     let mut guest = guest::BridgedGuest::new(bridge, repaint.clone(), traffic.clone(), profile_request.clone(), children.clone(), net);
     guest.set_injected(Box::new(|| std::mem::take(&mut *shared().events.lock().unwrap())));
+    // PocketJS's system.wifi: Android's WifiManager through the app's Wifi
+    if let Some(java) = WIFI.get() {
+        guest.set_wifi(std::rc::Rc::new(std::cell::RefCell::new(AndroidWifi { java })));
+    }
     runtime.set_guest(Box::new(guest)).map_err(error)?;
     // the boot presents a first frame: it waits for the upper display's
     // window (the lower one may be switched off) and briefly for the lower's
@@ -350,8 +428,11 @@ fn string(env: &mut JNIEnv, value: &JString) -> String {
 /// Starts the shell's thread once per process: the shell outlives the
 /// activity, which only lends it windows.
 #[no_mangle]
-pub extern "system" fn Java_dev_pocketnexus_omarchy_Native_start(mut env: JNIEnv, _: JClass, package: JString, bridge: JString, root: JString) {
+pub extern "system" fn Java_dev_pocketnexus_omarchy_Native_start(mut env: JNIEnv, _: JClass, package: JString, bridge: JString, root: JString, wifi: JObject) {
     stderr_to_logcat();
+    if let (Ok(vm), Ok(wifi)) = (env.get_java_vm(), env.new_global_ref(&wifi)) {
+        let _ = WIFI.set((vm, wifi));
+    }
     // the daemon's paths (wallpaper tiles, glyph atlases, applets) lie under the Linux root
     guest::set_guest_root(string(&mut env, &root).into());
     let options = Options { package: string(&mut env, &package).into(), bridge: string(&mut env, &bridge).into() };

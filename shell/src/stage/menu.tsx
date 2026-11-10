@@ -1,6 +1,6 @@
-// Omarchy's menu in the stage's card (L1 + A, the function row's logo, Home's
-// add cell, or `omarchy-shell shell summon omarchy.menu`). An Apps row with a
-// pin at its end is on Home; Y pins and unpins the selected one (deck/pins.ts). It has the keys while it is
+// Omarchy's menu in the stage's card (L1 + A, the function row's logo, or
+// `omarchy-shell shell summon omarchy.menu`). An Apps row with a pin at its
+// end is among the deck's pins (deck/dock.tsx); Y pins and unpins the selected one (deck/pins.ts). It has the keys while it is
 // up: typing filters the level's rows as Omarchy's walker menu does, and at
 // the root also looks through every app, best match first, so a name and Enter
 // open it. The arrows move, Enter (or Right) opens, Backspace takes a filter
@@ -20,6 +20,7 @@ import { cjk } from "../glyphs.ts";
 import { C } from "../classes.ts";
 import { MENU } from "../generated/menu.ts";
 import { conditionsOf, pathTo, PROVIDERS, providerRows, ROOT_TITLE, row, shown, type MenuItem, type MenuLevel, type Truth } from "../menu.ts";
+import { keyRepeating } from "../keys.ts";
 import { serve } from "../system.ts";
 import { applets } from "../applets/applet.ts";
 import { openWindow } from "../windows.ts";
@@ -84,7 +85,7 @@ export function closeMenu() {
 }
 const [truth, setTruth] = createSignal<Truth>({});
 const level = () => stack()[stack().length - 1]!;
-/** Every app, as Apps lists it, for the root's search and Home's pins. */
+/** Every app, as Apps lists it, for the root's search and the deck's pins. */
 const [allApps, setAllApps] = createSignal<MenuItem[]>([]);
 export { allApps };
 
@@ -140,10 +141,13 @@ function select(index: number) {
   list?.reveal(index, shownRows.length);
 }
 
+/** Up from the first row goes to the last (Apps to System), Down from the
+ *  last to the first; a held arrow's repeats stop at the end. */
 function move(delta: number) {
-  const shownRows = rows(level());
-  if (!shownRows.length) return;
-  select(Math.max(0, Math.min(shownRows.length - 1, indexIn(level()) + delta)));
+  const n = rows(level()).length;
+  if (!n) return;
+  const next = indexIn(level()) + delta;
+  select(keyRepeating() ? Math.max(0, Math.min(n - 1, next)) : (next + n) % n);
 }
 
 function push(item: MenuItem) {
@@ -173,7 +177,7 @@ function setFilter(filter: string) {
   if (first) update((v) => ({ ...v, selected: first.id }));
 }
 
-/** The menu, open at Apps (Home's add cell). */
+/** The menu, open at Apps. */
 export function showApps() {
   refreshApps();
   openAppsList();
@@ -186,7 +190,7 @@ export const selectedItem = (): MenuItem | undefined => {
   return rows(l)[indexIn(l)];
 };
 
-/** Opens an Apps row as the menu does (Home's pins). */
+/** Opens an Apps row as the menu does (the deck's pins). */
 export const openItem = (item: MenuItem) => activate(item);
 
 /** The root level with Apps open. */
@@ -240,7 +244,7 @@ const appRows = (): Promise<MenuItem[]> => {
   );
 };
 
-/** The search's apps, read again each time the menu opens or Home shows: one may have been installed. */
+/** The search's apps, read again each time the menu opens or the deck's pins show: one may have been installed. */
 export function refreshApps() {
   void appRows().then(setAllApps);
 }

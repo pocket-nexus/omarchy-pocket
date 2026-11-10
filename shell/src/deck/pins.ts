@@ -1,9 +1,9 @@
-// Apps pinned under the Home map, each one press from open. A pin is an Apps
-// row's id (stage/menu.tsx); omarchy-pocketd keeps the list in
-// ~/.local/state/omarchy-pocket/pins.json. Until something is pinned or
-// unpinned the row holds DEFAULT_PINS, those of them this device has. Home
-// edits them in place (deck/home.tsx); the menu pins and unpins its selected
-// app too (Y, or the function row's Pin).
+// Apps pinned along the bottom of the deck's pad layout, each one press from
+// open. A pin is an Apps row's id (stage/menu.tsx); omarchy-pocketd keeps the
+// list in ~/.local/state/omarchy-pocket/pins.json. Until something is pinned
+// or unpinned the row holds DEFAULT_PINS, those of them this device has. The
+// pad layout edits them in place (deck/dock.tsx); the menu pins and unpins its
+// selected app too (Y, or the function row's Pin).
 import { createSignal } from "solid-js";
 import { request } from "../bridge.ts";
 import type { MenuItem } from "../menu.ts";
@@ -18,6 +18,10 @@ const DEFAULT_PINS = ["Terminal", "Agent", "YouTube", "X", "GitHub", "Weather"];
 const [saved, setSaved] = createSignal<string[] | null>(null);
 void request<string[] | null>({ method: "pins" }).then(setSaved, () => {});
 
+/** While pins are edited, every app lists where the trackpad was, and the
+ *  trackpad moves no pointer. */
+export const [pinsEditing, setPinsEditing] = createSignal(false);
+
 /** An Apps row: Terminal, Agent, an applet, a package or a terminal program. */
 export const pinnable = (item: MenuItem | undefined): item is MenuItem => !!item && item.id.startsWith("apps.");
 
@@ -30,7 +34,7 @@ export function pinIds(apps: readonly MenuItem[]): string[] {
 export function togglePin(item: MenuItem, apps: readonly MenuItem[]) {
   const now = pinIds(apps);
   if (now.includes(item.id)) return save(now.filter((id) => id !== item.id));
-  if (now.length >= MAX_PINS) return toast({ icon: PIN, title: `Home holds ${MAX_PINS} pins`, body: "Unpin one to make room", tone: "info" });
+  if (now.length >= MAX_PINS) return toast({ icon: PIN, title: `The deck holds ${MAX_PINS} pins`, body: "Unpin one to make room", tone: "info" });
   save([...now, item.id]);
 }
 

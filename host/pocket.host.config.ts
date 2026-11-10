@@ -4,10 +4,12 @@ import contract from "./pocket.host.json" with { type: "json" };
 
 /** Services the host program composes: both panels on the GPU, evdev buttons
  * and touch on the lower panel, baked glyphs, media through omarchy-pocketd,
- * and each app's worker domain, whose http node hands requests to
- * omarchy-pocketd (host/src/net.rs). */
+ * each app's worker domain, whose http node hands requests to
+ * omarchy-pocketd (host/src/net.rs), and the shell's system.wifi
+ * (host/src/system.rs: NetworkManager through omarchy-pocketd, or Android's
+ * WifiManager on the AYN Thor). */
 export const HOST_CAPABILITIES: readonly string[] = [
-  "input.buttons", "input.touch.auxiliary", "display.auxiliary", "text.glyphs.baked", "net.http", "media.playback", "runtime.worker",
+  "input.buttons", "input.touch.auxiliary", "display.auxiliary", "text.glyphs.baked", "net.http", "media.playback", "runtime.worker", "system.wifi",
 ];
 
 const selected = parsePocketProfile(contract);

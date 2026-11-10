@@ -1,5 +1,5 @@
-// What each chord does (chords.ts). Buttons, the home layout's badges, the
-// dock and the key sheet all end here, so a chord behaves the same however
+// What each chord does (chords.ts). Buttons, the deck's layout badge, the
+// stage's bar and the key sheet all end here, so a chord behaves the same however
 // it is given. An action that cannot happen says why in a notice, as Pocket
 // Shell's 3DS shell does.
 import { createEffect, createRoot } from "solid-js";

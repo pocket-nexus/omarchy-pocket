@@ -12,8 +12,9 @@ final class Native {
 
     /** Starts the shell's thread once per process, on the package at
      *  {@code pocket}, talking to omarchy-pocketd at {@code bridge}; the
-     *  daemon's absolute paths lie under {@code root}. */
-    static native void start(String pocket, String bridge, String root);
+     *  daemon's absolute paths lie under {@code root}; {@code wifi} answers
+     *  PocketJS's system.wifi for the shell. */
+    static native void start(String pocket, String bridge, String root, Wifi wifi);
 
     /** A display's surface: 0 the upper display, 1 the lower; null when it
      *  goes away. Returns once the shell's thread has taken it. */

@@ -10,20 +10,23 @@
 //                               theme picker), the OSD, notices and the
 //                               key sheet.
 //   The deck is the keyboard.   The bottom panel is a laptop's lower half: a
-//                               function row, keys and a trackpad. It has three
+//                               function row, keys and a trackpad. It has two
 //                               layouts and one rule picks them (focus.ts):
-//                               keys for what takes keys, the trackpad alone
-//                               for a touch app, home when nothing has focus.
-//                               The keyboard button and Home pick one by hand
-//                               until the focus changes; the row's logo opens
-//                               Omarchy's menu. While a shoulder is held the
-//                               deck draws the controls around it and what
-//                               each does (deck/legend.tsx).
+//                               keys for what takes keys, the pad for a touch
+//                               app and when nothing has focus. The pad is the
+//                               trackpad with the pins under it (deck/dock.tsx)
+//                               and the workspaces and the bar's panels in the
+//                               function row (deck/strip.tsx). The keyboard
+//                               button picks one by hand until the focus
+//                               changes; the row's logo opens Omarchy's menu.
+//                               While a shoulder is held the deck draws the
+//                               controls around it and what each does
+//                               (deck/legend.tsx).
 //   The gamepad is SUPER.       L1, R1 and both are the chord layers of
 //                               chords.ts and last as long as the shoulder;
 //                               with no shoulder the buttons are keys for
-//                               what has focus (keys.ts), SELECT turns the
-//                               deck's layout and L2/R2 step workspaces.
+//                               what has focus (keys.ts), SELECT unfolds or
+//                               folds the keys and L2/R2 step workspaces.
 //
 // A PocketJS package runs in a window like any other (packages.ts): a touch
 // app's touches come from the pad's pointer, and any other package gets the
@@ -45,15 +48,15 @@ import { request, type SystemState } from "./bridge.ts";
 import { chordFor, layerOf, MODIFIERS } from "./chords.ts";
 import { BODY_H, BODY_TOP, STRIP_H } from "./deck/geometry.ts";
 import { DeckLegend, tickLegend } from "./deck/legend.tsx";
-import { Home, homeTarget, homeTouch } from "./deck/home.tsx";
+import { Dock, dockTarget, dockTouch } from "./deck/dock.tsx";
 import { pressAt } from "./deck/press.ts";
 import { Strip, stripTarget, stripTouch } from "./deck/strip.tsx";
 import { pointerAwake, roundTarget, surfacePackage, Touchpad, touchpadTouch } from "./deck/touchpad.tsx";
 import { card, cardButton, closeCard } from "./stage/card.tsx";
 import { closeMenu } from "./stage/menu.tsx";
-import { cycleLayout, layout } from "./focus.ts";
+import { layout, toggleKeys } from "./focus.ts";
 import { setHeldLayer } from "./held.ts";
-import { buttonKey, fieldSink } from "./keys.ts";
+import { buttonKey, fieldSink, sendRepeat } from "./keys.ts";
 import { appletRefused, feedPackage, showPackage, mediaPlaying, touchAppButtons } from "./packages.ts";
 import { glide } from "./motion.ts";
 import { remoteButtons } from "./remote-input.ts";
@@ -169,7 +172,7 @@ export default function Shell() {
     }
     const chord = chordFor("plain", key);
     if (chord) return locked() ? undefined : perform(chord.action);
-    if (key & BTN.SELECT) return locked() ? undefined : cycleLayout();
+    if (key & BTN.SELECT) return locked() ? undefined : toggleKeys();
     if (!locked() && card() && cardButton(key)) return;
     // a package that is not a touch app takes the buttons itself, each frame (feed)
     if (!locked() && !fieldSink() && focusedPackage() && !focusedPackage()!.appletSurface) return;
@@ -201,10 +204,8 @@ export default function Shell() {
         keyboardTouch(frame, "body");
         return touchpadTouch(frame);
       case "pad":
+        dockTouch(frame);
         return touchpadTouch(frame);
-      case "home":
-        homeTouch(frame);
-        return [];
     }
   };
 
@@ -236,7 +237,7 @@ export default function Shell() {
     stickTick(!locked() && layerOf(buttons & MODIFIERS) === "move");
     for (const key of KEYS) {
       if (down & key) press(key, buttons);
-      else if (key & REPEATS & buttons && heldFor > REPEAT_AFTER && (heldFor - REPEAT_AFTER) % REPEAT_EVERY === 0) press(key, buttons);
+      else if (key & REPEATS & buttons && heldFor > REPEAT_AFTER && (heldFor - REPEAT_AFTER) % REPEAT_EVERY === 0) sendRepeat(() => press(key, buttons));
     }
     if (screensaverActive() && touch.raw) {
       stopScreensaver();
@@ -250,7 +251,7 @@ export default function Shell() {
 
     // the pressed look follows the oldest finger
     const first = touch.down[0];
-    pressAt(!first ? null : first.start.y < STRIP_H ? stripTarget(first.x) : layout() === "home" ? homeTarget(first.x, first.y - BODY_TOP) : roundTarget(first.x, first.y - BODY_TOP));
+    pressAt(!first ? null : first.start.y < STRIP_H ? stripTarget(first.x) : (dockTarget(first.x, first.y - BODY_TOP, first.moved) ?? roundTarget(first.x, first.y - BODY_TOP)));
     stripTouch(band(touch, 0, STRIP_H));
     const contacts = bodyTouch(band(touch, BODY_TOP, DECK_H));
     feed(buttons, contacts);
@@ -277,12 +278,13 @@ export default function Shell() {
             <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: DECK_H, opacity: locked() ? 0 : 1 }}>
               <View class="absolute left-0 overflow-hidden contain-strict" style={{ width: DECK_W, insetT: BODY_TOP, height: BODY_H }}>
                 {/* everything stays mounted and shows by opacity, so a change of
-                    focus repaints instead of building a layout */}
-                <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: BODY_H, opacity: layout() === "home" ? 1 : 0 }}>
-                  <Home />
-                </View>
-                <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: BODY_H, opacity: layout() === "home" ? 0 : 1 }}>
+                    focus repaints instead of building a layout; the dock
+                    draws after the trackpad, as its pin editor covers it */}
+                <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: BODY_H }}>
                   <Touchpad />
+                </View>
+                <View class="absolute left-0 top-0 contain-strict" style={{ width: DECK_W, height: BODY_H }}>
+                  <Dock />
                 </View>
                 <View
                   class="absolute left-0 top-0 contain-strict"

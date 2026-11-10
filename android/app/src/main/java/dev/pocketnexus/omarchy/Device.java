@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
-import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -22,7 +21,6 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 import java.io.File;
-import java.net.Inet4Address;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -177,7 +175,6 @@ final class Device {
         out.put("battery", battery == null ? JSONObject.NULL : battery);
         Network active = connectivity.getActiveNetwork();
         NetworkCapabilities caps = active != null ? connectivity.getNetworkCapabilities(active) : null;
-        LinkProperties link = active != null ? connectivity.getLinkProperties(active) : null;
         JSONObject net = new JSONObject().put("kind", "none").put("name", "").put("signal", JSONObject.NULL);
         if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
             net.put("kind", "ethernet").put("name", "Ethernet");
@@ -193,10 +190,6 @@ final class Device {
             net.put("kind", "wifi").put("name", name).put("signal", signal >= 0 ? signal : JSONObject.NULL);
         }
         out.put("network", net);
-        out.put("wifi", wifi.isWifiEnabled());
-        String address = "";
-        if (link != null) for (LinkAddress a : link.getLinkAddresses()) if (a.getAddress() instanceof Inet4Address) address = a.getAddress().getHostAddress();
-        out.put("address", address);
         out.put("audio", new JSONObject().put("volume", volumePercent()).put("muted", muted()));
         BluetoothManager bm = context.getSystemService(BluetoothManager.class);
         BluetoothAdapter adapter = bm != null ? bm.getAdapter() : null;

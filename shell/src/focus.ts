@@ -6,15 +6,16 @@
 //   the card        Omarchy's menu, a panel, the theme picker: the keys
 //                   (typing filters the menu, the arrows move, Enter opens,
 //                   Escape closes)
-//   a package       a touch app (X, Discord, YouTube, Hacker News): the pad,
-//                   the trackpad alone at its full size
+//   a package       a touch app (X, Discord, YouTube, Hacker News): the pad
 //   a window        a terminal, Notes, Activity, Clock, Pictures: the keys,
 //                   with the trackpad under them
-//   nothing         the home layout: the workspaces, their windows, the panels
+//   nothing         the pad
 //
-// The round keyboard button and the function row's Home choose a layout by
-// hand; the choice lasts until the thing in focus changes, and the rule picks
-// again. Nothing else ever puts anything on the deck.
+// The pad is the trackpad with the pins under it (deck/dock.tsx), and the
+// function row carries the workspaces and the bar's panels (deck/strip.tsx).
+// The round keyboard button (and SELECT) unfolds the keys or folds them away
+// by hand; the choice lasts until the thing in focus changes, and the rule
+// picks again. Nothing else ever puts anything on the deck.
 import { createEffect, createMemo, createRoot, createSignal, on } from "solid-js";
 import { appletOf } from "./applets/applet.ts";
 import { KEY_BUTTONS, NO_SINK, fieldSink, type KeySink, type Mods } from "./keys.ts";
@@ -24,7 +25,8 @@ import { terminalSink } from "./term/store.ts";
 import { current, focused } from "./workspaces.ts";
 import { watching } from "./watch.ts";
 
-export type Layout = "keys" | "pad" | "home";
+export type Layout = "keys" | "pad";
+export const LAYOUTS: readonly Layout[] = ["keys", "pad"];
 
 /** The sink the keys go to now. */
 export function keySink(): KeySink {
@@ -61,7 +63,7 @@ const rule = createMemo((): Layout => {
   if (fieldSink()) return "keys";
   if (card()) return "keys";
   const w = focused();
-  if (!w) return "home";
+  if (!w) return "pad";
   return w.kind === "app" ? (appletTyping(w.app) ? "keys" : "pad") : "keys";
 });
 
@@ -86,19 +88,8 @@ export function chooseLayout(next: Layout) {
   setChosen(next === rule() ? null : next);
 }
 
-/** The round button: the keys fold away and the trackpad takes their room, or back. */
+/** The round keyboard button and SELECT: the keys fold away and the dock
+ *  comes back around the trackpad, or the keys unfold over it. */
 export function toggleKeys() {
   chooseLayout(layout() === "keys" ? "pad" : "keys");
-}
-
-/** The function row's Home: the home layout, or back to what has focus. */
-export function toggleHome() {
-  if (layout() !== "home") return chooseLayout("home");
-  chooseLayout(rule() === "home" ? "keys" : rule());
-}
-
-const ORDER: Layout[] = ["keys", "pad", "home"];
-/** SELECT: the next layout round. */
-export function cycleLayout() {
-  chooseLayout(ORDER[(ORDER.indexOf(layout()) + 1) % ORDER.length]!);
 }

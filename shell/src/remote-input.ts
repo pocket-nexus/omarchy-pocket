@@ -13,7 +13,7 @@ import { BTN } from "@pocketjs/framework/input";
 import { holdStick } from "./stick.ts";
 import { serve } from "./system.ts";
 import { sendKey } from "./term/keyboard.tsx";
-import { chooseLayout, type Layout } from "./focus.ts";
+import { chooseLayout, LAYOUTS, type Layout } from "./focus.ts";
 import { click, movePointer, pointer } from "./stage/pointer.tsx";
 import { watchFor, watchTick, watching } from "./watch.ts";
 export { watching };
@@ -54,9 +54,9 @@ serve("pocket.input", {
   },
   /** a named key (Enter, Escape, Up, ...) on the keyboard */
   key: (name) => (sendKey(name ?? ""), "ok"),
-  /** the deck's layout, as the round keyboard button and Home pick it */
+  /** the deck's layout, keys or pad, as the round keyboard button picks it */
   layout: (name) => {
-    if (name !== "keys" && name !== "pad" && name !== "home") throw new Error(`no layout ${name}`);
+    if (!LAYOUTS.includes(name as Layout)) throw new Error(`no layout ${name}`);
     chooseLayout(name as Layout);
     return "ok";
   },
