@@ -6,8 +6,8 @@
 //   R1 held        move        the same verbs, moved: swap, maximize, spawn
 //   L1 + R1 held   workspace   the D-pad steps workspaces and carries windows
 //   neither        plain       the buttons are keys for what has focus
-//                              (keys.ts BUTTON_KEYS); SELECT turns the
-//                              deck's layout, L2/R2 step workspaces
+//                              (keys.ts BUTTON_KEYS); SELECT unfolds or
+//                              folds the deck's keys, L2/R2 step workspaces
 //
 // L2/R2 under a shoulder do what the 3DS's circle pad does: resize under L1,
 // pan the scrolling strip under R1. Under R1 either stick resizes the focused
@@ -312,7 +312,7 @@ export function keySheet(layout: Layout): { title: string; rows: SheetRow[] }[] 
       { keys: "d-pad", what: "arrows" },
       { keys: "A B X Y", what: "Enter Bksp Tab Space" },
       { keys: "START", what: "Escape" },
-      { keys: "SELECT", what: "Keys · Pad · Home" },
+      { keys: "SELECT", what: "keys on or off" },
       { keys: "L2 / R2", what: "switch workspace" },
     ],
   });

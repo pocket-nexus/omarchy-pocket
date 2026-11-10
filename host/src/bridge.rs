@@ -82,6 +82,12 @@ impl Bridge {
         self.next_attempt = Instant::now() + RETRY;
     }
 
+    /// The lines queued for the daemon, for tests of what goes on the bridge.
+    #[cfg(test)]
+    pub fn queued(&self) -> String {
+        String::from_utf8(self.outgoing.iter().copied().collect()).unwrap_or_default()
+    }
+
     /// Whether the connection closed since the last call: the daemon lost
     /// every request it had not answered.
     pub fn take_dropped(&mut self) -> bool {

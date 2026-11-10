@@ -28,6 +28,6 @@ export const XBOX_FACES = DEVICE === "ayn-thor";
 /** The stage's panel in pixels: the size the daemon cuts backgrounds to. */
 export const PANEL: [number, number] = [STAGE_W * DENSITY, STAGE_H * DENSITY];
 
-/** The deck's width against the RG DS Plus's 512 points: the keys and the
- *  home layout's columns scale by it. */
+/** The deck's width against the RG DS Plus's 512 points: the shoulder
+ *  legend and the pinyin candidates scale by it. */
 export const DECK_SCALE = DECK_W / 512;

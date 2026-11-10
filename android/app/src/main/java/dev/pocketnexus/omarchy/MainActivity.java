@@ -46,6 +46,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     static final int TOP_W = 1920, TOP_H = 1080, BOTTOM_W = 1239, BOTTOM_H = 1080;
 
     private static final int PICK_ROOT = 1;
+    /** Wifi's request for location access, which Android lists networks behind */
+    static final int ASK_LOCATION = 2;
 
     private final Gamepad gamepad = new Gamepad();
     private DisplayManager displays;
@@ -85,11 +87,19 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         stage.requestFocus();
         displays = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
         String pocket = Assets.shell(this);
-        Native.start(pocket, Linux.bridge(this), Linux.root(this).getAbsolutePath());
+        Wifi wifi = Wifi.get(this);
+        wifi.attach(this);
+        Native.start(pocket, Linux.bridge(this), Linux.root(this).getAbsolutePath(), wifi);
         LinuxService.start(this);
         device = new Device(this, this::setBrightness);
         device.start();
         started = true;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(request, permissions, results);
+        if (request == ASK_LOCATION) Wifi.get(this).permissionChanged();
     }
 
     @Override

@@ -13,7 +13,10 @@ android {
     defaultConfig {
         applicationId = "dev.pocketnexus.omarchy"
         minSdk = 29
-        targetSdk = 35
+        // Android 9's Wi-Fi APIs: the shell turns the radio on and off, joins,
+        // connects, disconnects and forgets networks itself (Wifi.java); an app
+        // targeting Android 10 or later leaves those to Android's Wi-Fi panel
+        targetSdk = 28
         versionCode = 1
         versionName = "0.1.0"
         ndk {

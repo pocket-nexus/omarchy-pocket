@@ -26,7 +26,7 @@
 //! drive it. Its events arrive with the daemon's lines. A daemon line that
 //! answers an app's HTTP request (`@net ...`, net.rs) goes to that app.
 use crate::bridge::Bridge;
-use crate::{children, net};
+use crate::{children, net, system};
 use pocket_guest_rquickjs::RquickjsGuest;
 use pocket_runtime::{Guest, GuestEnvironment, GuestFrame, OpArg, OpContext, OpResult, RuntimeError};
 use pocket_spec::op;
@@ -100,6 +100,8 @@ pub struct BridgedGuest {
     injected: Option<Box<dyn FnMut() -> Vec<String>>>,
     /// the profile's raster density, published as `omarchyBridge.density`
     density: u32,
+    /// `globalThis.wifi` (PocketJS system.wifi, system.rs) on this device's system
+    wifi: Option<system::SharedWifi>,
 }
 
 /// PSM_8888, the RGBA texture format of spec ops
@@ -141,7 +143,12 @@ fn load_texture(ops: &OpContext, path: &str, w: usize, h: usize) -> i64 {
 
 impl BridgedGuest {
     pub fn new(bridge: Rc<RefCell<Bridge>>, repaint: Repaint, traffic: Traffic, profile: ProfileRequest, children: children::Shared, net: net::Shared) -> Self {
-        Self { inner: RquickjsGuest::default(), bridge, ops: None, repaint, traffic, profile, children, net, injected: None, density: 2 }
+        Self { inner: RquickjsGuest::default(), bridge, ops: None, repaint, traffic, profile, children, net, injected: None, density: 2, wifi: None }
+    }
+
+    /// The device's provider of PocketJS's system.wifi (system.rs).
+    pub fn set_wifi(&mut self, wifi: system::SharedWifi) {
+        self.wifi = Some(wifi);
     }
 
     /// Lines the platform hands the shell as if the daemon had sent them,
@@ -237,7 +244,11 @@ impl BridgedGuest {
             // the surfaces' pixels per point: the wallpaper's tiles and the
             // run-time glyph atlases are made for it
             object.set("density", self.density)?;
-            ctx.globals().set("omarchyBridge", object)
+            ctx.globals().set("omarchyBridge", object)?;
+            match &self.wifi {
+                Some(wifi) => system::install_wifi(&ctx, wifi.clone()),
+                None => Ok(()),
+            }
         });
         match installed {
             Some(Ok(())) => Ok(()),
@@ -312,6 +323,13 @@ impl Guest for BridgedGuest {
                 net.fail_open();
             }
             lines.retain(|line| !net.reply(line));
+        }
+        if let Some(wifi) = &self.wifi {
+            let mut wifi = wifi.borrow_mut();
+            if dropped {
+                wifi.daemon_lost();
+            }
+            lines.retain(|line| !wifi.reply(line));
         }
         lines.extend(self.children.borrow_mut().take_events());
         if let Some(source) = self.injected.as_mut() {

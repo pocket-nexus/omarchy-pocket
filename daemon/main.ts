@@ -400,6 +400,17 @@ async function handle(socket: Socket<Peer>, request: Request) {
       case "network":
         result = await panels.network(!!request.rescan);
         break;
+      case "wifiStatus":
+        result = await panels.wifiStatus(false);
+        break;
+      case "wifiScan":
+        result = await panels.wifiStatus(true);
+        break;
+      case "wifiJoin":
+        await panels.wifiConnect(request.ssid, request.passphrase || undefined);
+        void refreshPart("network");
+        result = null;
+        break;
       case "wifiConnect":
         await panels.wifiConnect(request.ssid, request.password);
         void refreshPart("network");

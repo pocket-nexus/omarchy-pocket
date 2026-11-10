@@ -26,6 +26,7 @@
     "media.playback",
     "net.http",
     "runtime.worker",
+    "system.wifi",
     "text.glyphs.baked"
   ],
   "worker": {

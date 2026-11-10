@@ -39,6 +39,21 @@ export const BUTTON_KEYS: readonly [number, string][] = [
 export const KEY_BUTTONS: Record<string, number> = Object.fromEntries(BUTTON_KEYS.map(([b, k]) => [k, b]));
 export const buttonKey = (button: number) => BUTTON_KEYS.find(([b]) => b & button)?.[1];
 
+let repeating = false;
+/** The key a sink takes now is a held key's repeat (the D-pad, the keyboard's
+ *  arrows and Backspace), not a press: a list goes round past its end on a
+ *  press only, so a held arrow stops at the last row. */
+export const keyRepeating = () => repeating;
+/** Sends a held key's repeat. */
+export function sendRepeat(send: () => void) {
+  repeating = true;
+  try {
+    send();
+  } finally {
+    repeating = false;
+  }
+}
+
 /** A text field that has the keyboard: the lock, a panel's password. Set
  *  to null when the field is done. */
 const [field, setField] = createSignal<KeySink | null>(null);

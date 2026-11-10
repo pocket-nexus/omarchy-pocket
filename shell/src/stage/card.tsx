@@ -75,7 +75,7 @@ export function cardTitle(): string {
 function cardHint(): string {
   switch (card()) {
     case "menu":
-      return pinnable(selectedItem()) ? "type to filter · Enter opens · Y pins to Home" : "type to filter · ↑↓ move · Enter opens · Esc closes";
+      return pinnable(selectedItem()) ? "type to filter · Enter opens · Y pins to the deck" : "type to filter · ↑↓ move · Enter opens · Esc closes";
     case "panel":
       return "↑↓ move · ←→ adjust · Enter acts · Esc closes";
     case "picker":

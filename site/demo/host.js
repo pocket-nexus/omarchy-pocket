@@ -1,8 +1,10 @@
 // The browser's omarchy-pocket-host: the shell's real bundle on PocketJS's core
-// in WebAssembly, on two canvases, with createDaemon in place of omarchy-pocketd.
+// in WebAssembly, on two canvases, with createDaemon in place of omarchy-pocketd
+// and createWifi for the system's Wi-Fi.
 import { createWasmUi } from "../../vendor/pocketjs/platforms/web/wasm-ops.js";
 import { canvasRasterizer, installRuntimeGlyphs } from "../../vendor/pocketjs/platforms/web/runtime-glyphs.js";
 import { createDaemon } from "./daemon.js";
+import { createWifi } from "./wifi.js";
 
 export const BTN = { SELECT: 0x0001, START: 0x0008, UP: 0x0010, RIGHT: 0x0020, DOWN: 0x0040, LEFT: 0x0080, L1: 0x0100, R1: 0x0200, L2: 0x0400, R2: 0x0800, X: 0x1000, A: 0x2000, B: 0x4000, Y: 0x8000 };
 const W = 1024, H = 768, TICK = 1000 / 60;
@@ -45,6 +47,8 @@ export async function boot({ stage, deck, base = ".", onProgress = () => {}, onP
     powerProfile: () => true,
     openApp: () => -1, closeApp() {}, showApp() {}, appInput() {}, appText() {},
   };
+  // system.wifi, as the device programs install it (host/src/system.rs)
+  globalThis.wifi = createWifi({ onChange: (ssid) => daemon.connection(ssid) });
 
   const wasm = await createWasmUi(wasmBytes, { width: 512, height: 384, rasterDensity: 2, auxiliary: [512, 384] });
   wasm.boot(source, {

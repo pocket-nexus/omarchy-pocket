@@ -7,6 +7,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { ANDROID, androidCommand, androidState } from "./android.ts";
+import type { WifiStatus } from "../vendor/pocketjs/contracts/spec/wifi.ts";
 import { VOLUME_MAX, type AudioDevice, type AudioPanel, type BluetoothDevice, type BluetoothPanel, type NetworkPanel, type PowerPanel, type WifiNetwork } from "./protocol.ts";
 
 async function exec(argv: string[], input?: string): Promise<{ code: number; stdout: string; stderr: string }> {
@@ -38,12 +39,6 @@ function fields(line: string): string[] {
 }
 
 export async function network(rescan: boolean): Promise<NetworkPanel> {
-  // Android lists nearby networks to apps with location access only: the panel shows the connected one
-  if (ANDROID) {
-    const s = androidState();
-    const networks = s.network?.kind === "wifi" ? [{ ssid: s.network.name, signal: s.network.signal ?? 0, secure: true, active: true, known: true }] : [];
-    return { enabled: s.wifi, networks, address: s.address };
-  }
   const enabled = (await exec(["nmcli", "-t", "-f", "WIFI", "general"])).stdout.trim() === "enabled";
   const known = new Set(
     (await exec(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"])).stdout
@@ -69,9 +64,38 @@ export async function network(rescan: boolean): Promise<NetworkPanel> {
   return { enabled, networks, address: fields(device)[1]?.split("/")[0] ?? "" };
 }
 
+/** 0..3 bars from NetworkManager's 0..100 signal, as PocketJS's wifi counts them. */
+const bars = (signal: number) => (signal >= 75 ? 3 : signal >= 50 ? 2 : signal >= 25 ? 1 : 0);
+
+/** PocketJS's system.wifi status (vendor/pocketjs/contracts/spec/wifi.ts)
+ *  from NetworkManager, for the device program's Wi-Fi provider
+ *  (host/src/system.rs): every saved Wi-Fi connection, newest first, as a
+ *  slot, and the scanned networks with their signal and whether one is saved. */
+export async function wifiStatus(rescan: boolean): Promise<WifiStatus> {
+  const panel = await network(rescan);
+  const saved = (await exec(["nmcli", "-t", "-f", "NAME,TYPE,TIMESTAMP", "connection", "show"])).stdout
+    .split("\n")
+    .map(fields)
+    .filter((f) => f[1] === "802-11-wireless" && f[0])
+    .sort((a, b) => Number(b[2] ?? 0) - Number(a[2] ?? 0))
+    .map((f, slot) => ({ slot, ssid: f[0]! }));
+  const state = (await exec(["nmcli", "-t", "-f", "TYPE,STATE", "device", "status"])).stdout
+    .split("\n")
+    .map(fields)
+    .find((f) => f[0] === "wifi")?.[1] ?? "";
+  const active = panel.networks.find((n) => n.active);
+  return {
+    state: !panel.enabled ? "off" : state === "connected" && active ? "connected" : state.startsWith("connecting") ? "connecting" : "idle",
+    ssid: active?.ssid ?? "",
+    strength: bars(active?.signal ?? 0),
+    address: active ? panel.address : "",
+    saved,
+    error: "",
+    networks: panel.networks.map((n) => ({ ssid: n.ssid, strength: bars(n.signal), secure: n.secure, signal: n.signal, saved: n.known })),
+  };
+}
+
 export async function wifiConnect(ssid: string, password?: string): Promise<void> {
-  // Android's Wi-Fi panel picks and joins networks
-  if (ANDROID) return androidCommand({ command: "settings", panel: "wifi" });
   const known = (await exec(["nmcli", "-t", "-f", "NAME", "connection", "show"])).stdout.split("\n").map((l) => fields(l)[0]);
   if (known.includes(ssid) && !password) {
     await must(["nmcli", "connection", "up", "id", ssid]);
@@ -81,17 +105,14 @@ export async function wifiConnect(ssid: string, password?: string): Promise<void
 }
 
 export async function wifiDisconnect(): Promise<void> {
-  if (ANDROID) return androidCommand({ command: "settings", panel: "wifi" });
   await must(["nmcli", "device", "disconnect", "wlan0"]);
 }
 
 export async function wifiForget(ssid: string): Promise<void> {
-  if (ANDROID) return androidCommand({ command: "settings", panel: "wifi" });
   await must(["nmcli", "connection", "delete", "id", ssid]);
 }
 
 export async function wifiPower(on: boolean): Promise<void> {
-  if (ANDROID) return androidCommand({ command: "settings", panel: "wifi" });
   await must(["nmcli", "radio", "wifi", on ? "on" : "off"]);
 }
 

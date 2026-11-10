@@ -1,14 +1,18 @@
 // The panels Omarchy opens from the bar's indicators (plugins/panels:
 // Bluetooth, Network, Audio, Power, and mihomo's Proxy) in the stage's card:
-// a pointer click on the indicator, the home layout's panel column, or
+// a pointer click on the indicator, the deck's function row in the pad layout (deck/strip.tsx), or
 // `omarchy-shell shell summon omarchy.network|...`. The panel has the keys
 // while it is up: Up/Down move between rows, Enter acts, Left/Right adjust
 // a slider, Escape closes it; the gamepad's Y forgets a saved network or a
 // paired device. The highlight follows a row, not a position: rows keep
 // their first order while the panel is open, though rescans re-sort them.
-// A secured network asks for its password on the keyboard. Data comes from
-// omarchy-pocketd (daemon/panels.ts), again every few seconds while a panel
-// is open.
+// A secured network asks for its password on the keyboard. The Network
+// panel is PocketJS's system.wifi (`@pocketjs/framework/wifi`), which each
+// device program answers for its own system (host/src/system.rs: Android's
+// WifiManager on the AYN Thor, NetworkManager through omarchy-pocketd on the
+// RG DS Plus), read again every second while it is open. The other panels'
+// data comes from omarchy-pocketd (daemon/panels.ts), again every few
+// seconds.
 //
 // A slider answers at once: the row shows the value the finger asked for,
 // Omarchy's OSD shows it on the stage, and one request at a time carries the
@@ -17,8 +21,12 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
+import {
+  connectSavedNetwork, disconnectNetwork, forgetNetwork, joinNetwork, openWifiSettings, savedSlotOf, scanNetworks, setWifiEnabled,
+  wifiCanDisconnect, wifiHasSettings, wifiHost, wifiStatus, type WifiStatus,
+} from "@pocketjs/framework/wifi";
 import { request } from "../bridge.ts";
-import type { AudioDevice, AudioPanel, BluetoothPanel, NetworkPanel, PowerPanel, ProxyPanel, TailscalePanel } from "../../../daemon/protocol.ts";
+import type { AudioDevice, AudioPanel, BluetoothPanel, PowerPanel, ProxyPanel, TailscalePanel } from "../../../daemon/protocol.ts";
 import { C } from "../classes.ts";
 import { CJK_SLOT_14, levelOsd, VOLUME_MAX } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
@@ -46,6 +54,8 @@ const nodeName = (name: string) => name.replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "").t
 interface Row {
   icon: string;
   label: string;
+  /** the row's identity while its label changes ("Scan", "Scanning..."); the label otherwise */
+  key?: string;
   value?: string;
   /** a row that only shows something */
   info?: boolean;
@@ -59,6 +69,8 @@ const HEADER_H = 26;
 const ROW_H = 22;
 const ROWS = Math.floor((CARD_H - HEADER_H - 4) / ROW_H);
 const REFRESH_EVERY = 4;
+/** system.wifi's status is the host's last reading: the Network panel reads it every second */
+const WIFI_EVERY = 1;
 const ERROR = "\u{f015a}";
 const CHECK = "\u{f012c}";
 const LOCK = "\u{f033e}";
@@ -75,14 +87,18 @@ const [panel, setPanel] = createSignal<PanelName | null>(null);
 const [selected, setSelected] = createSignal("");
 /** while a panel stays open, rows keep the order they first appeared in */
 let seen = new Map<string, number>();
-const [network, setNetwork] = createSignal<NetworkPanel | null>(null);
+const [network, setNetwork] = createSignal<WifiStatus | null>(null);
 const [audio, setAudio] = createSignal<AudioPanel | null>(null);
 const [power, setPower] = createSignal<PowerPanel | null>(null);
 const [proxy, setProxy] = createSignal<ProxyPanel | null>(null);
 const [tailscale, setTailscale] = createSignal<TailscalePanel | null>(null);
 const [bluetooth, setBluetooth] = createSignal<BluetoothPanel | null>(null);
-/** the SSID whose password the keyboard is taking */
-const [entry, setEntry] = createSignal<{ ssid: string; text: string } | null>(null);
+/** the SSID whose password the keyboard is taking; `short` once Enter came
+ *  before WPA's shortest passphrase */
+const [entry, setEntry] = createSignal<{ ssid: string; text: string; short?: boolean } | null>(null);
+/** WPA's shortest passphrase: Enter on less keeps the field open, so a second
+ *  press of A never joins a secured network with no password */
+const PASS_MIN = 8;
 const [busy, setBusy] = createSignal("");
 /** the power profile asked for, shown checked until the panel reads it back */
 const [profileAsked, setProfileAsked] = createSignal<string | null>(null);
@@ -96,7 +112,11 @@ const fail = (title: string) => (error: unknown) => toast({ icon: ERROR, title, 
 /** Reads the panel's data again; the promise settles once the rows have it. */
 function load(name: PanelName, rescan = false): Promise<unknown> {
   if (name === "bluetooth") return request<BluetoothPanel>({ method: "bluetooth" }).then(setBluetooth, fail("Bluetooth"));
-  if (name === "network") return request<NetworkPanel>({ method: "network", rescan }).then(setNetwork, fail("Network"));
+  if (name === "network") {
+    if (rescan) scanNetworks();
+    setNetwork(wifiStatus());
+    return Promise.resolve();
+  }
   if (name === "audio") return request<AudioPanel>({ method: "audio" }).then(setAudio, fail("Audio"));
   if (name === "power") return request<PowerPanel>({ method: "power" }).then(setPower, fail("Power"));
   if (name === "tailscale") return request<TailscalePanel>({ method: "tailscale" }).then(setTailscale, fail("Tailscale"));
@@ -104,7 +124,7 @@ function load(name: PanelName, rescan = false): Promise<unknown> {
 }
 
 function poll(token: number) {
-  after(REFRESH_EVERY, () => {
+  after(panel() === "network" ? WIFI_EVERY : REFRESH_EVERY, () => {
     const name = panel();
     if (token !== refreshing || !name) return;
     if (!entry() && !busy() && !sliding.size) load(name);
@@ -192,8 +212,25 @@ function slide(id: string, value: number, send: (value: number) => Promise<unkno
   go(value);
 }
 
-function connect(ssid: string, password?: string) {
-  change(`Connecting to ${ssid}`, request({ method: "wifiConnect", ssid, password }), ssid);
+/** A system.wifi action: it returns at once and its outcome shows in later
+ *  readings; a refusal's reason (WifiStatus.error) shows as a notice. */
+function wifiAct(title: string, done: boolean) {
+  const before = network()?.error ?? "";
+  const check = () => {
+    const status = wifiStatus();
+    setNetwork(status);
+    const reason = status?.error ?? "";
+    if (reason && (!done || reason !== before)) toast({ icon: ERROR, title, body: reason, tone: "error" });
+  };
+  // the host's reading of a refusal lands within a tick or two
+  after(0.4, check);
+}
+
+/** Connects to `ssid`: through its saved connection, or joining it with `password`. */
+function connect(ssid: string, password = "") {
+  const status = network();
+  const slot = status && !password ? savedSlotOf(status, ssid) : -1;
+  wifiAct(ssid, slot >= 0 ? connectSavedNetwork(slot) : joinNetwork(ssid, password));
 }
 
 /** the password field's sink, so ending the entry never takes another field's keyboard */
@@ -202,12 +239,13 @@ let entrySink: KeySink | null = null;
 function askPassword(ssid: string) {
   setEntry({ ssid, text: "" });
   entrySink = {
-    text: (ch) => setEntry((e) => e && { ...e, text: e.text + ch }),
+    text: (ch) => setEntry((e) => e && { ...e, text: e.text + ch, short: false }),
     key: (name) => {
       const e = entry();
       if (!e) return;
       if (name === "Backspace") setEntry({ ...e, text: [...e.text].slice(0, -1).join("") });
       else if (name === "Enter") {
+        if ([...e.text].length < PASS_MIN) return setEntry({ ...e, short: true });
         endEntry();
         connect(e.ssid, e.text);
       } else if (name === "Escape") endEntry();
@@ -216,7 +254,7 @@ function askPassword(ssid: string) {
       const e = entry();
       return e ? `${LOCK} ${e.ssid}: ${"•".repeat([...e.text].length)}_` : "";
     },
-    hint: () => "A connects · B Backspace · START cancels",
+    hint: () => (entry()?.short ? `${PASS_MIN} characters at least · START cancels` : "A connects · B Backspace · START cancels"),
   };
   setFieldSink(entrySink);
 }
@@ -294,28 +332,36 @@ const rawRows = createMemo((): Row[] => {
     }
     case "network": {
       const n = network();
+      if (!wifiHost()) return [{ icon: "", label: "This device has no Wi-Fi", info: true }];
       if (!n) return [{ icon: "", label: "Reading networks...", info: true }];
+      const on = n.state !== "off";
       const list: Row[] = [
         {
-          icon: n.enabled ? "\u{f05a9}" : "\u{f05aa}",
+          icon: on ? "\u{f05a9}" : "\u{f05aa}",
           label: "Wi-Fi",
-          value: n.enabled ? "On" : "Off",
-          activate: () => change("", request({ method: "wifiPower", on: !n.enabled }), "Wi-Fi"),
+          value: n.state === "connecting" ? "Connecting" : on ? "On" : "Off",
+          activate: () => wifiAct("Wi-Fi", setWifiEnabled(!on)),
         },
       ];
-      const active = n.networks.find((w) => w.active);
-      if (active) {
-        list.push({ icon: "", label: `Disconnect ${active.ssid}`, value: n.address, activate: () => change("", request({ method: "wifiDisconnect" }), "Wi-Fi") });
+      // what the system refused, or what it needs first (Android's location access)
+      if (n.error) list.push({ icon: ERROR, label: n.error, info: true });
+      if (n.ssid && wifiCanDisconnect()) {
+        list.push({ icon: "", label: `Disconnect ${n.ssid}`, value: n.address, activate: () => wifiAct("Wi-Fi", disconnectNetwork()) });
       }
-      if (n.enabled) list.push({ icon: "\u{f0450}", label: "Scan", activate: () => request<NetworkPanel>({ method: "network", rescan: true }).then(setNetwork, fail("Network")) });
-      for (const w of n.networks) {
+      if (on) list.push({ icon: "\u{f0450}", key: "scan", label: n.scanning ? "Scanning..." : "Scan", activate: () => wifiAct("Wi-Fi", scanNetworks()) });
+      if (wifiHasSettings()) list.push({ icon: "\u{f0493}", label: "System Wi-Fi settings", activate: () => void openWifiSettings() });
+      for (const w of n.networks ?? []) {
+        const active = w.ssid === n.ssid && n.state !== "idle";
+        const signal = w.signal ?? w.strength * 33;
+        const slot = savedSlotOf(n, w.ssid);
+        const saved = w.saved === true || slot >= 0;
         list.push({
-          icon: wifiIconFor(w.signal),
+          icon: wifiIconFor(signal),
           label: w.secure ? `${w.ssid} ${LOCK}` : w.ssid,
-          value: w.active ? "Connected" : w.known ? "Saved" : `${w.signal}%`,
-          checked: w.active,
-          activate: () => (w.active ? undefined : w.secure && !w.known ? askPassword(w.ssid) : connect(w.ssid)),
-          forget: w.known ? () => change("", request({ method: "wifiForget", ssid: w.ssid }), w.ssid) : undefined,
+          value: active ? (n.state === "connecting" ? "Connecting" : "Connected") : saved ? "Saved" : `${signal}%`,
+          checked: active && n.state === "connected",
+          activate: () => (active ? undefined : w.secure && !saved ? askPassword(w.ssid) : connect(w.ssid)),
+          forget: slot >= 0 ? () => wifiAct(w.ssid, forgetNetwork(slot)) : undefined,
         });
       }
       return list;
@@ -437,13 +483,15 @@ const rawRows = createMemo((): Row[] => {
   }
 });
 
+const keyOf = (row: Row) => row.key ?? row.label;
+
 const rows = createMemo((): Row[] => {
   const list = rawRows();
-  for (const row of list) if (!seen.has(row.label)) seen.set(row.label, seen.size);
-  return [...list].sort((a, b) => seen.get(a.label)! - seen.get(b.label)!);
+  for (const row of list) if (!seen.has(keyOf(row))) seen.set(keyOf(row), seen.size);
+  return [...list].sort((a, b) => seen.get(keyOf(a))! - seen.get(keyOf(b))!);
 });
 
-const index = () => Math.max(0, rows().findIndex((row) => row.label === selected()));
+const index = () => Math.max(0, rows().findIndex((row) => keyOf(row) === selected()));
 
 const list = createList(ROW_H, HEADER_H, ROWS);
 
@@ -452,7 +500,7 @@ function setIndex(at: number) {
   const i = Math.max(0, Math.min(all.length - 1, at));
   const row = all[i];
   if (!row) return;
-  setSelected(row.label);
+  setSelected(keyOf(row));
   list.reveal(i, all.length);
 }
 

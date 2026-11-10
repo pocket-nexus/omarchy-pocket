@@ -34,6 +34,7 @@ mod guest;
 mod media;
 mod net;
 mod shot;
+mod system;
 
 #[allow(dead_code)] // The export defines every fact; the program reads some.
 mod profile {
@@ -324,9 +325,12 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
     let bridge = std::rc::Rc::new(std::cell::RefCell::new(bridge::Bridge::new(bridge)));
     let net = net::Hub::new(bridge.clone());
     let children = children::Children::new(net.clone());
-    runtime
-        .set_guest(Box::new(guest::BridgedGuest::new(bridge, repaint.clone(), traffic.clone(), profile_request.clone(), children.clone(), net)))
-        .map_err(error)?;
+    let mut guest = guest::BridgedGuest::new(bridge.clone(), repaint.clone(), traffic.clone(), profile_request.clone(), children.clone(), net);
+    // PocketJS's system.wifi: NetworkManager through omarchy-pocketd (a --shot run has no daemon)
+    if options.shot.is_none() {
+        guest.set_wifi(std::rc::Rc::new(std::cell::RefCell::new(system::DaemonWifi::new(bridge))));
+    }
+    runtime.set_guest(Box::new(guest)).map_err(error)?;
     runtime.boot().map_err(error)?;
     let mut clock = MonotonicClock::default();
     // One frame per cadence period of the shell's package.

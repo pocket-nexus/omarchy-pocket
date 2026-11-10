@@ -49,7 +49,8 @@ export function answer(call: number, handled: boolean, output = "") {
     // an event first: the host's app events carry an `id` of their own
     if ("event" in message) {
       for (const listener of listeners) listener(message);
-    } else if ("id" in message) {
+    } else if ("id" in message && typeof message.id === "number") {
+      // string ids are the device program's own requests (host/src/system.rs)
       const waiter = pending.get(message.id);
       if (!waiter) continue;
       pending.delete(message.id);

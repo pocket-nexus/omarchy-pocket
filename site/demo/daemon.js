@@ -170,7 +170,6 @@ export function createDaemon({ emit, themes, wallBase, screensaver, onStorage })
   };
   const panels = {
     audio: { outputs: [{ name: "speaker", label: "Speakers", volume: 45, muted: false, current: true }, { name: "jack", label: "Headphones", volume: 40, muted: false, current: false }], inputs: [{ name: "mic", label: "Microphone", volume: 60, muted: false, current: true }] },
-    network: { enabled: true, networks: [{ ssid: "Pocket", signal: 78, secure: true, active: true, known: true }, { ssid: "Cafe", signal: 52, secure: false, active: false, known: false }], address: "10.0.0.8" },
     power: { profiles: ["performance", "balanced", "power-saver"], profile: "balanced", brightness: 60 },
     bluetooth: { adapter: true, powered: true, devices: [] },
     proxy: { installed: true, running: true, mode: "rule", groups: [{ name: "Proxy", now: "Tokyo", all: ["Tokyo", "Hong Kong", "Singapore", "DIRECT"], delay: 48 }] },
@@ -285,9 +284,6 @@ export function createDaemon({ emit, themes, wallBase, screensaver, onStorage })
     notes: () => [...notes.keys()],
     noteRead: (r) => notes.get(r.name) ?? "",
     noteWrite: (r) => { notes.set(r.name, r.text); return null; },
-    network: () => panels.network,
-    wifiConnect: () => null, wifiDisconnect: () => null, wifiForget: () => null,
-    wifiPower: (r) => { panels.network.enabled = r.on; return null; },
     audio: () => panels.audio,
     audioSet: (r) => {
       const list = r.kind === "sink" ? panels.audio.outputs : panels.audio.inputs;
@@ -348,6 +344,11 @@ export function createDaemon({ emit, themes, wallBase, screensaver, onStorage })
     setTheme,
     get theme() { return current; },
     texture: (file) => pixels.get(file) ?? null,
+    /** the bar's connection after a change in the host's system.wifi (wifi.js) */
+    connection(ssid) {
+      state.network = ssid ? { kind: "wifi", name: ssid, signal: 78 } : { kind: "none", name: "", signal: null };
+      pushState();
+    },
     start() { emit({ event: "hello" }); pushState(); },
   };
 }

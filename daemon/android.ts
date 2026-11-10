@@ -5,12 +5,16 @@
 // one JSON file and carries out what the shell asks of the device:
 //
 //   $XDG_RUNTIME_DIR/omarchy-pocket/android.json      the app writes it at each
-//       change: battery, network, audio (the media volume), Bluetooth
+//       change: battery, the active connection (the bar's indicator), audio
+//       (the media volume), Bluetooth
 //   $XDG_RUNTIME_DIR/omarchy-pocket/android-commands/  the daemon (and the
 //       wpctl shim) drop one JSON command per file; the app runs and removes it
 //
 // The app also handles the volume keys and the screen going off (the shell
-// hears `sleep` and locks), so the daemon watches neither.
+// hears `sleep` and locks), so the daemon watches neither. Wi-Fi itself (the
+// Network panel's scan, joins and saved networks) is PocketJS's system.wifi,
+// which the device program answers from Android (host/src/system.rs, the
+// app's Wifi.java), not the daemon.
 import { mkdirSync, readFileSync, renameSync, watch, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SystemState } from "./protocol.ts";
@@ -28,15 +32,11 @@ export interface AndroidState {
   network: SystemState["network"];
   audio: SystemState["audio"];
   bluetooth: SystemState["bluetooth"];
-  /** Wi-Fi switched on, whether or not it is connected */
-  wifi: boolean;
-  /** the active network's IPv4 address */
-  address: string;
   /** the screens' brightness, percent */
   brightness: number | null;
 }
 
-const EMPTY: AndroidState = { battery: null, network: { kind: "none", name: "", signal: null }, audio: null, bluetooth: null, wifi: false, address: "", brightness: null };
+const EMPTY: AndroidState = { battery: null, network: { kind: "none", name: "", signal: null }, audio: null, bluetooth: null, brightness: null };
 
 /** The app's last report, or nothing yet. */
 export function androidState(): AndroidState {

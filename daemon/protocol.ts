@@ -73,10 +73,17 @@ export type Request =
   | { id: number; method: "noteRead"; name: string }
   | { id: number; method: "noteWrite"; name: string; text: string }
   | { id: number; method: "network"; rescan?: boolean }
-  | { id: number; method: "wifiConnect"; ssid: string; password?: string }
-  | { id: number; method: "wifiDisconnect" }
-  | { id: number; method: "wifiForget"; ssid: string }
-  | { id: number; method: "wifiPower"; on: boolean }
+  /** PocketJS's system.wifi for the device program's provider (host/src/system.rs),
+   *  which sends these with ids "system:<n>": the WifiStatus of
+   *  vendor/pocketjs/contracts/spec/wifi.ts, read again, or after a rescan */
+  | { id: string; method: "wifiStatus" }
+  | { id: string; method: "wifiScan" }
+  /** join a network with its passphrase ("" for an open one, or one NetworkManager saved) */
+  | { id: string; method: "wifiJoin"; ssid: string; passphrase: string }
+  | { id: number | string; method: "wifiConnect"; ssid: string; password?: string }
+  | { id: number | string; method: "wifiDisconnect" }
+  | { id: number | string; method: "wifiForget"; ssid: string }
+  | { id: number | string; method: "wifiPower"; on: boolean }
   | { id: number; method: "audio" }
   | { id: number; method: "audioSet"; kind: "sink" | "source"; name: string; volume?: number; muted?: boolean; current?: boolean }
   | { id: number; method: "power" }
@@ -123,7 +130,9 @@ export interface RunResult {
   stderr: string;
 }
 
-export type Reply = { id: number; ok: true; result: unknown } | { id: number; ok: false; error: string };
+/** A request's answer; the device program's own requests carry string ids
+ *  ("system:<n>", host/src/system.rs) and their answers never reach the shell. */
+export type Reply = { id: number | string; ok: true; result: unknown } | { id: number | string; ok: false; error: string };
 
 /** Activity's figures (daemon/applets.ts). */
 export interface SystemStats {

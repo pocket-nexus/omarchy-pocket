@@ -1,5 +1,6 @@
-// The deck's trackpad, under the keys in the keys layout and alone in the pad
-// layout, after the trackpad of Pocket Shell's iPod touch remote. The stage
+// The deck's trackpad, under the keys in the keys layout and above the pins
+// in the pad layout (deck/dock.tsx), after the trackpad of Pocket
+// Shell's iPod touch remote. The stage
 // takes no touch, so a finger here moves the pointer there (stage/pointer.tsx)
 // as a laptop's trackpad does, relative and accelerated. A tap clicks where the
 // pointer is. Two fingers scroll: the pointer stays where it is and the list
@@ -14,7 +15,8 @@
 // window, as L1 + B does, so an applet closes with one press. A
 // package that draws a touch surface of its own and is not a touch app
 // (app.surfaces.auxiliary without `applet`) shows that surface in the pad layout
-// instead, and the fingers on it are its contacts.
+// instead, and the fingers on it are its contacts. While the pins are edited
+// the app list covers the trackpad, and the trackpad moves no pointer.
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework/host";
@@ -33,6 +35,7 @@ import { color } from "../theme.ts";
 import { settled, type TouchFrame } from "../touch.ts";
 import { focused, type Win } from "../workspaces.ts";
 import { BODY_H, inRect, PAD_LARGE, PAD_SMALL, ROUND, ROUNDS, type Rect } from "./geometry.ts";
+import { pinsEditing } from "./pins.ts";
 import { pressed } from "./press.ts";
 import { DECK_H, DECK_W } from "../screen.ts";
 
@@ -120,7 +123,7 @@ export function touchpadTouch(frame: TouchFrame): number[] {
     else if (name === "close") closeFront();
   }
   const rect = padFor(l);
-  const inPad = (x: number, y: number) => !keySink().field && inRect(rect, x, y);
+  const inPad = (x: number, y: number) => !keySink().field && !(l === "pad" && pinsEditing()) && inRect(rect, x, y);
   const onKey = (x: number, y: number) => inRect(ROUNDS.hold, x, y);
   const down = frame.down.filter(settled);
   const keyDown = down.some((c) => onKey(c.start.x, c.start.y));
