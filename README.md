@@ -19,10 +19,13 @@ Both panels read back from the GPU (`tools/screenshot.ts`), the upper over the l
 
 The AYN Thor (Snapdragon 8 Gen 2, Android 13, a 1920×1080 upper display over a 1240×1080 touch display) runs Omarchy Pocket as an installable Android app: the same shell on both displays at raster density 3 (640×360 points over 413×360), the same host program built as `libomarchy_pocket.so` on the Adreno through EGL, the Odin controller as the gamepad, and Omarchy's CLI with omarchy-pocketd in the RG DS Plus image's Arch Linux ARM root, run by the app under proot. Android stands in for systemd, NetworkManager, PipeWire and BlueZ. [docs/ayn-thor.md](docs/ayn-thor.md) has the details.
 
+**Install on a Thor:** download `omarchy-pocket-<version>.apk` and `omarchy-pocket-root.tar.zst` (802 MB) from the [latest release](https://github.com/pocket-nexus/omarchy-pocket/releases/latest) onto the Thor and install the APK; Android asks once to let the browser or file manager install apps. Open Omarchy Pocket, press START and choose `omarchy-pocket-root.tar.zst`: the app copies it and unpacks the Linux root into its own files. The lock screen's password is `omarchy`. A later release installs over this one and keeps the root.
+
 ```sh
 bun tools/android.ts all            # the app: lib, proot, daemon, shell, applets, apk, adb install
 bun tools/android.ts rootfs         # the Linux root, from the RG DS Plus image
 bun tools/android.ts push-rootfs    # the app installs it at its next start
+bun tools/android.ts release        # a release's files in dist/android/<version>/, signed with the release key
 ```
 
 ## Applets

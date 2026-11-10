@@ -2,9 +2,19 @@
 // carries before Gradle runs: libomarchy_pocket.so (host/, the shell's
 // program) into src/main/jniLibs, the shell package and the applets into
 // src/main/assets (both ignored).
+import java.util.Properties
+
 plugins {
     id("com.android.application")
 }
+
+// The release key: a properties file outside the repository (storeFile,
+// relative to the file; storePassword, keyAlias, keyPassword), at
+// $OMARCHY_POCKET_SIGNING or ~/.config/omarchy-pocket/signing.properties.
+// Without it the release build is signed with the debug key, which installs
+// but is not the key the published releases carry.
+val signingFile = file(System.getenv("OMARCHY_POCKET_SIGNING") ?: "${System.getProperty("user.home")}/.config/omarchy-pocket/signing.properties")
+val signing = Properties().apply { if (signingFile.isFile) signingFile.inputStream().use { load(it) } }
 
 android {
     namespace = "dev.pocketnexus.omarchy"
@@ -24,11 +34,19 @@ android {
         }
     }
 
+    signingConfigs {
+        if (!signing.isEmpty) create("release") {
+            storeFile = signingFile.parentFile.resolve(signing.getProperty("storeFile"))
+            storePassword = signing.getProperty("storePassword")
+            keyAlias = signing.getProperty("keyAlias")
+            keyPassword = signing.getProperty("keyPassword")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            // installable without a store: the debug key signs it
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 
