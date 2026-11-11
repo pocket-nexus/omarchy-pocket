@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Install on the ClockworkPi uConsole · Omarchy Pocket</title>
+<meta name="description" content="Install Omarchy Pocket on the ClockworkPi uConsole with one Debian package, beside Raspberry Pi OS's desktop.">
+<link rel="canonical" href="https://omapocket.org/docs/uconsole/">
+<meta name="theme-color" content="#0e0a18">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Omarchy Pocket">
+<meta property="og:title" content="Install on the ClockworkPi uConsole">
+<meta property="og:description" content="Install Omarchy Pocket on the ClockworkPi uConsole with one Debian package, beside Raspberry Pi OS's desktop.">
+<meta property="og:url" content="https://omapocket.org/docs/uconsole/">
+<meta property="og:image" content="https://omapocket.org/og-image.png">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/docs/docs.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><img src="/favicon.svg" alt="" width="22" height="22">Omarchy Pocket</a>
+  <nav class="links"><a href="/">Home</a><a href="/docs/" aria-current="true">Docs</a><a href="/demo/">Live demo</a><a class="ghost" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a></nav>
+</header>
+<div class="layout">
+<nav class="side" aria-label="Docs"><p class="side-h">Install</p><a href="/docs/">Overview</a><a href="/docs/rg-ds-plus/">RG DS Plus</a><a href="/docs/ayn-thor/">AYN Thor</a><a href="/docs/uconsole/" aria-current="page">ClockworkPi uConsole</a><p class="side-h">Release</p><a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.0">v0.2.0 on GitHub</a><a href="https://github.com/pocket-nexus/omarchy-pocket">Source</a><p class="side-h">On this page</p><a class="toc" href="#before">Before you start</a><a class="toc" href="#install">Install</a><a class="toc" href="#first-start">First start</a><a class="toc" href="#controls">Controls</a><a class="toc" href="#apps">Menu and applets</a><a class="toc" href="#switch">Back to the desktop</a><a class="toc" href="#update">Update and uninstall</a><a class="toc" href="#trouble">If something is wrong</a></nav>
+<main class="doc">
+
+<p class="eyebrow">Install · ClockworkPi uConsole</p>
+<h1>ClockworkPi uConsole</h1>
+<p class="lead">A Debian package beside Raspberry Pi OS. One command installs it. Its own menu gives the panel back to the desktop.</p>
+<figure class="shot wide"><img src="/docs/media/uconsole/terminals.webp" alt="Two terminals tiled under Omarchy's bar on the uConsole" loading="lazy" decoding="async"><figcaption>Two Pocket Term windows tiled on the uConsole's panel, under Omarchy's bar.</figcaption></figure>
+<dl class="facts"><div><dt>Release</dt><dd><a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.0">v0.2.0</a>: <code>omarchy-pocket-uconsole_0.2.0_arm64.deb</code></dd></div><div><dt>Runs on</dt><dd>A uConsole with a Raspberry Pi CM4, on ClockworkPi's Raspberry Pi OS 13 (trixie), 64-bit</dd></div><div><dt>Space</dt><dd>3.5 GB free: an 802 MB download that unpacks to 2.7 GB</dd></div><div><dt>Time</dt><dd>About 10 minutes, most of it the download</dd></div></dl>
+
+<h2 id="before">Before you start</h2>
+<ul>
+<li>The uConsole runs ClockworkPi's Raspberry Pi OS 13 image with its desktop, and you are logged in as its user (the one with uid 1000) with <code>sudo</code>.</li>
+<li>It is online: the package downloads Omarchy's root from the release.</li>
+<li><code>df -h /</code> shows at least 3.5 GB available.</li>
+</ul>
+<aside class="callout note">Tested on a CM4 Rev 1.0 with 4 GB and kernel 6.12. Other cores (CM5, A06, R01) are not tested yet.</aside>
+
+<h2 id="install">Install</h2>
+<ol class="steps"><li>Open a terminal on the desktop, or SSH into the uConsole, and download the package:<pre><code>curl -LO https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.0/omarchy-pocket-uconsole_0.2.0_arm64.deb</code></pre></li><li>Install it:<pre><code>sudo apt install ./omarchy-pocket-uconsole_0.2.0_arm64.deb</code></pre>It downloads <code>omarchy-pocket-root.tar.zst</code> (802 MB), checks its SHA-256 against the one the package carries, and unpacks it into <code>/var/lib/omarchy-pocket/root</code>. At the end it prints the commands below.</li><li>Switch the panel to Omarchy Pocket:<pre><code>omarchy-pocket-session on</code></pre>or pick <b>Omarchy Pocket</b> in the desktop's menu (System). The desktop closes, and Omarchy Pocket comes up in a few seconds.</li></ol>
+<aside class="callout note">No network on the uConsole? Download <code>omarchy-pocket-root.tar.zst</code> elsewhere, copy it to <code>/var/cache/omarchy-pocket/</code>, then install the package: it takes the file instead of downloading it. <code>sudo /usr/lib/omarchy-pocket/omarchy-root install</code> runs that step again on its own.</aside>
+
+<h2 id="first-start">First start</h2>
+<p>Omarchy Pocket starts on the Tokyo Night theme, with Omarchy's bar along the top. The lock screen takes your own login password. To open a terminal, tap <kbd>START</kbd>, then press <kbd>Return</kbd>.</p>
+<div class="grid2">
+<figure class="shot"><img src="/docs/media/uconsole/typing.webp" alt="A command typed on the uConsole's keyboard into Pocket Term" loading="lazy" decoding="async"><figcaption>Typing on the keyboard goes to the terminal.</figcaption></figure>
+<figure class="shot"><img src="/docs/media/uconsole/lock.webp" alt="The lock screen with the password field on the stage" loading="lazy" decoding="async"><figcaption>The lock takes your login password; the field sits above the panel's bottom edge.</figcaption></figure>
+</div>
+
+<h2 id="controls">Controls</h2>
+<p>The uConsole has no shoulder buttons, and the thumb on the D-pad cannot also hold a modifier beside it. So <kbd>START</kbd>, under the left thumb, is SUPER:</p>
+<ul>
+<li><b>Held</b>, it is SUPER while it is down: <kbd>START</kbd> + <kbd>A</kbd> opens the menu.</li>
+<li><b>Tapped</b>, SUPER stays on, so the left thumb can walk the D-pad from window to window. Tap again for the move layer (SUPER + Shift). Tap a third time, or press <kbd>Esc</kbd>, to leave.</li>
+</ul>
+<figure class="diagram"><svg viewBox="0 0 640 308" role="img" aria-label="The uConsole's controls under its panel: the D-pad, L and R, the trackball, A B X Y, and Esc, SELECT and START on the keyboard's top row"><rect x="8" y="8" width="624" height="292" rx="22" class="body"/><rect x="20" y="20" width="600" height="78" rx="6" class="panel"/><text x="320.0" y="40" class="cap" text-anchor="middle">SUPER  Window: the panel's bottom edge while a layer is up</text><text x="98.0" y="66" class="word" text-anchor="middle">Focus</text><text x="197.0" y="66" class="word" text-anchor="middle">Click</text><text x="224.0" y="84" class="word" text-anchor="middle">Back</text><text x="408.8" y="66" class="word" text-anchor="middle">Point</text><text x="494.0" y="66" class="word" text-anchor="middle">Split</text><text x="546.8" y="66" class="word" text-anchor="middle">Full</text><text x="521.0" y="84" class="word" text-anchor="middle">Close</text><text x="573.2" y="84" class="word" text-anchor="middle">Menu</text><path d="M89 118h18v18h18v18h-18v18h-18v-18h-18v-18h18z" class="ctl"/><text x="98.0" y="194" class="lab" text-anchor="middle">D-pad</text><circle cx="197" cy="128" r="11" class="ctl"/><text x="197.0" y="132" class="key" text-anchor="middle">L</text><circle cx="224.00000000000003" cy="152" r="11" class="ctl"/><text x="224.0" y="156" class="key" text-anchor="middle">R</text><text x="210.5" y="194" class="lab" text-anchor="middle">mouse buttons</text><circle cx="408.8" cy="140" r="17" class="ball"/><text x="408.8" y="194" class="lab" text-anchor="middle">trackball (press: click)</text><circle cx="494" cy="128" r="11" class="ctl"/><text x="494.0" y="132" class="key" text-anchor="middle">Y</text><circle cx="546.8" cy="128" r="11" class="ctl"/><text x="546.8" y="132" class="key" text-anchor="middle">X</text><circle cx="521" cy="152" r="11" class="ctl"/><text x="521.0" y="156" class="key" text-anchor="middle">B</text><circle cx="573.2" cy="152" r="11" class="ctl"/><text x="573.2" y="156" class="key" text-anchor="middle">A</text><text x="533.6" y="194" class="lab" text-anchor="middle">A B X Y</text><rect x="34" y="218" width="572" height="68" rx="10" class="kb"/><rect x="38" y="228" width="52" height="22" rx="4" class="k"/><text x="64.0" y="243" class="kk" text-anchor="middle">Esc</text><rect x="98" y="228" width="52" height="22" rx="4" class="k"/><text x="124.0" y="243" class="kk" text-anchor="middle">SELECT</text><rect x="164" y="228" width="52" height="22" rx="4" class="k hot"/><text x="190.0" y="243" class="kk" text-anchor="middle">START</text><text x="190.0" y="270" class="lab hot" text-anchor="middle">SUPER</text><text x="124.0" y="270" class="lab" text-anchor="middle">hold: scroll</text><text x="400.0" y="258" class="lab" text-anchor="middle">Q W E R T Y … the keyboard types</text></svg><figcaption>The controls row under the uConsole's panel. While a SUPER layer is up, the panel's bottom edge names what each control does, right above it.</figcaption></figure>
+<div class="table"><table><thead><tr><th>Control</th><th>No SUPER</th><th>SUPER (START)</th><th>SUPER + Shift (START twice)</th></tr></thead><tbody><tr><td>D-pad</td><td>Arrows</td><td>Focus a window; past the last one, the next workspace</td><td>Swap windows; past the last one, carry it to the next workspace</td></tr><tr><td>A</td><td>Enter</td><td>Omarchy's menu</td><td>Open another</td></tr><tr><td>B</td><td>Backspace</td><td>Close</td><td>Reopen closed</td></tr><tr><td>X</td><td>Tab</td><td>Fullscreen</td><td>Maximize</td></tr><tr><td>Y</td><td>Space</td><td>Toggle split</td><td>Swap split</td></tr><tr><td>SELECT</td><td>Alone: the controls row; held: the ball scrolls</td><td>Key sheet</td><td>Hide or show the bar</td></tr><tr><td>L / ball press</td><td>Click; hold to drag</td><td>Click</td><td>Click</td></tr><tr><td>R</td><td>Back (in an applet or the menu); Omarchy's menu on the wallpaper</td><td>Back</td><td>Back</td></tr><tr><td>SELECT + roll</td><td>Scroll</td><td>Previous or next workspace</td><td>Previous or next workspace</td></tr></tbody></table></div>
+<p>Under SUPER, the keyboard has Omarchy's own bindings: <kbd>Return</kbd> terminal, <kbd>Space</kbd> menu, <kbd>W</kbd> close, <kbd>F</kbd> fullscreen, <kbd>J</kbd> split, <kbd>L</kbd> layout, <kbd>1</kbd>–<kbd>5</kbd> a workspace (with Shift: carry the window there), <kbd>[</kbd> <kbd>]</kbd> or <kbd>Tab</kbd> the workspace before or after, <kbd>-</kbd> <kbd>=</kbd> resize, <kbd>K</kbd> every binding, <kbd>Esc</kbd> the System menu. The keyboard's own Cmd key (<kbd>Fn</kbd> + <kbd>Alt</kbd>) works as SUPER too.</p>
+<div class="grid2">
+<figure class="shot"><img src="/docs/media/uconsole/legend.webp" alt="SUPER latched, with the controls row along the panel's bottom edge" loading="lazy" decoding="async"><figcaption>SUPER on: each control's word sits right above it.</figcaption></figure>
+<figure class="shot"><img src="/docs/media/uconsole/move.webp" alt="The move layer swapping two tiled terminals" loading="lazy" decoding="async"><figcaption>Tapped twice, the move layer: the D-pad swaps windows.</figcaption></figure>
+<figure class="shot"><img src="/docs/media/uconsole/help.webp" alt="The plain controls row SELECT shows" loading="lazy" decoding="async"><figcaption>SELECT on its own: what each control does right now.</figcaption></figure>
+<figure class="shot"><img src="/docs/media/uconsole/sheet.webp" alt="The key sheet listing every binding" loading="lazy" decoding="async"><figcaption>START + K: every binding.</figcaption></figure>
+</div>
+
+
+<h2 id="apps">Menu and applets</h2>
+<p>Omarchy's menu (<kbd>START</kbd> + <kbd>A</kbd>, or a click on the logo) takes typing: type a few letters to filter it. Hacker News, YouTube, Maps, Podcasts, Weather, GitHub, X, Discord and Home Assistant open in windows. Point at them with the trackball, click with <kbd>L</kbd>, scroll with <kbd>SELECT</kbd> + roll, and go back with <kbd>R</kbd>.</p>
+<div class="grid2">
+<figure class="shot"><img src="/docs/media/uconsole/menu.webp" alt="The Apps list filtered by typing hacker" loading="lazy" decoding="async"><figcaption>Typing filters the menu.</figcaption></figure>
+<figure class="shot"><img src="/docs/media/uconsole/hn.webp" alt="Hacker News in a window" loading="lazy" decoding="async"><figcaption>Hacker News; a click opens a story, R goes back.</figcaption></figure>
+</div>
+
+<h2 id="switch">Back to the Raspberry Pi desktop</h2>
+<div class="table"><table><thead><tr><th>To switch</th><th>From Omarchy Pocket</th><th>From the desktop</th><th>Anywhere</th></tr></thead><tbody><tr><td>To the desktop now</td><td>Menu › System › <b>Raspberry Pi Desktop</b></td><td></td><td><code>omarchy-pocket-session off</code></td></tr><tr><td>To Omarchy Pocket now</td><td></td><td>Menu › System › <b>Omarchy Pocket</b></td><td><code>omarchy-pocket-session on</code></td></tr><tr><td>What starts at boot</td><td></td><td></td><td><code>omarchy-pocket-session boot</code> or <code>desktop</code></td></tr></tbody></table></div>
+<p>Wi‑Fi, Bluetooth and sound are Raspberry Pi OS's own, so a network joined on one side works on the other. Omarchy's files live in its own root, <code>/var/lib/omarchy-pocket/root</code>: its home is <code>/var/lib/omarchy-pocket/root/home/omarchy</code> as the desktop sees it.</p>
+
+<h2 id="update">Update and uninstall</h2>
+<ul>
+<li><b>Update:</b> download a newer package and <code>sudo apt install</code> it the same way. The root stays.</li>
+<li><b>Uninstall:</b> <code>sudo apt remove omarchy-pocket-uconsole</code> gives the panel back to the desktop, now and at boot. The root stays.</li>
+<li><b>Remove everything:</b> <code>sudo apt purge omarchy-pocket-uconsole</code> also deletes the root, with Omarchy's home in it.</li>
+</ul>
+
+<h2 id="trouble">If something is wrong</h2>
+<ul>
+<li>The shell's log: <code>journalctl -t omarchy-pocket-host</code>. The daemon's: <code>journalctl -u omarchy-pocketd</code>.</li>
+<li>Back to the desktop from SSH: <code>omarchy-pocket-session off</code>.</li>
+<li>Not there yet: voice input (the uConsole has no microphone), typing Chinese, SUPER + drag.</li>
+</ul>
+
+<footer class="foot"><p>Omarchy Pocket 0.2.0. Every screen on these pages is the device's own, read back from its GPU or recorded off its display; the RG DS Plus's body around its screens is a 3D model. <a href="https://github.com/pocket-nexus/omarchy-pocket/issues">Report a problem</a></p></footer>
+</main>
+</div>
+</body>
+</html>
