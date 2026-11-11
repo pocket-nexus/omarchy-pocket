@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Install on the RG DS Plus · Omarchy Pocket</title>
+<meta name="description" content="Install Omarchy Pocket as the RG DS Plus's SD card system, from source.">
+<link rel="canonical" href="https://omapocket.org/docs/rg-ds-plus/">
+<meta name="theme-color" content="#0e0a18">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Omarchy Pocket">
+<meta property="og:title" content="Install on the RG DS Plus">
+<meta property="og:description" content="Install Omarchy Pocket as the RG DS Plus's SD card system, from source.">
+<meta property="og:url" content="https://omapocket.org/docs/rg-ds-plus/">
+<meta property="og:image" content="https://omapocket.org/og-image.png">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/docs/docs.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><img src="/favicon.svg" alt="" width="22" height="22">Omarchy Pocket</a>
+  <nav class="links"><a href="/">Home</a><a href="/docs/" aria-current="true">Docs</a><a href="/demo/">Live demo</a><a class="ghost" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a></nav>
+</header>
+<div class="layout">
+<nav class="side" aria-label="Docs"><p class="side-h">Install</p><a href="/docs/">Overview</a><a href="/docs/rg-ds-plus/" aria-current="page">RG DS Plus</a><a href="/docs/ayn-thor/">AYN Thor</a><a href="/docs/uconsole/">ClockworkPi uConsole</a><p class="side-h">Release</p><a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.0">v0.2.0 on GitHub</a><a href="https://github.com/pocket-nexus/omarchy-pocket">Source</a><p class="side-h">On this page</p><a class="toc" href="#build">Build</a><a class="toc" href="#install">Install</a><a class="toc" href="#controls">Controls</a><a class="toc" href="#back">Back to the stock system</a></nav>
+<main class="doc">
+
+<p class="eyebrow">Install · Anbernic RG DS Plus</p>
+<h1>Anbernic RG DS Plus</h1>
+<p class="lead">Omarchy Pocket as the SD card's system. The stock Anbernic system stays on the card as the rescue boot.</p>
+<figure class="shot wide"><img src="/docs/media/rg-ds-plus.webp" alt="The RG DS Plus open, a terminal, Activity and a clock tiled above the keyboard" loading="lazy" decoding="async"><figcaption>The RG DS Plus: the upper screen is the monitor, the lower one the keyboard and trackpad.</figcaption></figure>
+<dl class="facts"><div><dt>Install</dt><dd>From source, over SSH from a computer</dd></div><div><dt>Runs on</dt><dd>The RG DS Plus on Anbernic's stock firmware, with its 16 GB card</dd></div><div><dt>Needs</dt><dd>A Mac with Apple silicon and OrbStack, Bun 1.4.2, Rust with cargo-zigbuild, and access to this repository's submodules</dd></div><div><dt>Time</dt><dd>About an hour, most of it building the image</dd></div></dl>
+<aside class="callout warn">There is no download for the RG DS Plus yet. The image is built from source, and one of the submodules it needs (pocket-hub, the companion's services) is private. The steps below are the procedure the maintainers use.</aside>
+<aside class="callout warn">The install replaces the card's partitions after the stock root: Anbernic's launcher, ports, user data and the ROMs partition. Back up the whole card first; the partition step refuses to run without that backup.</aside>
+
+<h2 id="build">Build</h2>
+<ol class="steps"><li>Get the repository and its submodules:<pre><code>git clone https://github.com/pocket-nexus/omarchy-pocket &amp;&amp; cd omarchy-pocket
+git submodule update --init vendor/pocketjs vendor/applets vendor/pocket-term vendor/pocket-hub
+git -C vendor/pocket-hub submodule update --init vendor/pocketjs
+bun install --cwd vendor/pocketjs --frozen-lockfile
+POCKETJS_ROOT=vendor/pocketjs bun vendor/applets/tools/setup.ts</code></pre></li><li>Take Omarchy's menu, theme, wallpaper and fonts, and copy the GPU library from the device:<pre><code>bun tools/omarchy-assets.ts
+bun tools/build.ts libs root@&lt;rg-ds-plus&gt;</code></pre></li><li>Build the programs, then the system image (an arm64 container in OrbStack, about 2.5 GB):<pre><code>bun tools/build.ts all
+bun image/build-root.ts</code></pre></li></ol>
+
+<h2 id="install">Install</h2>
+<ol class="steps"><li>Reach the device over SSH: on Wi‑Fi as <code>root</code> / <code>root</code>, or over the USB link (<code>docs/usb-link.md</code>).</li><li>Back up the whole card with <code>dd</code> of <code>/dev/mmcblk1</code>, compressed, with its SHA-256 beside it. <code>image/install.ts</code> names the backup it checks for in <code>BACKUP</code>.</li><li>Run the steps:<pre><code>bun image/install.ts check partition extract configure chooser reboot --ssh "ssh root@&lt;rg-ds-plus&gt;"</code></pre><code>partition</code> makes one partition for Omarchy Pocket after the stock root, <code>extract</code> unpacks the image, <code>configure</code> keeps the device's SSH keys, Wi‑Fi networks, firmware and modules, and <code>chooser</code> makes the stock root boot into it.</li><li>After the reboot, unlock with the password <code>omarchy</code>.</li></ol>
+
+<h2 id="controls">Controls</h2>
+<p>The shoulders are SUPER: hold <kbd>L1</kbd> for the window layer, <kbd>R1</kbd> for the move layer, both for workspaces, and the lower screen draws what each button does. With no shoulder held, the D-pad is the arrows, <kbd>A</kbd> Enter, <kbd>B</kbd> Backspace, <kbd>X</kbd> Tab, <kbd>Y</kbd> Space, <kbd>START</kbd> Escape, and <kbd>L2</kbd> / <kbd>R2</kbd> step workspaces.</p>
+<figure class="shot wide"><video src="/shots/chords.mp4" poster="/shots/chords-top.webp" controls playsinline muted preload="none" aria-label="The RG DS Plus's two screens while chords are pressed"></video><figcaption>The chord table played on the RG DS Plus, both screens.</figcaption></figure>
+<div class="grid2">
+<figure class="pair"><div class="screens"><img src="/shots/home-top.webp" alt="The desktop over the trackpad, upper screen" loading="lazy"><img src="/shots/home-bottom.webp" alt="The desktop over the trackpad, lower screen" loading="lazy"></div><figcaption>The desktop, with the pins and the workspaces on the lower screen.</figcaption></figure>
+<figure class="pair"><div class="screens"><img src="/shots/tile3-top.webp" alt="Three windows over the keyboard, upper screen" loading="lazy"><img src="/shots/tile3-bottom.webp" alt="Three windows over the keyboard, lower screen" loading="lazy"></div><figcaption>A terminal, Activity and Clock tiled over the keyboard.</figcaption></figure>
+<figure class="pair"><div class="screens"><img src="/shots/legend-top.webp" alt="The window layer's legend, upper screen" loading="lazy"><img src="/shots/legend-bottom.webp" alt="The window layer's legend, lower screen" loading="lazy"></div><figcaption>Holding L1: the window layer.</figcaption></figure>
+<figure class="pair"><div class="screens"><img src="/shots/hnfull-top.webp" alt="Hacker News over the trackpad, upper screen" loading="lazy"><img src="/shots/hnfull-bottom.webp" alt="Hacker News over the trackpad, lower screen" loading="lazy"></div><figcaption>Hacker News in a window, the trackpad under it.</figcaption></figure>
+</div>
+<figure class="shot wide"><img src="/docs/media/screens.webp" alt="Six captures of the RG DS Plus's two screens" loading="lazy" decoding="async"><figcaption>Both screens, read back from the GPU.</figcaption></figure>
+
+<h2 id="back">Back to the stock system</h2>
+<p>The stock root boots first and pivots into Omarchy Pocket. Its rescue boot brings up SSH, Wi‑Fi and the USB link without the launcher. To go back to Anbernic's system entirely, write the card's backup back with <code>dd</code>.</p>
+
+<footer class="foot"><p>Omarchy Pocket 0.2.0. Every screen on these pages is the device's own, read back from its GPU or recorded off its display; the RG DS Plus's body around its screens is a 3D model. <a href="https://github.com/pocket-nexus/omarchy-pocket/issues">Report a problem</a></p></footer>
+</main>
+</div>
+</body>
+</html>

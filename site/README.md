@@ -6,6 +6,7 @@ The landing page and the browser demo, an assets-only Worker (`wrangler.jsonc`).
 |---|---|
 | `public/` | what deploys: `index.html`, `demo/`, `kit/` (the machines as three.js models, `machines.js`, the chord table), `shots/` (`shots/thor/` for the AYN Thor) |
 | `demo/` | sources of `public/demo/host.js`: the browser's host program and a stand-in for omarchy-pocketd |
+| `docs.ts` | builds `public/docs/`: the install guides, an overview and one page a device, with their media from the ignored `.pocket-build/validation` (the uConsole's readbacks and recording, the Thor's film) |
 | `vs.ts` | builds `public/vs/iphone-duo/`: the comparison from one table of figures, and the to-scale drawing of the iPhone Duo with its home screen |
 | `render.ts` | renders the 3D model with two panel captures through headless Chrome: `public/vs/iphone-duo/rg-ds-plus.webp` (the desktop over the keyboard, face on) and the README's picture (`--pose=-18,-48,118`) |
 | `study/` | the three directions not chosen, and the first draft of this one; not deployed |
@@ -18,6 +19,7 @@ bun site/icons.ts                  # the icon family and og-image.png (needs the
 bun site/shots.ts                  # the RG DS Plus's device captures from the ignored .pocket-build/validation
 bun site/thor-shots.ts             # the AYN Thor's captures (adb screencap of both displays) into public/shots/thor
 bun site/vs.ts                     # the iPhone Duo comparison
+bun site/docs.ts                   # the install guides (--pages: the pages only, the media as they are)
 bun site/render.ts <top.png> <bottom.png> <out.png> [--pose=yaw,pitch,lid]   # the 3D model with two panel captures, transparent
 cd site && bunx wrangler deploy
 ```

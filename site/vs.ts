@@ -159,7 +159,7 @@ writeFileSync(`${OUT}iphone-duo.svg`, duoSvg());
 
 // ---------- pieces ----------
 const num = (n: number) => n.toLocaleString("en");
-const LOCAL_NAV = `<a href="/#shapes">Interaction</a><a href="/#heart">Omarchy</a><a href="/#apps">Applets</a><a class="here" href="/vs/iphone-duo/" aria-current="page">vs iPhone Duo</a><a href="/demo/">Live demo</a><a href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a>`;
+const LOCAL_NAV = `<a href="/#shapes">Interaction</a><a href="/#heart">Omarchy</a><a href="/#apps">Applets</a><a class="here" href="/vs/iphone-duo/" aria-current="page">vs iPhone Duo</a><a href="/docs/">Docs</a><a href="/demo/">Live demo</a><a href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a>`;
 const DUO_IMG = (cls: string) => `<img class="${cls}" src="/vs/iphone-duo/iphone-duo.svg" width="1178" height="1646" alt="${cls === "lo" ? "An iPhone Duo, open: its home screen on the upper half of its one folding screen, a keyboard and trackpad on the lower" : ""}" decoding="async">`;
 const RG_IMG = (cls: string) => `<img class="${cls}" src="/vs/iphone-duo/rg-ds-plus.webp" width="1600" height="1724" alt="${cls === "lo" ? "An RG DS Plus, open, running Omarchy Pocket: the desktop on the upper screen, a keyboard and trackpad on the lower" : ""}" decoding="async">`;
 const device = (who: "duo" | "rg", mm: string, name: string, facts: string) => `<figure class="dev ${who}">

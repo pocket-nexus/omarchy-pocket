@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Install on the AYN Thor · Omarchy Pocket</title>
+<meta name="description" content="Install Omarchy Pocket on the AYN Thor as an Android app: the app, then its Linux root.">
+<link rel="canonical" href="https://omapocket.org/docs/ayn-thor/">
+<meta name="theme-color" content="#0e0a18">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Omarchy Pocket">
+<meta property="og:title" content="Install on the AYN Thor">
+<meta property="og:description" content="Install Omarchy Pocket on the AYN Thor as an Android app: the app, then its Linux root.">
+<meta property="og:url" content="https://omapocket.org/docs/ayn-thor/">
+<meta property="og:image" content="https://omapocket.org/og-image.png">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/docs/docs.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><img src="/favicon.svg" alt="" width="22" height="22">Omarchy Pocket</a>
+  <nav class="links"><a href="/">Home</a><a href="/docs/" aria-current="true">Docs</a><a href="/demo/">Live demo</a><a class="ghost" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a></nav>
+</header>
+<div class="layout">
+<nav class="side" aria-label="Docs"><p class="side-h">Install</p><a href="/docs/">Overview</a><a href="/docs/rg-ds-plus/">RG DS Plus</a><a href="/docs/ayn-thor/" aria-current="page">AYN Thor</a><a href="/docs/uconsole/">ClockworkPi uConsole</a><p class="side-h">Release</p><a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.0">v0.2.0 on GitHub</a><a href="https://github.com/pocket-nexus/omarchy-pocket">Source</a><p class="side-h">On this page</p><a class="toc" href="#install">Install</a><a class="toc" href="#controls">Controls</a><a class="toc" href="#film">The film</a><a class="toc" href="#update">Update and uninstall</a><a class="toc" href="#limits">Limits</a></nav>
+<main class="doc">
+
+<p class="eyebrow">Install · AYN Thor</p>
+<h1>AYN Thor</h1>
+<p class="lead">An Android app. Nothing rooted, nothing replaced: the upper screen is the monitor, the touch screen the keyboard and trackpad, the Odin controller the gamepad.</p>
+<figure class="pair thor"><div class="screens"><img src="/shots/thor/tile4-top.webp" alt="Omarchy Pocket on the AYN Thor, upper screen" loading="lazy"><img src="/shots/thor/tile4-bottom.webp" alt="Omarchy Pocket on the AYN Thor, lower screen" loading="lazy"></div><figcaption>A terminal, Notes, a clock and Activity tiled on the upper screen, the keyboard on the lower one.</figcaption></figure>
+<dl class="facts"><div><dt>Release</dt><dd><a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.0">v0.2.0</a>: <code>omarchy-pocket-0.2.0.apk</code> and <code>omarchy-pocket-root.tar.zst</code></dd></div><div><dt>Runs on</dt><dd>The AYN Thor on AYN's Android 13 firmware</dd></div><div><dt>Space</dt><dd>3.5 GB free: the 802 MB root, unpacked into the app's own files</dd></div><div><dt>Time</dt><dd>About 10 minutes</dd></div></dl>
+
+<h2 id="install">Install</h2>
+<ol class="steps"><li>On the Thor, open the <a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.0">release</a> in the browser and download <code>omarchy-pocket-0.2.0.apk</code> and <code>omarchy-pocket-root.tar.zst</code>.</li><li>Open the APK and install it. Android asks once to let the browser or the file manager install apps.</li><li>Open <b>Omarchy Pocket</b>. With no Linux root yet, the upper screen says so. Press <kbd>START</kbd>, and pick <code>omarchy-pocket-root.tar.zst</code> in the file picker. The app copies it and unpacks the root, which takes a few minutes.</li><li>Unlock with the password <code>omarchy</code>.</li></ol>
+<aside class="callout note">A Thor with a build from source on it (signed with the debug key) has to uninstall that first, which removes its root: Android installs an update only over the same signature.</aside>
+
+<h2 id="controls">Controls</h2>
+<p>The shoulders are SUPER. Hold <kbd>L1</kbd> for the window layer and <kbd>R1</kbd> for the move layer, both for workspaces. After a quarter of a second, the lower screen draws the buttons around it and what each does. With no shoulder held, the gamepad types: the D-pad is the arrows, <kbd>A</kbd> Enter, <kbd>B</kbd> Backspace, <kbd>X</kbd> Tab, <kbd>Y</kbd> Space, <kbd>START</kbd> Escape. <kbd>SELECT</kbd> shows the keys or folds them away; <kbd>L1</kbd> + <kbd>SELECT</kbd> lists everything.</p>
+<div class="table"><table><thead><tr><th>Held</th><th>D-pad</th><th>A</th><th>B</th><th>X</th><th>Y</th></tr></thead><tbody><tr><td>L1 (window)</td><td>Focus</td><td>Menu</td><td>Close</td><td>Fullscreen</td><td>Split</td></tr><tr><td>R1 (move)</td><td>Swap</td><td>Open another</td><td>Reopen closed</td><td>Maximize</td><td>Swap split</td></tr><tr><td>L1 + R1</td><td>← → workspace, ↑ ↓ carry the window</td><td></td><td></td><td></td><td></td></tr></tbody></table></div>
+<figure class="shot wide"><video src="/shots/thor/chords.mp4" poster="/shots/thor/chords-top.webp" controls playsinline muted preload="none" aria-label="The AYN Thor's two screens while chords are pressed"></video><figcaption>The chord table played on the Thor, both screens recorded off the device.</figcaption></figure>
+<div class="grid2">
+<figure class="pair thor"><div class="screens"><img src="/shots/thor/legend-top.webp" alt="The window layer's legend, upper screen" loading="lazy"><img src="/shots/thor/legend-bottom.webp" alt="The window layer's legend, lower screen" loading="lazy"></div><figcaption>Holding L1: the lower screen draws the window layer.</figcaption></figure>
+<figure class="pair thor"><div class="screens"><img src="/shots/thor/network-top.webp" alt="The Network panel, upper screen" loading="lazy"><img src="/shots/thor/network-bottom.webp" alt="The Network panel, lower screen" loading="lazy"></div><figcaption>Wi‑Fi from Omarchy's Network panel, through Android.</figcaption></figure>
+<figure class="pair thor"><div class="screens"><img src="/shots/thor/theme-top.webp" alt="The Lupine theme, upper screen" loading="lazy"><img src="/shots/thor/theme-bottom.webp" alt="The Lupine theme, lower screen" loading="lazy"></div><figcaption>Omarchy's themes recolor everything.</figcaption></figure>
+<figure class="pair thor"><div class="screens"><img src="/shots/thor/split-top.webp" alt="Two terminals over the keyboard, upper screen" loading="lazy"><img src="/shots/thor/split-bottom.webp" alt="Two terminals over the keyboard, lower screen" loading="lazy"></div><figcaption>Two terminals over the keyboard.</figcaption></figure>
+</div>
+
+<h2 id="film">The film</h2>
+<figure class="shot wide"><video src="/docs/media/thor-film.mp4" poster="/docs/media/thor-film-poster.jpg" controls playsinline muted preload="none" aria-label="The AYN Thor launch film"></video><figcaption>36 seconds of the Thor running Omarchy Pocket, filmed on the device.</figcaption></figure>
+
+<h2 id="update">Update and uninstall</h2>
+<ul>
+<li><b>Update:</b> install a newer APK over this one. The root stays, and the app puts the new release's daemon and applets into it.</li>
+<li><b>Uninstall:</b> Settings › Apps › Omarchy Pocket › Uninstall. That removes the root too.</li>
+</ul>
+
+<h2 id="limits">Limits</h2>
+<ul>
+<li>Programs in the Linux root play no sound. Android's volume and mute work.</li>
+<li>AYN's Burn-in Protection Refresher covers both screens from time to time while they are still, and takes the next press.</li>
+<li>GitHub and Weather are left out at the Thor's density for now.</li>
+</ul>
+
+<footer class="foot"><p>Omarchy Pocket 0.2.0. Every screen on these pages is the device's own, read back from its GPU or recorded off its display; the RG DS Plus's body around its screens is a 3D model. <a href="https://github.com/pocket-nexus/omarchy-pocket/issues">Report a problem</a></p></footer>
+</main>
+</div>
+</body>
+</html>
