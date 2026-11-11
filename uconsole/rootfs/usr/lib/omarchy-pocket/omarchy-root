@@ -79,7 +79,7 @@ install_root() {
   bind /dev
   bind /proc
   bind /sys
-  chroot "$ROOT" /usr/bin/bash -c 'pacman-key --init >/dev/null 2>&1 && pacman-key --populate archlinuxarm >/dev/null 2>&1; passwd -l root >/dev/null' || echo "omarchy-root: pacman's keyring was not set up; run: sudo $0 run 'sudo pacman-key --init'" >&2
+  chroot "$ROOT" /usr/bin/bash -c 'pacman-key --init >/dev/null 2>&1 && pacman-key --populate archlinuxarm >/dev/null 2>&1; gpgconf --homedir /etc/pacman.d/gnupg --kill all 2>/dev/null; passwd -l root >/dev/null' || echo "omarchy-root: pacman's keyring was not set up; run: sudo $0 run 'sudo pacman-key --init'" >&2
   down
   [ "$archive" = "$CACHE/omarchy-pocket-root.tar.zst" ] && rm -f "$archive"
   echo "omarchy-root: Omarchy's root is installed ($(du -sh "$ROOT" | cut -f1))"
