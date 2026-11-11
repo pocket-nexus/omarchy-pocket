@@ -10,7 +10,7 @@
 // (default/hypr/bindings/tiling.lua and utilities.lua):
 //
 //   Return terminal      Space menu        W, Q close       F fullscreen
-//   J split              L layout          K key sheet      Escape the System menu
+//   J split              L layout          K key sheet      Escape the System menu (held; a latched layer's Escape leaves it)
 //   arrows focus         1-5 workspace     Tab, ] next      Shift+Tab, [ previous
 //   - = resize
 //   with Shift: arrows swap, 1-5 and { } carry the window, Return opens another
@@ -27,7 +27,7 @@ import { summon } from "./stage/menu.tsx";
 import { closeQr, qrOpen } from "./stage/qrsheet.tsx";
 import { closeSheet, sheetOpen } from "./stage/keysheet.tsx";
 import { screensaverActive, stopScreensaver } from "./stage/screensaver.tsx";
-import { closeHelp, keyboardMods, panelDark, setModifier, superLayer, unlatch, used } from "./super.ts";
+import { closeHelp, keyboardMods, latched, panelDark, setModifier, superLayer, unlatch, used } from "./super.ts";
 import { openTerminal } from "./term/store.ts";
 import { act, focus } from "./workspaces.ts";
 
@@ -86,6 +86,8 @@ export function hardKey(event: TextEvent) {
   if (closeHelp() && key === "Escape") return;
   if (sheetOpen() && key === "Escape") return closeSheet();
   if (superLayer() !== "plain" && !mods.ctrl && !mods.alt) {
+    // Escape leaves a latched layer; held (START, Cmd) it is SUPER + Escape, the System menu
+    if (key === "Escape" && latched()) return void unlatch();
     if (superKey(key, shift)) return;
     // a latched layer's Escape lets it go; any other key it does not bind is typed
     if (unlatch() && key === "Escape") return;
