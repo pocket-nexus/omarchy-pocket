@@ -1,0 +1,11 @@
+#!/bin/bash
+# In Omarchy's root on the uConsole: the panel back to Raspberry Pi OS's
+# desktop. lightdm.service conflicts with both of Omarchy Pocket's units, so
+# starting it stops the shell and this daemon; polkit lets the device's user
+# start it (/usr/share/polkit-1/rules.d/50-omarchy-pocket.rules on Raspberry
+# Pi OS). Which session boots is Raspberry Pi OS's omarchy-pocket-session.
+case "${1:-}" in
+  off) exec systemctl start --no-block lightdm.service ;;
+  status) echo "running: omarchy-pocket" ;;
+  *) echo "in Omarchy Pocket: omarchy-pocket-session off (the Raspberry Pi desktop); boot and desktop are Raspberry Pi OS's" >&2; exit 2 ;;
+esac

@@ -1,5 +1,8 @@
 // Omarchy Pocket's shell on two panels: the RG DS Plus's two of 512 x 384
-// points, or the AYN Thor's 640 x 360 over 413 x 360 (screen.ts).
+// points, or the AYN Thor's 640 x 360 over 413 x 360 (screen.ts); or on the
+// ClockworkPi uConsole's one of 640 x 360, where its keyboard, its trackball
+// and START as SUPER take the deck's place (uconsoleFrame below,
+// docs/clockwork-uconsole.md).
 // docs/interaction.md states the system in three lines:
 //
 //   The stage is the monitor.   The top panel takes no touch: the wallpaper,
@@ -37,7 +40,7 @@
 // the panel's root, so two would share its width. The portal inserts its
 // child once (framework renderPortalChild calls the accessor), so the deck's
 // switching sits inside a View.
-import { createEffect, createSignal, on, Show, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, on, Show, untrack } from "solid-js";
 import { AuxiliarySurface, View, type NodeMirror } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
@@ -80,7 +83,13 @@ import { color } from "./theme.ts";
 import { band, trackTouches, type TouchFrame } from "./touch.ts";
 import "./windows.ts";
 import { current, focused, revision, visibleWindows, windowsOn, WORKSPACES } from "./workspaces.ts";
-import { DECK_H, DECK_W, STAGE_H, STAGE_W } from "./screen.ts";
+import { DECK_H, DECK_W, HAS_DECK, STAGE_H, STAGE_W, UCONSOLE } from "./screen.ts";
+import { onHardInput, onHardKey } from "./hardkeys.ts";
+import { discardTrackball, sleepPointer, trackballAwake, trackballTick, wheeledWhile } from "./trackball.ts";
+import { closeHelp, panelDark, startPressed, startReleased, superLayer, superTick, toggleHelp, used } from "./super.ts";
+import { STEPS } from "./chords.ts";
+import { Controls } from "./stage/controls.tsx";
+import { FieldLine } from "./stage/field.tsx";
 
 const REPEATS = BTN.UP | BTN.DOWN | BTN.LEFT | BTN.RIGHT;
 const REPEAT_AFTER = 18;
@@ -109,7 +118,12 @@ export default function Shell() {
     return w?.kind === "app" ? w : null;
   };
   // A window opened from the menu takes focus; the menu makes way for it.
-  createEffect(on([current, focused], () => closeMenu(), { defer: true }));
+  // current() and focused() re-run on every change to the windows (a bar
+  // setting from the daemon's state is one): the menu closes only when the
+  // workspace or the focused window is another one.
+  const shownWs = createMemo(current);
+  const focusedId = createMemo(() => focused()?.id ?? null);
+  createEffect(on([shownWs, focusedId], () => closeMenu(), { defer: true }));
   // Locking puts the card away.
   createEffect(on(locked, (l) => l && closeCard(), { defer: true }));
   // A new focus gets a fresh keyboard: no latched modifiers, the letters.
@@ -163,11 +177,14 @@ export default function Shell() {
   const press = (key: number, held: number) => {
     if (screensaverActive()) return stopScreensaver();
     if (qrOpen()) return closeQr();
-    const layer = layerOf(held & MODIFIERS);
+    const layer = UCONSOLE ? (locked() ? "plain" : superLayer()) : layerOf(held & MODIFIERS);
     if (layer !== "plain") {
       if (locked()) return;
       const chord = chordFor(layer, key);
-      if (chord) perform(chord.action);
+      if (chord) {
+        if (UCONSOLE) used(STEPS.includes(chord.action) ? "step" : "verb");
+        perform(chord.action);
+      }
       return;
     }
     const chord = chordFor("plain", key);
@@ -194,7 +211,10 @@ export default function Shell() {
     fed = w.app;
     // a touch app answers touch only (the pointer's); the buttons are the shell's
     if (w.appletSurface) return feedPackage(w.app, touchAppButtons(), pointerContacts(w.app));
-    const mask = layerOf(buttons & MODIFIERS) === "plain" && !locked() && !card() && !fieldSink() ? buttons & ~(MODIFIERS | BTN.SELECT | BTN.ZL | BTN.ZR) : 0;
+    const plain = UCONSOLE ? superLayer() === "plain" : layerOf(buttons & MODIFIERS) === "plain";
+    // the uConsole's START is SUPER: a game hears a tap of it as START (uconsoleFrame)
+    const own = UCONSOLE ? (buttons & ~(BTN.START | BTN.SELECT)) | (startPulse > 0 ? BTN.START : 0) : buttons & ~(MODIFIERS | BTN.SELECT | BTN.ZL | BTN.ZR);
+    const mask = plain && !locked() && !card() && !fieldSink() ? own : 0;
     feedPackage(w.app, mask, contacts);
   };
 
@@ -221,10 +241,61 @@ export default function Shell() {
   let held = 0;
   let heldFor = 0;
   let shoulderFor = 0;
+  /** frames a game still hears START after a tap of it (the uConsole's) */
+  let startPulse = 0;
+
+  // The uConsole: one panel, its keyboard (hardkeys.ts), its trackball
+  // (trackball.ts) and START as SUPER (super.ts). The buttons go through
+  // press() as the RG DS Plus's do, with the layer from super.ts.
+  onHardInput(input);
+  onHardKey(sleepPointer);
+  const uconsoleFrame = (buttons: number) => {
+    const down = buttons & ~held;
+    const up = held & ~buttons;
+    // the key or roll that lights a dark panel only lights it
+    if (panelDark()) {
+      held = buttons;
+      return discardTrackball();
+    }
+    const rolled = trackballTick();
+    if (down || rolled) input();
+    if (buttons & held & REPEATS) heldFor++;
+    else heldFor = 0;
+    held = buttons;
+    if (startPulse > 0) startPulse--;
+    if (down & ~BTN.SELECT) closeHelp();
+    if (screensaverActive() && (down || rolled)) return stopScreensaver();
+    // START: SUPER, or the lock's Escape; a game hears a tap of it
+    if (down & BTN.START) {
+      if (locked()) press(BTN.START, buttons);
+      else startPressed();
+    }
+    if (up & BTN.START && !locked()) {
+      const game = focusedPackage() && !focusedPackage()!.appletSurface && !card() && superLayer() === "window";
+      if (startReleased(!game) === "tap" && game) startPulse = 4;
+    }
+    superTick();
+    setHeldLayer(superLayer());
+    // SELECT is the firmware's wheel while held: up again with no wheel in
+    // between, it is the controls row, or its chord under SUPER
+    if (down & BTN.SELECT) wheeledWhile(true);
+    if (up & BTN.SELECT && !wheeledWhile(false) && !locked()) {
+      if (superLayer() === "plain") toggleHelp();
+      else press(BTN.SELECT, buttons | BTN.SELECT);
+    }
+    for (const key of KEYS) {
+      if (key & (BTN.START | BTN.SELECT)) continue;
+      if (down & key) press(key, buttons);
+      else if (key & REPEATS & buttons && heldFor > REPEAT_AFTER && (heldFor - REPEAT_AFTER) % REPEAT_EVERY === 0) sendRepeat(() => press(key, buttons));
+    }
+    if (locked()) return;
+    feed(buttons, []);
+  };
   /** the screensaver's dismissing touch: nothing acts until every finger lifts */
   let swallow = false;
   onFrame((pressed: number) => {
     const buttons = pressed | remoteButtons();
+    if (UCONSOLE) return uconsoleFrame(buttons);
     const touch = trackTouches();
     const down = buttons & ~held;
     if (down || touch.raw) input();
@@ -267,9 +338,14 @@ export default function Shell() {
       <QrSheet />
       <Osd />
       <Toasts />
-      <Pointer shown={() => !locked() && (layout() === "pad" ? !surfacePackage() : layout() === "keys" && pointerAwake())} />
+      <Pointer shown={() => !locked() && (UCONSOLE ? trackballAwake() : layout() === "pad" ? !surfacePackage() : layout() === "keys" && pointerAwake())} />
       <LockStage clock={time} date={date} />
+      <Show when={UCONSOLE}>
+        <Controls />
+        <FieldLine />
+      </Show>
       <Screensaver />
+      <Show when={HAS_DECK}>
       <AuxiliarySurface>
         <View class="absolute left-0 top-0" style={{ width: DECK_W, height: DECK_H, bgColor: color("darker_background") }}>
           <Show when={!screensaverActive()} fallback={<ScreensaverDeck />}>
@@ -304,6 +380,7 @@ export default function Shell() {
           </Show>
         </View>
       </AuxiliarySurface>
+      </Show>
     </View>
   );
 }

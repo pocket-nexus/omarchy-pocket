@@ -8,6 +8,8 @@ Omarchy Pocket is a Linux desktop shrunk to a handheld: a terminal, a coding age
 
 **The gamepad is SUPER.** Omarchy binds every window action to SUPER and one key; here the shoulders are SUPER. L1, R1 and both together are the chord layers, and a layer lasts as long as the shoulder is down. With no shoulder down, the buttons are keys for whatever has focus.
 
+The ClockworkPi uConsole has one screen, a keyboard, a trackball with two mouse buttons and no shoulders: the stage takes the panel, its keyboard and trackball take the deck's place, and START is SUPER, tapped to latch a layer or held for a chord ([clockwork-uconsole.md](clockwork-uconsole.md)).
+
 ## The deck's layouts
 
 | Layout | What it is | The rule picks it for |

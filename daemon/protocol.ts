@@ -407,6 +407,9 @@ export type Event =
   | { event: "appExit"; id: number; error: string }
   /** New run-time glyph atlases to load (omarchyBridge.loadFontAtlas). */
   | { event: "atlas"; atlases: AtlasFile[] }
+  /** The uConsole's panel went dark (its power key) or lit again: the key
+   *  that lights it does nothing else (daemon/uconsole.ts). */
+  | { event: "screen"; dark: boolean }
   /** logind is about to suspend: the shell locks first. */
   | { event: "sleep" }
   | { event: "notify"; notice: Notice }

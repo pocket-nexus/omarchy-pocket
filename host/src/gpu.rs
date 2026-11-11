@@ -13,6 +13,14 @@
 //! directly: libmali's libEGL/libGLESv2/libgbm are small wrappers that export
 //! none of those symbols themselves (egl.rs). The apps in the shell's windows
 //! render through compositor.rs on this context.
+//!
+//! On the ClockworkPi uConsole (feature `mesa`) the same path runs on Mesa's
+//! GBM and EGL over vc4 KMS (the VideoCore VI renders through v3d). Its one
+//! DSI panel scans out 720 x 1280, portrait, and the hardware planes turn by
+//! 0 or 180 degrees only: the stage (1280 x 720) renders into a texture and a
+//! quad turns it a quarter onto the panel's surface (`Turn`). The profile's
+//! auxiliary surface, the applets' touch surfaces' host, is drawn into a
+//! texture no panel shows.
 use drm::{
     buffer::{Buffer, DrmFourcc, Handle as BufferHandle},
     control::{connector, crtc, framebuffer, Device as ControlDevice, Event, Mode, PageFlipFlags},
@@ -46,7 +54,8 @@ mod ffi {
         unsafe extern "C" fn(u32, *mut c_void, *const isize) -> EGLDisplay;
     pub type CreatePlatformWindowSurface =
         unsafe extern "C" fn(EGLDisplay, EGLConfig, *mut c_void, *const isize) -> EGLSurface;
-    #[link(name = "mali")]
+    #[cfg_attr(not(feature = "mesa"), link(name = "mali"))]
+    #[cfg_attr(feature = "mesa", link(name = "gbm"))]
     unsafe extern "C" {
         pub fn gbm_create_device(fd: c_int) -> *mut gbm_device;
         pub fn gbm_device_destroy(device: *mut gbm_device);
@@ -114,11 +123,13 @@ impl Buffer for Scanout {
     }
 }
 
-struct Panel {
-    role: DisplayRole,
+/// What a panel shows on: its KMS connector, CRTC and GBM surface. A panel
+/// without one (the uConsole's auxiliary surface, which no panel shows) is
+/// rendered into its offscreen target and never presented.
+struct Kms {
+    /// the scanout's pixels: the render size, or its transpose when turned
     size: [u32; 2],
     gbm: *mut gbm_surface,
-    surface: EGLSurface,
     connector: connector::Handle,
     crtc: crtc::Handle,
     mode: Mode,
@@ -128,11 +139,36 @@ struct Panel {
     framebuffers: Vec<(*mut gbm_bo, framebuffer::Handle)>,
     front: Option<*mut gbm_bo>,
     pending: Option<*mut gbm_bo>,
-    /// OMARCHY_POCKET_TIMING=content: a hash of rows of the frame last swapped
-    drawn: u64,
     /// The first frame sets the CRTC and produces no flip event.
     flip_expected: bool,
+}
+
+/// A texture the renderer draws a panel into, at the panel's render size.
+struct Offscreen {
+    texture: u32,
+    framebuffer: u32,
+}
+
+struct Panel {
+    role: DisplayRole,
+    /// the size the renderer draws at (the profile's)
+    size: [u32; 2],
+    /// the EGL window surface made current to draw and swap; an unshown
+    /// panel borrows the first panel's
+    surface: EGLSurface,
+    kms: Option<Kms>,
+    /// set for a turned panel and an unshown one: the renderer's target
+    offscreen: Option<Offscreen>,
+    /// turned a quarter clockwise onto its scanout (the uConsole's portrait panel)
+    turned: bool,
+    /// OMARCHY_POCKET_TIMING=content: a hash of rows of the frame last swapped
+    drawn: u64,
     target: u64,
+}
+
+/// The quad that copies a turned panel's offscreen frame onto its scanout.
+struct Turn {
+    program: u32,
 }
 
 struct Shared {
@@ -141,22 +177,27 @@ struct Shared {
     display: EGLDisplay,
     context: EGLContext,
     panels: Vec<Panel>,
+    turn: Option<Turn>,
 }
 
 /// Panels (bit 0 the top, bit 1 the bottom) whose next present repeats the
 /// frame they show: the flush keeps their buffers and queues no flip.
 static HELD: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+/// The panels a screen shows (bit per panel): /tmp/pocket-shot waits for these.
+static SHOWN: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0b11);
 
 /// Marks the panels the next present leaves as they are.
 pub fn hold(top: bool, bottom: bool) {
     HELD.store(u8::from(top) | (u8::from(bottom) << 1), std::sync::atomic::Ordering::Relaxed);
 }
 
-/// The renderer's view of EGL: the context and each panel's window surface.
+/// The renderer's view of EGL: the context and, for each panel, the window
+/// surface to make current and the framebuffer to draw into (0, the
+/// surface's own, or a turned or unshown panel's offscreen texture).
 pub struct Context {
     display: EGLDisplay,
     context: EGLContext,
-    surfaces: Rc<Vec<EGLSurface>>,
+    targets: Rc<Vec<(EGLSurface, u32)>>,
 }
 // The renderer calls these on the program's one thread; the handles outlive it.
 unsafe impl ContextAccess for Context {
@@ -165,7 +206,7 @@ unsafe impl ContextAccess for Context {
         if unsafe { eglGetCurrentContext() } == self.context {
             return Ok(());
         }
-        let surface = self.surfaces[0];
+        let surface = self.targets[0].0;
         if unsafe { eglMakeCurrent(self.display, surface, surface, self.context) } == 1 {
             Ok(())
         } else {
@@ -173,10 +214,10 @@ unsafe impl ContextAccess for Context {
         }
     }
     fn bind_target(&mut self, panel: &usize) -> Result<(), RenderError> {
-        let surface = *self.surfaces.get(*panel).ok_or(RenderError::InvalidFrame)?;
+        let (surface, framebuffer) = *self.targets.get(*panel).ok_or(RenderError::InvalidFrame)?;
         if unsafe { eglMakeCurrent(self.display, surface, surface, self.context) } == 1 {
             // an app's renderer leaves its framebuffer bound on the shared context
-            unsafe { glBindFramebuffer(GL_FRAMEBUFFER, 0) };
+            unsafe { glBindFramebuffer(GL_FRAMEBUFFER, framebuffer) };
             Ok(())
         } else {
             Err(RenderError::Failed)
@@ -221,41 +262,121 @@ pub struct Display {
     sequence: u64,
 }
 
+/// A quarter turn clockwise: the scanout's GL pixel (gx, gy) of a W x H
+/// portrait buffer shows the landscape frame's texel (H-1-gy, gx), so the
+/// frame's top edge runs down the panel's right side (where the uConsole's
+/// panel has it under labwc's `transform 270`).
+const TURN_VERTEX: &core::ffi::CStr = c"attribute vec2 p;
+varying vec2 t;
+void main() {
+  t = vec2(0.5 - 0.5 * p.y, 0.5 + 0.5 * p.x);
+  gl_Position = vec4(p, 0.0, 1.0);
+}";
+const TURN_FRAGMENT: &core::ffi::CStr = c"precision mediump float;
+varying vec2 t;
+uniform sampler2D s;
+void main() { gl_FragColor = texture2D(s, t); }";
+const QUAD: [f32; 12] = [-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0];
+
+impl Turn {
+    fn new() -> io::Result<Self> {
+        use pocket_gles::raw::es2::*;
+        unsafe {
+            let shader = |kind, source: &core::ffi::CStr| {
+                let s = glCreateShader(kind);
+                let text = source.as_ptr();
+                glShaderSource(s, 1, &text, ptr::null());
+                glCompileShader(s);
+                let mut ok = 0;
+                glGetShaderiv(s, GL_COMPILE_STATUS, &mut ok);
+                (ok != 0).then_some(s).ok_or_else(|| io::Error::other("the turn's shader did not compile"))
+            };
+            let vertex = shader(GL_VERTEX_SHADER, TURN_VERTEX)?;
+            let fragment = shader(GL_FRAGMENT_SHADER, TURN_FRAGMENT)?;
+            let program = glCreateProgram();
+            glAttachShader(program, vertex);
+            glAttachShader(program, fragment);
+            glBindAttribLocation(program, 0, c"p".as_ptr());
+            glLinkProgram(program);
+            glDeleteShader(vertex);
+            glDeleteShader(fragment);
+            let mut ok = 0;
+            glGetProgramiv(program, GL_LINK_STATUS, &mut ok);
+            if ok == 0 {
+                glDeleteProgram(program);
+                return Err(io::Error::other("the turn's program did not link"));
+            }
+            glUseProgram(program);
+            glUniform1i(glGetUniformLocation(program, c"s".as_ptr()), 0);
+            Ok(Self { program })
+        }
+    }
+    /// Draws `texture` turned onto the bound window surface of `size` pixels.
+    fn draw(&self, texture: u32, size: [u32; 2]) {
+        use pocket_gles::raw::{es2::*, *};
+        unsafe {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glViewport(0, 0, size[0] as i32, size[1] as i32);
+            glDisable(GL_BLEND);
+            glDisable(GL_SCISSOR_TEST);
+            glUseProgram(self.program);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, QUAD.as_ptr().cast());
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            glDisableVertexAttribArray(0);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+    }
+}
+
 impl Shared {
     fn framebuffer(&mut self, index: usize, bo: *mut gbm_bo) -> io::Result<framebuffer::Handle> {
-        let panel = &mut self.panels[index];
-        if let Some((_, fb)) = panel.framebuffers.iter().find(|(b, _)| *b == bo) {
+        let card = self.card.clone();
+        let kms = self.panels[index].kms.as_mut().ok_or_else(|| io::Error::other("the panel has no scanout"))?;
+        if let Some((_, fb)) = kms.framebuffers.iter().find(|(b, _)| *b == bo) {
             return Ok(*fb);
         }
         let raw = unsafe { gbm_bo_get_handle(bo) } as u32;
         let handle = drm::control::from_u32::<BufferHandle>(raw)
             .ok_or_else(|| io::Error::other("GBM buffer has no KMS handle"))?;
         let scanout = Scanout {
-            size: panel.size,
+            size: kms.size,
             pitch: unsafe { gbm_bo_get_stride(bo) },
             handle,
         };
-        let fb = self.card.add_framebuffer(&scanout, 24, 32)?;
-        panel.framebuffers.push((bo, fb));
+        let fb = card.add_framebuffer(&scanout, 24, 32)?;
+        kms.framebuffers.push((bo, fb));
         Ok(fb)
     }
     fn present(&mut self, index: usize) -> io::Result<()> {
-        let (display, surface, gbm) = {
-            let panel = &self.panels[index];
-            (self.display, panel.surface, panel.gbm)
+        let (display, surface) = (self.display, self.panels[index].surface);
+        // An unshown panel keeps its frame in its texture.
+        let Some(scanout) = self.panels[index].kms.as_ref().map(|k| (k.size, k.gbm, k.front.is_some())) else {
+            return Ok(());
         };
+        let (scanout_size, gbm, showing) = scanout;
         // Presentation renders every panel before flushing any, so another
         // panel's surface may be current; a swap needs its own.
         if unsafe { eglMakeCurrent(display, surface, surface, self.context) } != 1 {
             return Err(egl_error("eglMakeCurrent before swap"));
         }
-        unsafe { glBindFramebuffer(GL_FRAMEBUFFER, 0) };
-        capture(index, self.panels[index].size);
+        let panel = &self.panels[index];
+        // a readback is the frame as the renderer drew it: a turned panel's offscreen texture
+        unsafe { glBindFramebuffer(GL_FRAMEBUFFER, panel.offscreen.as_ref().map_or(0, |o| o.framebuffer)) };
+        capture(index, panel.size);
         let held = HELD.load(std::sync::atomic::Ordering::Relaxed) & (1 << index) != 0;
-        if held && self.panels[index].front.is_some() {
+        if held && showing {
+            unsafe { glBindFramebuffer(GL_FRAMEBUFFER, 0) };
             return Ok(());
         }
-        let drawn = content_hash_gl(self.panels[index].size);
+        match (&panel.offscreen, &self.turn) {
+            (Some(offscreen), Some(turn)) if panel.turned => turn.draw(offscreen.texture, scanout_size),
+            _ => unsafe { glBindFramebuffer(GL_FRAMEBUFFER, 0) },
+        }
+        let drawn = content_hash_gl(scanout_size);
         let swap_started = Instant::now();
         if unsafe { eglSwapBuffers(display, surface) } != 1 {
             return Err(egl_error("eglSwapBuffers"));
@@ -268,32 +389,32 @@ impl Shared {
             ));
         }
         let fb = self.framebuffer(index, bo)?;
+        let card = self.card.clone();
         let panel = &mut self.panels[index];
         if let Some(drawn) = drawn {
             panel.drawn = drawn;
             eprintln!("omarchy-pocket-host: panel {index} flip fb={} bo={bo:?} drawn={drawn:016x}", u32::from(fb));
         }
-        if panel.front.is_none() {
-            self.card.set_crtc(
-                panel.crtc,
-                Some(fb),
-                (0, 0),
-                &[panel.connector],
-                Some(panel.mode),
-            )?;
-            panel.flip_expected = false;
+        let kms = panel.kms.as_mut().expect("a presented panel has a scanout");
+        if kms.front.is_none() {
+            card.set_crtc(kms.crtc, Some(fb), (0, 0), &[kms.connector], Some(kms.mode))?;
+            kms.flip_expected = false;
         } else {
-            self.card
-                .page_flip(panel.crtc, fb, PageFlipFlags::EVENT, None)?;
-            panel.flip_expected = true;
+            card.page_flip(kms.crtc, fb, PageFlipFlags::EVENT, None)?;
+            kms.flip_expected = true;
         }
-        panel.pending = Some(bo);
+        kms.pending = Some(bo);
         Ok(())
+    }
+    fn pending(&self, index: usize) -> bool {
+        self.panels[index].kms.as_ref().is_some_and(|k| k.pending.is_some())
     }
     fn complete(&mut self, index: usize) -> io::Result<()> {
         let wait_started = Instant::now();
-        if self.panels[index].flip_expected {
-            let crtc = self.panels[index].crtc;
+        let Some(crtc) = self.panels[index].kms.as_ref().map(|k| k.crtc) else {
+            return Ok(());
+        };
+        if self.panels[index].kms.as_ref().is_some_and(|k| k.flip_expected) {
             let deadline = Instant::now() + Duration::from_secs(5);
             loop {
                 {
@@ -336,18 +457,20 @@ impl Shared {
         }
         probe(index, "flip wait", wait_started);
         let panel = &mut self.panels[index];
-        panel.flip_expected = false;
-        if let Some(bo) = panel.pending.take() {
-            if let Some(old) = panel.front.replace(bo) {
-                unsafe { gbm_surface_release_buffer(panel.gbm, old) };
+        let drawn = panel.drawn;
+        let kms = panel.kms.as_mut().expect("checked above");
+        kms.flip_expected = false;
+        if let Some(bo) = kms.pending.take() {
+            if let Some(old) = kms.front.replace(bo) {
+                unsafe { gbm_surface_release_buffer(kms.gbm, old) };
             }
             if content_on() {
-                let scan = content_hash_bo(bo, panel.size);
-                let verdict = if scan == Some(panel.drawn) { "same" } else { "DIFFERS" };
+                let scan = content_hash_bo(bo, kms.size);
+                let verdict = if scan == Some(drawn) { "same" } else { "DIFFERS" };
                 eprintln!(
                     "omarchy-pocket-host: panel {index} shown bo={bo:?} scan={:016x} {verdict} drawn={:016x}",
                     scan.unwrap_or(0),
-                    panel.drawn
+                    drawn
                 );
             }
         }
@@ -425,10 +548,12 @@ fn content_hash_bo(bo: *mut gbm_bo, size: [u32; 2]) -> Option<u64> {
     Some(hash)
 }
 
+
 /// While /tmp/pocket-shot exists, each presented frame is read back from the
 /// GPU before its swap into /tmp/pocket-shot-<panel>.rgba (bottom row first,
-/// as GL reads); the trigger goes once both panels have a file. Remove old
-/// files before touching the trigger.
+/// as GL reads; a turned panel's frame as drawn, before the turn); the
+/// trigger goes once every shown panel has a file. Remove old files before
+/// touching the trigger.
 fn capture(index: usize, size: [u32; 2]) {
     const TRIGGER: &str = "/tmp/pocket-shot";
     if !Path::new(TRIGGER).exists() {
@@ -448,8 +573,9 @@ fn capture(index: usize, size: [u32; 2]) {
     }
     let file = format!("/tmp/pocket-shot-{index}.rgba");
     let _ = std::fs::write(&file, &pixels);
-    // An unchanged panel is not presented: the trigger stays until both have a frame.
-    if (0..2).all(|panel| Path::new(&format!("/tmp/pocket-shot-{panel}.rgba")).exists()) {
+    // An unchanged panel is not presented: the trigger stays until each shown one has a frame.
+    let shown = SHOWN.load(std::sync::atomic::Ordering::Relaxed);
+    if (0..8).filter(|panel| shown & (1 << panel) != 0).all(|panel| Path::new(&format!("/tmp/pocket-shot-{panel}.rgba")).exists()) {
         let _ = std::fs::remove_file(TRIGGER);
     }
 }
@@ -473,7 +599,7 @@ impl DisplayOutput for Display {
     }
     fn acquire(&mut self, region: Rect) -> Result<Target<'_>, DisplayError> {
         // the previous frame's flip, queued by the last present
-        if self.shared.borrow().panels[self.index].pending.is_some() {
+        if self.shared.borrow().pending(self.index) {
             self.shared.borrow_mut().complete(self.index).map_err(|e| {
                 eprintln!("omarchy-pocket-host: panel {} flip: {e}", self.index);
                 DisplayError::Failed
@@ -514,9 +640,23 @@ impl Drop for Shared {
     fn drop(&mut self) {
         // a queued flip finishes before the CRTCs go back to the old framebuffers
         for index in 0..self.panels.len() {
-            if self.panels[index].pending.is_some() {
+            if self.pending(index) {
                 let _ = self.complete(index);
             }
+        }
+        if let Some(first) = self.panels.first() {
+            unsafe { eglMakeCurrent(self.display, first.surface, first.surface, self.context) };
+        }
+        for panel in &self.panels {
+            if let Some(offscreen) = &panel.offscreen {
+                unsafe {
+                    glDeleteFramebuffers(1, &offscreen.framebuffer);
+                    glDeleteTextures(1, &offscreen.texture);
+                }
+            }
+        }
+        if let Some(turn) = self.turn.take() {
+            unsafe { pocket_gles::raw::es2::glDeleteProgram(turn.program) };
         }
         unsafe {
             eglMakeCurrent(
@@ -527,28 +667,29 @@ impl Drop for Shared {
             );
         }
         for panel in self.panels.drain(..) {
+            let Some(kms) = panel.kms else { continue };
             if self
                 .card
                 .set_crtc(
-                    panel.crtc,
-                    panel.old.framebuffer(),
-                    panel.old.position(),
-                    &panel.old_connectors,
-                    panel.old.mode(),
+                    kms.crtc,
+                    kms.old.framebuffer(),
+                    kms.old.position(),
+                    &kms.old_connectors,
+                    kms.old.mode(),
                 )
                 .is_err()
             {
-                let _ = self.card.set_crtc(panel.crtc, None, (0, 0), &[], None);
+                let _ = self.card.set_crtc(kms.crtc, None, (0, 0), &[], None);
             }
-            for (_, fb) in &panel.framebuffers {
+            for (_, fb) in &kms.framebuffers {
                 let _ = self.card.destroy_framebuffer(*fb);
             }
             unsafe {
-                for bo in [panel.front, panel.pending].into_iter().flatten() {
-                    gbm_surface_release_buffer(panel.gbm, bo);
+                for bo in [kms.front, kms.pending].into_iter().flatten() {
+                    gbm_surface_release_buffer(kms.gbm, bo);
                 }
                 eglDestroySurface(self.display, panel.surface);
-                gbm_surface_destroy(panel.gbm);
+                gbm_surface_destroy(kms.gbm);
             }
         }
         unsafe {
@@ -559,18 +700,53 @@ impl Drop for Shared {
     }
 }
 
-/// A panel to open: its connector's name (`DSI-1`), size and surface role.
+/// A panel to open: its connector's name (`DSI-1`), or none for a surface
+/// no panel shows; its size as the renderer draws it; its surface role; and
+/// whether its scanout stands a quarter turn clockwise from that (the
+/// uConsole's 720 x 1280 panel showing 1280 x 720).
 pub struct PanelSpec<'a> {
-    pub connector: &'a str,
+    pub connector: Option<&'a str>,
     pub size: [u32; 2],
     pub role: DisplayRole,
+    pub turned: bool,
 }
 
-/// The card, GBM, EGL and a GLES 2 renderer for the panels, in order.
+/// An RGBA texture of `size` and a framebuffer drawing into it.
+fn offscreen(size: [u32; 2]) -> io::Result<Offscreen> {
+    let (mut texture, mut framebuffer) = (0, 0);
+    unsafe {
+        glGenTextures(1, &mut texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA as i32, size[0] as i32, size[1] as i32, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr::null());
+        // the turn copies texel for pixel
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glGenFramebuffers(1, &mut framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+        let status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        if status != GL_FRAMEBUFFER_COMPLETE {
+            glDeleteFramebuffers(1, &framebuffer);
+            glDeleteTextures(1, &texture);
+            return Err(io::Error::other(format!("offscreen target {size:?}: framebuffer status {status:#x}")));
+        }
+    }
+    Ok(Offscreen { texture, framebuffer })
+}
+
+/// The card, GBM, EGL and a GLES 2 renderer for the panels, in order. The
+/// first panel must have a connector.
 pub fn open(
     path: impl AsRef<Path>,
     specs: &[PanelSpec<'_>],
 ) -> io::Result<(Renderer, Vec<Display>, Compositor)> {
+    if specs.first().is_none_or(|s| s.connector.is_none()) {
+        return Err(io::Error::other("the first panel needs a connector"));
+    }
     let card = Rc::new(Card {
         file: OpenOptions::new().read(true).write(true).open(path)?,
         completed: RefCell::new(Vec::new()),
@@ -657,12 +833,19 @@ pub fn open(
         display,
         context,
         panels: Vec::new(),
+        turn: None,
     };
     let mut taken = Vec::new();
     let resources = card.resource_handles()?;
     for spec in specs {
-        let selection =
-            pocket_linux_drm::select_output(&*card, spec.size, Some(spec.connector), &taken)?;
+        let Some(connector) = spec.connector else {
+            // drawn into its texture on the first panel's surface, never shown
+            let surface = shared.panels[0].surface;
+            shared.panels.push(Panel { role: spec.role, size: spec.size, surface, kms: None, offscreen: None, turned: false, drawn: 0, target: 0 });
+            continue;
+        };
+        let scanout = if spec.turned { [spec.size[1], spec.size[0]] } else { spec.size };
+        let selection = pocket_linux_drm::select_output(&*card, scanout, Some(connector), &taken)?;
         taken.push(selection.crtc);
         let old = card.get_crtc(selection.crtc)?;
         let mut old_connectors = Vec::new();
@@ -679,17 +862,14 @@ pub fn open(
         let gbm = unsafe {
             gbm_surface_create(
                 device,
-                spec.size[0],
-                spec.size[1],
+                scanout[0],
+                scanout[1],
                 GBM_FORMAT_XRGB8888,
                 GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING,
             )
         };
         if gbm.is_null() {
-            return Err(io::Error::other(format!(
-                "gbm_surface_create for {}",
-                spec.connector
-            )));
+            return Err(io::Error::other(format!("gbm_surface_create for {connector}")));
         }
         let surface = unsafe {
             match create_surface {
@@ -699,39 +879,53 @@ pub fn open(
         };
         if surface.is_null() {
             unsafe { gbm_surface_destroy(gbm) };
-            return Err(egl_error(&format!(
-                "EGL window surface for {}",
-                spec.connector
-            )));
+            return Err(egl_error(&format!("EGL window surface for {connector}")));
         }
         shared.panels.push(Panel {
             role: spec.role,
             size: spec.size,
-            gbm,
             surface,
-            connector: selection.connector,
-            crtc: selection.crtc,
-            mode: selection.mode,
-            old,
-            old_connectors,
-            framebuffers: Vec::new(),
-            front: None,
-            pending: None,
+            kms: Some(Kms {
+                size: scanout,
+                gbm,
+                connector: selection.connector,
+                crtc: selection.crtc,
+                mode: selection.mode,
+                old,
+                old_connectors,
+                framebuffers: Vec::new(),
+                front: None,
+                pending: None,
+                flip_expected: false,
+            }),
+            offscreen: None,
+            turned: spec.turned,
             drawn: 0,
-            flip_expected: false,
             target: 0,
         });
     }
-    let surfaces = Rc::new(shared.panels.iter().map(|p| p.surface).collect::<Vec<_>>());
-    if unsafe { eglMakeCurrent(display, surfaces[0], surfaces[0], context) } != 1 {
+    let first = shared.panels[0].surface;
+    if unsafe { eglMakeCurrent(display, first, first, context) } != 1 {
         return Err(egl_error("eglMakeCurrent"));
     }
     unsafe { eglSwapInterval(display, 0) };
+    // a turned panel and an unshown one draw into textures
+    for panel in &mut shared.panels {
+        if panel.turned || panel.kms.is_none() {
+            panel.offscreen = Some(offscreen(panel.size)?);
+        }
+    }
+    if shared.panels.iter().any(|p| p.turned) {
+        shared.turn = Some(Turn::new()?);
+    }
+    let shown = shared.panels.iter().enumerate().filter(|(_, p)| p.kms.is_some()).fold(0u8, |bits, (i, _)| bits | (1 << i));
+    SHOWN.store(shown, std::sync::atomic::Ordering::Relaxed);
+    let targets = Rc::new(shared.panels.iter().map(|p| (p.surface, p.offscreen.as_ref().map_or(0, |o| o.framebuffer))).collect::<Vec<_>>());
     let mut driver = Driver::with_limits(
         Context {
             display,
             context,
-            surfaces: surfaces.clone(),
+            targets: targets.clone(),
         },
         GLYPH_CACHE,
     )
@@ -748,8 +942,10 @@ pub fn open(
             .map_err(|e| io::Error::other(format!("GLES target: {e:?}")))?;
     }
     eprintln!(
-        "display: GBM/EGL {major}.{minor}, GLES 2 renderer on {} panels",
-        shared.panels.len()
+        "display: GBM/EGL {major}.{minor}, GLES 2 renderer on {} panels ({} shown{})",
+        shared.panels.len(),
+        shown.count_ones(),
+        if shared.turn.is_some() { ", turned a quarter" } else { "" }
     );
     let driver = Rc::new(RefCell::new(driver));
     let shared = Rc::new(RefCell::new(shared));
@@ -766,7 +962,7 @@ pub fn open(
         Box::new(move |handle, texture| shell.borrow_mut().set_external_texture(handle, texture)),
         display,
         context,
-        surfaces[0],
+        first,
         shared.clone(),
     );
     Ok((

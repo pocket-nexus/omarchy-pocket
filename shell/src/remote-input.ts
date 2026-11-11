@@ -7,7 +7,11 @@
 // two fingers `apart` points side by side (default 80), and
 // `omarchy-shell pocket.input type <text>` types on the touch keyboard, and
 // `omarchy-shell pocket.input pointer <x> <y>` puts the stage pointer at a
-// point and `click` clicks there. They drive the shell
+// point and `click` clicks there. On the uConsole, `ball <dx> <dy> [frames]
+// [buttons]` rolls the trackball (buttons: 1 L, 2 R, 4 the ball's press),
+// `wheel <detents>` turns its wheel, `hardkey <name>` presses a keyboard key
+// as the host names it (Enter, Meta+w, Control+c), `hardtext <text>` types
+// on the keyboard and `super` reports the SUPER layer. They drive the shell
 // over SSH for testing; the names are BTN's (UP, CIRCLE, START, ...).
 import { BTN } from "@pocketjs/framework/input";
 import { holdStick } from "./stick.ts";
@@ -16,6 +20,9 @@ import { sendKey } from "./term/keyboard.tsx";
 import { chooseLayout, LAYOUTS, type Layout } from "./focus.ts";
 import { click, movePointer, pointer } from "./stage/pointer.tsx";
 import { watchFor, watchTick, watching } from "./watch.ts";
+import { injectTrackball, trackballAwake } from "./trackball.ts";
+import { hardKey } from "./hardkeys.ts";
+import { latched, superLayer } from "./super.ts";
 export { watching };
 
 const held: { mask: number; frames: number }[] = [];
@@ -60,6 +67,28 @@ serve("pocket.input", {
     chooseLayout(name as Layout);
     return "ok";
   },
+  ball: (dx, dy, frames = "1", buttons = "0") => {
+    const n = Math.max(1, Number(frames) || 1);
+    for (let i = 0; i < n; i++) injectTrackball([Math.round(Number(dx) / n), Math.round(Number(dy) / n), 0, Number(buttons) || 0]);
+    return "ok";
+  },
+  /** a button of the ball's held for `frames` (1 L, 2 R, 4 the ball's press) */
+  button: (bits = "1", frames = "3") => {
+    for (let i = 0; i < Math.max(1, Number(frames) || 3); i++) injectTrackball([0, 0, 0, Number(bits) || 1]);
+    injectTrackball([0, 0, 0, 0]);
+    return "ok";
+  },
+  wheel: (detents = "1") => (injectTrackball([0, 0, Number(detents) || 0, 0]), "ok"),
+  hardkey: (name) => {
+    for (const mod of ["Meta", "Shift", "Control", "Alt"]) if (name?.startsWith(`${mod}+`)) hardKey({ kind: "key", key: mod, pressed: true, repeat: false });
+    hardKey({ kind: "key", key: name ?? "", pressed: true, repeat: false });
+    for (const mod of ["Meta", "Shift", "Control", "Alt"]) if (name?.startsWith(`${mod}+`)) hardKey({ kind: "key", key: mod, pressed: false, repeat: false });
+    return "ok";
+  },
+  hardtext: (text) => (hardKey({ kind: "commit", text: text ?? "" }), "ok"),
+  super: () => `${superLayer()}${latched() ? " latched" : ""}`,
+  /** the stage pointer's place and whether the trackball has woken it */
+  where: () => `${pointer().x.toFixed(0)},${pointer().y.toFixed(0)}${trackballAwake() ? " shown" : ""}`,
   /** logs the deck's contacts for `frames` frames (the host's stderr) */
   watch: (frames = "120") => {
     watchFor(Math.max(1, Number(frames) || 120));

@@ -54,3 +54,8 @@ zstd = { version = "0.13", default-features = false }
 
 [build-dependencies]
 pocket-profile-build.workspace = true
+
+[features]
+# Mesa's libEGL, libGLESv2 and libgbm in place of libmali.so.1: the
+# ClockworkPi uConsole's VideoCore VI (tools/uconsole.ts builds with it)
+mesa = []

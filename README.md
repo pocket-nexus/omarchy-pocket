@@ -28,6 +28,20 @@ bun tools/android.ts push-rootfs    # the app installs it at its next start
 bun tools/android.ts release        # a release's files in dist/android/<version>/, signed with the release key
 ```
 
+## On the ClockworkPi uConsole
+
+The ClockworkPi uConsole (Raspberry Pi CM4, Raspberry Pi OS 13) runs Omarchy Pocket beside its own desktop: the same host program built with Mesa (`--features mesa`) on its one 5" panel, the stage turned a quarter onto the 720×1280 portrait panel and taking all of it at 640×360 points (density 2); the keyboard as the keyboard, the trackball as the pointer with L and R as its buttons, the D-pad and A B X Y as the gamepad, and START as SUPER, tapped to latch a layer or held for a chord, with the controls' meanings drawn along the panel's bottom edge right above them. Omarchy's CLI and omarchy-pocketd run in the AYN Thor's Arch Linux ARM root under chroot, on Raspberry Pi OS's NetworkManager, PipeWire, BlueZ and logind. [docs/clockwork-uconsole.md](docs/clockwork-uconsole.md) has the details.
+
+On the uConsole, from the release:
+
+```sh
+curl -LO https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.0/omarchy-pocket-uconsole_0.2.0_arm64.deb
+sudo apt install ./omarchy-pocket-uconsole_0.2.0_arm64.deb   # downloads Omarchy's root (802 MB)
+omarchy-pocket-session on        # off: the Raspberry Pi desktop; boot / desktop: what starts at boot
+```
+
+From source: `bun tools/uconsole.ts all <user>@<uconsole>` builds the package and installs it over SSH.
+
 ## Applets
 
 <p align="center"><img src="docs/media/applets.webp" width="840" alt="Nine applets on sample data: Weather, Hacker News, GitHub, X, Discord, YouTube, Podcasts, Maps and Home"></p>
@@ -41,6 +55,7 @@ The windows' applets come from [pocket-nexus/applets](https://github.com/pocket-
 - [docs/device.md](docs/device.md): hardware, partitions, boot chain, kernel and GPU stack of the stock firmware.
 - [docs/usb-link.md](docs/usb-link.md): SSH and port forwarding from a Mac over the OTG USB port, with measurements.
 - [docs/ayn-thor.md](docs/ayn-thor.md): the AYN Thor as an Android app: displays, the shell's geometry, input, the Linux root under proot, Android in place of the system services.
+- [docs/clockwork-uconsole.md](docs/clockwork-uconsole.md): the ClockworkPi uConsole: its controls, START as SUPER, the trackball, the controls row, the turned panel, Omarchy's root under chroot, the session beside Raspberry Pi OS's desktop.
 - [docs/hyprland-on-libmali.md](docs/hyprland-on-libmali.md): Omarchy's Hyprland on the stock kernel through libmali (the first approach, kept as a record).
 
 | Path | Contents |
@@ -48,10 +63,12 @@ The windows' applets come from [pocket-nexus/applets](https://github.com/pocket-
 | `shell/` | the PocketJS shell (Solid) |
 | `host/` | omarchy-pocket-host, the device program (Rust); `libomarchy_pocket.so` for the AYN Thor (`src/android.rs`, `src/gpu_android.rs`) |
 | `android/` | the AYN Thor's Android app (Java, Gradle), its host profile (`pocket.host.json`) and the Linux root's `start.sh` |
+| `uconsole/` | the ClockworkPi uConsole's host profile (`pocket.host.json`), its package's files (`rootfs/`: `omarchy-root`, `omarchy-pocket-session`, the session's units, PAM, polkit, logind, tmpfiles) and maintainer scripts (`debian/`), and the release it installs the root from (`release.json`) |
 | `daemon/` | omarchy-pocketd (bridge, `omarchy-shell` socket, terminals, the companion's services) and the `hyprctl`/`uwsm`/`omarchy-pocket-term` shims (Bun) |
 | `spotify/` | omarchy-pocket-spotify, the Spotify service's program (Rust, on spotatui's modules) |
 | `tools/build.ts`, `tools/deploy.ts`, `tools/screenshot.ts` | build the programs, put them on a device over SSH, read both panels back from the GPU |
 | `tools/android.ts` | the AYN Thor's app, its applets and its Linux root; `exec` runs a command in the root over adb |
+| `tools/uconsole.ts` | the uConsole's host program, shell and applets, the Debian package, installing it and the session over SSH, the release |
 | `tools/omarchy-assets.ts` | Omarchy's menu, theme, wallpaper and fonts for the shell, from the pinned rc packages |
 | `image/build-root.ts`, `image/install.ts` | the system image and its installer |
 | `device/` | files for the Omarchy root (`rootfs/`) and the stock root (`stock/`: boot chooser, rescue USB link) |

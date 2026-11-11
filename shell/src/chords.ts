@@ -17,6 +17,7 @@
 // describe what its button does not do. A layer lasts as long as its
 // shoulder: nothing on the deck latches one.
 import { BTN } from "@pocketjs/framework/input";
+import { UCONSOLE } from "./screen.ts";
 import type { Layout } from "./wm.ts";
 
 export type Layer = "plain" | "window" | "move" | "workspace";
@@ -74,6 +75,40 @@ export const CHORDS: readonly Chord[] = [
   { layer: "plain", button: BTN.ZR, action: "ws.next" },
 ];
 
+/** The uConsole's table (super.ts): START is SUPER, tapped or held, and
+ *  its two layers are the window and move layers with the same verbs; there
+ *  is no workspace layer, since the D-pad's step past the last window goes
+ *  to the next workspace (actions.ts), and SUPER + [ ] or 1-5 on the
+ *  keyboard do too. SELECT under them is the key sheet and the bar, and L
+ *  and R stay the mouse's buttons. */
+export const UCONSOLE_CHORDS: readonly Chord[] = [
+  { layer: "window", button: BTN.LEFT, action: "focus.left" },
+  { layer: "window", button: BTN.RIGHT, action: "focus.right" },
+  { layer: "window", button: BTN.UP, action: "focus.up" },
+  { layer: "window", button: BTN.DOWN, action: "focus.down" },
+  { layer: "window", button: BTN.CIRCLE, action: "menu" },
+  { layer: "window", button: BTN.CROSS, action: "close" },
+  { layer: "window", button: BTN.TRIANGLE, action: "fullscreen" },
+  { layer: "window", button: BTN.SQUARE, action: "split" },
+  { layer: "window", button: BTN.SELECT, action: "keys" },
+
+  { layer: "move", button: BTN.LEFT, action: "swap.left" },
+  { layer: "move", button: BTN.RIGHT, action: "swap.right" },
+  { layer: "move", button: BTN.UP, action: "swap.up" },
+  { layer: "move", button: BTN.DOWN, action: "swap.down" },
+  { layer: "move", button: BTN.CIRCLE, action: "another" },
+  { layer: "move", button: BTN.CROSS, action: "reopen" },
+  { layer: "move", button: BTN.TRIANGLE, action: "maximize" },
+  { layer: "move", button: BTN.SQUARE, action: "swapsplit" },
+  { layer: "move", button: BTN.SELECT, action: "bar" },
+];
+
+/** A step keeps a latched layer (super.ts); every other action lets it go. */
+export const STEPS: readonly Action[] = [
+  "focus.left", "focus.right", "focus.up", "focus.down", "swap.left", "swap.right", "swap.up", "swap.down",
+  "ws.prev", "ws.next", "carry.prev", "carry.next", "shrink", "grow", "pan.left", "pan.right",
+];
+
 export const MODIFIERS = BTN.LTRIGGER | BTN.RTRIGGER;
 export const HELD_LAYERS: readonly Layer[] = ["window", "move", "workspace"];
 
@@ -83,15 +118,18 @@ export function layerOf(held: number): Layer {
   return l && r ? "workspace" : l ? "window" : r ? "move" : "plain";
 }
 
-export const chordsOf = (layer: Layer) => CHORDS.filter((c) => c.layer === layer);
-export const chordFor = (layer: Layer, button: number) => CHORDS.find((c) => c.layer === layer && c.button === button);
+const TABLE = UCONSOLE ? UCONSOLE_CHORDS : CHORDS;
+export const chordsOf = (layer: Layer) => TABLE.filter((c) => c.layer === layer);
+export const chordFor = (layer: Layer, button: number) => TABLE.find((c) => c.layer === layer && c.button === button);
 
-export const LAYER_TITLE: Record<Layer, string> = {
-  plain: "",
-  window: "L1  window",
-  move: "R1  move",
-  workspace: "L1+R1  workspace",
-};
+export const LAYER_TITLE: Record<Layer, string> = UCONSOLE
+  ? { plain: "", window: "SUPER  window", move: "SUPER \u{21e7}  move", workspace: "" }
+  : {
+      plain: "",
+      window: "L1  window",
+      move: "R1  move",
+      workspace: "L1+R1  workspace",
+    };
 
 /** The label a chord shows, for the layout it would act on. */
 export function labelFor(action: Action, layout: Layout): string {
@@ -289,8 +327,44 @@ export interface SheetRow {
   what: string;
 }
 
+/** The uConsole's sheet: START's two layers from this table, the keyboard
+ *  under SUPER (hardkeys.ts), and the controls with no layer. */
+function uconsoleSheet(layout: Layout): { title: string; rows: SheetRow[] }[] {
+  const layerRows = (layer: Layer, edge: string): SheetRow[] => [
+    { keys: "d-pad", what: edge },
+    ...chordsOf(layer).filter((c) => !(c.button & DPAD)).map((c) => ({ keys: BUTTON_NAME[c.button]!, what: labelFor(c.action, layout) })),
+  ];
+  return [
+    { title: "SUPER: tap or hold START", rows: [...layerRows("window", "focus, then workspace"), { keys: "START again", what: "the move layer" }, { keys: "Esc", what: "leave" }] },
+    { title: "SUPER \u{21e7} move", rows: layerRows("move", "swap, then carry") },
+    {
+      title: "keyboard with SUPER",
+      rows: [
+        { keys: "Return / Space", what: "terminal / menu" },
+        { keys: "W F J L", what: "close full split layout" },
+        { keys: "1-5  \u{21e7}1-5", what: "workspace, carry" },
+        { keys: "[ ]  Tab", what: "workspace before, after" },
+        { keys: "- =", what: "resize" },
+        { keys: "Esc / K", what: "system menu / keys" },
+      ],
+    },
+    {
+      title: "no SUPER",
+      rows: [
+        { keys: "d-pad", what: "arrows" },
+        { keys: "A B X Y", what: "Enter Bksp Tab Space" },
+        { keys: "L, the ball", what: "click (hold: drag)" },
+        { keys: "R", what: "back, or the menu" },
+        { keys: "SELECT + roll", what: "scroll" },
+        { keys: "SELECT", what: "the controls" },
+      ],
+    },
+  ];
+}
+
 /** The whole table the way SUPER + K lists it: one group per layer. */
 export function keySheet(layout: Layout): { title: string; rows: SheetRow[] }[] {
+  if (UCONSOLE) return uconsoleSheet(layout);
   const prefix: Record<Layer, string> = { plain: "", window: "L1 +", move: "R1 +", workspace: "L1+R1" };
   const groups: { title: string; rows: SheetRow[] }[] = [];
   for (const layer of HELD_LAYERS) {

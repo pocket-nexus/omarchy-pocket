@@ -9,7 +9,7 @@ import contract from "./pocket.host.json" with { type: "json" };
  * (host/src/system.rs: NetworkManager through omarchy-pocketd, or Android's
  * WifiManager on the AYN Thor). */
 export const HOST_CAPABILITIES: readonly string[] = [
-  "input.buttons", "input.touch.auxiliary", "display.auxiliary", "text.glyphs.baked", "net.http", "media.playback", "runtime.worker", "system.wifi",
+  "input.buttons", "input.text", "input.touch.auxiliary", "display.auxiliary", "text.glyphs.baked", "net.http", "media.playback", "runtime.worker", "system.wifi",
 ];
 
 const selected = parsePocketProfile(contract);

@@ -1,0 +1,19 @@
+# omarchy-pocketd in Omarchy's root (/usr/lib/omarchy-pocket/omarchy-root), as
+# the device's user: the shell's bridge into Omarchy's CLI, menu conditions and
+# system state, and the socket Omarchy's omarchy-shell CLI talks to. It needs
+# the user's runtime directory and session bus, which the user's manager
+# brings: the package's postinst names user@<uid>.service in a drop-in
+# (omarchy-pocketd.service.d/user.conf). The desktop taking the panel stops
+# it too. KillMode=process keeps what a menu action started running across
+# restarts.
+[Unit]
+Description=Omarchy Pocket daemon (omarchy-pocketd in Omarchy's root)
+After=network.target
+Conflicts=lightdm.service
+ConditionPathExists=/etc/systemd/system/omarchy-pocketd.service.d/user.conf
+
+[Service]
+ExecStart=/usr/lib/omarchy-pocket/omarchy-root daemon
+KillMode=process
+Restart=always
+RestartSec=1

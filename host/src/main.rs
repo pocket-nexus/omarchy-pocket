@@ -4,6 +4,12 @@
 //! as buttons and the Goodix panel as touch on the lower surface (evdev).
 //! Omarchy Pocket's shell runs on it.
 //!
+//! Built for the `clockwork-uconsole` profile (uconsole/pocket.host.json,
+//! feature `mesa`), the same program runs the ClockworkPi uConsole: the
+//! stage on its one DSI panel, turned a quarter (gpu.rs), the auxiliary
+//! surface drawn into a texture no panel shows, and the keyboard, its
+//! joystick and its trackball read as uconsole.rs describes.
+//!
 //! `--shot DIR --script "…"` runs the package on any system without the panels
 //! and inputs, for layout work: scripted buttons and taps, the CPU raster
 //! renderer and two in-memory panels written to DIR/<tick>-top.xrgb and
@@ -35,6 +41,8 @@ mod media;
 mod net;
 mod shot;
 mod system;
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+mod uconsole;
 
 #[allow(dead_code)] // The export defines every fact; the program reads some.
 mod profile {
@@ -66,11 +74,16 @@ const GAMEPAD: &[(u16, u32)] = {
 /// ABS_RZ, each -4096..4096), and the Pocket axis each one reports.
 #[cfg(target_os = "linux")]
 const GAMEPAD_STICKS: &[(u16, u32)] = &[(2, 0), (3, 1), (4, 2), (5, 3)];
+/// The ClockworkPi uConsole's profile: one panel, its keyboard's functions.
+fn uconsole() -> bool {
+    profile::ID == "clockwork-uconsole"
+}
 const PACKAGE_LIMIT: usize = 64 * 1024 * 1024;
 const DEFAULT_PACKAGE: &str = "/usr/share/pocketjs/omarchy-pocket.pocket";
-/// Input classes the evdev drivers deliver here: buttons, touch and the sticks.
+/// Input classes the drivers deliver here: buttons, touch and the sticks
+/// (evdev), and a keyboard's text (the uConsole's, uconsole.rs).
 const INPUT_CLASSES: InputClasses = InputClasses::from_bits(
-    InputClasses::BUTTONS.bits() | InputClasses::CONTACT.bits() | InputClasses::AXIS_ABSOLUTE.bits(),
+    InputClasses::BUTTONS.bits() | InputClasses::CONTACT.bits() | InputClasses::AXIS_ABSOLUTE.bits() | InputClasses::TEXT.bits(),
 );
 
 static STOP: AtomicBool = AtomicBool::new(false);
@@ -97,7 +110,8 @@ struct Options {
 fn options() -> Result<Option<Options>, Box<dyn Error>> {
     let mut output = Options {
         package: None,
-        card: "/dev/dri/card0".into(),
+        // the uConsole's display controller (vc4) is card1; card0 is the v3d renderer
+        card: if uconsole() { "/dev/dri/card1".into() } else { "/dev/dri/card0".into() },
         top: "DSI-1".into(),
         bottom: "DSI-2".into(),
         inputs: Vec::new(),
@@ -258,6 +272,11 @@ fn run(options: Options) -> Result<(), Box<dyn Error>> {
         );
         return Ok(());
     }
+    // the uConsole's daemon runs in Omarchy's root (OMARCHY_POCKET_ROOT, from
+    // /etc/default/omarchy-pocket): the paths it hands over lie under it
+    if let Some(root) = std::env::var_os("OMARCHY_POCKET_ROOT").filter(|r| !r.is_empty()) {
+        guest::set_guest_root(root.into());
+    }
     unsafe {
         libc::signal(libc::SIGINT, stop as *const () as libc::sighandler_t);
         libc::signal(libc::SIGTERM, stop as *const () as libc::sighandler_t);
@@ -288,6 +307,7 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
     let mut compositor: Option<compositor::Compositor> = None;
     #[cfg(target_os = "linux")]
     let mut probe: Option<floor::InputProbe> = None;
+    let trackball: uconsole::SharedTrackball = Default::default();
     let mut shot = match options.shot.clone() {
         Some(directory) => {
             let renderer = runtime
@@ -305,12 +325,12 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
         None => {
             #[cfg(target_os = "linux")]
             {
-                let (c, p) = attach_devices(&mut runtime, &profile, options)?;
+                let (c, p) = attach_devices(&mut runtime, &profile, options, &trackball)?;
                 compositor = Some(c);
                 probe = Some(p);
             }
             #[cfg(not(target_os = "linux"))]
-            attach_devices(&mut runtime, &profile, options)?;
+            attach_devices(&mut runtime, &profile, options, &trackball)?;
             None
         }
     };
@@ -329,6 +349,10 @@ fn run_package(options: &Options, profile: &Profile, path: &PathBuf) -> Result<(
     // PocketJS's system.wifi: NetworkManager through omarchy-pocketd (a --shot run has no daemon)
     if options.shot.is_none() {
         guest.set_wifi(std::rc::Rc::new(std::cell::RefCell::new(system::DaemonWifi::new(bridge))));
+    }
+    if uconsole() {
+        let trackball = trackball.clone();
+        guest.set_trackball(std::rc::Rc::new(move || trackball.borrow_mut().take()));
     }
     runtime.set_guest(Box::new(guest)).map_err(error)?;
     runtime.boot().map_err(error)?;
@@ -426,21 +450,27 @@ fn attach_devices(
     runtime: &mut Runtime,
     profile: &Profile,
     options: &Options,
+    trackball: &uconsole::SharedTrackball,
 ) -> Result<(compositor::Compositor, floor::InputProbe), Box<dyn Error>> {
     use gpu::PanelSpec;
     use pocket_drivers::{DisplayRole, InputSource};
+    let uconsole = uconsole();
     let (renderer, displays, compositor) = gpu::open(
         &options.card,
         &[
             PanelSpec {
-                connector: &options.top,
+                connector: Some(&options.top),
                 size: profile.viewport,
                 role: DisplayRole::Primary,
+                // the uConsole's panel is 720 x 1280
+                turned: uconsole,
             },
             PanelSpec {
-                connector: &options.bottom,
+                // the uConsole has no second panel: the applets' touch surfaces only
+                connector: (!uconsole).then_some(options.bottom.as_str()),
                 size: profile.auxiliary.unwrap(),
                 role: DisplayRole::Auxiliary,
+                turned: false,
             },
         ],
     )?;
@@ -467,6 +497,24 @@ fn attach_devices(
     } else {
         (1, profile.auxiliary_logical[0])
     };
+    let name_of = |path: &PathBuf| {
+        path.file_name().and_then(|event| {
+            std::fs::read_to_string(format!("/sys/class/input/{}/device/name", event.to_string_lossy())).ok()
+        })
+    };
+    if uconsole {
+        // the keyboard's three functions (uconsole.rs); HDMI's CEC keys, the
+        // power key and the consumer keys stay out (omarchy-pocketd reads those)
+        for path in &inputs {
+            match name_of(path).as_deref().map(str::trim) {
+                Some(uconsole::KEYBOARD) => runtime.add_input_source(Box::new(uconsole::Keyboard::open(path)?)).map_err(error)?,
+                Some(uconsole::MOUSE) => runtime.add_input_source(Box::new(uconsole::Mouse::open(path, trackball.clone())?)).map_err(error)?,
+                Some(uconsole::JOYSTICK) => runtime.add_input_source(Box::new(uconsole::Joystick::open(path)?)).map_err(error)?,
+                _ => {}
+            }
+        }
+        inputs.clear();
+    }
     for (index, path) in inputs.iter().take(16).enumerate() {
         let mut device = pocket_linux_evdev::Evdev::open(
             path,
@@ -477,16 +525,12 @@ fn attach_devices(
         if device.classes().contains(InputClasses::CONTACT) {
             device.set_surface(touch_surface, touch_extent)?;
         }
-        let name = path.file_name().and_then(|event| {
-            std::fs::read_to_string(format!(
-                "/sys/class/input/{}/device/name",
-                event.to_string_lossy()
-            ))
-            .ok()
-        });
-        if name.as_deref().map(str::trim) == Some("ANBERNIC-rk3568-keys") {
-            device.set_keymap(GAMEPAD);
-            device.set_sticks(GAMEPAD_STICKS);
+        match name_of(path).as_deref().map(str::trim) {
+            Some("ANBERNIC-rk3568-keys") => {
+                device.set_keymap(GAMEPAD);
+                device.set_sticks(GAMEPAD_STICKS);
+            }
+            _ => {}
         }
         runtime.add_input_source(Box::new(device)).map_err(error)?;
     }
@@ -494,7 +538,7 @@ fn attach_devices(
 }
 
 #[cfg(not(target_os = "linux"))]
-fn attach_devices(_: &mut Runtime, _: &Profile, _: &Options) -> Result<(), Box<dyn Error>> {
+fn attach_devices(_: &mut Runtime, _: &Profile, _: &Options, _: &uconsole::SharedTrackball) -> Result<(), Box<dyn Error>> {
     Err(error("the panel and input drivers require Linux; use --shot").into())
 }
 
@@ -520,9 +564,9 @@ mod tests {
         assert!(supported(exported.clone()).is_ok());
         let mut single = exported.clone();
         single.auxiliary = None;
-        let mut text = exported;
-        text.required_inputs |= InputClasses::TEXT;
-        for profile in [single, text] {
+        let mut motion = exported;
+        motion.required_inputs |= InputClasses::MOTION;
+        for profile in [single, motion] {
             assert!(supported(profile).is_err());
         }
     }

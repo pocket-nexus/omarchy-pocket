@@ -1,0 +1,24 @@
+#!/bin/sh
+# omarchy-pocket-uconsole purged: its settings, and Omarchy's root with the
+# Omarchy user's home in it, once nothing is mounted under it.
+set -e
+case "$1" in
+  remove)
+    systemctl daemon-reload 2>/dev/null || true
+    systemctl kill --signal=SIGHUP systemd-logind.service 2>/dev/null || true
+    ;;
+  purge)
+    rm -rf /etc/systemd/system/omarchy-pocket.service.d /etc/systemd/system/omarchy-pocketd.service.d /etc/default/omarchy-pocket
+    if [ -d /var/lib/omarchy-pocket ]; then
+      if findmnt -rn -o TARGET | grep -q '^/var/lib/omarchy-pocket/'; then
+        echo "omarchy-pocket: /var/lib/omarchy-pocket still has mounts under it; it stays (reboot, then remove it)" >&2
+      else
+        rm -rf --one-file-system /var/lib/omarchy-pocket
+      fi
+    fi
+    rm -rf /var/cache/omarchy-pocket
+    getent group omarchy-pocket >/dev/null && groupdel omarchy-pocket 2>/dev/null || true
+    systemctl daemon-reload 2>/dev/null || true
+    ;;
+esac
+exit 0

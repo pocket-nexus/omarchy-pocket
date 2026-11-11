@@ -1,4 +1,5 @@
-// The pointer on the stage, which the deck's touchpad moves (deck/touchpad.tsx).
+// The pointer on the stage, which the deck's touchpad moves (deck/touchpad.tsx),
+// or the uConsole's trackball (trackball.ts).
 // The stage takes no touch, so a click lands where the pointer is: on the
 // card, a tap on its row (outside the card, the card closes); on the bar, a
 // workspace number or an indicator's panel; on a window, focus, and for an
@@ -18,7 +19,8 @@ import { state } from "../system.ts";
 import { color } from "../theme.ts";
 import type { Contact, TouchFrame } from "../touch.ts";
 import { BORDER } from "../wm.ts";
-import { focus, focusWindow, placements, windowAt, windowById, WORKSPACES } from "../workspaces.ts";
+import { act, focus, focusWindow, focused, placements, windowAt, windowById, WORKSPACES } from "../workspaces.ts";
+import { toggleMenu } from "./menu.tsx";
 import { card, cardTouch, closeCard, onCard } from "./card.tsx";
 import { CARD_X, CARD_Y } from "./geometry.ts";
 import { barIndicators } from "./bar.tsx";
@@ -75,11 +77,46 @@ function appletPoint(px: number, py: number): { app: number; x: number; y: numbe
 /** the bar's indicators from the right edge, as stage/bar.tsx lays them out */
 const SLOT = 20;
 
+/** The workspace number at bar x `px`, or null. */
+const workspaceAt = (px: number) => {
+  for (let n = 0; n < WORKSPACES; n++) if (px >= 22 + n * 14 && px < 36 + n * 14) return n;
+  return null;
+};
+
 function barClick(px: number) {
-  for (let n = 0; n < WORKSPACES; n++) if (px >= 22 + n * 14 && px < 36 + n * 14) return focus(n);
+  // Omarchy's logo opens its menu, as the function row's does
+  if (px < 20) return toggleMenu();
+  const n = workspaceAt(px);
+  if (n !== null) return focus(n);
   const indicators = barIndicators(state());
   const at = Math.floor((STAGE_W - 8 - px) / SLOT);
   if (px < STAGE_W - 8 && at >= 0 && at < indicators.length) showPanel(indicators[at]!.name);
+}
+
+const onBar = (py: number) => {
+  const top = state()?.bar?.position === "bottom" ? STAGE_H - BAR_H : 0;
+  return !state()?.bar?.hidden && py >= top && py < top + BAR_H;
+};
+
+export type Target = "applet" | "bar" | "wallpaper" | { kind: "workspace"; ws: number } | { kind: "window"; id: number };
+
+/** What lies at stage point (px, py) under the card: the bar (a workspace
+ *  number on it), an applet's touch surface, another window, or the bare
+ *  wallpaper. */
+export function targetAt(px: number, py: number): Target {
+  if (onBar(py)) {
+    const n = workspaceAt(px);
+    return n === null ? "bar" : { kind: "workspace", ws: n };
+  }
+  if (appletPoint(px, py)) return "applet";
+  const id = windowAt(px, py);
+  return id === null ? "wallpaper" : { kind: "window", id };
+}
+
+/** The focused window to workspace `ws`, followed there (R on its number). */
+export function carryWindowTo(ws: number) {
+  if (!focused()) return;
+  act((m) => m.carry(ws - m.active));
 }
 
 /** A touch the pointer holds on an applet at stage point `at`: down while
@@ -130,8 +167,7 @@ export function click() {
     const at: Contact = { id: 1, x: x - CARD_X, y: y - CARD_Y, frames: 2, start: { x: x - CARD_X, y: y - CARD_Y }, dx: 0, dy: 0, moved: false };
     return cardTouch({ raw: 0, down: [], presses: [], taps: [at] } satisfies TouchFrame);
   }
-  const top = state()?.bar?.position === "bottom" ? STAGE_H - BAR_H : 0;
-  if (!state()?.bar?.hidden && y >= top && y < top + BAR_H) return barClick(x);
+  if (onBar(y)) return barClick(x);
   const id = windowAt(x, y);
   if (id === null) return;
   focusWindow(id);

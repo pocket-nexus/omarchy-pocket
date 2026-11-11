@@ -1,0 +1,67 @@
+{
+  "format": "pocket-host/2",
+  "id": "clockwork-uconsole",
+  "platform": "linux",
+  "form": "takeover",
+  "cadences": [
+    60
+  ],
+  "display": {
+    "logicalViewports": [
+      [
+        640,
+        360
+      ]
+    ],
+    "presentations": [
+      "native"
+    ],
+    "rasterDensity": 2,
+    "animation": "composited",
+    "auxiliary": {
+      "logicalViewports": [
+        [
+          640,
+          360
+        ]
+      ],
+      "presentations": [
+        "native"
+      ],
+      "rasterDensity": 2
+    }
+  },
+  "panel": {
+    "primary": [
+      1280,
+      720
+    ],
+    "auxiliary": [
+      1280,
+      720
+    ]
+  },
+  "capabilities": [
+    "display.auxiliary",
+    "input.buttons",
+    "input.text",
+    "input.touch.auxiliary",
+    "media.playback",
+    "net.http",
+    "runtime.worker",
+    "system.wifi",
+    "text.glyphs.baked"
+  ],
+  "worker": {
+    "nodes": {
+      "http": 1
+    },
+    "channels": {
+      "recordBytes": 16384,
+      "capacity": 64
+    },
+    "http": {
+      "responseBytes": 4194304
+    }
+  }
+}

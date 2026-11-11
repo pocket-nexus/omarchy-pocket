@@ -1,0 +1,20 @@
+#!/bin/sh
+# omarchy-pocket-uconsole removed: the panel goes back to the Raspberry Pi
+# desktop, now and at boot, and Omarchy's root is unmounted (it stays until a
+# purge). An upgrade leaves everything running; postinst restarts it.
+set -e
+case "$1" in
+  remove|deconfigure)
+    if systemctl is-enabled -q omarchy-pocket.service 2>/dev/null; then
+      systemctl disable omarchy-pocket.service || true
+      systemctl enable lightdm.service 2>/dev/null || true
+    fi
+    if systemctl is-active -q omarchy-pocket.service 2>/dev/null; then
+      systemctl stop omarchy-pocket.service || true
+      systemctl start --no-block lightdm.service 2>/dev/null || true
+    fi
+    systemctl stop omarchy-pocketd.service 2>/dev/null || true
+    /usr/lib/omarchy-pocket/omarchy-root down 2>/dev/null || true
+    ;;
+esac
+exit 0

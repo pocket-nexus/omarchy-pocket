@@ -9,6 +9,7 @@ import { keySheet } from "../chords.ts";
 import { color } from "../theme.ts";
 import { layout } from "../workspaces.ts";
 import { SHEET_H, SHEET_W } from "./geometry.ts";
+import { UCONSOLE } from "../screen.ts";
 
 const [open, setOpen] = createSignal(false);
 export const sheetOpen = open;
@@ -18,7 +19,7 @@ export const closeSheet = () => setOpen(false);
 const LINE = 15;
 /** two columns across the sheet (236 on the RG DS Plus) */
 const COL_W = Math.floor((SHEET_W - 16) / 2);
-const KEYS_W = 96;
+const KEYS_W = UCONSOLE ? 118 : 96;
 
 interface Line {
   kind: "title" | "row" | "gap";
@@ -72,7 +73,7 @@ export function KeySheet() {
         }}
       >
         <Text class="absolute left-[12] top-[8] font-mono text-sm leading-[16]" style={{ textColor: color("bright_foreground") }}>Keys</Text>
-        <Text class="absolute right-[12] top-[9] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>L1 + SELECT closes</Text>
+        <Text class="absolute right-[12] top-[9] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>{UCONSOLE ? "SUPER + K or Esc closes" : "L1 + SELECT closes"}</Text>
         <View class="absolute left-[12] top-[30] h-[1]" style={{ width: SHEET_W - 24, bgColor: color("muted") }} />
         <Column x={0 + 12} groups={[0, 3]} />
         <Column x={12 + COL_W} groups={[1, 2]} />

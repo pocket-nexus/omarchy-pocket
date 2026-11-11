@@ -1,7 +1,8 @@
 // The lock screen `omarchy-system-lock` asks for (`omarchy-shell lock lock`),
 // and the one the shell puts up before logind suspends: the clock over the
 // dimmed wallpaper on the stage, the touch keyboard on the deck with a
-// password field. omarchy-pocketd checks the password (unix_chkpwd); the
+// password field (on the uConsole the field is on the stage, stage/field.tsx,
+// and its own keyboard types it). omarchy-pocketd checks the password (unix_chkpwd); the
 // gamepad's A is Enter, B Backspace and START clears the field.
 import { createSignal, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
@@ -10,7 +11,7 @@ import { C } from "../classes.ts";
 import { setFieldSink } from "../keys.ts";
 import { serve } from "../system.ts";
 import { color } from "../theme.ts";
-import { STAGE_H, STAGE_W } from "../screen.ts";
+import { STAGE_H, STAGE_W, UCONSOLE } from "../screen.ts";
 
 /** the clock's block sits on the stage's middle (192 on the RG DS Plus) */
 const MIDDLE = Math.round(STAGE_H / 2);
@@ -50,7 +51,7 @@ export function lock() {
       else if (name === "Escape") setPassword("");
     },
     field: () => `${LOCK} ${status() || "Password"}: ${"•".repeat([...password()].length)}_`,
-    hint: () => "A Enter · B Backspace · START clears",
+    hint: () => (UCONSOLE ? "type your password · Enter unlocks · Esc clears" : "A Enter · B Backspace · START clears"),
   });
 }
 
