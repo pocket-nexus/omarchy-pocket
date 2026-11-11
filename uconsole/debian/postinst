@@ -1,0 +1,55 @@
+#!/bin/sh
+# omarchy-pocket-uconsole's configure: the device's user (uid 1000's, or
+# OMARCHY_POCKET_USER) becomes the session's user, and Omarchy's root is
+# installed from the release when it is not there yet.
+set -e
+[ "$1" = configure ] || exit 0
+
+user=
+[ -f /etc/default/omarchy-pocket ] && user=$(sed -n 's/^OMARCHY_POCKET_USER=//p' /etc/default/omarchy-pocket)
+user=${OMARCHY_POCKET_USER:-${user:-$(getent passwd 1000 | cut -d: -f1)}}
+if [ -z "$user" ] || ! id "$user" >/dev/null 2>&1; then
+  echo "omarchy-pocket: no user to run the shell as; run: sudo OMARCHY_POCKET_USER=<user> dpkg-reconfigure omarchy-pocket-uconsole" >&2
+  exit 1
+fi
+uid=$(id -u "$user")
+cat > /etc/default/omarchy-pocket <<EOF
+# the uConsole's user, whose session Omarchy Pocket is (omarchy-pocket-uconsole's postinst)
+OMARCHY_POCKET_USER=$user
+OMARCHY_POCKET_ROOT=/var/lib/omarchy-pocket/root
+EOF
+mkdir -p /etc/systemd/system/omarchy-pocket.service.d /etc/systemd/system/omarchy-pocketd.service.d
+printf '[Service]\nUser=%s\n' "$user" > /etc/systemd/system/omarchy-pocket.service.d/user.conf
+printf '[Unit]\nRequires=user@%s.service\nAfter=user@%s.service\n' "$uid" "$uid" > /etc/systemd/system/omarchy-pocketd.service.d/user.conf
+
+# switching the panel without a password (50-omarchy-pocket.rules); the
+# panel, the GPU and the keyboard's devices
+getent group omarchy-pocket >/dev/null || groupadd --system omarchy-pocket
+for group in omarchy-pocket video render input; do
+  getent group "$group" >/dev/null && usermod -aG "$group" "$user"
+done
+
+systemd-tmpfiles --create /usr/lib/tmpfiles.d/omarchy-pocket-cpu.conf || true
+systemctl daemon-reload || true
+# logind reads the power key's setting again (90-omarchy-pocket.conf)
+systemctl kill --signal=SIGHUP systemd-logind.service 2>/dev/null || true
+
+if [ ! -x /var/lib/omarchy-pocket/root/usr/bin/bun ]; then
+  if ! /usr/lib/omarchy-pocket/omarchy-root install "${OMARCHY_POCKET_ROOT_ARCHIVE:-}"; then
+    echo "omarchy-pocket: Omarchy's root is not installed yet; run: sudo /usr/lib/omarchy-pocket/omarchy-root install" >&2
+  fi
+fi
+
+# an upgrade: what runs takes the new files
+systemctl try-restart omarchy-pocketd.service omarchy-pocket.service 2>/dev/null || true
+
+cat <<EOF
+
+Omarchy Pocket is installed for $user.
+  omarchy-pocket-session on        Omarchy Pocket now (or Omarchy Pocket in the desktop's menu)
+  omarchy-pocket-session off       the Raspberry Pi desktop now (or System > Raspberry Pi Desktop in Omarchy's menu)
+  omarchy-pocket-session boot      Omarchy Pocket at every boot
+  omarchy-pocket-session desktop   the Raspberry Pi desktop at every boot
+In Omarchy Pocket: tap START for SUPER, START + K for every key. Its lock takes $user's password.
+
+EOF

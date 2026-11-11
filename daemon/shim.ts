@@ -28,6 +28,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { basename, join } from "node:path";
 import { shellPath } from "./paths.ts";
 import { ANDROID, androidCommand, androidState } from "./android.ts";
+import { UCONSOLE } from "./uconsole.ts";
 
 const name = basename(process.argv[1] ?? "");
 const args = process.argv.slice(2);
@@ -37,6 +38,8 @@ const PANELS = (ANDROID
       { id: 0, name: "DSI-1", description: "AYN Thor upper display", focused: true, y: 0, width: 1920, height: 1080, make: "AYN", model: "Thor" },
       { id: 1, name: "DSI-2", description: "AYN Thor lower display", focused: false, y: 360, width: 1239, height: 1080, make: "AYN", model: "Thor" },
     ]
+  : UCONSOLE
+  ? [{ id: 0, name: "DSI-1", description: "uConsole panel", focused: true, y: 0, width: 1280, height: 720, make: "ClockworkPi", model: "uConsole" }]
   : [
       { id: 0, name: "DSI-1", description: "RG DS Plus top panel", focused: true, y: 0, width: 1024, height: 768, make: "Anbernic", model: "RG DS Plus" },
       { id: 1, name: "DSI-2", description: "RG DS Plus bottom panel", focused: false, y: 384, width: 1024, height: 768, make: "Anbernic", model: "RG DS Plus" },
@@ -151,17 +154,21 @@ async function pocketTerm(argv: string[]) {
   console.log(await shellCall(["pocket.term", "open", JSON.stringify(options)]));
 }
 
+/** One panel's readback in pixels: the uConsole's stage, or each of the
+ *  RG DS Plus's panels (the screenshot stacks them). */
+const SHOT: [number, number] = UCONSOLE ? [1280, 720] : [1024, 768];
+
 /** The host program reads each panel's next frame back into
  *  /tmp/pocket-shot-<panel>.rgba (RGBA, bottom row first) while /tmp/pocket-shot exists. */
 async function readback(): Promise<Uint8Array> {
-  const [W, H] = [1024, 768];
-  const frames = [0, 1].map((p) => `/tmp/pocket-shot-${p}.rgba`);
+  const [W, H] = SHOT;
+  const frames = PANELS.map((p) => `/tmp/pocket-shot-${p.id}.rgba`);
   for (const f of frames) rmSync(f, { force: true });
   writeFileSync("/tmp/pocket-shot", "");
   for (let i = 0; i < 50 && !(frames.every(existsSync) && !existsSync("/tmp/pocket-shot")); i++) await Bun.sleep(100);
   if (!frames.every(existsSync)) throw new Error("the shell did not read its panels back");
   await Bun.sleep(100);
-  const out = new Uint8Array(W * H * 2 * 4);
+  const out = new Uint8Array(W * H * frames.length * 4);
   frames.forEach((file, panel) => {
     const raw = readFileSync(file);
     for (let y = 0; y < H; y++) out.set(raw.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), (panel * H + y) * W * 4);
@@ -180,7 +187,7 @@ async function omasnap(argv: string[]) {
   const file = join(dir, `screenshot-${stamp}.png`);
   const raw = `${file}.rgba`;
   writeFileSync(raw, await readback());
-  const vips = Bun.spawnSync(["vips", "rawload", raw, file, "1024", "1536", "4"], { env: { ...process.env, VIPS_WARNING: "0" } });
+  const vips = Bun.spawnSync(["vips", "rawload", raw, file, String(SHOT[0]), String(SHOT[1] * PANELS.length), "4"], { env: { ...process.env, VIPS_WARNING: "0" } });
   rmSync(raw, { force: true });
   if (vips.exitCode !== 0 || !statSync(file).size) throw new Error("vips could not write the screenshot");
   console.log(file);

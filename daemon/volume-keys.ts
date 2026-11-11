@@ -1,13 +1,14 @@
 // The device's volume keys. KEY_VOLUMEDOWN and KEY_VOLUMEUP come from the
 // gamepad's key device (ANBERNIC-rk3568-keys on the RG DS Plus), which the
 // host program reads for the buttons and never grabs, so this reads the same
-// events: each press and each auto-repeat is one step. Every
+// events (through evdev.ts): each press and each auto-repeat is one step. Every
 // /dev/input/event* whose key capabilities have both codes is read (a
 // Bluetooth keyboard's volume keys too), and the list is read again every
 // RESCAN_MS for devices that came later. volumeStepper turns the steps into
 // volume changes: one wpctl round at a time, the steps that arrive meanwhile
 // summed into the next round, and Omarchy's volume OSD after each.
-import { createReadStream, readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { readDevice, type DeviceReader } from "./evdev.ts";
 import { levelOsd, VOLUME_MAX, type OsdPayload } from "./protocol.ts";
 
 const EV_KEY = 1;
@@ -61,36 +62,36 @@ const RESCAN_MS = 30_000;
 
 /** Calls `step` for every volume key press and repeat until the returned stop(). */
 export function watchVolumeKeys(step: (delta: number) => void, log: (...args: unknown[]) => void, root = "/sys/class/input"): () => void {
-  const open = new Map<string, ReturnType<typeof createReadStream>>();
+  const open = new Map<string, DeviceReader>();
   const logged = new Set<string>();
   const scan = () => {
     for (const path of volumeKeyDevices(root)) {
       if (open.has(path)) continue;
-      let rest = Buffer.alloc(0);
-      const stream = createReadStream(path, { highWaterMark: EVENT_BYTES * 64 });
-      open.set(path, stream);
-      stream.on("data", (chunk) => {
-        const data = rest.length ? Buffer.concat([rest, chunk as Buffer]) : (chunk as Buffer);
-        const whole = data.length - (data.length % EVENT_BYTES);
-        rest = data.subarray(whole);
-        for (const delta of volumeSteps(data.subarray(0, whole))) step(delta);
-      });
-      stream.on("error", (error: NodeJS.ErrnoException) => {
-        // ENODEV: the device went away, and close follows; any other error once per device and kind
-        const said = `${path}:${error.code}`;
-        if (error.code === "ENODEV" || logged.has(said)) return;
-        logged.add(said);
-        log(`volume keys: ${path}: ${error.message}`);
-      });
-      // gone (a keyboard switched off): the next scan opens it again
-      stream.on("close", () => open.delete(path));
+      open.set(
+        path,
+        readDevice(
+          path,
+          (data) => {
+            for (const delta of volumeSteps(data)) step(delta);
+          },
+          (code) => {
+            // gone (a keyboard switched off): the next scan opens it again;
+            // a device it could not read is said once
+            open.delete(path);
+            if (code !== 0 && !logged.has(path)) {
+              logged.add(path);
+              log(`volume keys: ${path}: cat exited ${code}`);
+            }
+          },
+        ),
+      );
     }
   };
   scan();
   const timer = setInterval(scan, RESCAN_MS);
   return () => {
     clearInterval(timer);
-    for (const stream of open.values()) stream.destroy();
+    for (const reader of open.values()) reader.stop();
     open.clear();
   };
 }

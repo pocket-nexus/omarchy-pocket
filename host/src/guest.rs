@@ -102,6 +102,9 @@ pub struct BridgedGuest {
     density: u32,
     /// `globalThis.wifi` (PocketJS system.wifi, system.rs) on this device's system
     wifi: Option<system::SharedWifi>,
+    /// `omarchyBridge.trackball()`: what a pointing device did since the last
+    /// call, [dx, dy, wheel, buttons] (the uConsole's trackball, uconsole.rs)
+    trackball: Option<Rc<dyn Fn() -> [i32; 4]>>,
 }
 
 /// PSM_8888, the RGBA texture format of spec ops
@@ -143,12 +146,18 @@ fn load_texture(ops: &OpContext, path: &str, w: usize, h: usize) -> i64 {
 
 impl BridgedGuest {
     pub fn new(bridge: Rc<RefCell<Bridge>>, repaint: Repaint, traffic: Traffic, profile: ProfileRequest, children: children::Shared, net: net::Shared) -> Self {
-        Self { inner: RquickjsGuest::default(), bridge, ops: None, repaint, traffic, profile, children, net, injected: None, density: 2, wifi: None }
+        Self { inner: RquickjsGuest::default(), bridge, ops: None, repaint, traffic, profile, children, net, injected: None, density: 2, wifi: None, trackball: None }
     }
 
     /// The device's provider of PocketJS's system.wifi (system.rs).
     pub fn set_wifi(&mut self, wifi: system::SharedWifi) {
         self.wifi = Some(wifi);
+    }
+
+    /// A pointing device the shell reads itself: `omarchyBridge.trackball()`.
+    #[allow(dead_code)] // the uConsole's
+    pub fn set_trackball(&mut self, take: Rc<dyn Fn() -> [i32; 4]>) {
+        self.trackball = Some(take);
     }
 
     /// Lines the platform hands the shell as if the daemon had sent them,
@@ -244,6 +253,9 @@ impl BridgedGuest {
             // the surfaces' pixels per point: the wallpaper's tiles and the
             // run-time glyph atlases are made for it
             object.set("density", self.density)?;
+            if let Some(take) = self.trackball.clone() {
+                object.set("trackball", Function::new(ctx.clone(), move || take().to_vec())?)?;
+            }
             ctx.globals().set("omarchyBridge", object)?;
             match &self.wifi {
                 Some(wifi) => system::install_wifi(&ctx, wifi.clone()),

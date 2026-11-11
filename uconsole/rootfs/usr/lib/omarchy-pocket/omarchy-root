@@ -1,0 +1,181 @@
+#!/bin/bash
+# Omarchy's Arch Linux ARM root on the uConsole's Raspberry Pi OS: the release's
+# omarchy-pocket-root.tar.zst (the RG DS Plus image without what only that
+# device uses, the AYN Thor's too), unpacked in /var/lib/omarchy-pocket/root.
+# Omarchy's CLI, themes and omarchy-pocketd run in it as the device's user, the
+# Omarchy user of the root under the same uid; the system's services are
+# Raspberry Pi OS's (NetworkManager, PipeWire, BlueZ, logind), reached through
+# their sockets.
+#
+#   omarchy-root install [archive]   download the release's root (or take the
+#                                    archive given), check its SHA-256, unpack it
+#   omarchy-root daemon              omarchy-pocketd (omarchy-pocketd.service)
+#   omarchy-root run <command>       a command in the root as the user, through bash -lc
+#   omarchy-root down                unmount what `daemon` and `run` mounted
+#   omarchy-root remove              unmount, then remove the root (the Omarchy
+#                                    user's home in it too): the package's purge
+#
+# Runs as root: chroot needs it, and the user's own uid takes over after it.
+set -euo pipefail
+. /etc/default/omarchy-pocket
+ROOT=${OMARCHY_POCKET_ROOT:-/var/lib/omarchy-pocket/root}
+USER_NAME=${OMARCHY_POCKET_USER:?}
+LIB=/usr/lib/omarchy-pocket
+CACHE=/var/cache/omarchy-pocket
+uid=$(id -u "$USER_NAME")
+gid=$(id -g "$USER_NAME")
+groups=$(id -G "$USER_NAME" | tr ' ' ,)
+
+# Each bind is a slave of the system's mount: what the root mounts or
+# unmounts under it never reaches the system's /dev, /sys or /run.
+bind() {
+  local from=$1 to=$ROOT$1
+  mountpoint -q "$to" && return
+  mkdir -p "$to"
+  mount --rbind "$from" "$to"
+  mount --make-rslave "$to"
+}
+
+# Removes a root directory once nothing is mounted under it: a bind mount of
+# /dev, /run/user or /tmp under it would take their files with it.
+remove_tree() {
+  local dir=$1
+  [ -e "$dir" ] || return 0
+  if findmnt -rn -o TARGET | grep -q "^$dir\(/\|$\)"; then
+    echo "omarchy-root: $dir still has mounts under it; not removing it" >&2
+    return 1
+  fi
+  rm -rf --one-file-system "$dir"
+}
+
+# The release's root: ROOT_URL, ROOT_SHA256 and ROOT_BYTES, which the package
+# carries (root.conf), so a package installs the root it was built against.
+install_root() {
+  if [ -x "$ROOT/usr/bin/bun" ]; then
+    echo "omarchy-root: Omarchy's root is installed at $ROOT"
+    return 0
+  fi
+  . "$LIB/root.conf"
+  local archive=${1:-$CACHE/omarchy-pocket-root.tar.zst}
+  mkdir -p "$CACHE"
+  if [ ! -f "$archive" ] || [ "$(stat -c %s "$archive")" != "$ROOT_BYTES" ]; then
+    archive=$CACHE/omarchy-pocket-root.tar.zst
+    echo "omarchy-root: downloading Omarchy's root ($((ROOT_BYTES / 1048576)) MiB) from $ROOT_URL"
+    curl -fL --retry 3 --retry-delay 2 -C - -o "$archive.part" "$ROOT_URL"
+    mv "$archive.part" "$archive"
+  fi
+  echo "omarchy-root: checking $archive"
+  echo "$ROOT_SHA256  $archive" | sha256sum -c --quiet - || { echo "omarchy-root: $archive does not match the release's SHA-256; remove it and run again" >&2; exit 1; }
+  echo "omarchy-root: unpacking into $ROOT"
+  down
+  remove_tree "$ROOT.new"
+  remove_tree "$ROOT"
+  mkdir -p "$ROOT.new"
+  tar --zstd -xpf "$archive" --numeric-owner --warning=no-unknown-keyword -C "$ROOT.new"
+  mv "$ROOT.new" "$ROOT"
+  # Pacman's keyring: the release leaves out its secret key, so each device
+  # makes its own. root's password is locked: sudo in the root asks the
+  # device user's (the Omarchy user's, which `up` keeps the same).
+  bind /dev
+  bind /proc
+  bind /sys
+  chroot "$ROOT" /usr/bin/bash -c 'pacman-key --init >/dev/null 2>&1 && pacman-key --populate archlinuxarm >/dev/null 2>&1; passwd -l root >/dev/null' || echo "omarchy-root: pacman's keyring was not set up; run: sudo $0 run 'sudo pacman-key --init'" >&2
+  down
+  [ "$archive" = "$CACHE/omarchy-pocket-root.tar.zst" ] && rm -f "$archive"
+  echo "omarchy-root: Omarchy's root is installed ($(du -sh "$ROOT" | cut -f1))"
+}
+
+up() {
+  [ -x "$ROOT/usr/bin/bun" ] || { echo "omarchy-root: no root at $ROOT; run: sudo $0 install" >&2; exit 1; }
+  # the user's runtime directory: logind makes it with the user's manager
+  for _ in $(seq 50); do [ -d "/run/user/$uid" ] && break; sleep 0.1; done
+  [ -d "/run/user/$uid" ] || { echo "omarchy-root: no /run/user/$uid" >&2; exit 1; }
+  bind /dev
+  bind /proc
+  bind /sys
+  bind /run/dbus
+  bind /run/udev
+  bind "/run/user/$uid"
+  # Omarchy's scripts check `systemctl is-active` and read the journal
+  bind /run/systemd
+  # one /tmp: omasnap's readback is the host program's /tmp/pocket-shot
+  bind /tmp
+  # what the package carries for the root: omarchy-pocketd and its shims, the
+  # applets for the uConsole's profile, the root's omarchy-pocket-session
+  [ -d "$LIB/overlay" ] && cp -a --no-preserve=ownership "$LIB/overlay/." "$ROOT/"
+  # Omarchy's omarchy-shell names the shell's socket after $WAYLAND_DISPLAY,
+  # and without one takes the newest wayland-N in the runtime directory: the
+  # Raspberry Pi desktop's, which may linger. The root's processes name this
+  # file instead (it holds no compositor), so the daemon and the CLI agree.
+  install -d -o "$uid" -g "$gid" -m 755 "/run/user/$uid/omarchy-pocket"
+  [ -e "/run/user/$uid/omarchy-pocket/display" ] || install -o "$uid" -g "$gid" -m 644 /dev/null "/run/user/$uid/omarchy-pocket/display"
+  cp -fL /etc/resolv.conf "$ROOT/etc/resolv.conf"
+  cp -f /etc/localtime "$ROOT/etc/localtime" 2>/dev/null || true
+  hostname > "$ROOT/etc/hostname"
+  # The Omarchy user is the device's user: its uid and gid, and its password
+  # for the lock (omarchy-pocketd checks it with the root's unix_chkpwd).
+  local hash
+  hash=$(getent shadow "$USER_NAME" | cut -d: -f2)
+  awk -F: -v OFS=: -v uid="$uid" -v gid="$gid" '
+    $1 == "omarchy" { $3 = uid; $4 = gid }
+    $1 != "omarchy" && $3 == uid { $3 = 1003; $4 = 1003 }
+    { print }' "$ROOT/etc/passwd" > "$ROOT/etc/passwd.new" && mv "$ROOT/etc/passwd.new" "$ROOT/etc/passwd"
+  awk -F: -v OFS=: -v gid="$gid" '
+    $1 == "omarchy" { $3 = gid }
+    $1 != "omarchy" && $3 == gid { $3 = 1003 }
+    { print }' "$ROOT/etc/group" > "$ROOT/etc/group.new" && mv "$ROOT/etc/group.new" "$ROOT/etc/group"
+  awk -F: -v OFS=: -v hash="$hash" '$1 == "omarchy" { $2 = hash } { print }' "$ROOT/etc/shadow" > "$ROOT/etc/shadow.new" \
+    && chmod 600 "$ROOT/etc/shadow.new" && mv "$ROOT/etc/shadow.new" "$ROOT/etc/shadow"
+  [ "$(stat -c %u "$ROOT/home/omarchy")" = "$uid" ] || chown -R "$uid:$gid" "$ROOT/home/omarchy"
+}
+
+# Unmounts the root's binds. Each is made a slave again first: unmounting a
+# mount that shares propagation with the system's unmounts the system's too
+# (its cgroups, /dev/pts), and a lazy unmount would not refuse.
+down() {
+  for d in /tmp /run/systemd "/run/user/$uid" /run/udev /run/dbus /sys /proc /dev; do
+    if mountpoint -q "$ROOT$d"; then
+      mount --make-rslave "$ROOT$d"
+      umount -R "$ROOT$d" || umount -R -l "$ROOT$d"
+    fi
+  done
+}
+
+as_user() {
+  exec chroot --userspec="$uid:$gid" --groups="$groups" "$ROOT" /usr/bin/env -i \
+    HOME=/home/omarchy USER=omarchy LOGNAME=omarchy SHELL=/bin/bash TERM=xterm-256color LANG=C.UTF-8 \
+    PATH=/usr/local/bin:/usr/bin:/bin XDG_RUNTIME_DIR="/run/user/$uid" WAYLAND_DISPLAY="/run/user/$uid/omarchy-pocket/display" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    OMARCHY_POCKET_PLATFORM=uconsole OMARCHY_POCKET_DENSITY=2 \
+    /usr/bin/bash -lc "cd ~ && $1"
+}
+
+case "${1:-}" in
+  install)
+    shift
+    install_root "${1:-}"
+    ;;
+  daemon)
+    up
+    # the image leaves the theme to the first login: the shell's palette and
+    # wallpaper come from ~/.local/state/omarchy/current
+    as_user '[ -e ~/.local/state/omarchy/current/theme.name ] || omarchy-theme-set tokyo-night >/dev/null 2>&1; exec /usr/bin/bun /usr/lib/omarchy-pocket/omarchy-pocketd.js'
+    ;;
+  run)
+    shift
+    up
+    as_user "$*"
+    ;;
+  down)
+    down
+    ;;
+  remove)
+    down
+    remove_tree "$ROOT"
+    remove_tree "$ROOT.new"
+    ;;
+  *)
+    echo "usage: omarchy-root install [archive] | daemon | run <command> | down | remove" >&2
+    exit 2
+    ;;
+esac

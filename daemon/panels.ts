@@ -4,7 +4,7 @@
 // ms where powerprofilesctl, a Python program, takes a second on the
 // RK3568). Arguments go to the programs as argv, never through a shell, so
 // an SSID or a password is only ever data.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { ANDROID, androidCommand, androidState } from "./android.ts";
 import type { WifiStatus } from "../vendor/pocketjs/contracts/spec/wifi.ts";
@@ -175,11 +175,19 @@ export async function audioSet(kind: "sink" | "source", name: string, change: { 
   if (change.current) await must(["pactl", `set-default-${kind}`, name]);
 }
 
-/** Both panels' backlights move together. The daemon reads and writes
- *  their sysfs files itself (no process per step): a udev rule gives the
- *  video group the brightness files (device/rootfs/etc/udev/rules.d). Where
- *  the write is refused, brightnessctl sets it through logind. */
-const BACKLIGHTS = ["backlight", "backlight1"];
+/** Every panel's backlight moves together: the RG DS Plus's two
+ *  (`backlight`, `backlight1`), the uConsole's one (`backlight@0`, an
+ *  OCP8178 with ten levels). The daemon reads and writes their sysfs files
+ *  itself (no process per step): a udev rule gives the video group the
+ *  brightness files (device/rootfs/etc/udev/rules.d). Where the write is
+ *  refused, brightnessctl sets it through logind. */
+const BACKLIGHTS = (() => {
+  try {
+    return readdirSync("/sys/class/backlight").sort();
+  } catch {
+    return [];
+  }
+})();
 const backlightFile = (device: string, name: string) => `/sys/class/backlight/${device}/${name}`;
 const readNumber = (path: string) => {
   try {
@@ -191,6 +199,7 @@ const readNumber = (path: string) => {
 
 /** The first backlight's level as a percentage, or null without one. */
 export function brightness(): number | null {
+  if (!BACKLIGHTS.length) return null;
   const max = readNumber(backlightFile(BACKLIGHTS[0]!, "max_brightness"));
   const now = readNumber(backlightFile(BACKLIGHTS[0]!, "brightness"));
   return Number.isFinite(max) && Number.isFinite(now) && max > 0 ? Math.round((now * 100) / max) : null;
@@ -254,6 +263,31 @@ async function setBacklight(device: string, percent: number) {
   } catch {
     await must(["brightnessctl", "-q", "-d", device, "set", `${percent}%`]);
   }
+}
+
+/** The panels' raw levels while they are dark, to restore. */
+let darkened: Map<string, string> | null = null;
+export const dark = () => darkened !== null;
+
+/** Turns the backlights off, or back on at the levels they had (the
+ *  uConsole's power key, daemon/uconsole.ts). */
+export function setDark(next: boolean) {
+  if (next === dark()) return;
+  if (next) {
+    darkened = new Map(BACKLIGHTS.map((device) => [device, String(readNumber(backlightFile(device, "brightness")))]));
+    for (const device of BACKLIGHTS) {
+      try {
+        writeFileSync(backlightFile(device, "brightness"), "0");
+      } catch {}
+    }
+    return;
+  }
+  for (const [device, raw] of darkened!) {
+    try {
+      writeFileSync(backlightFile(device, "brightness"), raw === "NaN" || raw === "0" ? "1" : raw);
+    } catch {}
+  }
+  darkened = null;
 }
 
 export async function powerSet(change: { profile?: string; brightness?: number }) {

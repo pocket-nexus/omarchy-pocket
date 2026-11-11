@@ -1,0 +1,32 @@
+#!/bin/bash
+# Which session the uConsole's panel shows: Omarchy Pocket, or Raspberry Pi
+# OS's own desktop (labwc under lightdm). Starting one stops the other; the
+# device's user (group omarchy-pocket) switches now without a password, and
+# changing what boots asks for sudo.
+#
+#   omarchy-pocket-session on        Omarchy Pocket now
+#   omarchy-pocket-session off       the Raspberry Pi desktop now
+#   omarchy-pocket-session boot      Omarchy Pocket at every boot
+#   omarchy-pocket-session desktop   the Raspberry Pi desktop at every boot
+#   omarchy-pocket-session status    which runs, and which boots
+#
+# Omarchy Pocket's System menu has Raspberry Pi Desktop (off), and the
+# desktop's menu has Omarchy Pocket (on).
+set -euo pipefail
+as_root() { if [ "$(id -u)" = 0 ]; then "$@"; else sudo "$@"; fi; }
+case "${1:-status}" in
+  on)
+    [ -x /var/lib/omarchy-pocket/root/usr/bin/bun ] || { echo "Omarchy's root is not installed: sudo /usr/lib/omarchy-pocket/omarchy-root install" >&2; exit 1; }
+    systemctl start --no-block omarchy-pocket.service ;;
+  off) systemctl start --no-block lightdm.service ;;
+  boot) as_root systemctl disable lightdm.service && as_root systemctl enable omarchy-pocket.service ;;
+  desktop) as_root systemctl disable omarchy-pocket.service && as_root systemctl enable lightdm.service ;;
+  status)
+    if systemctl is-active -q omarchy-pocket.service; then now=omarchy-pocket
+    elif systemctl is-active -q lightdm.service; then now=desktop
+    else now=none; fi
+    echo "running: $now"
+    echo "at boot: $(systemctl is-enabled -q omarchy-pocket.service 2>/dev/null && echo omarchy-pocket || echo desktop)"
+    ;;
+  *) echo "usage: omarchy-pocket-session on|off|boot|desktop|status" >&2; exit 2 ;;
+esac

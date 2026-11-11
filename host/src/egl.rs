@@ -1,8 +1,9 @@
 //! The EGL and GLES entry points both GPU back ends call (gpu.rs on the RG DS
-//! Plus, gpu_android.rs on the AYN Thor). On the RG DS Plus they all come
-//! from libmali.so.1, whose libEGL/libGLESv2 wrappers export none of them; on
-//! Android from the platform's libEGL and libGLESv2. pocket-gles declares the
-//! other gl* entry points without a library.
+//! Plus and the uConsole, gpu_android.rs on the AYN Thor). On the RG DS Plus
+//! they all come from libmali.so.1, whose libEGL/libGLESv2 wrappers export
+//! none of them; on the uConsole (feature `mesa`) and on Android from libEGL
+//! and libGLESv2. pocket-gles declares the other gl* entry points without a
+//! library.
 #![allow(non_camel_case_types, dead_code)]
 use std::ffi::{c_char, c_void};
 
@@ -31,8 +32,8 @@ pub const EGL_OPENGL_ES_API: u32 = 0x30a0;
 pub const EGL_BAD_SURFACE: EGLint = 0x300d;
 pub const EGL_BAD_NATIVE_WINDOW: EGLint = 0x300b;
 
-#[cfg_attr(target_os = "linux", link(name = "mali"))]
-#[cfg_attr(target_os = "android", link(name = "EGL"))]
+#[cfg_attr(all(target_os = "linux", not(feature = "mesa")), link(name = "mali"))]
+#[cfg_attr(any(target_os = "android", feature = "mesa"), link(name = "EGL"))]
 unsafe extern "C" {
     pub fn eglGetProcAddress(name: *const c_char) -> *mut c_void;
     pub fn eglGetDisplay(native: *mut c_void) -> EGLDisplay;
@@ -53,8 +54,8 @@ unsafe extern "C" {
     pub fn eglGetError() -> EGLint;
 }
 
-#[cfg_attr(target_os = "linux", link(name = "mali"))]
-#[cfg_attr(target_os = "android", link(name = "GLESv2"))]
+#[cfg_attr(all(target_os = "linux", not(feature = "mesa")), link(name = "mali"))]
+#[cfg_attr(any(target_os = "android", feature = "mesa"), link(name = "GLESv2"))]
 unsafe extern "C" {
     pub fn glReadPixels(x: i32, y: i32, width: i32, height: i32, format: u32, kind: u32, pixels: *mut c_void);
     // offscreen targets for the apps in the shell's windows (compositor.rs)
@@ -82,6 +83,7 @@ pub const GL_TEXTURE_WRAP_S: u32 = 0x2802;
 pub const GL_TEXTURE_WRAP_T: u32 = 0x2803;
 pub const GL_LINEAR: i32 = 0x2601;
 pub const GL_CLAMP_TO_EDGE: i32 = 0x812f;
+pub const GL_NEAREST: i32 = 0x2600;
 
 pub fn egl_error(what: &str) -> std::io::Error {
     std::io::Error::other(format!("{what}: EGL error {:#x}", unsafe { eglGetError() }))

@@ -1,0 +1,30 @@
+# The shell on the uConsole's panel: omarchy-pocket-host as the device's user
+# in a logind session on tty1 and seat0, the way Hyprland is under Omarchy.
+# It takes the panel from the Raspberry Pi desktop, and the desktop takes it
+# back: starting one stops the other (omarchy-pocket-session on|off). The
+# package's postinst names the user in a drop-in (omarchy-pocket.service.d/
+# user.conf); without it the unit does not start.
+[Unit]
+Description=Omarchy Pocket shell (PocketJS on the uConsole's panel, VideoCore VI)
+After=systemd-user-sessions.service getty@tty1.service lightdm.service
+Wants=omarchy-pocketd.service
+Conflicts=getty@tty1.service lightdm.service
+ConditionPathExists=/etc/systemd/system/omarchy-pocket.service.d/user.conf
+ConditionPathExists=/var/lib/omarchy-pocket/root/usr/bin/bun
+
+[Service]
+EnvironmentFile=/etc/default/omarchy-pocket
+PAMName=omarchy-pocket
+TTYPath=/dev/tty1
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+Environment=XDG_SESSION_TYPE=tty XDG_SESSION_CLASS=user XDG_SESSION_DESKTOP=omarchy-pocket XDG_CURRENT_DESKTOP=omarchy-pocket
+ExecStart=/usr/bin/omarchy-pocket-host
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=graphical.target

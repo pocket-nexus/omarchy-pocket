@@ -12,8 +12,10 @@ import { toast } from "./stage/toasts.tsx";
 import { state } from "./system.ts";
 import { closePackage, openPackage } from "./packages.ts";
 import { closeTerminal, openTerminal } from "./term/store.ts";
+import { keyRepeating } from "./keys.ts";
+import { UCONSOLE } from "./screen.ts";
 import type { WindowManager } from "./wm.ts";
-import { act, focused, takeClosed } from "./workspaces.ts";
+import { act, current, focused, takeClosed, WORKSPACES } from "./workspaces.ts";
 
 const INFO = "\u{f02fc}";
 const say = (title: string) => toast({ icon: INFO, title, body: "", tone: "info" }, 1.8);
@@ -37,17 +39,38 @@ const must = (change: (m: WindowManager) => boolean, why: string) => {
   if (!act(change)) say(why);
 };
 
+/** The uConsole has no workspace layer: a left or right step with no window
+ *  that way goes on to the workspace beside (focus) or carries the window
+ *  there (swap), and stops at the first and the last, as the bar lays them
+ *  out. A held D-pad's repeats stop at the last window, as a list stops at
+ *  its last row; only a press goes past it. True when it acted. */
+function edgeStep(action: Action, step: (m: WindowManager) => boolean, beyond: (m: WindowManager, delta: -1 | 1) => unknown): boolean {
+  if (act(step)) return true;
+  const delta = action.endsWith("left") ? -1 : action.endsWith("right") ? 1 : 0;
+  if (!delta || keyRepeating()) return false;
+  if (action.startsWith("swap") && !focused()) return false;
+  const ws = current() + delta;
+  if (ws < 0 || ws >= WORKSPACES) {
+    say(delta < 0 ? "The first workspace" : "The last workspace");
+    return true;
+  }
+  act((m) => beyond(m, delta));
+  return true;
+}
+
 export function perform(action: Action) {
   switch (action) {
     case "focus.left":
     case "focus.right":
     case "focus.up":
     case "focus.down":
+      if (UCONSOLE && edgeStep(action, (m) => m.focusDir(action.slice(6) as "left"), (m, d) => m.stepWs(d))) return;
       return must((m) => m.focusDir(action.slice(6) as "left"), focused() ? "No window that way" : "No window here");
     case "swap.left":
     case "swap.right":
     case "swap.up":
     case "swap.down":
+      if (UCONSOLE && edgeStep(action, (m) => m.swapDir(action.slice(5) as "left"), (m, d) => m.carry(d))) return;
       return must((m) => m.swapDir(action.slice(5) as "left"), focused() ? "No window that way" : "No window here");
     case "ws.prev":
       return act((m) => m.stepWs(-1));

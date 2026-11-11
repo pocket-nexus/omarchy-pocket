@@ -19,6 +19,7 @@ import { CJK_SLOT_14 } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
 import { C } from "../classes.ts";
 import { MENU } from "../generated/menu.ts";
+import { UCONSOLE } from "../screen.ts";
 import { conditionsOf, pathTo, PROVIDERS, providerRows, ROOT_TITLE, row, shown, type MenuItem, type MenuLevel, type Truth } from "../menu.ts";
 import { keyRepeating } from "../keys.ts";
 import { serve } from "../system.ts";
@@ -62,6 +63,13 @@ const levelFor = (title: string, items: MenuItem[]): MenuLevel => ({ title, item
   if (setup && !setup.children.some((item) => item.id === "setup.tailscale")) {
     const at = setup.children.findIndex((item) => item.id === "setup.proxy");
     setup.children.splice(at + 1, 0, row("setup.tailscale", "\u{f0318}", "Tailscale", "omarchy-shell shell summon omarchy.tailscale"));
+  }
+  // the uConsole gives its panel back to Raspberry Pi OS's desktop
+  // (uconsole/rootfs: omarchy-pocket-session in Omarchy's root)
+  const system = MENU.find((item) => item.id === "system");
+  if (UCONSOLE && system && !system.children.some((item) => item.id === "system.desktop")) {
+    const at = system.children.findIndex((item) => item.id === "system.lock");
+    system.children.splice(at + 1, 0, row("system.desktop", "\u{f043f}", "Raspberry Pi Desktop", "omarchy-pocket-session off"));
   }
 }
 

@@ -18,7 +18,7 @@ import type { Socket, UnixSocketListener } from "bun";
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { bridgePath, shellPath } from "./paths.ts";
-import type { AppNetLine, DaemonMessage, Request, RunResult, SystemState } from "./protocol.ts";
+import { levelOsd, type AppNetLine, type DaemonMessage, type Request, type RunResult, type SystemState } from "./protocol.ts";
 import { AppNet } from "./companion.ts";
 import { CLOSED, Notifications } from "./notifications.ts";
 import { Terminals, type OpenOptions } from "./term.ts";
@@ -37,6 +37,7 @@ import { RUNTIME } from "./paths.ts";
 import { Voice } from "./voice.ts";
 import { volumeStepper, watchVolumeKeys } from "./volume-keys.ts";
 import { ANDROID, androidState, watchAndroid } from "./android.ts";
+import { UCONSOLE, watchUconsoleKeys } from "./uconsole.ts";
 
 if (process.argv[2] === "bake") {
   await (await import("./glyphs.ts")).bakeMain(process.argv[3]!);
@@ -575,6 +576,46 @@ notifications.start().catch((error) => log("notifications:", error instanceof Er
 // on Android the app tells the shell when the screen goes off
 if (!ANDROID) watchSleep(() => broadcast({ event: "sleep" })).catch((error) => log("logind:", error instanceof Error ? error.message : error));
 else watchAndroid(() => void refresh(), log);
+
+// ---- the uConsole's brightness, mute and power keys (uconsole.ts) -----------
+
+if (UCONSOLE) {
+  const BRIGHTNESS = "\u{f00df}";
+  // the OCP8178 has ten levels: a key moves one
+  const step = async (delta: number) => {
+    if (panels.dark()) return dark(false);
+    const now = panels.brightness() ?? 50;
+    const next = Math.max(10, Math.min(100, Math.round(now / 10) * 10 + delta));
+    await panels.powerSet({ brightness: next });
+    broadcast({ event: "osd", osd: levelOsd(BRIGHTNESS, next) });
+  };
+  // the shell swallows the key that lights the panel
+  const dark = (next: boolean) => {
+    if (next === panels.dark()) return;
+    panels.setDark(next);
+    broadcast({ event: "screen", dark: next });
+  };
+  watchUconsoleKeys((key) => {
+    switch (key) {
+      case "brightness-up":
+        return void step(10);
+      case "brightness-down":
+        return void step(-10);
+      case "mute":
+        return void output(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]).then(() => refreshPart("audio")).then(() => {
+          const a = state?.audio;
+          if (a) broadcast({ event: "osd", osd: levelOsd(a.muted ? "\u{f075f}" : "\u{f057e}", a.muted ? 0 : a.volume) });
+        });
+      case "power":
+        // dark and locked, the uConsole's sleep; the next press lights it
+        if (panels.dark()) return dark(false);
+        broadcast({ event: "sleep" });
+        return dark(true);
+      case "any":
+        return panels.dark() ? dark(false) : undefined;
+    }
+  }, log);
+}
 
 listen(bridgePath, {
   open(socket) {

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Omarchy Pocket
+GenericName=Switch to Omarchy Pocket
+Comment=Give the panel to Omarchy Pocket; its System menu gives it back
+Exec=omarchy-pocket-session on
+Icon=preferences-desktop-display
+Terminal=false
+Categories=System;
