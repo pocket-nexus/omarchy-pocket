@@ -199,6 +199,11 @@ async function deb() {
     await $`chmod 755 ${join(dir, "DEBIAN", script)}`;
   }
   cpSync(join(DEBIAN, "conffiles"), join(dir, "DEBIAN", "conffiles"));
+  // a native package's changelog: the release, from uconsole/release.json
+  const date = new Date().toUTCString().replace("GMT", "+0000");
+  const changelog = `${PACKAGE} (${RELEASE.version}) stable; urgency=medium\n\n  * Omarchy Pocket ${RELEASE.version}: https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v${RELEASE.version}\n\n -- Pocket Nexus <noreply@pocket.nexus>  ${date}\n`;
+  writeFileSync(join(dir, "usr", "share", "doc", PACKAGE, "changelog"), changelog);
+  await $`gzip -9n ${join(dir, "usr", "share", "doc", PACKAGE, "changelog")}`;
   // the tree's modes, not the umask's; root owns everything
   await $`find ${dir} -type d -exec chmod 755 {} +`;
   mkdirSync(OUTPUTS.dist, { recursive: true });
