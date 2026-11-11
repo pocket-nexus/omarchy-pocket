@@ -4144,8 +4144,8 @@
   var NET_MAX_HEADER_BYTES = 8 * 1024;
 
   // vendor/pocketjs/framework/src/platform.ts
-  var features = typeof { "display.auxiliary": true, "input.buttons": true, "input.touch.auxiliary": true, "text.glyphs.baked": true } === "object" && { "display.auxiliary": true, "input.buttons": true, "input.touch.auxiliary": true, "text.glyphs.baked": true } !== null ? Object.freeze({
-    ...{ "display.auxiliary": true, "input.buttons": true, "input.touch.auxiliary": true, "text.glyphs.baked": true }
+  var features = typeof { "display.auxiliary": true, "input.buttons": true, "input.touch.auxiliary": true, "system.wifi": true, "text.glyphs.baked": true } === "object" && { "display.auxiliary": true, "input.buttons": true, "input.touch.auxiliary": true, "system.wifi": true, "text.glyphs.baked": true } !== null ? Object.freeze({
+    ...{ "display.auxiliary": true, "input.buttons": true, "input.touch.auxiliary": true, "system.wifi": true, "text.glyphs.baked": true }
   }) : Object.freeze({});
   var platform = Object.freeze({
     target: "rg-ds-plus",
@@ -4433,7 +4433,7 @@
       if ("event" in message) {
         for (const listener of listeners)
           listener(message);
-      } else if ("id" in message) {
+      } else if ("id" in message && typeof message.id === "number") {
         const waiter = pending6.get(message.id);
         if (!waiter)
           continue;
@@ -4481,9 +4481,18 @@
       jump(node, prop, to);
   }
 
+  // shell/src/screen.ts
+  var published = globalThis;
+  var STAGE_W = published.ui?.__viewport?.w ?? 512;
+  var STAGE_H = published.ui?.__viewport?.h ?? 384;
+  var DECK_W = published.ui?.__auxiliarySurface?.w ?? 512;
+  var DECK_H = published.ui?.__auxiliarySurface?.h ?? 384;
+  var DENSITY = published.omarchyBridge?.density ?? 2;
+  var DEVICE = published.ui?.__host ?? "rg-ds-plus";
+  var XBOX_FACES = DEVICE === "ayn-thor";
+  var PANEL = [STAGE_W * DENSITY, STAGE_H * DENSITY];
+  var DECK_SCALE = DECK_W / 512;
   // shell/src/wm.ts
-  var STAGE_W = 512;
-  var STAGE_H = 384;
   var BAR_H = 18;
   var GAP_OUT = 6;
   var GAP_IN = 3;
@@ -5255,6 +5264,15 @@
   }
   var CJK_SLOT_12 = 21;
   var CJK_SLOT_14 = 22;
+  var VOLUME_MAX = 150;
+  function levelOsd(icon, value, max = 100, text = `${Math.round(value)}%`) {
+    return {
+      icon,
+      value,
+      max: max > 100 && value <= 100 ? 100 : max,
+      progressText: text
+    };
+  }
 
   // shell/src/glyphs.ts
   var [generation, setGeneration] = createSignal(0);
@@ -5299,23 +5317,19 @@
 
   // shell/src/classes.ts
   var C = {
-    bar: "absolute left-0 top-0 w-[512] h-[18] contain-strict",
+    bar: "absolute left-0 top-0 h-[18] contain-strict",
     barText: "absolute top-[2] font-mono text-xs leading-[14]",
-    barCenter: "absolute left-0 top-[2] w-[512] text-center font-mono text-xs leading-[14]",
+    barCenter: "absolute left-0 top-[2] text-center font-mono text-xs leading-[14]",
     barRight: "absolute right-[8] top-[2] font-mono text-xs leading-[14]",
-    deck: "absolute left-0 top-0 w-[512] h-[350] contain-strict",
+    deck: "absolute left-0 top-0 contain-strict",
     card: "absolute left-0 top-0 w-[360] h-[296] contain-strict",
     cardRule: "absolute left-[8] top-[25] w-[344] h-[1]",
     crumbs: "absolute left-[12] top-[6] font-mono text-sm leading-[16]",
-    rule: "absolute left-[8] top-[25] w-[496] h-[1]",
-    row: "absolute left-[8] w-[496] h-[22]",
-    rowOn: "absolute left-0 top-0 w-[496] h-[22] rounded-sm",
     icon: "absolute left-[8] top-[4] w-[20] font-mono text-sm leading-[14]",
     label: "absolute left-[34] top-[4] font-mono text-sm leading-[14]",
     chevron: "absolute right-[8] top-[4] font-mono text-sm leading-[14]",
-    footer: "absolute left-0 top-[298] w-[512] h-[20]",
     hint: "absolute left-[12] top-[3] font-mono text-xs leading-[14]",
-    osd: "absolute top-[288] h-[48] overflow-hidden rounded-md border-[1]",
+    osd: "absolute h-[48] overflow-hidden rounded-md border-[1]",
     osdIcon: "absolute left-[12] top-[10] w-[28] text-center text-2xl leading-[28]",
     osdTrack: "absolute left-[52] top-[22] w-[120] h-[4]",
     osdValue: "absolute right-[12] top-[15] font-mono text-base leading-[18]",
@@ -5325,10 +5339,10 @@
     toastTitle: "absolute left-[32] top-[8] w-[136] h-[16] overflow-hidden font-mono text-sm leading-[16]",
     toastKeys: "absolute right-[8] top-[9] font-mono text-xs leading-[14]",
     toastBody: "absolute left-[32] top-[28] w-[206] h-[16] overflow-hidden font-mono text-xs leading-[14]",
-    cover: "absolute left-0 top-0 w-[512] h-[384]",
-    lockIcon: "absolute left-0 top-[118] w-[512] text-center text-2xl leading-[28]",
-    lockClock: "absolute left-0 top-[160] w-[512] text-center text-2xl leading-[28]",
-    lockDate: "absolute left-0 top-[202] w-[512] text-center font-mono text-sm leading-[16]"
+    cover: "absolute left-0 top-0",
+    lockIcon: "absolute left-0 text-center text-2xl leading-[28]",
+    lockClock: "absolute left-0 text-center text-2xl leading-[28]",
+    lockDate: "absolute left-0 text-center font-mono text-sm leading-[16]"
   };
 
   // shell/src/generated/menu.ts
@@ -10062,6 +10076,29 @@
     return null;
   }
 
+  // shell/src/keys.ts
+  var NO_SINK = {
+    text() {},
+    key() {}
+  };
+  var BUTTON_KEYS = [[BTN.UP, "Up"], [BTN.DOWN, "Down"], [BTN.LEFT, "Left"], [BTN.RIGHT, "Right"], [BTN.CIRCLE, "Enter"], [BTN.CROSS, "Backspace"], [BTN.TRIANGLE, "Tab"], [BTN.SQUARE, " "], [BTN.START, "Escape"]];
+  var KEY_BUTTONS = Object.fromEntries(BUTTON_KEYS.map(([b, k]) => [k, b]));
+  var buttonKey = (button) => BUTTON_KEYS.find(([b]) => b & button)?.[1];
+  var repeating = false;
+  var keyRepeating = () => repeating;
+  function sendRepeat(send) {
+    repeating = true;
+    try {
+      send();
+    } finally {
+      repeating = false;
+    }
+  }
+  var [field, setField] = createSignal(null);
+  function setFieldSink(sink) {
+    setField(() => sink);
+  }
+
   // shell/src/system.ts
   var [state, setState] = createSignal(null);
   createRoot(() => createEffect(on(() => state()?.powerProfile ?? null, (profile) => {
@@ -12060,8 +12097,10 @@
   // shell/src/stage/geometry.ts
   var CARD_W = 360;
   var CARD_H = 296;
-  var CARD_X = (512 - CARD_W) / 2;
-  var CARD_Y = 18 + (366 - CARD_H) / 2;
+  var CARD_X = Math.round((STAGE_W - CARD_W) / 2);
+  var SHEET_W = STAGE_W - 24;
+  var SHEET_H = STAGE_H - 36;
+  var CARD_Y = 18 + Math.round((STAGE_H - 18 - CARD_H) / 2);
 
   // shell/src/deck/list.tsx
   function createList(rowH, top, rows, initial = 0) {
@@ -12198,6 +12237,7 @@
   request({
     method: "pins"
   }).then(setSaved, () => {});
+  var [pinsEditing, setPinsEditing] = createSignal(false);
   var pinnable = (item) => !!item && item.id.startsWith("apps.");
   function pinIds(apps) {
     const chosen = saved2() ?? DEFAULT_PINS.flatMap((label) => apps.find((a) => a.label.toLowerCase() === label.toLowerCase())?.id ?? []);
@@ -12210,7 +12250,7 @@
     if (now.length >= MAX_PINS)
       return toast({
         icon: PIN,
-        title: `Home holds ${MAX_PINS} pins`,
+        title: `The deck holds ${MAX_PINS} pins`,
         body: "Unpin one to make room",
         tone: "info"
       });
@@ -12222,6 +12262,62 @@
       method: "pinsSet",
       ids
     }).catch(() => {});
+  }
+
+  // vendor/pocketjs/framework/src/wifi.ts
+  function wifiHost() {
+    const ns = globalThis.wifi;
+    if (!ns || typeof ns !== "object")
+      return null;
+    const ops = ns;
+    return typeof ops.status === "function" && typeof ops.setEnabled === "function" && typeof ops.connect === "function" ? ops : null;
+  }
+  function wifiStatus() {
+    const ops = wifiHost();
+    if (!ops)
+      return null;
+    try {
+      return JSON.parse(ops.status());
+    } catch {
+      return null;
+    }
+  }
+  function setWifiEnabled(on) {
+    return wifiHost()?.setEnabled(on) ?? false;
+  }
+  var savedSlot = (slot) => Number.isInteger(slot) && slot >= 0 && slot < 65536;
+  function connectSavedNetwork(slot) {
+    if (!savedSlot(slot))
+      return false;
+    return wifiHost()?.connect(slot) ?? false;
+  }
+  function savedSlotOf(status, ssid) {
+    return status.saved.find((saved) => saved.ssid === ssid)?.slot ?? -1;
+  }
+  function scanNetworks() {
+    return wifiHost()?.scan?.() ?? false;
+  }
+  function joinNetwork(ssid, passphrase) {
+    if (ssid.length === 0 || ssid.length > 32 || passphrase.length > 63)
+      return false;
+    return wifiHost()?.join?.(ssid, passphrase) ?? false;
+  }
+  function forgetNetwork(slot) {
+    if (!savedSlot(slot))
+      return false;
+    return wifiHost()?.forget?.(slot) ?? false;
+  }
+  function wifiCanDisconnect() {
+    return typeof wifiHost()?.disconnect === "function";
+  }
+  function disconnectNetwork() {
+    return wifiHost()?.disconnect?.() ?? false;
+  }
+  function wifiHasSettings() {
+    return typeof wifiHost()?.openSettings === "function";
+  }
+  function openWifiSettings() {
+    return wifiHost()?.openSettings?.() ?? false;
   }
 
   // shell/src/generated/bluetooth-model.js
@@ -12336,19 +12432,6 @@
     return bluetooth.powered ? "\uDB80\uDCAF" : "\uDB80\uDCB2";
   }
 
-  // shell/src/keys.ts
-  var NO_SINK = {
-    text() {},
-    key() {}
-  };
-  var BUTTON_KEYS = [[BTN.UP, "Up"], [BTN.DOWN, "Down"], [BTN.LEFT, "Left"], [BTN.RIGHT, "Right"], [BTN.CIRCLE, "Enter"], [BTN.CROSS, "Backspace"], [BTN.TRIANGLE, "Tab"], [BTN.SQUARE, " "], [BTN.START, "Escape"]];
-  var KEY_BUTTONS = Object.fromEntries(BUTTON_KEYS.map(([b, k]) => [k, b]));
-  var buttonKey = (button) => BUTTON_KEYS.find(([b]) => b & button)?.[1];
-  var [field, setField] = createSignal(null);
-  function setFieldSink(sink) {
-    setField(() => sink);
-  }
-
   // shell/src/generated/osd-model.js
   function clamp2(value, min, max) {
     return Math.max(min, Math.min(max, value));
@@ -12438,6 +12521,10 @@
     if (next.duration > 0)
       after(next.duration / 1000, () => mine === generation2 && setShown2(null));
   }
+  onEvent((event) => {
+    if (event.event === "osd")
+      showOsd(JSON.stringify(event.osd));
+  });
   serve("osd", {
     show: (payloadJson) => (showOsd(payloadJson), "ok"),
     close: () => (setShown2(null), "ok"),
@@ -12457,7 +12544,8 @@
           },
           get style() {
             return {
-              insetL: Math.round((512 - width()) / 2),
+              insetL: Math.round((STAGE_W - width()) / 2),
+              insetT: STAGE_H - 96,
               width: width(),
               bgColor: color("background", 0.97),
               borderColor: color("accent")
@@ -12537,7 +12625,7 @@
     });
   }
 
-  // vendor/pocketjs/tools/companion/qr.ts
+  // vendor/pocketjs/tools/pocket-link/qr.ts
   var M_BLOCKS = [
     [0, []],
     [10, [[1, 16]]],
@@ -12859,7 +12947,7 @@
     title,
     url
   });
-  var BOX2 = 260;
+  var BOX2 = Math.min(260, SHEET_H - 88);
   var QUIET = 2;
   function runsOf(modules) {
     const out = [];
@@ -12909,9 +12997,11 @@
         return sheet();
       },
       children: (s) => createComponent2(View, {
-        class: "absolute left-[12] top-[24] w-[488] h-[348] rounded-md border-[1]",
+        class: "absolute left-[12] top-[24] rounded-md border-[1]",
         get style() {
           return {
+            width: SHEET_W,
+            height: SHEET_H,
             bgColor: color("background", 0.96),
             borderColor: color("accent")
           };
@@ -12943,9 +13033,10 @@
             },
             children: "any button closes"
           }), createComponent2(View, {
-            class: "absolute left-[12] top-[30] w-[464] h-[1]",
+            class: "absolute left-[12] top-[30] h-[1]",
             get style() {
               return {
+                width: SHEET_W - 24,
                 bgColor: color("muted")
               };
             }
@@ -12957,7 +13048,7 @@
               class: "absolute bg-white",
               get style() {
                 return {
-                  insetL: (488 - q().side) / 2,
+                  insetL: (SHEET_W - q().side) / 2,
                   insetT: 40,
                   width: q().side,
                   height: q().side
@@ -13001,8 +13092,8 @@
             class: "absolute left-[12] h-[14] overflow-hidden font-mono text-xs leading-[14] text-center",
             get style() {
               return {
-                insetT: 348 - 26,
-                width: 464,
+                insetT: SHEET_H - 26,
+                width: SHEET_W - 24,
                 textColor: color("foreground")
               };
             },
@@ -13031,6 +13122,7 @@
   var ROW_H3 = 22;
   var ROWS = Math.floor((CARD_H - HEADER_H - 4) / ROW_H3);
   var REFRESH_EVERY = 4;
+  var WIFI_EVERY = 1;
   var ERROR3 = "\uDB80\uDD5A";
   var CHECK = "\uDB80\uDD2C";
   var LOCK = "\uDB80\uDF3E";
@@ -13050,6 +13142,7 @@
   var [tailscale, setTailscale] = createSignal(null);
   var [bluetooth, setBluetooth] = createSignal(null);
   var [entry, setEntry] = createSignal(null);
+  var PASS_MIN = 8;
   var [busy, setBusy] = createSignal("");
   var [profileAsked, setProfileAsked] = createSignal(null);
   var refreshing = 0;
@@ -13064,11 +13157,12 @@
       return request({
         method: "bluetooth"
       }).then(setBluetooth, fail3("Bluetooth"));
-    if (name === "network")
-      return request({
-        method: "network",
-        rescan
-      }).then(setNetwork, fail3("Network"));
+    if (name === "network") {
+      if (rescan)
+        scanNetworks();
+      setNetwork(wifiStatus());
+      return Promise.resolve();
+    }
     if (name === "audio")
       return request({
         method: "audio"
@@ -13086,7 +13180,7 @@
     }).then(setProxy, fail3("Proxy"));
   }
   function poll2(token) {
-    after(REFRESH_EVERY, () => {
+    after(panel() === "network" ? WIFI_EVERY : REFRESH_EVERY, () => {
       const name = panel();
       if (token !== refreshing || !name)
         return;
@@ -13127,12 +13221,7 @@
       ...a,
       [id]: value
     }));
-    showOsd(JSON.stringify({
-      icon: osd.icon,
-      value,
-      max: osd.max ?? 100,
-      progressText: `${Math.round(value)}%`
-    }));
+    showOsd(JSON.stringify(levelOsd(osd.icon, value, osd.max)));
     const s = sliding.get(id) ?? {
       inFlight: false,
       next: null,
@@ -13175,12 +13264,26 @@
     };
     go(value);
   }
-  function connect(ssid, password) {
-    change(`Connecting to ${ssid}`, request({
-      method: "wifiConnect",
-      ssid,
-      password
-    }), ssid);
+  function wifiAct(title, done) {
+    const before = network()?.error ?? "";
+    const check = () => {
+      const status = wifiStatus();
+      setNetwork(status);
+      const reason = status?.error ?? "";
+      if (reason && (!done || reason !== before))
+        toast({
+          icon: ERROR3,
+          title,
+          body: reason,
+          tone: "error"
+        });
+    };
+    after(0.4, check);
+  }
+  function connect(ssid, password = "") {
+    const status = network();
+    const slot = status && !password ? savedSlotOf(status, ssid) : -1;
+    wifiAct(ssid, slot >= 0 ? connectSavedNetwork(slot) : joinNetwork(ssid, password));
   }
   var entrySink = null;
   function askPassword(ssid) {
@@ -13191,7 +13294,8 @@
     entrySink = {
       text: (ch) => setEntry((e) => e && {
         ...e,
-        text: e.text + ch
+        text: e.text + ch,
+        short: false
       }),
       key: (name) => {
         const e = entry();
@@ -13203,6 +13307,11 @@
             text: [...e.text].slice(0, -1).join("")
           });
         else if (name === "Enter") {
+          if ([...e.text].length < PASS_MIN)
+            return setEntry({
+              ...e,
+              short: true
+            });
           endEntry();
           connect(e.ssid, e.text);
         } else if (name === "Escape")
@@ -13212,7 +13321,7 @@
         const e = entry();
         return e ? `${LOCK} ${e.ssid}: ${"•".repeat([...e.text].length)}_` : "";
       },
-      hint: () => "A connects · B Backspace · START cancels"
+      hint: () => entry()?.short ? `${PASS_MIN} characters at least · START cancels` : "A connects · B Backspace · START cancels"
     };
     setFieldSink(entrySink);
   }
@@ -13240,14 +13349,14 @@
           name: current.name,
           muted: !current.muted
         }), title),
-        adjust: (delta) => slide(id, Math.max(0, Math.min(150, level() + delta * STEP)), (volume) => request({
+        adjust: (delta) => slide(id, Math.max(0, Math.min(VOLUME_MAX, level() + delta * STEP)), (volume) => request({
           method: "audioSet",
           kind,
           name: current.name,
           volume
         }), title, {
           icon: kind === "sink" ? "\uDB81\uDD7E" : "\uDB80\uDF6C",
-          max: 150
+          max: VOLUME_MAX
         })
       });
     }
@@ -13323,52 +13432,64 @@
       }
       case "network": {
         const n = network();
+        if (!wifiHost())
+          return [{
+            icon: "",
+            label: "This device has no Wi-Fi",
+            info: true
+          }];
         if (!n)
           return [{
             icon: "",
             label: "Reading networks...",
             info: true
           }];
+        const on = n.state !== "off";
         const list = [{
-          icon: n.enabled ? "\uDB81\uDDA9" : "\uDB81\uDDAA",
+          icon: on ? "\uDB81\uDDA9" : "\uDB81\uDDAA",
           label: "Wi-Fi",
-          value: n.enabled ? "On" : "Off",
-          activate: () => change("", request({
-            method: "wifiPower",
-            on: !n.enabled
-          }), "Wi-Fi")
+          value: n.state === "connecting" ? "Connecting" : on ? "On" : "Off",
+          activate: () => wifiAct("Wi-Fi", setWifiEnabled(!on))
         }];
-        const active = n.networks.find((w) => w.active);
-        if (active) {
+        if (n.error)
+          list.push({
+            icon: ERROR3,
+            label: n.error,
+            info: true
+          });
+        if (n.ssid && wifiCanDisconnect()) {
           list.push({
             icon: "",
-            label: `Disconnect ${active.ssid}`,
+            label: `Disconnect ${n.ssid}`,
             value: n.address,
-            activate: () => change("", request({
-              method: "wifiDisconnect"
-            }), "Wi-Fi")
+            activate: () => wifiAct("Wi-Fi", disconnectNetwork())
           });
         }
-        if (n.enabled)
+        if (on)
           list.push({
             icon: "\uDB81\uDC50",
-            label: "Scan",
-            activate: () => request({
-              method: "network",
-              rescan: true
-            }).then(setNetwork, fail3("Network"))
+            key: "scan",
+            label: n.scanning ? "Scanning..." : "Scan",
+            activate: () => wifiAct("Wi-Fi", scanNetworks())
           });
-        for (const w of n.networks) {
+        if (wifiHasSettings())
           list.push({
-            icon: wifiIconFor(w.signal),
+            icon: "\uDB81\uDC93",
+            label: "System Wi-Fi settings",
+            activate: () => void openWifiSettings()
+          });
+        for (const w of n.networks ?? []) {
+          const active = w.ssid === n.ssid && n.state !== "idle";
+          const signal = w.signal ?? w.strength * 33;
+          const slot = savedSlotOf(n, w.ssid);
+          const saved = w.saved === true || slot >= 0;
+          list.push({
+            icon: wifiIconFor(signal),
             label: w.secure ? `${w.ssid} ${LOCK}` : w.ssid,
-            value: w.active ? "Connected" : w.known ? "Saved" : `${w.signal}%`,
-            checked: w.active,
-            activate: () => w.active ? undefined : w.secure && !w.known ? askPassword(w.ssid) : connect(w.ssid),
-            forget: w.known ? () => change("", request({
-              method: "wifiForget",
-              ssid: w.ssid
-            }), w.ssid) : undefined
+            value: active ? n.state === "connecting" ? "Connecting" : "Connected" : saved ? "Saved" : `${signal}%`,
+            checked: active && n.state === "connected",
+            activate: () => active ? undefined : w.secure && !saved ? askPassword(w.ssid) : connect(w.ssid),
+            forget: slot >= 0 ? () => wifiAct(w.ssid, forgetNetwork(slot)) : undefined
           });
         }
         return list;
@@ -13571,14 +13692,15 @@
         return [];
     }
   });
+  var keyOf = (row) => row.key ?? row.label;
   var rows = createMemo(() => {
     const list = rawRows();
     for (const row of list)
-      if (!seen.has(row.label))
-        seen.set(row.label, seen.size);
-    return [...list].sort((a, b) => seen.get(a.label) - seen.get(b.label));
+      if (!seen.has(keyOf(row)))
+        seen.set(keyOf(row), seen.size);
+    return [...list].sort((a, b) => seen.get(keyOf(a)) - seen.get(keyOf(b)));
   });
-  var index = () => Math.max(0, rows().findIndex((row) => row.label === selected4()));
+  var index = () => Math.max(0, rows().findIndex((row) => keyOf(row) === selected4()));
   var list2 = createList(ROW_H3, HEADER_H, ROWS);
   function setIndex(at) {
     const all = rows();
@@ -13586,7 +13708,7 @@
     const row = all[i];
     if (!row)
       return;
-    setSelected4(row.label);
+    setSelected4(keyOf(row));
     list2.reveal(i, all.length);
   }
   function move(delta) {
@@ -13759,7 +13881,18 @@
   }
 
   // shell/src/stage/wallpaper.tsx
+  var TILE = 512;
+  var COUNT = Math.ceil(PANEL[0] / TILE) * Math.ceil(PANEL[1] / TILE);
+  var BAKED_SCALE = Math.max(STAGE_W / 512, STAGE_H / 384);
+  var BAKED = [[0, 0, 256, 256], [256, 0, 256, 256], [0, 256, 256, 128], [256, 256, 256, 128]].map(([x, y, w, h]) => ({
+    x: (STAGE_W - 512 * BAKED_SCALE) / 2 + x * BAKED_SCALE,
+    y: (STAGE_H - 384 * BAKED_SCALE) / 2 + y * BAKED_SCALE,
+    w: w * BAKED_SCALE,
+    h: h * BAKED_SCALE
+  }));
+  var BAKED_SOURCES = ["wall-0-0.png", "wall-1-0.png", "wall-0-1.png", "wall-1-1.png"];
   var nodes3 = [];
+  var [placed, setPlaced] = createSignal(BAKED);
   var handles2 = [];
   var loading = 0;
   async function load4(path) {
@@ -13768,7 +13901,8 @@
     try {
       tiles = await request({
         method: "wallpaper",
-        path
+        path,
+        size: PANEL
       });
     } catch (error) {
       toast({
@@ -13784,13 +13918,19 @@
     const bridge = globalThis.omarchyBridge;
     const next = tiles.map((t) => bridge?.loadTexture(t.file, t.w, t.h) ?? -1);
     const ops = getOps();
-    if (next.some((h) => h < 0) || nodes3.some((n) => !n)) {
+    if (next.some((h) => h < 0) || next.length > COUNT || nodes3.slice(0, next.length).some((n) => !n)) {
       for (const h of next)
         if (h >= 0)
           ops.freeTexture?.(h);
       return;
     }
     next.forEach((handle, i) => ops.setImage(nodes3[i].id, handle));
+    setPlaced(tiles.map((t) => ({
+      x: t.x / DENSITY,
+      y: t.y / DENSITY,
+      w: t.w / DENSITY,
+      h: t.h / DENSITY
+    })));
     for (const h of handles2)
       ops.freeTexture?.(h);
     handles2 = next;
@@ -13809,23 +13949,47 @@
   });
   load4();
   function Wallpaper() {
-    return [createComponent2(Image, {
-      ref: (n) => nodes3[0] = n,
-      class: "absolute left-0 top-0 w-[256] h-[256]",
-      src: "wall-0-0.png"
-    }), createComponent2(Image, {
-      ref: (n) => nodes3[1] = n,
-      class: "absolute left-[256] top-0 w-[256] h-[256]",
-      src: "wall-1-0.png"
-    }), createComponent2(Image, {
-      ref: (n) => nodes3[2] = n,
-      class: "absolute left-0 top-[256] w-[256] h-[128]",
-      src: "wall-0-1.png"
-    }), createComponent2(Image, {
-      ref: (n) => nodes3[3] = n,
-      class: "absolute left-[256] top-[256] w-[256] h-[128]",
-      src: "wall-1-1.png"
-    })];
+    const slots = Array.from({
+      length: Math.max(COUNT, BAKED.length)
+    }, (_, i) => i);
+    const style = (i) => {
+      const p = placed()[i];
+      return p ? {
+        insetL: p.x,
+        insetT: p.y,
+        width: p.w,
+        height: p.h,
+        opacity: 1
+      } : {
+        insetL: 0,
+        insetT: 0,
+        width: 0,
+        height: 0,
+        opacity: 0
+      };
+    };
+    return createComponent2(View, {
+      class: "absolute left-0 top-0 overflow-hidden",
+      style: {
+        width: STAGE_W,
+        height: STAGE_H
+      },
+      get children() {
+        return createComponent2(For, {
+          each: slots,
+          children: (i) => createComponent2(Image, {
+            ref: (n) => nodes3[i] = n,
+            class: "absolute",
+            get style() {
+              return style(i);
+            },
+            get src() {
+              return BAKED_SOURCES[i] ?? BAKED_SOURCES[0];
+            }
+          })
+        });
+      }
+    });
   }
 
   // shell/src/stage/picker.tsx
@@ -14137,10 +14301,11 @@
     list3?.reveal(index, shownRows.length);
   }
   function move2(delta) {
-    const shownRows = rows3(level());
-    if (!shownRows.length)
+    const n = rows3(level()).length;
+    if (!n)
       return;
-    select5(Math.max(0, Math.min(shownRows.length - 1, indexIn(level()) + delta)));
+    const next = indexIn(level()) + delta;
+    select5(keyRepeating() ? Math.max(0, Math.min(n - 1, next)) : (next + n) % n);
   }
   function push(item) {
     remember();
@@ -14195,6 +14360,7 @@
     weather: "\uDB81\uDD95",
     maps: "\uDB80\uDF4D",
     podcasts: "\uDB82\uDD94",
+    spotify: "\uDB81\uDCC7",
     "home assistant": "\uDB81\uDFD0",
     home: "\uDB81\uDFD0"
   };
@@ -14981,7 +15147,7 @@
         what: "Escape"
       }, {
         keys: "SELECT",
-        what: "Keys · Pad · Home"
+        what: "keys on or off"
       }, {
         keys: "L2 / R2",
         what: "switch workspace"
@@ -14996,7 +15162,7 @@
   var toggleSheet = () => setOpen((o) => !o);
   var closeSheet = () => setOpen(false);
   var LINE = 15;
-  var COL_W = 236;
+  var COL_W = Math.floor((SHEET_W - 16) / 2);
   var KEYS_W = 96;
   function lines(groups) {
     const all = keySheet(layout());
@@ -15076,9 +15242,11 @@
       },
       get children() {
         return createComponent2(View, {
-          class: "absolute left-[12] top-[24] w-[488] h-[348] rounded-md border-[1]",
+          class: "absolute left-[12] top-[24] rounded-md border-[1]",
           get style() {
             return {
+              width: SHEET_W,
+              height: SHEET_H,
               bgColor: color("background", 0.96),
               borderColor: color("accent")
             };
@@ -15108,9 +15276,10 @@
               },
               children: "L1 + SELECT closes"
             }), createComponent2(View, {
-              class: "absolute left-[12] top-[30] w-[464] h-[1]",
+              class: "absolute left-[12] top-[30] h-[1]",
               get style() {
                 return {
+                  width: SHEET_W - 24,
                   bgColor: color("muted")
                 };
               }
@@ -15242,29 +15411,18 @@
   // shell/src/deck/geometry.ts
   var STRIP_H = 34;
   var BODY_TOP = STRIP_H;
-  var BODY_H = 384 - STRIP_H;
+  var BODY_H = DECK_H - STRIP_H;
   var KEYS_TOP = 2;
   var KEY_PITCH = 44;
   var KEYS_BOTTOM = KEYS_TOP + 4 * KEY_PITCH;
+  var EDGE = 6;
   var PAD_X = 62;
-  var PAD_W = 512 - 2 * PAD_X;
-  var PAD_BOTTOM = BODY_H - 6;
-  var PAD_SMALL = {
-    x: PAD_X,
-    y: KEYS_BOTTOM + 6,
-    w: PAD_W,
-    h: PAD_BOTTOM - KEYS_BOTTOM - 6
-  };
-  var PAD_LARGE = {
-    x: PAD_X,
-    y: 6,
-    w: PAD_W,
-    h: PAD_BOTTOM - 6
-  };
+  var PAD_W = DECK_W - 2 * PAD_X;
+  var PAD_BOTTOM = BODY_H - EDGE;
   var ROUND = 44;
   var ROUND_GAP = 8;
   var LEFT_X = (PAD_X - ROUND) / 2;
-  var RIGHT_X = 512 - PAD_X + LEFT_X;
+  var RIGHT_X = DECK_W - PAD_X + LEFT_X;
   var ROUNDS = {
     voice: {
       x: LEFT_X,
@@ -15290,6 +15448,24 @@
       w: ROUND,
       h: ROUND
     }
+  };
+  var PIN_ROW = {
+    x: PAD_X,
+    y: PAD_BOTTOM - ROUND,
+    w: PAD_W,
+    h: ROUND
+  };
+  var PAD_SMALL = {
+    x: PAD_X,
+    y: KEYS_BOTTOM + EDGE,
+    w: PAD_W,
+    h: PAD_BOTTOM - KEYS_BOTTOM - EDGE
+  };
+  var PAD_LARGE = {
+    x: PAD_X,
+    y: EDGE,
+    w: PAD_W,
+    h: PIN_ROW.y - 2 * EDGE
   };
   var inRect = (r, x, y) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 
@@ -15610,9 +15786,11 @@
   function Face(props) {
     const r = 22;
     return createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] h-[384]",
+      class: "absolute left-0 top-0",
       get style() {
         return {
+          width: DECK_W,
+          height: DECK_H,
           opacity: props.glyph ? 1 : DIM
         };
       },
@@ -15691,9 +15869,11 @@
     const h = 26;
     const y = 8;
     return createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] h-[384]",
+      class: "absolute left-0 top-0",
       get style() {
         return {
+          width: DECK_W,
+          height: DECK_H,
           opacity: props.lit || props.bound ? 1 : DIM
         };
       },
@@ -15769,13 +15949,15 @@
     });
   }
   function Pill(props) {
-    const x = 348;
+    const x = DECK_W - 164;
     const w = 152;
     const h = 30;
     return createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] h-[384]",
+      class: "absolute left-0 top-0",
       get style() {
         return {
+          width: DECK_W,
+          height: DECK_H,
           opacity: props.glyph ? 1 : DIM
         };
       },
@@ -15837,20 +16019,34 @@
       }
     });
   }
+  var SIDE = Math.round(104 * DECK_SCALE);
   var DPAD2 = {
-    cx: 104,
-    cy: 150,
-    arm: 40
+    cx: SIDE,
+    cy: XBOX_FACES ? 238 : 150,
+    arm: Math.round(40 * DECK_SCALE)
   };
   var STICK = {
-    cx: 104,
-    cy: 292,
+    cx: SIDE,
+    cy: XBOX_FACES ? 106 : 292,
     r: 28
   };
   var FACES = {
-    cx: 408,
-    cy: 150,
-    step: 54
+    cx: DECK_W - SIDE,
+    cy: XBOX_FACES ? 128 : 150,
+    step: Math.round(54 * DECK_SCALE)
+  };
+  var PILL_Y = [DECK_H - 106, DECK_H - 66];
+  var TITLE_W = Math.round(200 * DECK_SCALE);
+  var FACE_AT = XBOX_FACES ? {
+    top: ["Y", BTN.SQUARE],
+    left: ["X", BTN.TRIANGLE],
+    right: ["B", BTN.CROSS],
+    bottom: ["A", BTN.CIRCLE]
+  } : {
+    top: ["X", BTN.TRIANGLE],
+    left: ["Y", BTN.SQUARE],
+    right: ["A", BTN.CIRCLE],
+    bottom: ["B", BTN.CROSS]
   };
   function Dpad(props) {
     const arms = createMemo(() => {
@@ -15945,9 +16141,11 @@
       r
     } = STICK;
     return createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] h-[384]",
+      class: "absolute left-0 top-0",
       get style() {
         return {
+          width: DECK_W,
+          height: DECK_H,
           opacity: glyph() ? 1 : DIM
         };
       },
@@ -16007,9 +16205,11 @@
       defer: true
     }));
     return createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] h-[384] contain-strict",
+      class: "absolute left-0 top-0 contain-strict",
       get style() {
         return {
+          width: DECK_W,
+          height: DECK_H,
           bgColor: color("darker_background"),
           opacity: 0
         };
@@ -16036,7 +16236,7 @@
           }
         }), createComponent2(Shoulder, {
           name: "R2",
-          x: 372,
+          x: DECK_W - 140,
           lit: false,
           get glyph() {
             return trigger(BTN.ZR);
@@ -16046,7 +16246,7 @@
           }
         }), createComponent2(Shoulder, {
           name: "R1",
-          x: 440,
+          x: DECK_W - 72,
           get lit() {
             return layer() !== "window";
           },
@@ -16056,14 +16256,16 @@
           get glyph() {
             return title().icon;
           },
-          cx: 256,
+          cx: DECK_W / 2,
           cy: 136,
           px: LARGE,
           tone: "accent"
         }), createComponent2(Text, {
-          class: "absolute left-[156] w-[200] text-center font-mono text-base leading-[18]",
+          class: "absolute text-center font-mono text-base leading-[18]",
           get style() {
             return {
+              insetL: (DECK_W - TITLE_W) / 2,
+              width: TITLE_W,
               insetT: 156,
               height: 18,
               textColor: color("bright_foreground")
@@ -16081,7 +16283,9 @@
             return layer();
           }
         }), createComponent2(Face, {
-          letter: "X",
+          get letter() {
+            return FACE_AT.top[0];
+          },
           get cx() {
             return FACES.cx;
           },
@@ -16089,10 +16293,12 @@
             return FACES.cy - FACES.step;
           },
           get glyph() {
-            return face(BTN.TRIANGLE);
+            return face(FACE_AT.top[1]);
           }
         }), createComponent2(Face, {
-          letter: "Y",
+          get letter() {
+            return FACE_AT.left[0];
+          },
           get cx() {
             return FACES.cx - FACES.step;
           },
@@ -16100,10 +16306,12 @@
             return FACES.cy;
           },
           get glyph() {
-            return face(BTN.SQUARE);
+            return face(FACE_AT.left[1]);
           }
         }), createComponent2(Face, {
-          letter: "A",
+          get letter() {
+            return FACE_AT.right[0];
+          },
           get cx() {
             return FACES.cx + FACES.step;
           },
@@ -16111,10 +16319,12 @@
             return FACES.cy;
           },
           get glyph() {
-            return face(BTN.CIRCLE);
+            return face(FACE_AT.right[1]);
           }
         }), createComponent2(Face, {
-          letter: "B",
+          get letter() {
+            return FACE_AT.bottom[0];
+          },
           get cx() {
             return FACES.cx;
           },
@@ -16122,17 +16332,21 @@
             return FACES.cy + FACES.step;
           },
           get glyph() {
-            return face(BTN.CROSS);
+            return face(FACE_AT.bottom[1]);
           }
         }), createComponent2(Pill, {
           name: "START",
-          y: 278,
+          get y() {
+            return PILL_Y[0];
+          },
           get glyph() {
             return face(BTN.START);
           }
         }), createComponent2(Pill, {
           name: "SELECT",
-          y: 318,
+          get y() {
+            return PILL_Y[1];
+          },
           get glyph() {
             return face(BTN.SELECT);
           }
@@ -16177,7 +16391,7 @@
   function cardHint() {
     switch (card()) {
       case "menu":
-        return pinnable(selectedItem()) ? "type to filter · Enter opens · Y pins to Home" : "type to filter · ↑↓ move · Enter opens · Esc closes";
+        return pinnable(selectedItem()) ? "type to filter · Enter opens · Y pins to the deck" : "type to filter · ↑↓ move · Enter opens · Esc closes";
       case "panel":
         return "↑↓ move · ←→ adjust · Enter acts · Esc closes";
       case "picker":
@@ -16221,9 +16435,11 @@
       defer: true
     }));
     return [createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] h-[384]",
+      class: "absolute left-0 top-0",
       get style() {
         return {
+          width: STAGE_W,
+          height: STAGE_H,
           bgColor: color("background", 0.45),
           opacity: 0
         };
@@ -16288,6 +16504,7 @@
   }
 
   // shell/src/focus.ts
+  var LAYOUTS = ["keys", "pad"];
   function keySink() {
     const field2 = field();
     if (field2)
@@ -16324,7 +16541,7 @@
       return "keys";
     const w = focused2();
     if (!w)
-      return "home";
+      return "pad";
     return w.kind === "app" ? appletTyping(w.app) ? "keys" : "pad" : "keys";
   });
   var [chosen, setChosen] = createSignal(null);
@@ -16344,15 +16561,6 @@
   function toggleKeys() {
     chooseLayout(layout2() === "keys" ? "pad" : "keys");
   }
-  function toggleHome() {
-    if (layout2() !== "home")
-      return chooseLayout("home");
-    chooseLayout(rule() === "home" ? "keys" : rule());
-  }
-  var ORDER = ["keys", "pad", "home"];
-  function cycleLayout() {
-    chooseLayout(ORDER[(ORDER.indexOf(layout2()) + 1) % ORDER.length]);
-  }
 
   // shell/src/deck/press.ts
   var LINGER = 5;
@@ -16368,692 +16576,57 @@
       setLit(null);
   }
 
-  // shell/src/deck/home.tsx
-  var MAP_SCALE = 0.7;
-  var MAP_W = STAGE_W * MAP_SCALE;
-  var MAP_H = STAGE_H * MAP_SCALE;
-  var MAP_X = (512 - MAP_W) / 2;
-  var MAP_Y = 28;
-  var SIDE_W = 60;
-  var LEFT_X2 = (MAP_X - SIDE_W) / 2;
-  var RIGHT_X2 = 512 - MAP_X + (MAP_X - SIDE_W) / 2;
-  var CELL_H2 = 40;
-  var CELL_GAP = 6;
-  var LAYOUT_Y = MAP_Y + WORKSPACES * (CELL_H2 + CELL_GAP);
-  var PANEL_LIST = ["tailscale", "proxy", "bluetooth", "network", "audio", "power"];
-  var cellAt = (y) => {
-    const i = Math.floor((y - MAP_Y) / (CELL_H2 + CELL_GAP));
-    return y >= MAP_Y && y - MAP_Y - i * (CELL_H2 + CELL_GAP) < CELL_H2 ? i : -1;
-  };
-  var wsTabAt = (x, y) => {
-    const i = x >= LEFT_X2 && x < LEFT_X2 + SIDE_W ? cellAt(y) : -1;
-    return i < WORKSPACES ? i : -1;
-  };
-  var onBadge = (x, y) => x >= LEFT_X2 && x < LEFT_X2 + SIDE_W && y >= LAYOUT_Y && y < LAYOUT_Y + CELL_H2;
-  var panels = () => PANEL_LIST.filter((p) => (p !== "proxy" || state()?.proxy) && (p !== "tailscale" || state()?.tailscale));
-  var panelAt = (x, y) => x >= RIGHT_X2 && x < RIGHT_X2 + SIDE_W ? panels()[cellAt(y)] : undefined;
-  var panelGlyph = (p) => {
-    const s = state();
-    return p === "tailscale" ? "\uDB80\uDF18" : p === "proxy" ? "\uDB81\uDD82" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
-  };
-  var PIN_GAP = 6;
-  var PIN_W = (MAP_W - MAX_PINS * PIN_GAP) / (MAX_PINS + 1);
-  var PIN_H = 40;
-  var PIN_Y = MAP_Y + MAP_H + 7;
-  var PIN_STEP = PIN_W + PIN_GAP;
-  var ADD = "\uDB81\uDC15";
-  var DONE = "\uDB80\uDD2C";
-  var REMOVE = "\uDB80\uDD56";
-  var pinned = () => {
-    const apps = allApps();
-    return pinIds(apps).flatMap((id) => apps.find((a) => a.id === id) ?? []);
-  };
-  var pinXs = () => {
-    const n = pinned().length + 1;
-    const left = 256 - ((n - 1) * PIN_STEP + PIN_W) / 2;
-    return Array.from({
-      length: n
-    }, (_, i) => left + i * PIN_STEP);
-  };
-  var pinAt = (x, y) => y >= PIN_Y && y < PIN_Y + PIN_H ? pinXs().findIndex((left) => x >= left && x < left + PIN_W) : -1;
-  var [editing2, setEditing2] = createSignal(false);
-  var EDIT_PAD = 4;
-  var APP_H = 33;
-  var APP_W = (MAP_W - 2 * EDIT_PAD) / 2;
-  var APP_ROWS = Math.floor((MAP_H - 2 * EDIT_PAD) / APP_H);
-  var appList = createList(APP_H, MAP_Y + EDIT_PAD, APP_ROWS);
-  var appRows2 = () => {
-    const apps = allApps();
-    return Array.from({
-      length: Math.ceil(apps.length / 2)
-    }, (_, i) => [apps[2 * i], apps[2 * i + 1]]);
-  };
-  var appAt = (x, y) => {
-    if (!onMap(x, y) || y < MAP_Y + EDIT_PAD)
-      return -1;
-    const row = appList.first() + Math.floor((y - MAP_Y - EDIT_PAD) / APP_H);
-    const i = 2 * row + (x >= MAP_X + EDIT_PAD + APP_W ? 1 : 0);
-    return i < allApps().length ? i : -1;
-  };
-  var full = () => pinIds(allApps()).length >= MAX_PINS;
-  function editPins(on) {
-    if (on)
-      appList.reset();
-    setEditing2(on);
+  // shell/src/deck/voice.ts
+  var [state2, setState2] = createSignal("idle");
+  var [level2, setLevel] = createSignal(0);
+  var voiceState = state2;
+  var voiceLevel = level2;
+  var MIC = "\uDB80\uDF6C";
+  var say2 = (title, body = "") => toast({
+    icon: MIC,
+    title,
+    body,
+    tone: "info"
+  }, 2.4);
+  function deliver(text) {
+    if (!text)
+      return say2("Nothing heard");
+    const sink = keySink();
+    if (sink === NO_SINK)
+      return say2("Nothing takes text here", text);
+    sink.text(text);
   }
-  function toggleApp(item) {
-    const apps = allApps();
-    if (pinIds(apps).includes(item.id) || !full())
-      togglePin(item, apps);
-  }
-  function openPin(item) {
-    const open = item.applet ? find((w) => w.kind === "app" && w.path === item.applet) : null;
-    if (open)
-      return focusWindow(open.id);
-    openItem(item);
-  }
-  var toStage = (x, y) => ({
-    x: (x - MAP_X) / MAP_SCALE,
-    y: (y - MAP_Y) / MAP_SCALE
-  });
-  var onMap = (x, y) => x >= MAP_X && x < MAP_X + MAP_W && y >= MAP_Y && y < MAP_Y + MAP_H;
-  var onDeck = (r) => ({
-    x: MAP_X + r.x * MAP_SCALE,
-    y: MAP_Y + r.y * MAP_SCALE,
-    w: r.w * MAP_SCALE,
-    h: r.h * MAP_SCALE
-  });
-  var icon = (w) => w.kind === "terminal" ? "\uDB80\uDD8D" : w.kind === "app" ? "\uDB82\uDF8A" : appletOf(w)?.icon ?? "";
-  var title = (w) => w.kind === "terminal" ? "Terminal" : w.kind === "app" ? w.title : appletOf(w)?.title ?? w.applet;
-  function homeTarget(x, y) {
-    const ws = wsTabAt(x, y);
-    if (ws >= 0)
-      return `home:ws${ws}`;
-    if (onBadge(x, y))
-      return "home:layout";
-    const p = panelAt(x, y);
-    if (p)
-      return `home:${p}`;
-    const pin = pinAt(x, y);
-    if (pin >= 0)
-      return `home:pin${pin}`;
-    if (editing2()) {
-      const app = appAt(x, y);
-      return app >= 0 ? `home:app${app}` : null;
-    }
-    if (onMap(x, y)) {
-      const at = toStage(x, y);
-      const id = windowAt(at.x, at.y);
-      if (id !== null)
-        return `home:win${id}`;
-    }
-    return null;
-  }
-  function tap(x, y) {
-    const ws = wsTabAt(x, y);
-    if (ws >= 0)
-      return focus(ws);
-    if (onBadge(x, y))
-      return perform("layout");
-    const p = panelAt(x, y);
-    if (p)
-      return panel() === p ? closePanel() : showPanel(p);
-    const pin = pinAt(x, y);
-    if (pin >= 0) {
-      const item = pinned()[pin];
-      if (!item)
-        return editPins(!editing2());
-      return editing2() ? togglePin(item, allApps()) : openPin(item);
-    }
-    if (editing2())
+  var failed = (error) => {
+    setState2("idle");
+    toast({
+      icon: MIC,
+      title: "Voice input",
+      body: error instanceof Error ? error.message : String(error),
+      tone: "error"
+    }, 3);
+  };
+  function toggleVoice() {
+    const now = state2();
+    if (now === "decoding")
       return;
-    if (onMap(x, y)) {
-      const at = toStage(x, y);
-      const id = windowAt(at.x, at.y);
-      if (id !== null)
-        act((m) => m.focusWin(id));
+    if (now === "listening") {
+      setState2("decoding");
+      return void request({
+        method: "voiceStop"
+      }).then(deliver, failed);
     }
-  }
-  function homeTouch(frame) {
-    const c = frame.down[0];
-    pressAt(c && !c.moved ? homeTarget(c.x, c.y) : null);
-    if (editing2()) {
-      const listed = (t) => onMap(t.start.x, t.start.y);
-      appList.touch({
-        ...frame,
-        down: frame.down.filter(listed),
-        taps: []
-      }, appRows2().length, () => {});
-      for (const t of frame.taps) {
-        const i = !t.moved && listed(t) ? appAt(t.x, t.y) : -1;
-        if (i >= 0)
-          toggleApp(allApps()[i]);
-      }
-    }
-    for (const p of frame.presses)
-      tap(p.x, p.y);
-  }
-  function Tile(props) {
-    const rect = createMemo(() => onDeck(placements().find((p) => p.id === props.win.id)?.rect ?? {
-      x: 0,
-      y: 0,
-      w: 0,
-      h: 0
-    }), undefined, {
-      equals: sameRect
-    });
-    const hidden = () => placements().find((p) => p.id === props.win.id)?.hidden ?? true;
-    const isFocused = () => focused2()?.id === props.win.id;
-    const lit = () => pressed(`home:win${props.win.id}`);
-    let node;
-    createEffect(on(rect, (next, prev) => {
-      if (!node)
-        return;
-      if (prev)
-        flip(node, prev, next);
-      else
-        flip(node, {
-          x: next.x + next.w * 0.065,
-          y: next.y + next.h * 0.065,
-          w: next.w * 0.87,
-          h: next.h * 0.87
-        }, next, 0, 1);
-    }));
-    onCleanup(() => node = undefined);
-    return createComponent2(View, {
-      class: "absolute overflow-hidden",
-      get style() {
-        return {
-          insetL: rect().x - MAP_X,
-          insetT: rect().y - MAP_Y,
-          width: rect().w,
-          height: rect().h,
-          opacity: hidden() ? 0 : 1,
-          bgColor: color(lit() ? "bright_foreground" : isFocused() ? "accent" : "muted"),
-          ...TOP_LEFT
-        };
-      },
-      ref: (n) => node = n,
-      get children() {
-        return createComponent2(View, {
-          class: "absolute left-[2] top-[2] overflow-hidden",
-          get style() {
-            return {
-              width: rect().w - 4,
-              height: rect().h - 4,
-              bgColor: color(isFocused() ? "lighter_background" : "background")
-            };
-          },
-          get children() {
-            return [createComponent2(Text, {
-              class: "absolute left-0 text-center font-mono text-base leading-[20]",
-              get style() {
-                return {
-                  insetT: rect().h / 2 - 22,
-                  width: rect().w - 4,
-                  textColor: color(isFocused() ? "accent" : "foreground")
-                };
-              },
-              get children() {
-                return icon(props.win);
-              }
-            }), createComponent2(Text, {
-              class: "absolute left-0 h-[14] overflow-hidden text-center font-mono text-xs leading-[14]",
-              get style() {
-                return {
-                  insetT: rect().h / 2,
-                  width: rect().w - 4,
-                  textColor: color(isFocused() ? "bright_foreground" : "dark_foreground")
-                };
-              },
-              get children() {
-                return title(props.win);
-              }
-            })];
-          }
-        });
-      }
-    });
-  }
-  function PinCell(props) {
-    return createComponent2(View, {
-      class: "absolute rounded-md",
-      get style() {
-        return {
-          insetL: props.x,
-          insetT: PIN_Y,
-          width: PIN_W,
-          height: PIN_H,
-          bgColor: color(pressed(props.target) ? "selection" : "dark_background")
-        };
-      },
-      get children() {
-        return [createComponent2(Text, {
-          class: "absolute left-0 text-center font-mono text-base leading-[18]",
-          get style() {
-            return {
-              insetT: PIN_H / 2 - 9,
-              insetL: -inkShift(props.icon, 16),
-              width: PIN_W,
-              textColor: color(props.tone === "dim" ? "dark_foreground" : props.tone === "accent" ? "accent" : "foreground")
-            };
-          },
-          get children() {
-            return props.icon;
-          }
-        }), createComponent2(Show, {
-          get when() {
-            return props.removable;
-          },
-          get children() {
-            return createComponent2(Text, {
-              class: "absolute top-[1] w-[12] text-center font-mono text-xs leading-[12]",
-              get style() {
-                return {
-                  insetL: PIN_W - 13,
-                  textColor: color("dark_foreground")
-                };
-              },
-              children: REMOVE
-            });
-          }
-        })];
-      }
-    });
-  }
-  function AppCell(props) {
-    const on = () => pinIds(allApps()).includes(props.item.id);
-    const tone = () => on() ? "accent" : full() ? "muted" : "foreground";
-    return createComponent2(View, {
-      class: "absolute top-[1] rounded-sm",
-      get style() {
-        return {
-          insetL: props.x,
-          width: APP_W - 2,
-          height: APP_H - 2,
-          bgColor: color(pressed(`home:app${props.index}`) ? "selection" : on() ? "background" : "dark_background")
-        };
-      },
-      get children() {
-        return [createComponent2(Text, {
-          class: "absolute top-[7] w-[20] text-center font-mono text-base leading-[18]",
-          get style() {
-            return {
-              insetL: 8 - inkShift(props.item.icon, 16),
-              textColor: color(tone())
-            };
-          },
-          get children() {
-            return props.item.icon;
-          }
-        }), createComponent2(Text, {
-          class: "absolute left-[34] top-[9] h-[14] overflow-hidden font-mono text-xs leading-[14]",
-          get style() {
-            return {
-              width: APP_W - 60,
-              textColor: color(on() ? "bright_foreground" : tone())
-            };
-          },
-          get children() {
-            return props.item.label;
-          }
-        }), createComponent2(Show, {
-          get when() {
-            return on();
-          },
-          get children() {
-            return createComponent2(Text, {
-              class: "absolute top-[8] w-[16] text-center font-mono text-xs leading-[16]",
-              get style() {
-                return {
-                  insetL: APP_W - 24 - inkShift(PIN, 12),
-                  textColor: color("accent")
-                };
-              },
-              children: PIN
-            });
-          }
-        })];
-      }
-    });
-  }
-  function AppList() {
-    return createComponent2(View, {
-      class: "absolute overflow-hidden rounded-sm",
-      get style() {
-        return {
-          insetL: MAP_X,
-          insetT: MAP_Y,
-          width: MAP_W,
-          height: MAP_H,
-          bgColor: color("darker_background"),
-          opacity: editing2() ? 1 : 0
-        };
-      },
-      get children() {
-        return createComponent2(List, {
-          state: appList,
-          items: appRows2,
-          top: EDIT_PAD,
-          rowH: APP_H,
-          left: EDIT_PAD,
-          width: MAP_W - 2 * EDIT_PAD,
-          selected: () => -1,
-          children: (row, i) => [createComponent2(AppCell, {
-            get item() {
-              return row()[0];
-            },
-            x: 0,
-            index: 2 * i
-          }), createComponent2(Show, {
-            get when() {
-              return row()[1];
-            },
-            children: (second) => createComponent2(AppCell, {
-              get item() {
-                return second();
-              },
-              x: APP_W,
-              index: 2 * i + 1
-            })
-          })]
-        });
-      }
-    });
-  }
-  function Home() {
-    const bar = () => barPosition();
-    createEffect(on(layout2, (l) => l === "home" ? refreshApps() : editPins(false), {
-      defer: true
-    }));
-    return [createComponent2(View, {
-      class: "absolute overflow-hidden rounded-sm",
-      get style() {
-        return {
-          insetL: MAP_X,
-          insetT: MAP_Y,
-          width: MAP_W,
-          height: MAP_H,
-          bgColor: color("dark_background")
-        };
-      },
-      get children() {
-        return [createComponent2(Show, {
-          get when() {
-            return bar() !== "none";
-          },
-          get children() {
-            return createComponent2(View, {
-              class: "absolute left-0",
-              get style() {
-                return {
-                  insetT: bar() === "bottom" ? MAP_H - BAR_H * MAP_SCALE : 0,
-                  width: MAP_W,
-                  height: BAR_H * MAP_SCALE,
-                  bgColor: color("background")
-                };
-              }
-            });
-          }
-        }), createComponent2(For, {
-          get each() {
-            return visibleWindows();
-          },
-          children: (win) => createComponent2(Tile, {
-            win
-          })
-        }), createComponent2(Show, {
-          get when() {
-            return visibleWindows().length === 0;
-          },
-          get children() {
-            return createComponent2(Text, {
-              class: "absolute left-0 text-center font-mono text-xs leading-[14]",
-              get style() {
-                return {
-                  insetT: MAP_H / 2 - 7,
-                  width: MAP_W,
-                  textColor: color("dark_foreground")
-                };
-              },
-              children: "No windows"
-            });
-          }
-        })];
-      }
-    }), createComponent2(AppList, {}), createComponent2(For, {
-      get each() {
-        return pinned();
-      },
-      children: (item, i) => createComponent2(PinCell, {
-        get x() {
-          return pinXs()[i()];
-        },
-        get icon() {
-          return item.icon;
-        },
-        get target() {
-          return `home:pin${i()}`;
-        },
-        get removable() {
-          return editing2();
-        }
-      })
-    }), createComponent2(PinCell, {
-      get x() {
-        return pinXs()[pinned().length];
-      },
-      get icon() {
-        return editing2() ? DONE : ADD;
-      },
-      get target() {
-        return `home:pin${pinned().length}`;
-      },
-      get tone() {
-        return editing2() ? "accent" : "dim";
-      }
-    }), createComponent2(For, {
-      get each() {
-        return Array.from({
-          length: WORKSPACES
-        }, (_, i) => i);
-      },
-      children: (n) => createComponent2(View, {
-        class: "absolute rounded-md",
-        get style() {
-          return {
-            insetL: LEFT_X2,
-            insetT: MAP_Y + n * (CELL_H2 + CELL_GAP),
-            width: SIDE_W,
-            height: CELL_H2,
-            bgColor: color(current4() === n || pressed(`home:ws${n}`) ? "selection" : "dark_background")
-          };
-        },
-        get children() {
-          return createComponent2(Text, {
-            class: "absolute left-0 text-center font-mono text-sm leading-[16]",
-            get style() {
-              return {
-                insetT: CELL_H2 / 2 - 8,
-                width: SIDE_W,
-                textColor: color(current4() === n ? "accent" : occupied(n) ? "foreground" : "muted")
-              };
-            },
-            get children() {
-              return String(n + 1);
-            }
-          });
-        }
-      })
-    }), createComponent2(View, {
-      class: "absolute rounded-md",
-      get style() {
-        return {
-          insetL: LEFT_X2,
-          insetT: LAYOUT_Y,
-          width: SIDE_W,
-          height: CELL_H2,
-          bgColor: color(pressed("home:layout") ? "selection" : "background")
-        };
-      },
-      get children() {
-        return createComponent2(Text, {
-          class: "absolute left-0 text-center font-mono text-xs leading-[14]",
-          get style() {
-            return {
-              insetT: CELL_H2 / 2 - 7,
-              width: SIDE_W,
-              textColor: color("dark_foreground")
-            };
-          },
-          get children() {
-            return layout() === "dwindle" ? "tile" : "scroll";
-          }
-        });
-      }
-    }), createComponent2(For, {
-      get each() {
-        return panels();
-      },
-      children: (p, i) => createComponent2(View, {
-        class: "absolute rounded-md",
-        get style() {
-          return {
-            insetL: RIGHT_X2,
-            insetT: MAP_Y + i() * (CELL_H2 + CELL_GAP),
-            width: SIDE_W,
-            height: CELL_H2,
-            bgColor: color(panel() === p || pressed(`home:${p}`) ? "selection" : "dark_background")
-          };
-        },
-        get children() {
-          return createComponent2(Text, {
-            class: "absolute left-0 text-center font-mono text-base leading-[18]",
-            get style() {
-              return {
-                insetT: CELL_H2 / 2 - 9,
-                insetL: -inkShift(panelGlyph(p), 16),
-                width: SIDE_W,
-                textColor: color(panel() === p ? "accent" : p === "proxy" && state()?.proxy?.running === false || p === "tailscale" && state()?.tailscale?.state !== "Running" ? "muted" : "foreground")
-              };
-            },
-            get children() {
-              return panelGlyph(p);
-            }
-          });
-        }
-      })
-    })];
-  }
-
-  // vendor/pocketjs/contracts/spec/ime.ts
-  var IME = Object.freeze({
-    keys: 128,
-    candidates: 5,
-    select: 16777216,
-    selectAbsolute: 33554432,
-    browseSize: 15,
-    browseLimit: 512,
-    backspace: 65288,
-    enter: 65293,
-    left: 65361,
-    right: 65363,
-    pageUp: 65365,
-    pageDown: 65366
-  });
-
-  // shell/src/term/ime.ts
-  var [chinese, setChinese] = createSignal(false);
-  var [snapshot, setSnapshot] = createSignal(null);
-  var keys = [];
-  var [typed, setTyped] = createSignal(0);
-  var revision2 = 0;
-  var waiting = false;
-  var queued = [];
-  var composing = () => typed() > 0 || snapshot() !== null;
-  function setKeys(next) {
-    keys = next;
-    setTyped(next.length);
-  }
-  function toggleChinese() {
-    reset2();
-    setChinese((on) => !on);
-  }
-  function reset2() {
-    setKeys([]);
-    revision2++;
-    waiting = false;
-    queued.length = 0;
-    setSnapshot(null);
-  }
-  var NAMED = {
-    Backspace: IME.backspace,
-    Enter: IME.enter,
-    Left: IME.left,
-    Right: IME.right,
-    PageUp: IME.pageUp,
-    PageDown: IME.pageDown
-  };
-  var commits = (code) => code === 32 || code === IME.enter || code >= 48 && code <= 57 || code >= IME.select && code < IME.select + 5 || /[^a-z]/.test(String.fromCharCode(code));
-  function evaluate2(emit) {
-    const mine = ++revision2;
+    setState2("listening");
     request({
-      method: "ime",
-      keys: [...keys]
-    }).then((next) => {
-      if (mine !== revision2)
-        return;
-      if (next.commit)
-        emit(next.commit);
-      if (next.commit || !next.raw) {
-        setKeys([]);
-        setSnapshot(next.preedit ? next : null);
-      } else
-        setSnapshot(next);
-      waiting = false;
-      const pending = queued.splice(0);
-      for (const q of pending)
-        route(q.key, q.emit, q.pass);
-    }, () => {
-      if (mine === revision2)
-        reset2();
-    });
+      method: "voiceStart"
+    }).catch(failed);
   }
-  function route(key, emit, pass) {
-    if (!chinese())
-      return pass();
-    if (waiting)
-      return void queued.push({
-        key,
-        emit,
-        pass
-      });
-    const active = keys.length > 0;
-    let code;
-    if ([...key].length === 1) {
-      const c = key.charCodeAt(0);
-      if (c >= 32 && c <= 126 && (/[a-z]/.test(key) || (active ? true : /[,.;:?!'"()<>[\]\\]/.test(key))))
-        code = c;
-    } else if (active && key === "Escape")
-      return reset2();
-    else if (active)
-      code = NAMED[key];
-    if (code === undefined)
-      return active ? undefined : pass();
-    setKeys([...keys, code]);
-    if (keys.length > IME.keys)
-      return reset2();
-    if (commits(code))
-      waiting = true;
-    evaluate2(emit);
-  }
-  function pick(index, emit) {
-    if (!keys.length || waiting)
-      return;
-    setKeys([...keys, IME.select + index]);
-    waiting = true;
-    evaluate2(emit);
-  }
+  onEvent((event) => {
+    if (event.event === "voice") {
+      setState2(event.state);
+      setLevel(event.level);
+    } else if (event.event === "voiceText")
+      deliver(event.text);
+  });
 
   // shell/src/stick.ts
   var DEAD = 0.35;
@@ -17202,9 +16775,9 @@
   function Bar(props) {
     const settings = () => state()?.bar;
     const clock = () => formatClock(settings()?.clock ?? "dddd HH:mm", props.now());
-    const top = () => settings()?.position === "bottom" ? 384 - H2 : 0;
+    const top = () => settings()?.position === "bottom" ? STAGE_H - H2 : 0;
     const indicators = () => barIndicators(state());
-    const statusRight = () => 512 - 8 - SLOT * indicators().length - 8;
+    const statusRight = () => STAGE_W - 8 - SLOT * indicators().length - 8;
     return createComponent2(Show, {
       get when() {
         return !settings()?.hidden;
@@ -17216,6 +16789,7 @@
           },
           get style() {
             return {
+              width: STAGE_W,
               insetT: top(),
               bgColor: color("background", ALPHA[settings()?.background ?? "opaque"] ?? 1)
             };
@@ -17266,6 +16840,7 @@
               },
               get style() {
                 return {
+                  width: STAGE_W,
                   textColor: color("foreground")
                 };
               },
@@ -17311,7 +16886,7 @@
                 },
                 get style() {
                   return {
-                    insetL: 512 - 8 - SLOT * (n() + 1) + 4,
+                    insetL: STAGE_W - 8 - SLOT * (n() + 1) + 4,
                     textColor: color(props.focused() === i.name ? "accent" : ("off" in i) && i.off ? "muted" : "foreground")
                   };
                 },
@@ -17338,7 +16913,7 @@
   // shell/src/term/grid.tsx
   var CELL_W = 6.4;
   var TRACK = CELL_W - 7.2;
-  var CELL_H3 = 14;
+  var CELL_H2 = 14;
   var PAD = 3;
   var hex = (rgb) => "#" + rgb.toString(16).padStart(6, "0");
   function WideRun(props) {
@@ -17355,7 +16930,7 @@
             return {
               insetL: props.run[0] * CELL_W,
               width: runColumns(props.run) * CELL_W,
-              height: CELL_H3,
+              height: CELL_H2,
               bgColor: hex(props.run[3])
             };
           }
@@ -17370,7 +16945,7 @@
         get style() {
           return {
             insetL: (props.run[0] + i() * step()) * CELL_W,
-            lineHeight: CELL_H3,
+            lineHeight: CELL_H2,
             fontSlot: props.run[4],
             textColor: props.run[2] >= 0 ? hex(props.run[2]) : color("foreground")
           };
@@ -17403,7 +16978,7 @@
                 return {
                   insetL: props.run()[0] * CELL_W,
                   width: runColumns(props.run()) * CELL_W,
-                  height: CELL_H3,
+                  height: CELL_H2,
                   bgColor: hex(props.run()[3])
                 };
               }
@@ -17414,7 +16989,7 @@
           get style() {
             return {
               insetL: props.run()[0] * CELL_W,
-              lineHeight: CELL_H3,
+              lineHeight: CELL_H2,
               tracking: TRACK,
               textColor: props.run()[2] >= 0 ? hex(props.run()[2]) : color("foreground")
             };
@@ -17428,7 +17003,7 @@
   }
   function TermGrid(props) {
     const cols = () => Math.max(8, Math.min(TERM_COLS, Math.floor((props.w - 2 * PAD) / CELL_W)));
-    const rows = () => Math.max(2, Math.min(TERM_ROWS, Math.floor((props.h - 2 * PAD) / CELL_H3)));
+    const rows = () => Math.max(2, Math.min(TERM_ROWS, Math.floor((props.h - 2 * PAD) / CELL_H2)));
     let settle = 0;
     createEffect(on([cols, rows], ([c, r]) => {
       const mine = ++settle;
@@ -17460,9 +17035,9 @@
                 get style() {
                   return {
                     insetL: s.cursor()[0] * CELL_W,
-                    insetT: s.cursor()[1] * CELL_H3,
+                    insetT: s.cursor()[1] * CELL_H2,
                     width: CELL_W,
-                    height: CELL_H3,
+                    height: CELL_H2,
                     bgColor: color("accent", 0.6)
                   };
                 }
@@ -17476,9 +17051,9 @@
               class: "absolute left-0",
               get style() {
                 return {
-                  insetT: y * CELL_H3,
+                  insetT: y * CELL_H2,
                   width: cols() * CELL_W,
-                  height: CELL_H3
+                  height: CELL_H2
                 };
               },
               get children() {
@@ -17530,8 +17105,8 @@
       });
     }
     const surface = () => (props.applet ? appletFit(props.app) : null) ?? (props.applet ? null : {
-      w: 512,
-      h: 384,
+      w: STAGE_W,
+      h: STAGE_H,
       scale: 1
     });
     const drawn = () => {
@@ -17815,8 +17390,8 @@
 
   // shell/src/stage/pointer.tsx
   var BAR_H2 = 18;
-  var x = 256;
-  var y = 192;
+  var x = Math.round(STAGE_W / 2);
+  var y = Math.round(STAGE_H / 2);
   var node;
   var pointer = () => ({
     x,
@@ -17867,14 +17442,14 @@
       if (px >= 22 + n * 14 && px < 36 + n * 14)
         return focus(n);
     const indicators = barIndicators(state());
-    const at = Math.floor((512 - 8 - px) / SLOT2);
-    if (px < 512 - 8 && at >= 0 && at < indicators.length)
+    const at = Math.floor((STAGE_W - 8 - px) / SLOT2);
+    if (px < STAGE_W - 8 && at >= 0 && at < indicators.length)
       showPanel(indicators[at].name);
   }
   var touch = null;
   function movePointer(dx, dy) {
-    const nx = Math.max(0, Math.min(511, x + dx));
-    const ny = Math.max(0, Math.min(383, y + dy));
+    const nx = Math.max(0, Math.min(STAGE_W - 1, x + dx));
+    const ny = Math.max(0, Math.min(STAGE_H - 1, y + dy));
     if (touch?.held && touch.follow) {
       touch.at.x += nx - x;
       touch.at.y += ny - y;
@@ -17924,7 +17499,7 @@
         taps: [at]
       });
     }
-    const top = state()?.bar?.position === "bottom" ? 384 - BAR_H2 : 0;
+    const top = state()?.bar?.position === "bottom" ? STAGE_H - BAR_H2 : 0;
     if (!state()?.bar?.hidden && y >= top && y < top + BAR_H2)
       return barClick(x);
     const id = windowAt(x, y);
@@ -18074,7 +17649,7 @@
     },
     key: (name) => (sendKey(name ?? ""), "ok"),
     layout: (name) => {
-      if (name !== "keys" && name !== "pad" && name !== "home")
+      if (!LAYOUTS.includes(name))
         throw new Error(`no layout ${name}`);
       chooseLayout(name);
       return "ok";
@@ -18122,6 +17697,115 @@
     }] : [at];
   }
 
+  // vendor/pocketjs/contracts/spec/ime.ts
+  var IME = Object.freeze({
+    keys: 128,
+    candidates: 5,
+    select: 16777216,
+    selectAbsolute: 33554432,
+    browseSize: 15,
+    browseLimit: 512,
+    backspace: 65288,
+    enter: 65293,
+    left: 65361,
+    right: 65363,
+    pageUp: 65365,
+    pageDown: 65366
+  });
+
+  // shell/src/term/ime.ts
+  var [chinese, setChinese] = createSignal(false);
+  var [snapshot, setSnapshot] = createSignal(null);
+  var keys = [];
+  var [typed, setTyped] = createSignal(0);
+  var revision2 = 0;
+  var waiting = false;
+  var queued = [];
+  var composing = () => typed() > 0 || snapshot() !== null;
+  function setKeys(next) {
+    keys = next;
+    setTyped(next.length);
+  }
+  function toggleChinese() {
+    reset2();
+    setChinese((on) => !on);
+  }
+  function reset2() {
+    setKeys([]);
+    revision2++;
+    waiting = false;
+    queued.length = 0;
+    setSnapshot(null);
+  }
+  var NAMED = {
+    Backspace: IME.backspace,
+    Enter: IME.enter,
+    Left: IME.left,
+    Right: IME.right,
+    PageUp: IME.pageUp,
+    PageDown: IME.pageDown
+  };
+  var commits = (code) => code === 32 || code === IME.enter || code >= 48 && code <= 57 || code >= IME.select && code < IME.select + 5 || /[^a-z]/.test(String.fromCharCode(code));
+  function evaluate2(emit) {
+    const mine = ++revision2;
+    request({
+      method: "ime",
+      keys: [...keys]
+    }).then((next) => {
+      if (mine !== revision2)
+        return;
+      if (next.commit)
+        emit(next.commit);
+      if (next.commit || !next.raw) {
+        setKeys([]);
+        setSnapshot(next.preedit ? next : null);
+      } else
+        setSnapshot(next);
+      waiting = false;
+      const pending = queued.splice(0);
+      for (const q of pending)
+        route(q.key, q.emit, q.pass);
+    }, () => {
+      if (mine === revision2)
+        reset2();
+    });
+  }
+  function route(key, emit, pass) {
+    if (!chinese())
+      return pass();
+    if (waiting)
+      return void queued.push({
+        key,
+        emit,
+        pass
+      });
+    const active = keys.length > 0;
+    let code;
+    if ([...key].length === 1) {
+      const c = key.charCodeAt(0);
+      if (c >= 32 && c <= 126 && (/[a-z]/.test(key) || (active ? true : /[,.;:?!'"()<>[\]\\]/.test(key))))
+        code = c;
+    } else if (active && key === "Escape")
+      return reset2();
+    else if (active)
+      code = NAMED[key];
+    if (code === undefined)
+      return active ? undefined : pass();
+    setKeys([...keys, code]);
+    if (keys.length > IME.keys)
+      return reset2();
+    if (commits(code))
+      waiting = true;
+    evaluate2(emit);
+  }
+  function pick(index, emit) {
+    if (!keys.length || waiting)
+      return;
+    setKeys([...keys, IME.select + index]);
+    waiting = true;
+    evaluate2(emit);
+  }
+
   // shell/src/term/keyboard.tsx
   var BACKSPACE = "\uDB80\uDC6E";
   var ENTER = "\uDB80\uDF11";
@@ -18134,46 +17818,48 @@
   var backspace = {
     label: BACKSPACE,
     key: "Backspace",
-    w: 1.5,
+    w: 1.45,
     repeat: true
   };
   var enter = {
     label: ENTER,
     key: "Enter",
-    w: 1.45
+    w: 1.5
   };
-  var ARROW = 0.95;
+  var ARROW = 0.85;
   var bottom = (layer) => [layer === "abc" ? {
     label: "123",
     key: "",
-    w: 1.2,
+    w: 1.1,
     layer: "123"
   } : {
     label: "ABC",
     key: "",
-    w: 1.2,
+    w: 1.1,
     layer: "abc"
   }, {
     label: "EN",
     key: "",
-    w: 0.9,
+    w: 0.85,
     ime: true
   }, {
     label: "Ctrl",
     key: "",
+    w: 0.95,
     modifier: "ctrl"
   }, {
     label: "Alt",
     key: "",
+    w: 0.95,
     modifier: "alt"
   }, {
     label: "",
     key: " ",
-    w: 2.3
+    w: 2.05
   }, {
     label: ".",
     key: ".",
-    w: 0.75
+    w: 0.7
   }, {
     label: "←",
     key: "Left",
@@ -18183,14 +17869,12 @@
     label: "↑",
     key: "Up",
     w: ARROW,
-    repeat: true,
-    half: "up"
+    repeat: true
   }, {
     label: "↓",
     key: "Down",
     w: ARROW,
-    repeat: true,
-    half: "down"
+    repeat: true
   }, {
     label: "→",
     key: "Right",
@@ -18200,37 +17884,37 @@
   var SHORT = 0.95;
   var LAYERS = {
     abc: {
-      rows: [chars2("qwertyuiop"), [...chars2("asdfghjkl", undefined, SHORT), enter], [{
+      rows: [chars2("qwertyuiop"), [...chars2("asdfghjkl", undefined, SHORT), backspace], [{
         label: "⇧",
         key: "",
         w: 1.5,
         modifier: "shift"
-      }, ...chars2("zxcvbnm"), backspace], bottom("abc")],
+      }, ...chars2("zxcvbnm"), enter], bottom("abc")],
       inset: [0, 0, 0, 0]
     },
     "123": {
-      rows: [chars2("1234567890", "1234567890"), [...chars2("-/:;()$&@", "-/:;()$&@", SHORT), enter], [{
+      rows: [chars2("1234567890", "1234567890"), [...chars2("-/:;()$&@", "-/:;()$&@", SHORT), backspace], [{
         label: "#+=",
         key: "",
         w: 1.5,
         layer: "sym"
-      }, ...chars2(`.,?!'"`, `.,?!'"`, 7 / 6), backspace], bottom("123")],
+      }, ...chars2(`.,?!'"`, `.,?!'"`, 7 / 6), enter], bottom("123")],
       inset: [0, 0, 0, 0]
     },
     sym: {
-      rows: [chars2("[]{}#%^*+=", "[]{}#%^*+="), [...chars2("_\\|~<>`¥£", "_\\|~<>`¥£", SHORT), enter], [{
+      rows: [chars2("[]{}#%^*+=", "[]{}#%^*+="), [...chars2("_\\|~<>`¥£", "_\\|~<>`¥£", SHORT), backspace], [{
         label: "123",
         key: "",
         w: 1.5,
         layer: "123"
-      }, ...chars2(".,?!'•", ".,?!'•", 7 / 6), backspace], bottom("sym")],
+      }, ...chars2(".,?!'•", ".,?!'•", 7 / 6), enter], bottom("sym")],
       inset: [0, 0, 0, 0]
     }
   };
-  var UNIT = 512 / 10;
+  var UNIT = DECK_W / 10;
   var GAP2 = 5;
   var FULL_PITCH = 46;
-  var EDGE = 6;
+  var EDGE2 = 6;
   var REPEAT_AFTER = 24;
   var REPEAT_EVERY = 4;
   var REPEAT_MAX = 40;
@@ -18240,39 +17924,37 @@
     return row.map((key) => {
       const w = (key.w ?? 1) * UNIT;
       const [lit, setLit] = createSignal(false);
-      const half = key.half ? h / 2 : h;
       const p = {
         ...key,
         x,
-        y: key.half === "down" ? y + half : y,
+        y,
         w,
-        h: half,
+        h,
         char: [...key.key].length === 1 && key.key !== " ",
         lit,
         setLit
       };
-      if (key.half !== "up")
-        x += w;
+      x += w;
       return p;
     });
   };
   function layoutFor(mode, layer) {
     const rows = LAYERS[layer].rows;
     const pitch = mode === "full" ? FULL_PITCH : KEY_PITCH;
-    const top = mode === "full" ? 384 - EDGE - rows.length * FULL_PITCH : KEYS_TOP;
+    const top = mode === "full" ? DECK_H - EDGE2 - rows.length * FULL_PITCH : KEYS_TOP;
     const keys = rows.flatMap((row, r) => placeRow(row, LAYERS[layer].inset[r], top + r * pitch, pitch));
     return {
       keys,
       top,
-      bottom: mode === "full" ? 384 : KEYS_BOTTOM
+      bottom: mode === "full" ? DECK_H : KEYS_BOTTOM
     };
   }
-  var LAYOUTS = new Map;
+  var LAYOUTS2 = new Map;
   var layout3 = (mode, layer) => {
     const id = `${mode}:${layer}`;
-    let l = LAYOUTS.get(id);
+    let l = LAYOUTS2.get(id);
     if (!l)
-      LAYOUTS.set(id, l = layoutFor(mode, layer));
+      LAYOUTS2.set(id, l = layoutFor(mode, layer));
     return l;
   };
   var [mods, setMods] = createSignal({
@@ -18421,7 +18103,7 @@
       const key = keyAt(keys, c.x, c.y);
       if (key?.repeat && h.repeats < REPEAT_MAX && h.frames > REPEAT_AFTER && (h.frames - REPEAT_AFTER) % REPEAT_EVERY === 0) {
         h.repeats++;
-        press(key);
+        sendRepeat(() => press(key));
       }
     }
     for (const t of frame.taps)
@@ -18430,7 +18112,7 @@
   function Keyboard(props) {
     const current = () => layout3(props.mode, layer2());
     const latched = (k) => !!k.modifier && mods()[k.modifier] || k.modifier === "shift" && capsLock();
-    const small = (k) => !!k.half || k.modifier === "ctrl" || k.modifier === "alt" || !!k.layer || !!k.ime;
+    const small = (k) => k.modifier === "ctrl" || k.modifier === "alt" || !!k.layer || !!k.ime;
     const fnKey = (k) => !k.char && k.key !== " ";
     const label = (k) => {
       if (k.ime)
@@ -18440,10 +18122,11 @@
       return (mods().shift || capsLock()) && k.shifted ? k.shifted : k.label;
     };
     return createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] contain-strict",
+      class: "absolute left-0 top-0 contain-strict",
       get style() {
         return {
-          height: props.mode === "full" ? 384 : KEYS_BOTTOM + 2
+          width: DECK_W,
+          height: props.mode === "full" ? DECK_H : KEYS_BOTTOM + 2
         };
       },
       get children() {
@@ -18452,9 +18135,10 @@
             return memo2(() => props.mode === "full")() && keySink().field;
           },
           children: (field) => createComponent2(Text, {
-            class: "absolute left-0 w-[512] text-center text-lg leading-[24]",
+            class: "absolute left-0 text-center text-lg leading-[24]",
             get style() {
               return {
+                width: DECK_W,
                 insetT: current().top / 2 - 22,
                 textColor: color("bright_foreground")
               };
@@ -18469,9 +18153,10 @@
           },
           get children() {
             return createComponent2(Text, {
-              class: "absolute left-0 w-[512] text-center font-mono text-xs leading-[14]",
+              class: "absolute left-0 text-center font-mono text-xs leading-[14]",
               get style() {
                 return {
+                  width: DECK_W,
                   insetT: current().top / 2 + 10,
                   textColor: color("dark_foreground")
                 };
@@ -18519,295 +18204,6 @@
       }
     });
   }
-
-  // shell/src/deck/strip.tsx
-  var LOGO = "";
-  var HOME = "\uDB80\uDEDC";
-  var CLOSE = "\uDB80\uDD56";
-  var LEFT = "\uDB80\uDD41";
-  var EDGE2 = 4;
-  var GAP3 = 4;
-  var CHIP_H = 28;
-  var CHIP_Y = 3;
-  var LOGO_W = 36;
-  var ESC_W = 44;
-  var END_W = 40;
-  var MAX_W2 = 84;
-  var PREEDIT_W = 132;
-  var CANDIDATE_W = (512 - PREEDIT_W) / 5;
-  var ctrl = (ch) => ({
-    id: `ctrl-${ch}`,
-    label: `^${ch.toUpperCase()}`,
-    run: () => sendCtrl(ch)
-  });
-  var TAB = {
-    id: "tab",
-    label: "Tab",
-    run: () => sendKey("Tab")
-  };
-  function pinChip() {
-    const item = menuOpen() ? selectedItem() : undefined;
-    if (!pinnable(item))
-      return [];
-    const on = pinIds(allApps()).includes(item.id);
-    return [{
-      id: "pin",
-      label: on ? "Unpin" : "Pin",
-      glyph: on ? UNPIN : PIN,
-      run: () => togglePin(item, allApps())
-    }];
-  }
-  function context() {
-    if (field())
-      return [];
-    if (card())
-      return [...pinChip(), TAB];
-    const w = focused2();
-    if (!w)
-      return [{
-        id: "layout",
-        label: "Layout",
-        run: () => perform("layout")
-      }];
-    if (w.kind === "terminal")
-      return [TAB, ctrl("c"), ctrl("d"), ctrl("l"), ctrl("r")];
-    if (w.kind === "app" && !appletTyping(w.app))
-      return [{
-        id: "back",
-        label: "Back",
-        glyph: LEFT,
-        run: pressBack
-      }];
-    return [TAB];
-  }
-  var closes = () => keySink().close;
-  var row2 = createRoot(() => createMemo(() => {
-    const close = closes();
-    const start = [{
-      id: "menu",
-      label: "",
-      glyph: LOGO,
-      run: toggleMenu,
-      lit: menuOpen
-    }, {
-      id: "esc",
-      label: "Esc",
-      run: () => sendKey("Escape")
-    }];
-    const end = [...close ? [{
-      id: "close",
-      label: "",
-      glyph: CLOSE,
-      run: () => keySink().close?.(),
-      danger: true
-    }] : [], {
-      id: "home",
-      label: "",
-      glyph: HOME,
-      run: toggleHome,
-      lit: () => layout2() === "home"
-    }];
-    const middle = context();
-    const ends = LOGO_W + ESC_W + end.length * END_W;
-    const room = 512 - 2 * EDGE2 - ends - (2 + middle.length + end.length - 1) * GAP3;
-    const w = middle.length ? Math.min(MAX_W2, Math.floor(room / middle.length)) : 0;
-    let x = EDGE2;
-    const place = (chip, width) => {
-      const placed = {
-        ...chip,
-        x,
-        w: width
-      };
-      x += width + GAP3;
-      return placed;
-    };
-    const out = [place(start[0], LOGO_W), place(start[1], ESC_W), ...middle.map((c) => place(c, w))];
-    x = 512 - EDGE2 - end.length * END_W - (end.length - 1) * GAP3;
-    return [...out, ...end.map((c) => place(c, END_W))];
-  }));
-  var chipAt = (x) => row2().find((c) => x >= c.x - GAP3 / 2 && x < c.x + c.w + GAP3 / 2);
-  function stripTarget(x) {
-    if (composing())
-      return null;
-    const chip = chipAt(x);
-    return chip ? `strip:${chip.id}` : null;
-  }
-  function stripTouch(frame) {
-    for (const c of frame.presses) {
-      if (composing()) {
-        if (c.x >= PREEDIT_W)
-          pick(Math.floor((c.x - PREEDIT_W) / CANDIDATE_W), (text) => keySink().text(text));
-        continue;
-      }
-      chipAt(c.x)?.run();
-    }
-  }
-  function Strip() {
-    return createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] contain-strict",
-      style: {
-        height: STRIP_H
-      },
-      get children() {
-        return createComponent2(Show, {
-          get when() {
-            return composing();
-          },
-          get fallback() {
-            return createComponent2(For, {
-              get each() {
-                return row2();
-              },
-              children: (chip) => {
-                const lit = () => chip.lit?.() === true;
-                return createComponent2(View, {
-                  class: "absolute rounded-md",
-                  get style() {
-                    return {
-                      insetL: chip.x,
-                      insetT: CHIP_Y,
-                      width: chip.w,
-                      height: CHIP_H,
-                      bgColor: color(lit() || pressed(`strip:${chip.id}`) ? "selection" : "dark_background")
-                    };
-                  },
-                  get children() {
-                    return [createComponent2(Show, {
-                      get when() {
-                        return memo2(() => !!chip.glyph)() && chip.label;
-                      },
-                      get children() {
-                        return createComponent2(Text, {
-                          class: "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]",
-                          get style() {
-                            return {
-                              insetL: 6 - inkShift(chip.glyph, 12),
-                              textColor: color("foreground")
-                            };
-                          },
-                          get children() {
-                            return chip.glyph;
-                          }
-                        });
-                      }
-                    }), createComponent2(Text, {
-                      get ["class"]() {
-                        return chip.id === "menu" ? "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]" : "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]";
-                      },
-                      get style() {
-                        return {
-                          width: chip.w,
-                          insetL: chip.glyph && chip.label ? 11 : chip.label ? 0 : -inkShift(chip.glyph ?? "", chip.id === "menu" ? 14 : 12),
-                          textColor: color(chip.danger ? "red" : lit() ? "accent" : "foreground")
-                        };
-                      },
-                      get children() {
-                        return chip.label || chip.glyph;
-                      }
-                    })];
-                  }
-                });
-              }
-            });
-          },
-          get children() {
-            return createComponent2(View, {
-              class: "absolute left-0 top-0 w-[512]",
-              get style() {
-                return {
-                  height: STRIP_H,
-                  bgColor: color("dark_background")
-                };
-              },
-              get children() {
-                return [createComponent2(Text, {
-                  class: "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]",
-                  get style() {
-                    return {
-                      width: PREEDIT_W - 14,
-                      textColor: color("accent"),
-                      ...cjk(snapshot()?.preedit ?? "", CJK_SLOT_14)
-                    };
-                  },
-                  get children() {
-                    return snapshot()?.preedit ?? "";
-                  }
-                }), createComponent2(For, {
-                  get each() {
-                    return snapshot()?.candidates ?? [];
-                  },
-                  children: (candidate, i) => createComponent2(Text, {
-                    class: "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]",
-                    get style() {
-                      return {
-                        insetL: PREEDIT_W + i() * CANDIDATE_W,
-                        width: CANDIDATE_W - 4,
-                        textColor: color(i() === 0 ? "bright_foreground" : "foreground"),
-                        ...cjk(candidate, CJK_SLOT_14)
-                      };
-                    },
-                    children: candidate
-                  })
-                })];
-              }
-            });
-          }
-        });
-      }
-    });
-  }
-
-  // shell/src/deck/voice.ts
-  var [state2, setState2] = createSignal("idle");
-  var [level2, setLevel] = createSignal(0);
-  var voiceState = state2;
-  var voiceLevel = level2;
-  var MIC = "\uDB80\uDF6C";
-  var say2 = (title, body = "") => toast({
-    icon: MIC,
-    title,
-    body,
-    tone: "info"
-  }, 2.4);
-  function deliver(text) {
-    if (!text)
-      return say2("Nothing heard");
-    const sink = keySink();
-    if (sink === NO_SINK)
-      return say2("Nothing takes text here", text);
-    sink.text(text);
-  }
-  var failed = (error) => {
-    setState2("idle");
-    toast({
-      icon: MIC,
-      title: "Voice input",
-      body: error instanceof Error ? error.message : String(error),
-      tone: "error"
-    }, 3);
-  };
-  function toggleVoice() {
-    const now = state2();
-    if (now === "decoding")
-      return;
-    if (now === "listening") {
-      setState2("decoding");
-      return void request({
-        method: "voiceStop"
-      }).then(deliver, failed);
-    }
-    setState2("listening");
-    request({
-      method: "voiceStart"
-    }).catch(failed);
-  }
-  onEvent((event) => {
-    if (event.event === "voice") {
-      setState2(event.state);
-      setLevel(event.level);
-    } else if (event.event === "voiceText")
-      deliver(event.text);
-  });
 
   // shell/src/touch.ts
   var SETTLE = 2;
@@ -18954,7 +18350,7 @@
       for (const c of frame.down) {
         const x = (c.x - SURFACE_X) / SCALE;
         const y = c.y / SCALE;
-        if (x >= 0 && x < 512 && y >= 0 && y < 384)
+        if (x >= 0 && x < DECK_W && y >= 0 && y < DECK_H)
           contacts.push(c.id, x, y);
       }
       return contacts;
@@ -18969,7 +18365,7 @@
         closeFront();
     }
     const rect = padFor(l);
-    const inPad = (x, y) => !keySink().field && inRect(rect, x, y);
+    const inPad = (x, y) => !keySink().field && !(l === "pad" && pinsEditing()) && inRect(rect, x, y);
     const onKey = (x, y) => inRect(ROUNDS.hold, x, y);
     const down = frame.down.filter(settled);
     const keyDown = down.some((c) => onKey(c.start.x, c.start.y));
@@ -19023,10 +18419,10 @@
       waiting2.dx = waiting2.dy = 0;
     return [];
   }
-  var SCALE = Math.min(512 / 512, BODY_H / 384);
-  var SURFACE_W = 512 * SCALE;
-  var SURFACE_H = 384 * SCALE;
-  var SURFACE_X = (512 - SURFACE_W) / 2;
+  var SCALE = Math.min(1, BODY_H / DECK_H);
+  var SURFACE_W = DECK_W * SCALE;
+  var SURFACE_H = DECK_H * SCALE;
+  var SURFACE_X = (DECK_W - SURFACE_W) / 2;
   function Surface(props) {
     let node;
     const texture = () => appTextures(props.win.app)?.[1];
@@ -19055,6 +18451,10 @@
       get ["class"]() {
         return C.deck;
       },
+      style: {
+        width: DECK_W,
+        height: BODY_H
+      },
       get children() {
         return createComponent2(Show, {
           get when() {
@@ -19070,6 +18470,18 @@
         });
       }
     });
+  }
+  var XS_ADVANCE = 7.2;
+  function fit(text, width) {
+    if (text.length * XS_ADVANCE <= width)
+      return text;
+    const middle = text.length / 2;
+    let best = -1;
+    for (let at = text.indexOf(" · ");at >= 0; at = text.indexOf(" · ", at + 1))
+      if (best < 0 || Math.abs(at - middle) < Math.abs(best - middle))
+        best = at;
+    return best < 0 ? text : `${text.slice(0, best)}
+${text.slice(best + 3)}`;
   }
   var line = () => {
     const voice = voiceState();
@@ -19118,7 +18530,7 @@
             };
           },
           get children() {
-            return line();
+            return fit(line(), rect().w - 24);
           }
         });
       },
@@ -19186,7 +18598,770 @@
     })];
   }
 
+  // shell/src/deck/dock.tsx
+  var dockShown = () => layout2() === "pad" && !surfacePackage();
+  var PIN_GAP = 5;
+  var PIN_W = Math.min(52, (PIN_ROW.w - MAX_PINS * PIN_GAP) / (MAX_PINS + 1));
+  var ADD = "\uDB81\uDC15";
+  var DONE = "\uDB80\uDD2C";
+  var REMOVE = "\uDB80\uDD56";
+  var pinned = () => {
+    const apps = allApps();
+    return pinIds(apps).flatMap((id) => apps.find((a) => a.id === id) ?? []);
+  };
+  var pinCells = () => {
+    const n = pinned().length + 1;
+    const left = PIN_ROW.x + (PIN_ROW.w - n * PIN_W - (n - 1) * PIN_GAP) / 2;
+    return Array.from({
+      length: n
+    }, (_, i) => ({
+      x: left + i * (PIN_W + PIN_GAP),
+      y: PIN_ROW.y,
+      w: PIN_W,
+      h: PIN_ROW.h
+    }));
+  };
+  var pinAt = (x, y) => pinCells().findIndex((c) => inRect(c, x, y));
+  var EDIT_PAD = 4;
+  var APP_H = 33;
+  var APP_W = (PAD_LARGE.w - 2 * EDIT_PAD) / 2;
+  var APP_ROWS = Math.floor((PAD_LARGE.h - 2 * EDIT_PAD) / APP_H);
+  var appList = createList(APP_H, PAD_LARGE.y + EDIT_PAD, APP_ROWS);
+  var appRows2 = () => {
+    const apps = allApps();
+    return Array.from({
+      length: Math.ceil(apps.length / 2)
+    }, (_, i) => [apps[2 * i], apps[2 * i + 1]]);
+  };
+  var appAt = (x, y) => {
+    if (!inRect(PAD_LARGE, x, y) || y < PAD_LARGE.y + EDIT_PAD)
+      return -1;
+    const row = appList.first() + Math.floor((y - PAD_LARGE.y - EDIT_PAD) / APP_H);
+    const i = 2 * row + (x >= PAD_LARGE.x + EDIT_PAD + APP_W ? 1 : 0);
+    return i < allApps().length ? i : -1;
+  };
+  var full = () => pinIds(allApps()).length >= MAX_PINS;
+  function editPins(on) {
+    if (on)
+      appList.reset();
+    setPinsEditing(on);
+  }
+  function toggleApp(item) {
+    const apps = allApps();
+    if (pinIds(apps).includes(item.id) || !full())
+      togglePin(item, apps);
+  }
+  function openPin(item) {
+    const open = item.applet ? find((w) => w.kind === "app" && w.path === item.applet) : null;
+    if (open)
+      return focusWindow(open.id);
+    openItem(item);
+  }
+  function dockTarget(x, y, moved) {
+    if (!dockShown())
+      return null;
+    const pin = pinAt(x, y);
+    if (pin >= 0)
+      return `dock:pin${pin}`;
+    if (pinsEditing() && !moved) {
+      const app = appAt(x, y);
+      if (app >= 0)
+        return `dock:app${app}`;
+    }
+    return null;
+  }
+  function tap(x, y) {
+    const pin = pinAt(x, y);
+    if (pin < 0)
+      return;
+    const item = pinned()[pin];
+    if (!item)
+      return editPins(!pinsEditing());
+    return pinsEditing() ? togglePin(item, allApps()) : openPin(item);
+  }
+  function dockTouch(frame) {
+    if (!dockShown())
+      return;
+    if (pinsEditing()) {
+      const listed = (t) => inRect(PAD_LARGE, t.start.x, t.start.y);
+      appList.touch({
+        ...frame,
+        down: frame.down.filter(listed),
+        taps: []
+      }, appRows2().length, () => {});
+      for (const t of frame.taps) {
+        const i = !t.moved && listed(t) ? appAt(t.x, t.y) : -1;
+        if (i >= 0)
+          toggleApp(allApps()[i]);
+      }
+    }
+    for (const p of frame.presses)
+      tap(p.x, p.y);
+  }
+  function PinCell(props) {
+    return createComponent2(View, {
+      class: "absolute rounded-md",
+      get style() {
+        return {
+          insetL: props.cell.x,
+          insetT: props.cell.y,
+          width: props.cell.w,
+          height: props.cell.h,
+          bgColor: color(pressed(props.target) ? "selection" : "dark_background")
+        };
+      },
+      get children() {
+        return [createComponent2(Text, {
+          class: "absolute left-0 text-center font-mono text-base leading-[18]",
+          get style() {
+            return {
+              insetT: props.cell.h / 2 - 9,
+              insetL: -inkShift(props.icon, 16),
+              width: props.cell.w,
+              textColor: color(props.tone === "dim" ? "dark_foreground" : props.tone === "accent" ? "accent" : "foreground")
+            };
+          },
+          get children() {
+            return props.icon;
+          }
+        }), createComponent2(Show, {
+          get when() {
+            return props.removable;
+          },
+          get children() {
+            return createComponent2(Text, {
+              class: "absolute top-[1] w-[12] text-center font-mono text-xs leading-[12]",
+              get style() {
+                return {
+                  insetL: props.cell.w - 13,
+                  textColor: color("dark_foreground")
+                };
+              },
+              children: REMOVE
+            });
+          }
+        })];
+      }
+    });
+  }
+  function PinRow() {
+    return [createComponent2(For, {
+      get each() {
+        return pinned();
+      },
+      children: (item, i) => createComponent2(PinCell, {
+        get cell() {
+          return pinCells()[i()];
+        },
+        get icon() {
+          return item.icon;
+        },
+        get target() {
+          return `dock:pin${i()}`;
+        },
+        get removable() {
+          return pinsEditing();
+        }
+      })
+    }), createComponent2(PinCell, {
+      get cell() {
+        return pinCells()[pinned().length];
+      },
+      get icon() {
+        return pinsEditing() ? DONE : ADD;
+      },
+      get target() {
+        return `dock:pin${pinned().length}`;
+      },
+      get tone() {
+        return pinsEditing() ? "accent" : "dim";
+      }
+    })];
+  }
+  function AppCell(props) {
+    const on = () => pinIds(allApps()).includes(props.item.id);
+    const tone = () => on() ? "accent" : full() ? "muted" : "foreground";
+    return createComponent2(View, {
+      class: "absolute top-[1] rounded-sm",
+      get style() {
+        return {
+          insetL: props.x,
+          width: APP_W - 2,
+          height: APP_H - 2,
+          bgColor: color(pressed(`dock:app${props.index}`) ? "selection" : on() ? "background" : "dark_background")
+        };
+      },
+      get children() {
+        return [createComponent2(Text, {
+          class: "absolute top-[7] w-[20] text-center font-mono text-base leading-[18]",
+          get style() {
+            return {
+              insetL: 8 - inkShift(props.item.icon, 16),
+              textColor: color(tone())
+            };
+          },
+          get children() {
+            return props.item.icon;
+          }
+        }), createComponent2(Text, {
+          class: "absolute left-[34] top-[9] h-[14] overflow-hidden font-mono text-xs leading-[14]",
+          get style() {
+            return {
+              width: APP_W - 60,
+              textColor: color(on() ? "bright_foreground" : tone())
+            };
+          },
+          get children() {
+            return props.item.label;
+          }
+        }), createComponent2(Show, {
+          get when() {
+            return on();
+          },
+          get children() {
+            return createComponent2(Text, {
+              class: "absolute top-[8] w-[16] text-center font-mono text-xs leading-[16]",
+              get style() {
+                return {
+                  insetL: APP_W - 24 - inkShift(PIN, 12),
+                  textColor: color("accent")
+                };
+              },
+              children: PIN
+            });
+          }
+        })];
+      }
+    });
+  }
+  function AppList() {
+    return createComponent2(View, {
+      class: "absolute overflow-hidden rounded-lg",
+      get style() {
+        return {
+          insetL: PAD_LARGE.x,
+          insetT: PAD_LARGE.y,
+          width: PAD_LARGE.w,
+          height: PAD_LARGE.h,
+          bgColor: color("darker_background"),
+          opacity: pinsEditing() ? 1 : 0
+        };
+      },
+      get children() {
+        return createComponent2(List, {
+          state: appList,
+          items: appRows2,
+          top: EDIT_PAD,
+          rowH: APP_H,
+          left: EDIT_PAD,
+          get width() {
+            return PAD_LARGE.w - 2 * EDIT_PAD;
+          },
+          selected: () => -1,
+          children: (row, i) => [createComponent2(AppCell, {
+            get item() {
+              return row()[0];
+            },
+            x: 0,
+            index: 2 * i
+          }), createComponent2(Show, {
+            get when() {
+              return row()[1];
+            },
+            children: (second) => createComponent2(AppCell, {
+              get item() {
+                return second();
+              },
+              x: APP_W,
+              index: 2 * i + 1
+            })
+          })]
+        });
+      }
+    });
+  }
+  var SLIDE2 = 12;
+  function Dock() {
+    let pins;
+    createEffect(on(dockShown, (shown) => {
+      glide(pins, "opacity", shown ? 1 : 0, 140);
+      glide(pins, "translateY", shown ? 0 : SLIDE2, 180);
+    }, {
+      defer: true
+    }));
+    createEffect(on(dockShown, (shown) => shown ? refreshApps() : editPins(false), {
+      defer: true
+    }));
+    const at = untrack(dockShown);
+    return [createComponent2(View, {
+      class: "absolute left-0 top-0",
+      style: {
+        width: DECK_W,
+        height: BODY_H,
+        opacity: at ? 1 : 0,
+        translateY: at ? 0 : SLIDE2
+      },
+      ref: (n) => pins = n,
+      get children() {
+        return createComponent2(PinRow, {});
+      }
+    }), createComponent2(AppList, {})];
+  }
+
+  // shell/src/deck/strip.tsx
+  var LOGO = "";
+  var CLOSE = "\uDB80\uDD56";
+  var LEFT = "\uDB80\uDD41";
+  var PLAY = "\uDB81\uDC0A";
+  var PAUSE = "\uDB80\uDFE4";
+  var EDGE3 = 4;
+  var GAP3 = 4;
+  var CHIP_H = 28;
+  var CHIP_Y = 3;
+  var LOGO_W = 36;
+  var ESC_W = 44;
+  var END_W = 40;
+  var MAX_W2 = 84;
+  var BACK_W = 30;
+  var BADGE_W = 46;
+  var TAB_GAP = 3;
+  var GROUP_GAP = 8;
+  var PREEDIT_W = Math.round(132 * DECK_SCALE);
+  var CANDIDATE_W = (DECK_W - PREEDIT_W) / 5;
+  var ctrl = (ch) => ({
+    id: `ctrl-${ch}`,
+    label: `^${ch.toUpperCase()}`,
+    run: () => sendCtrl(ch)
+  });
+  var TAB = {
+    id: "tab",
+    label: "Tab",
+    run: () => sendKey("Tab")
+  };
+  function pinChip() {
+    const item = menuOpen() ? selectedItem() : undefined;
+    if (!pinnable(item))
+      return [];
+    const on = pinIds(allApps()).includes(item.id);
+    return [{
+      id: "pin",
+      label: on ? "Unpin" : "Pin",
+      glyph: on ? UNPIN : PIN,
+      run: () => togglePin(item, allApps())
+    }];
+  }
+  var backs = () => {
+    const w = focused2();
+    return w?.kind === "app" && !appletTyping(w.app);
+  };
+  function context() {
+    if (field())
+      return [];
+    if (card())
+      return [...pinChip(), TAB];
+    const w = focused2();
+    if (!w)
+      return [];
+    if (w.kind === "terminal")
+      return [TAB, ctrl("c"), ctrl("d"), ctrl("l"), ctrl("r")];
+    if (backs())
+      return [{
+        id: "back",
+        label: "Back",
+        glyph: LEFT,
+        run: pressBack
+      }];
+    return [TAB];
+  }
+  var PANEL_LIST = ["tailscale", "proxy", "bluetooth", "network", "audio", "power"];
+  var panels = createRoot(() => createMemo(() => PANEL_LIST.filter((p) => (p !== "proxy" || !!state()?.proxy) && (p !== "tailscale" || !!state()?.tailscale)), undefined, {
+    equals: (a, b) => a.join() === b.join()
+  }));
+  var panelGlyph = (p) => {
+    const s = state();
+    return p === "tailscale" ? "\uDB80\uDF18" : p === "proxy" ? "\uDB81\uDD82" : p === "power" ? batteryGlyph(s?.battery ?? null) : p === "audio" ? audioGlyph(s?.audio ?? null) : p === "network" ? networkGlyph(s?.network) : bluetoothGlyph(s?.bluetooth ?? null);
+  };
+  var panelDim = (p) => p === "proxy" && state()?.proxy?.running === false || p === "tailscale" && state()?.tailscale?.state !== "Running";
+  var workspaceTab = (i) => ({
+    id: `ws${i}`,
+    label: String(i + 1),
+    tab: "digit",
+    run: () => focus(i),
+    lit: () => current4() === i,
+    tone: () => current4() === i ? "accent" : occupied(i) ? "foreground" : "muted"
+  });
+  var BADGE = {
+    id: "layout",
+    label: "",
+    tab: "badge",
+    text: () => layout() === "dwindle" ? "tile" : "scroll",
+    tone: () => "dark_foreground",
+    run: () => perform("layout")
+  };
+  var panelTab = (p) => ({
+    id: `panel-${p}`,
+    label: "",
+    tab: "icon",
+    text: () => panelGlyph(p),
+    run: () => panel() === p ? closePanel() : showPanel(p),
+    lit: () => panel() === p,
+    tone: () => panel() === p ? "accent" : panelDim(p) ? "muted" : "foreground"
+  });
+  var BACK_TAB = {
+    id: "pad-back",
+    label: "",
+    glyph: LEFT,
+    run: pressBack
+  };
+  var closes = () => keySink().close;
+  var playing2 = createRoot(() => createMemo(() => {
+    const media = state()?.media;
+    return media ? media.playing : null;
+  }));
+  var ends = createRoot(() => createMemo(() => {
+    const close = closes();
+    const media = playing2();
+    const end = [
+      ...media === null ? [] : [{
+        id: "media",
+        label: "",
+        glyph: media ? PAUSE : PLAY,
+        run: () => void request({
+          method: "mediaToggle"
+        }).catch(() => {}),
+        lit: () => playing2() === true
+      }],
+      ...close ? [{
+        id: "close",
+        label: "",
+        glyph: CLOSE,
+        run: () => keySink().close?.(),
+        danger: true
+      }] : []
+    ];
+    const start = [{
+      id: "menu",
+      label: "",
+      glyph: LOGO,
+      run: toggleMenu,
+      lit: menuOpen,
+      x: EDGE3,
+      w: LOGO_W
+    }, {
+      id: "esc",
+      label: "Esc",
+      run: () => sendKey("Escape"),
+      x: EDGE3 + LOGO_W + GAP3,
+      w: ESC_W
+    }];
+    const endX = DECK_W - EDGE3 - end.length * END_W - (end.length - 1) * GAP3;
+    return {
+      chips: [...start, ...end.map((c, i) => ({
+        ...c,
+        x: endX + i * (END_W + GAP3),
+        w: END_W
+      }))],
+      left: EDGE3 + LOGO_W + GAP3 + ESC_W + GAP3,
+      right: end.length ? endX - GAP3 : DECK_W - EDGE3
+    };
+  }));
+  var keysRow = createRoot(() => createMemo(() => {
+    const {
+      left,
+      right
+    } = ends();
+    const middle = context();
+    const room = right - left - (middle.length - 1) * GAP3;
+    const w = middle.length ? Math.min(MAX_W2, Math.floor(room / middle.length)) : 0;
+    return middle.map((c, i) => ({
+      ...c,
+      x: left + i * (w + GAP3),
+      w
+    }));
+  }));
+  var padRow = createRoot(() => createMemo(() => {
+    const {
+      left,
+      right
+    } = ends();
+    const out = [];
+    let x = left;
+    if (backs()) {
+      out.push({
+        ...BACK_TAB,
+        x,
+        w: BACK_W
+      });
+      x += BACK_W + GAP3;
+    }
+    x += GROUP_GAP - GAP3;
+    const list = panels();
+    const n = list.length;
+    const w = (right - x - BADGE_W - (4 + n) * TAB_GAP - GROUP_GAP) / (WORKSPACES + n);
+    for (let i = 0;i < WORKSPACES; i++)
+      out.push({
+        ...workspaceTab(i),
+        x: x + i * (w + TAB_GAP),
+        w
+      });
+    out.push({
+      ...BADGE,
+      x: x + WORKSPACES * (w + TAB_GAP),
+      w: BADGE_W
+    });
+    const panelsX = right - n * w - (n - 1) * TAB_GAP;
+    list.forEach((p, i) => out.push({
+      ...panelTab(p),
+      x: panelsX + i * (w + TAB_GAP),
+      w
+    }));
+    return out;
+  }));
+  var live2 = () => [...ends().chips, ...dockShown() ? padRow() : keysRow()];
+  var chipAt = (x) => live2().find((c) => x >= c.x - GAP3 / 2 && x < c.x + c.w + GAP3 / 2);
+  function stripTarget(x) {
+    if (composing())
+      return null;
+    const chip = chipAt(x);
+    return chip ? `strip:${chip.id}` : null;
+  }
+  function stripTouch(frame) {
+    for (const c of frame.presses) {
+      if (composing()) {
+        if (c.x >= PREEDIT_W)
+          pick(Math.floor((c.x - PREEDIT_W) / CANDIDATE_W), (text) => keySink().text(text));
+        continue;
+      }
+      chipAt(c.x)?.run();
+    }
+  }
+  function Key(props) {
+    const chip = props.chip;
+    const lit = () => chip.lit?.() === true;
+    return createComponent2(View, {
+      class: "absolute rounded-md",
+      get style() {
+        return {
+          insetL: chip.x,
+          insetT: CHIP_Y,
+          width: chip.w,
+          height: CHIP_H,
+          bgColor: color(lit() || pressed(`strip:${chip.id}`) ? "selection" : "dark_background")
+        };
+      },
+      get children() {
+        return [createComponent2(Show, {
+          get when() {
+            return memo2(() => !!chip.glyph)() && chip.label;
+          },
+          get children() {
+            return createComponent2(Text, {
+              class: "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]",
+              get style() {
+                return {
+                  insetL: 6 - inkShift(chip.glyph, 12),
+                  textColor: color("foreground")
+                };
+              },
+              get children() {
+                return chip.glyph;
+              }
+            });
+          }
+        }), createComponent2(Text, {
+          get ["class"]() {
+            return chip.id === "menu" ? "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]" : "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]";
+          },
+          get style() {
+            return {
+              width: chip.w,
+              insetL: chip.glyph && chip.label ? 11 : chip.label ? 0 : -inkShift(chip.glyph ?? "", chip.id === "menu" ? 14 : 12),
+              textColor: color(chip.danger ? "red" : lit() ? "accent" : "foreground")
+            };
+          },
+          get children() {
+            return chip.label || chip.glyph;
+          }
+        })];
+      }
+    });
+  }
+  function Tab(props) {
+    const chip = props.chip;
+    const label = () => chip.text?.() ?? chip.label;
+    const tone = () => chip.tone?.() ?? "foreground";
+    const bg = () => chip.lit?.() || pressed(`strip:${chip.id}`) ? "selection" : chip.tab === "badge" ? "background" : "dark_background";
+    return createComponent2(View, {
+      class: "absolute rounded-md",
+      get style() {
+        return {
+          insetL: chip.x,
+          insetT: CHIP_Y,
+          width: chip.w,
+          height: CHIP_H,
+          bgColor: color(bg())
+        };
+      },
+      get children() {
+        return createComponent2(Show, {
+          get when() {
+            return chip.tab === "icon";
+          },
+          get fallback() {
+            return createComponent2(Text, {
+              get ["class"]() {
+                return chip.tab === "badge" ? "absolute left-0 top-[7] h-[14] text-center font-mono text-xs leading-[14]" : "absolute left-0 top-[6] h-[16] text-center font-mono text-sm leading-[16]";
+              },
+              get style() {
+                return {
+                  width: chip.w,
+                  textColor: color(tone())
+                };
+              },
+              get children() {
+                return label();
+              }
+            });
+          },
+          get children() {
+            return createComponent2(Text, {
+              class: "absolute left-0 top-[5] h-[18] text-center font-mono text-base leading-[18]",
+              get style() {
+                return {
+                  width: chip.w,
+                  insetL: -inkShift(label(), 16),
+                  textColor: color(tone())
+                };
+              },
+              get children() {
+                return label();
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+  var Chips = (props) => createComponent2(For, {
+    get each() {
+      return props.each();
+    },
+    children: (chip) => chip.tab ? createComponent2(Tab, {
+      chip
+    }) : createComponent2(Key, {
+      chip
+    })
+  });
+  var SLIDE3 = 6;
+  function Strip() {
+    let keysSet;
+    let padSet;
+    createEffect(on(dockShown, (pad) => {
+      glide(keysSet, "opacity", pad ? 0 : 1, 140);
+      glide(keysSet, "translateY", pad ? SLIDE3 : 0, 180);
+      glide(padSet, "opacity", pad ? 1 : 0, 140);
+      glide(padSet, "translateY", pad ? 0 : -SLIDE3, 180);
+    }, {
+      defer: true
+    }));
+    return createComponent2(View, {
+      class: "absolute left-0 top-0 contain-strict",
+      style: {
+        width: DECK_W,
+        height: STRIP_H
+      },
+      get children() {
+        return createComponent2(Show, {
+          get when() {
+            return composing();
+          },
+          get fallback() {
+            return [createComponent2(Chips, {
+              each: () => ends().chips
+            }), createComponent2(View, {
+              class: "absolute left-0 top-0",
+              get style() {
+                return {
+                  width: DECK_W,
+                  height: STRIP_H,
+                  opacity: untrack(dockShown) ? 0 : 1,
+                  translateY: untrack(dockShown) ? SLIDE3 : 0
+                };
+              },
+              ref: (n) => keysSet = n,
+              get children() {
+                return createComponent2(Chips, {
+                  each: keysRow
+                });
+              }
+            }), createComponent2(View, {
+              class: "absolute left-0 top-0",
+              get style() {
+                return {
+                  width: DECK_W,
+                  height: STRIP_H,
+                  opacity: untrack(dockShown) ? 1 : 0,
+                  translateY: untrack(dockShown) ? 0 : -SLIDE3
+                };
+              },
+              ref: (n) => padSet = n,
+              get children() {
+                return createComponent2(Chips, {
+                  each: padRow
+                });
+              }
+            })];
+          },
+          get children() {
+            return createComponent2(View, {
+              class: "absolute left-0 top-0",
+              get style() {
+                return {
+                  width: DECK_W,
+                  height: STRIP_H,
+                  bgColor: color("dark_background")
+                };
+              },
+              get children() {
+                return [createComponent2(Text, {
+                  class: "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]",
+                  get style() {
+                    return {
+                      width: PREEDIT_W - 14,
+                      textColor: color("accent"),
+                      ...cjk(snapshot()?.preedit ?? "", CJK_SLOT_14)
+                    };
+                  },
+                  get children() {
+                    return snapshot()?.preedit ?? "";
+                  }
+                }), createComponent2(For, {
+                  get each() {
+                    return snapshot()?.candidates ?? [];
+                  },
+                  children: (candidate, i) => createComponent2(Text, {
+                    class: "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]",
+                    get style() {
+                      return {
+                        insetL: PREEDIT_W + i() * CANDIDATE_W,
+                        width: CANDIDATE_W - 4,
+                        textColor: color(i() === 0 ? "bright_foreground" : "foreground"),
+                        ...cjk(candidate, CJK_SLOT_14)
+                      };
+                    },
+                    children: candidate
+                  })
+                })];
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+
   // shell/src/stage/lock.tsx
+  var MIDDLE = Math.round(STAGE_H / 2);
   var LOCK2 = "\uDB80\uDF3E";
   var [locked, setLocked] = createSignal(false);
   var [password, setPassword] = createSignal("");
@@ -19247,6 +19422,8 @@
           },
           get style() {
             return {
+              width: STAGE_W,
+              height: STAGE_H,
               bgColor: color("background", 0.85)
             };
           },
@@ -19257,6 +19434,8 @@
               },
               get style() {
                 return {
+                  width: STAGE_W,
+                  insetT: MIDDLE - 74,
                   textColor: color("accent")
                 };
               },
@@ -19267,6 +19446,8 @@
               },
               get style() {
                 return {
+                  width: STAGE_W,
+                  insetT: MIDDLE - 32,
                   textColor: color("bright_foreground")
                 };
               },
@@ -19279,6 +19460,8 @@
               },
               get style() {
                 return {
+                  width: STAGE_W,
+                  insetT: MIDDLE + 10,
                   textColor: color("foreground")
                 };
               },
@@ -19315,15 +19498,15 @@
     status: () => active2() ? "running" : "stopped"
   });
   var CELL_W2 = 6;
-  var CELL_H4 = 14;
+  var CELL_H3 = 14;
   var HOLD = 7;
   var OUT = 1.6;
   function cellsOf(source) {
     const lines = source.split(`
 `);
     const cols = Math.max(1, ...lines.map((l) => [...l].length));
-    const left = Math.round((512 - cols * CELL_W2) / 2);
-    const top = Math.round((384 - lines.length * CELL_H4) / 2);
+    const left = Math.round((STAGE_W - cols * CELL_W2) / 2);
+    const top = Math.round((STAGE_H - lines.length * CELL_H3) / 2);
     const cells = [];
     lines.forEach((line, row) => [...line].forEach((ch, col) => {
       if (ch !== " ")
@@ -19332,7 +19515,7 @@
           col,
           row,
           x: left + col * CELL_W2,
-          y: top + row * CELL_H4
+          y: top + row * CELL_H3
         });
     }));
     return {
@@ -19357,7 +19540,7 @@
     {
       enter(nodes, cells, final) {
         cells.forEach((c, i) => {
-          jump(nodes[i], "translateY", -(c.y + CELL_H4 + rand(60)));
+          jump(nodes[i], "translateY", -(c.y + CELL_H3 + rand(60)));
           jump(nodes[i], "textColor", final(c));
           tween(nodes[i], "translateY", 0, 650, rand(1800), "in");
         });
@@ -19377,8 +19560,8 @@
     {
       enter(nodes, cells, final) {
         cells.forEach((c, i) => {
-          jump(nodes[i], "translateX", 256 - c.x);
-          jump(nodes[i], "translateY", 192 - c.y);
+          jump(nodes[i], "translateX", STAGE_W / 2 - c.x);
+          jump(nodes[i], "translateY", STAGE_H / 2 - c.y);
           jump(nodes[i], "opacity", 0);
           jump(nodes[i], "textColor", final(c));
           const delay = rand(500);
@@ -19424,8 +19607,8 @@
     {
       enter(nodes, cells, final) {
         cells.forEach((c, i) => {
-          jump(nodes[i], "translateX", 256 - c.x + rand(80) - 40);
-          jump(nodes[i], "translateY", 400 - c.y);
+          jump(nodes[i], "translateX", STAGE_W / 2 - c.x + rand(80) - 40);
+          jump(nodes[i], "translateY", STAGE_H + 16 - c.y);
           jump(nodes[i], "opacity", 0);
           jump(nodes[i], "textColor", final(c));
           const delay = rand(1600);
@@ -19443,7 +19626,7 @@
       if (!nodes[i])
         return;
       if (fall)
-        tween(nodes[i], "translateY", 420 - c.y, 700, rand(900), "in");
+        tween(nodes[i], "translateY", STAGE_H + 36 - c.y, 700, rand(900), "in");
       else
         tween(nodes[i], "opacity", 0, 400, rand(1000));
     });
@@ -19513,8 +19696,10 @@
       },
       get children() {
         return createComponent2(View, {
-          class: "absolute left-0 top-0 w-[512] h-[384] overflow-hidden",
+          class: "absolute left-0 top-0 overflow-hidden",
           style: {
+            width: STAGE_W,
+            height: STAGE_H,
             bgColor: "#000000"
           },
           get children() {
@@ -19526,8 +19711,10 @@
   }
   function ScreensaverDeck() {
     return createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] h-[384]",
+      class: "absolute left-0 top-0",
       style: {
+        width: DECK_W,
+        height: DECK_H,
         bgColor: "#000000"
       }
     });
@@ -19627,7 +19814,7 @@
       if (chord)
         return locked() ? undefined : perform(chord.action);
       if (key & BTN.SELECT)
-        return locked() ? undefined : cycleLayout();
+        return locked() ? undefined : toggleKeys();
       if (!locked() && card() && cardButton(key))
         return;
       if (!locked() && !field() && focusedPackage() && !focusedPackage().appletSurface)
@@ -19659,10 +19846,8 @@
           keyboardTouch(frame, "body");
           return touchpadTouch(frame);
         case "pad":
+          dockTouch(frame);
           return touchpadTouch(frame);
-        case "home":
-          homeTouch(frame);
-          return [];
       }
     };
     let keysNode;
@@ -19695,7 +19880,7 @@
         if (down & key)
           press(key, buttons);
         else if (key & REPEATS & buttons && heldFor > REPEAT_AFTER2 && (heldFor - REPEAT_AFTER2) % REPEAT_EVERY2 === 0)
-          press(key, buttons);
+          sendRepeat(() => press(key, buttons));
       }
       if (screensaverActive() && touch.raw) {
         stopScreensaver();
@@ -19708,13 +19893,17 @@
       if (locked())
         return keyboardTouch(touch, "full");
       const first = touch.down[0];
-      pressAt(!first ? null : first.start.y < STRIP_H ? stripTarget(first.x) : layout2() === "home" ? homeTarget(first.x, first.y - BODY_TOP) : roundTarget(first.x, first.y - BODY_TOP));
+      pressAt(!first ? null : first.start.y < STRIP_H ? stripTarget(first.x) : dockTarget(first.x, first.y - BODY_TOP, first.moved) ?? roundTarget(first.x, first.y - BODY_TOP));
       stripTouch(band(touch, 0, STRIP_H));
-      const contacts = bodyTouch(band(touch, BODY_TOP, 384));
+      const contacts = bodyTouch(band(touch, BODY_TOP, DECK_H));
       feed(buttons, contacts);
     });
     return createComponent2(View, {
-      class: "absolute left-0 top-0 w-[512] h-[384]",
+      class: "absolute left-0 top-0",
+      style: {
+        width: STAGE_W,
+        height: STAGE_H
+      },
       get children() {
         return [createComponent2(Wallpaper, {}), createComponent2(Windows, {}), createComponent2(Bar, {
           now,
@@ -19727,9 +19916,11 @@
         }), createComponent2(Screensaver, {}), createComponent2(AuxiliarySurface, {
           get children() {
             return createComponent2(View, {
-              class: "absolute left-0 top-0 w-[512] h-[384]",
+              class: "absolute left-0 top-0",
               get style() {
                 return {
+                  width: DECK_W,
+                  height: DECK_H,
                   bgColor: color("darker_background")
                 };
               },
@@ -19743,46 +19934,46 @@
                   },
                   get children() {
                     return [createComponent2(View, {
-                      class: "absolute left-0 top-0 w-[512] h-[384] contain-strict",
+                      class: "absolute left-0 top-0 contain-strict",
                       get style() {
                         return {
+                          width: DECK_W,
+                          height: DECK_H,
                           opacity: locked() ? 0 : 1
                         };
                       },
                       get children() {
                         return [createComponent2(View, {
-                          class: "absolute left-0 w-[512] overflow-hidden contain-strict",
+                          class: "absolute left-0 overflow-hidden contain-strict",
                           style: {
+                            width: DECK_W,
                             insetT: BODY_TOP,
                             height: BODY_H
                           },
                           get children() {
                             return [createComponent2(View, {
-                              class: "absolute left-0 top-0 w-[512] contain-strict",
-                              get style() {
-                                return {
-                                  height: BODY_H,
-                                  opacity: layout2() === "home" ? 1 : 0
-                                };
-                              },
-                              get children() {
-                                return createComponent2(Home, {});
-                              }
-                            }), createComponent2(View, {
-                              class: "absolute left-0 top-0 w-[512] contain-strict",
-                              get style() {
-                                return {
-                                  height: BODY_H,
-                                  opacity: layout2() === "home" ? 0 : 1
-                                };
+                              class: "absolute left-0 top-0 contain-strict",
+                              style: {
+                                width: DECK_W,
+                                height: BODY_H
                               },
                               get children() {
                                 return createComponent2(Touchpad, {});
                               }
                             }), createComponent2(View, {
-                              class: "absolute left-0 top-0 w-[512] contain-strict",
+                              class: "absolute left-0 top-0 contain-strict",
+                              style: {
+                                width: DECK_W,
+                                height: BODY_H
+                              },
+                              get children() {
+                                return createComponent2(Dock, {});
+                              }
+                            }), createComponent2(View, {
+                              class: "absolute left-0 top-0 contain-strict",
                               get style() {
                                 return {
+                                  width: DECK_W,
                                   height: BODY_H,
                                   opacity: untrack(layout2) === "keys" ? 1 : 0,
                                   translateY: untrack(layout2) === "keys" ? 0 : -14
@@ -19799,9 +19990,11 @@
                         }), createComponent2(Strip, {})];
                       }
                     }), createComponent2(View, {
-                      class: "absolute left-0 top-0 w-[512] h-[384] contain-strict",
+                      class: "absolute left-0 top-0 contain-strict",
                       get style() {
                         return {
+                          width: DECK_W,
+                          height: DECK_H,
                           opacity: locked() ? 1 : 0
                         };
                       },
@@ -21269,150 +21462,133 @@
     return input;
   }
 
-  // pocketjs-generated-styles:/Users/evan/code/omarchy-pocket/vendor/pocketjs/framework/src/styles.generated.ts
+  // pocketjs-generated-styles:/Users/evan/.lody/repos/github---pocket-nexus---omarchy-pocket/worktrees/2bfa34f8-6ddd-4c4b-bb23-985db667233d/vendor/pocketjs/framework/src/styles.generated.ts
   var STYLE_IDS = {
-    "absolute left-0 top-0 w-[512] h-[384]": 0,
-    "absolute left-0 top-0 w-[512] h-[384] contain-strict": 1,
-    "absolute left-0 w-[512] overflow-hidden contain-strict": 2,
-    "absolute left-0 top-0 w-[512] contain-strict": 3,
-    "relative flex-col w-full h-full bg-slate-50 overflow-hidden": 4,
-    "absolute inset-0 z-50 flex-col items-center justify-center": 5,
-    "absolute inset-0 bg-slate-950": 6,
-    "flex-col gap-2 w-[328] p-3 rounded-xl shadow-lg bg-white border-slate-200": 7,
-    "absolute left-3 right-3 bottom-3 flex-row items-center justify-between px-2 py-1 rounded-lg shadow-md bg-white border-slate-200": 8,
-    "flex-row flex-wrap": 9,
-    grow: 10,
-    "absolute left-0 text-center font-mono text-xs leading-[14]": 11,
-    "absolute right-[12] top-[6] font-mono text-sm leading-[16]": 12,
-    "absolute left-0 top-0 w-[512] h-[18] contain-strict": 13,
-    "absolute top-[2] font-mono text-xs leading-[14]": 14,
-    "absolute left-0 top-[2] w-[512] text-center font-mono text-xs leading-[14]": 15,
-    "absolute right-[8] top-[2] font-mono text-xs leading-[14]": 16,
-    "absolute left-0 top-0 w-[512] h-[350] contain-strict": 17,
-    "absolute left-0 top-0 w-[360] h-[296] contain-strict": 18,
-    "absolute left-[8] top-[25] w-[344] h-[1]": 19,
-    "absolute left-[12] top-[6] font-mono text-sm leading-[16]": 20,
-    "absolute left-[8] top-[25] w-[496] h-[1]": 21,
-    "absolute left-[8] w-[496] h-[22]": 22,
-    "absolute left-0 top-0 w-[496] h-[22] rounded-sm": 23,
-    "absolute left-[8] top-[4] w-[20] font-mono text-sm leading-[14]": 24,
-    "absolute left-[34] top-[4] font-mono text-sm leading-[14]": 25,
-    "absolute right-[8] top-[4] font-mono text-sm leading-[14]": 26,
-    "absolute left-0 top-[298] w-[512] h-[20]": 27,
-    "absolute left-[12] top-[3] font-mono text-xs leading-[14]": 28,
-    "absolute top-[288] h-[48] overflow-hidden rounded-md border-[1]": 29,
-    "absolute left-[12] top-[10] w-[28] text-center text-2xl leading-[28]": 30,
-    "absolute left-[52] top-[22] w-[120] h-[4]": 31,
-    "absolute right-[12] top-[15] font-mono text-base leading-[18]": 32,
-    "absolute left-[48] top-[15] font-mono text-base leading-[18]": 33,
-    "absolute right-[8] w-[248] h-[52] overflow-hidden rounded-md border-[1]": 34,
-    "absolute left-[10] top-[8] w-[18] font-mono text-sm leading-[16]": 35,
-    "absolute left-[32] top-[8] w-[136] h-[16] overflow-hidden font-mono text-sm leading-[16]": 36,
-    "absolute right-[8] top-[9] font-mono text-xs leading-[14]": 37,
-    "absolute left-[32] top-[28] w-[206] h-[16] overflow-hidden font-mono text-xs leading-[14]": 38,
-    "absolute left-0 top-[118] w-[512] text-center text-2xl leading-[28]": 39,
-    "absolute left-0 top-[160] w-[512] text-center text-2xl leading-[28]": 40,
-    "absolute left-0 top-[202] w-[512] text-center font-mono text-sm leading-[16]": 41,
-    "absolute font-mono text-xs leading-[14]": 42,
-    "absolute text-right font-mono text-xs leading-[14]": 43,
-    "absolute h-[6] rounded-sm": 44,
-    "absolute left-[12] top-[8] text-sm leading-[16]": 45,
-    "absolute left-[12] top-[28] text-2xl leading-[28]": 46,
-    "absolute left-[12] top-[62] font-mono text-xs leading-[14]": 47,
-    "absolute text-sm leading-[16]": 48,
-    "absolute rounded-sm": 49,
-    absolute: 50,
-    "absolute top-0 w-[2]": 51,
-    "absolute font-mono text-sm leading-[16]": 52,
-    "absolute left-[12] top-[8] font-mono text-xs leading-[14]": 53,
-    "absolute right-[12] top-[8] font-mono text-xs leading-[14]": 54,
-    "absolute left-[6] top-[3] h-[14] overflow-hidden font-mono text-sm leading-[14]": 55,
-    "absolute right-[6] top-[3] font-mono text-xs leading-[14]": 56,
-    "absolute left-0 text-center text-2xl leading-[28]": 57,
-    "absolute left-0 h-[20] overflow-hidden text-center text-base leading-[20]": 58,
-    "absolute left-0 h-[16] text-center font-mono text-sm leading-[16]": 59,
-    "absolute text-center font-mono text-xs leading-[14]": 60,
-    "absolute left-0 top-[4] text-center font-mono text-sm leading-[16]": 61,
-    "absolute top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]": 62,
-    "absolute h-[18] overflow-hidden font-mono text-sm leading-[18]": 63,
-    "absolute w-[2] h-[16]": 64,
-    "absolute left-[12] top-[6] font-mono text-xs leading-[14]": 65,
-    "absolute left-[6] top-[4] w-[16] font-mono text-sm leading-[14]": 66,
-    "absolute left-[26] top-[4] h-[14] overflow-hidden font-mono text-sm leading-[14]": 67,
-    "absolute top-0 w-[1]": 68,
-    "absolute left-0 top-0": 69,
-    "absolute left-0 text-center font-mono text-sm leading-[16]": 70,
-    "absolute left-0": 71,
-    "absolute left-[8] top-[2] h-[14] overflow-hidden font-mono text-xs leading-[14]": 72,
-    "absolute overflow-hidden contain-strict": 73,
-    "absolute left-0 top-0 rounded-sm": 74,
-    "absolute left-0 w-[512] text-center text-lg leading-[24]": 75,
-    "absolute left-0 w-[512] text-center font-mono text-xs leading-[14]": 76,
-    "absolute rounded-md": 77,
-    "absolute left-0 text-center font-mono text-base leading-[18]": 78,
-    "absolute overflow-hidden rounded-md": 79,
-    "absolute left-[2] top-[2] overflow-hidden rounded-sm": 80,
-    "absolute right-[12] top-[6] font-mono text-xs leading-[16]": 81,
-    "absolute left-0 top-0 h-[4]": 82,
-    "absolute left-[12] top-[24] w-[488] h-[348] rounded-md border-[1]": 83,
-    "absolute left-[12] top-[8] font-mono text-sm leading-[16]": 84,
-    "absolute right-[12] top-[9] font-mono text-xs leading-[14]": 85,
-    "absolute left-[12] top-[30] w-[464] h-[1]": 86,
-    "absolute bg-white": 87,
-    "absolute bg-black": 88,
-    "absolute left-[12] top-[60] font-mono text-xs leading-[14]": 89,
-    "absolute left-[12] h-[14] overflow-hidden font-mono text-xs leading-[14] text-center": 90,
-    "absolute left-0 top-0 w-[256] h-[256]": 91,
-    "absolute left-[256] top-0 w-[256] h-[256]": 92,
-    "absolute left-0 top-[256] w-[256] h-[128]": 93,
-    "absolute left-[256] top-[256] w-[256] h-[128]": 94,
-    "absolute left-0 top-0 w-[20] h-[24]": 95,
-    "absolute left-[-3] top-[-2] text-xl leading-[24]": 96,
-    "absolute top-[2] h-[14] w-[12] rounded-sm": 97,
-    "absolute top-[2] text-right font-mono text-xs leading-[14]": 98,
-    "absolute left-0 text-center text-xl leading-[24]": 99,
-    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 100,
-    "absolute left-0 h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 101,
-    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 102,
-    "absolute overflow-hidden rounded-md contain-strict": 103,
-    "absolute left-[6] top-[1] h-[14] overflow-hidden font-mono text-xs leading-[14]": 104,
-    "absolute left-0 overflow-hidden contain-strict": 105,
-    "absolute top-0": 106,
-    "absolute top-0 font-mono text-xs": 107,
-    "absolute overflow-hidden": 108,
-    "absolute h-[15] overflow-hidden font-mono text-xs leading-[15]": 109,
-    "absolute text-center text-2xl leading-[28]": 110,
-    "absolute text-center font-mono text-base leading-[18]": 111,
-    "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 112,
-    "absolute w-[44] h-[44] rounded-full border-[1]": 113,
-    "absolute w-[15] h-[15] rounded-full": 114,
-    "absolute h-[15] w-[15] text-center font-mono text-xs leading-[15]": 115,
-    "absolute rounded-md border-[1]": 116,
-    "absolute text-center font-mono text-sm leading-[16]": 117,
-    "absolute w-[152] h-[30] rounded-full border-[1]": 118,
-    "absolute overflow-hidden font-mono text-xs leading-[14]": 119,
-    "absolute w-[56] h-[56] rounded-full border-[1]": 120,
-    "absolute w-[28] h-[28] rounded-full": 121,
-    "absolute left-[156] w-[200] text-center font-mono text-base leading-[18]": 122,
-    "absolute left-[2] top-[2] overflow-hidden": 123,
-    "absolute left-0 text-center font-mono text-base leading-[20]": 124,
-    "absolute top-[1] w-[12] text-center font-mono text-xs leading-[12]": 125,
-    "absolute top-[1] rounded-sm": 126,
-    "absolute top-[7] w-[20] text-center font-mono text-base leading-[18]": 127,
-    "absolute left-[34] top-[9] h-[14] overflow-hidden font-mono text-xs leading-[14]": 128,
-    "absolute top-[8] w-[16] text-center font-mono text-xs leading-[16]": 129,
-    "absolute overflow-hidden rounded-sm": 130,
-    "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]": 131,
-    "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 132,
-    "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 133,
-    "absolute left-0 top-0 w-[512]": 134,
-    "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]": 135,
-    "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 136,
-    "absolute rounded-lg": 137,
-    "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]": 138,
-    "absolute text-center text-lg leading-[24]": 139,
-    "absolute w-[44] h-[44] rounded-full": 140,
-    "absolute left-0 top-0 w-[512] h-[384] overflow-hidden": 141
+    "absolute left-0 top-0": 0,
+    "absolute left-0 top-0 contain-strict": 1,
+    "absolute left-0 overflow-hidden contain-strict": 2,
+    "relative flex-col w-full h-full bg-slate-50 overflow-hidden": 3,
+    "absolute inset-0 z-50 flex-col items-center justify-center": 4,
+    "absolute inset-0 bg-slate-950": 5,
+    "flex-col gap-2 w-[328] p-3 rounded-xl shadow-lg bg-white border-slate-200": 6,
+    "absolute left-3 right-3 bottom-3 flex-row items-center justify-between px-2 py-1 rounded-lg shadow-md bg-white border-slate-200": 7,
+    "flex-row flex-wrap": 8,
+    grow: 9,
+    "absolute left-0 text-center font-mono text-xs leading-[14]": 10,
+    "absolute right-[12] top-[6] font-mono text-sm leading-[16]": 11,
+    "absolute left-0 top-0 h-[18] contain-strict": 12,
+    "absolute top-[2] font-mono text-xs leading-[14]": 13,
+    "absolute left-0 top-[2] text-center font-mono text-xs leading-[14]": 14,
+    "absolute right-[8] top-[2] font-mono text-xs leading-[14]": 15,
+    "absolute left-0 top-0 w-[360] h-[296] contain-strict": 16,
+    "absolute left-[8] top-[25] w-[344] h-[1]": 17,
+    "absolute left-[12] top-[6] font-mono text-sm leading-[16]": 18,
+    "absolute left-[8] top-[4] w-[20] font-mono text-sm leading-[14]": 19,
+    "absolute left-[34] top-[4] font-mono text-sm leading-[14]": 20,
+    "absolute right-[8] top-[4] font-mono text-sm leading-[14]": 21,
+    "absolute left-[12] top-[3] font-mono text-xs leading-[14]": 22,
+    "absolute h-[48] overflow-hidden rounded-md border-[1]": 23,
+    "absolute left-[12] top-[10] w-[28] text-center text-2xl leading-[28]": 24,
+    "absolute left-[52] top-[22] w-[120] h-[4]": 25,
+    "absolute right-[12] top-[15] font-mono text-base leading-[18]": 26,
+    "absolute left-[48] top-[15] font-mono text-base leading-[18]": 27,
+    "absolute right-[8] w-[248] h-[52] overflow-hidden rounded-md border-[1]": 28,
+    "absolute left-[10] top-[8] w-[18] font-mono text-sm leading-[16]": 29,
+    "absolute left-[32] top-[8] w-[136] h-[16] overflow-hidden font-mono text-sm leading-[16]": 30,
+    "absolute right-[8] top-[9] font-mono text-xs leading-[14]": 31,
+    "absolute left-[32] top-[28] w-[206] h-[16] overflow-hidden font-mono text-xs leading-[14]": 32,
+    "absolute left-0 text-center text-2xl leading-[28]": 33,
+    "absolute left-0 text-center font-mono text-sm leading-[16]": 34,
+    "absolute font-mono text-xs leading-[14]": 35,
+    "absolute text-right font-mono text-xs leading-[14]": 36,
+    "absolute h-[6] rounded-sm": 37,
+    "absolute left-[12] top-[8] text-sm leading-[16]": 38,
+    "absolute left-[12] top-[28] text-2xl leading-[28]": 39,
+    "absolute left-[12] top-[62] font-mono text-xs leading-[14]": 40,
+    "absolute text-sm leading-[16]": 41,
+    "absolute rounded-sm": 42,
+    absolute: 43,
+    "absolute top-0 w-[2]": 44,
+    "absolute font-mono text-sm leading-[16]": 45,
+    "absolute left-[12] top-[8] font-mono text-xs leading-[14]": 46,
+    "absolute right-[12] top-[8] font-mono text-xs leading-[14]": 47,
+    "absolute left-[6] top-[3] h-[14] overflow-hidden font-mono text-sm leading-[14]": 48,
+    "absolute right-[6] top-[3] font-mono text-xs leading-[14]": 49,
+    "absolute left-0 h-[20] overflow-hidden text-center text-base leading-[20]": 50,
+    "absolute left-0 h-[16] text-center font-mono text-sm leading-[16]": 51,
+    "absolute text-center font-mono text-xs leading-[14]": 52,
+    "absolute left-0 top-[4] text-center font-mono text-sm leading-[16]": 53,
+    "absolute top-[6] h-[14] overflow-hidden font-mono text-xs leading-[14]": 54,
+    "absolute h-[18] overflow-hidden font-mono text-sm leading-[18]": 55,
+    "absolute w-[2] h-[16]": 56,
+    "absolute left-[12] top-[6] font-mono text-xs leading-[14]": 57,
+    "absolute left-[6] top-[4] w-[16] font-mono text-sm leading-[14]": 58,
+    "absolute left-[26] top-[4] h-[14] overflow-hidden font-mono text-sm leading-[14]": 59,
+    "absolute top-0 w-[1]": 60,
+    "absolute left-0": 61,
+    "absolute left-[8] top-[2] h-[14] overflow-hidden font-mono text-xs leading-[14]": 62,
+    "absolute overflow-hidden contain-strict": 63,
+    "absolute left-0 top-0 rounded-sm": 64,
+    "absolute left-0 text-center text-lg leading-[24]": 65,
+    "absolute rounded-md": 66,
+    "absolute left-0 text-center font-mono text-base leading-[18]": 67,
+    "absolute overflow-hidden rounded-md": 68,
+    "absolute left-[2] top-[2] overflow-hidden rounded-sm": 69,
+    "absolute right-[12] top-[6] font-mono text-xs leading-[16]": 70,
+    "absolute left-0 top-0 h-[4]": 71,
+    "absolute left-[12] top-[24] rounded-md border-[1]": 72,
+    "absolute left-[12] top-[8] font-mono text-sm leading-[16]": 73,
+    "absolute right-[12] top-[9] font-mono text-xs leading-[14]": 74,
+    "absolute left-[12] top-[30] h-[1]": 75,
+    "absolute bg-white": 76,
+    "absolute bg-black": 77,
+    "absolute left-[12] top-[60] font-mono text-xs leading-[14]": 78,
+    "absolute left-[12] h-[14] overflow-hidden font-mono text-xs leading-[14] text-center": 79,
+    "absolute left-0 top-0 overflow-hidden": 80,
+    "absolute left-0 top-0 w-[20] h-[24]": 81,
+    "absolute left-[-3] top-[-2] text-xl leading-[24]": 82,
+    "absolute top-[2] h-[14] w-[12] rounded-sm": 83,
+    "absolute top-[2] text-right font-mono text-xs leading-[14]": 84,
+    "absolute left-0 text-center text-xl leading-[24]": 85,
+    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 86,
+    "absolute left-0 h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 87,
+    "absolute left-0 h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 88,
+    "absolute overflow-hidden rounded-md contain-strict": 89,
+    "absolute left-[6] top-[1] h-[14] overflow-hidden font-mono text-xs leading-[14]": 90,
+    "absolute top-0": 91,
+    "absolute top-0 font-mono text-xs": 92,
+    "absolute overflow-hidden": 93,
+    "absolute h-[15] overflow-hidden font-mono text-xs leading-[15]": 94,
+    "absolute text-center text-2xl leading-[28]": 95,
+    "absolute text-center font-mono text-base leading-[18]": 96,
+    "absolute h-[14] overflow-hidden text-center font-mono text-xs leading-[14]": 97,
+    "absolute w-[44] h-[44] rounded-full border-[1]": 98,
+    "absolute w-[15] h-[15] rounded-full": 99,
+    "absolute h-[15] w-[15] text-center font-mono text-xs leading-[15]": 100,
+    "absolute rounded-md border-[1]": 101,
+    "absolute text-center font-mono text-sm leading-[16]": 102,
+    "absolute w-[152] h-[30] rounded-full border-[1]": 103,
+    "absolute overflow-hidden font-mono text-xs leading-[14]": 104,
+    "absolute w-[56] h-[56] rounded-full border-[1]": 105,
+    "absolute w-[28] h-[28] rounded-full": 106,
+    "absolute top-[1] w-[12] text-center font-mono text-xs leading-[12]": 107,
+    "absolute top-[1] rounded-sm": 108,
+    "absolute top-[7] w-[20] text-center font-mono text-base leading-[18]": 109,
+    "absolute left-[34] top-[9] h-[14] overflow-hidden font-mono text-xs leading-[14]": 110,
+    "absolute top-[8] w-[16] text-center font-mono text-xs leading-[16]": 111,
+    "absolute overflow-hidden rounded-lg": 112,
+    "absolute rounded-lg": 113,
+    "absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]": 114,
+    "absolute text-center text-lg leading-[24]": 115,
+    "absolute w-[44] h-[44] rounded-full": 116,
+    "absolute top-[6] w-[16] text-center font-mono text-xs leading-[16]": 117,
+    "absolute left-0 top-[8] h-[16] overflow-hidden text-center font-mono text-sm leading-[16]": 118,
+    "absolute left-0 top-[6] h-[16] overflow-hidden text-center font-mono text-xs leading-[16]": 119,
+    "absolute left-0 top-[7] h-[14] text-center font-mono text-xs leading-[14]": 120,
+    "absolute left-0 top-[6] h-[16] text-center font-mono text-sm leading-[16]": 121,
+    "absolute left-0 top-[5] h-[18] text-center font-mono text-base leading-[18]": 122,
+    "absolute left-[10] top-[8] h-[18] overflow-hidden font-mono text-sm leading-[18]": 123,
+    "absolute top-[8] h-[18] overflow-hidden text-center font-mono text-sm leading-[18]": 124
   };
 
   // vendor/pocketjs/framework/src/index.ts

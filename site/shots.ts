@@ -2,6 +2,11 @@
 // top panel over bottom panel) into two WebPs. The sources stay in the ignored
 // .pocket-build/validation tree. An entry may take its deck from another capture.
 // The legends under a held shoulder come from the browser demo (site/record.ts).
+// Since the deck became two layouts (keys, and the pad with the workspaces in
+// its top row and the pins under it), the decks on the page are the browser
+// demo's, the shell's real bundle at the RG DS Plus's 1024 × 768: KEYS is a
+// terminal's deck, PAD the pad layout over a window, HOME the pad layout with
+// nothing focused. The AYN Thor's are site/thor-shots.ts's.
 //
 //   bun site/shots.ts
 import { $ } from "bun";
