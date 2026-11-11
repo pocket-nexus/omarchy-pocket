@@ -41,6 +41,8 @@ const UCONSOLE_SHOTS: Record<string, string> = {
   story: "hn7",
   typing: "hw-type",
   lock: "lock2",
+  system: "sysmenu",
+  desktop: "desktop",
 };
 
 async function media() {
@@ -57,7 +59,7 @@ async function media() {
   const session = join(V, "uconsole", "session.mp4");
   if (existsSync(session)) {
     await $`ffmpeg -loglevel error -y -i ${session} -vf scale=1280:-2,fps=30 -c:v libx264 -preset slow -crf 26 -pix_fmt yuv420p -an -movflags +faststart ${join(MEDIA, "uconsole", "session.mp4")}`;
-    await $`ffmpeg -loglevel error -y -ss 1 -i ${join(MEDIA, "uconsole", "session.mp4")} -frames:v 1 -q:v 2 ${join(MEDIA, "uconsole", "session-poster.jpg")}`;
+    await $`ffmpeg -loglevel error -y -ss 14.5 -i ${join(MEDIA, "uconsole", "session.mp4")} -frames:v 1 -q:v 2 ${join(MEDIA, "uconsole", "session-poster.jpg")}`;
   }
   const film = join(V, "docs", "thor-film.mp4");
   if (existsSync(film)) {
@@ -282,7 +284,7 @@ ${shot(S("move"), "The move layer swapping two tiled terminals", "Tapped twice, 
 ${shot(S("help"), "The plain controls row SELECT shows", "SELECT on its own: what each control does right now.")}
 ${shot(S("sheet"), "The key sheet listing every binding", "START + K: every binding.")}
 </div>
-${hasVideo ? video("/docs/media/uconsole/session.mp4", "/docs/media/uconsole/session-poster.jpg", "The uConsole's panel recorded off its display: a terminal, SUPER and the D-pad, the menu, Hacker News scrolled with the trackball.", "A recording of the uConsole's panel") : ""}
+${hasVideo ? video("/docs/media/uconsole/session.mp4", "/docs/media/uconsole/session-poster.jpg", "The uConsole's panel recorded off its display (KMS): START tapped and a terminal, fastfetch, a second terminal, focus walked with the D-pad, the move layer swapping them, START + A for the menu, Hacker News made fullscreen, scrolled with SELECT + the ball, a story opened with L and closed with R, and SELECT's controls row.", "A recording of the uConsole's panel") : ""}
 
 <h2 id="apps">Menu and applets</h2>
 <p>Omarchy's menu (${kbd("START")} + ${kbd("A")}, or a click on the logo) takes typing: type a few letters to filter it. Hacker News, YouTube, Maps, Podcasts, Weather, GitHub, X, Discord and Home Assistant open in windows. Point at them with the trackball, click with ${kbd("L")}, scroll with ${kbd("SELECT")} + roll, and go back with ${kbd("R")}.</p>
@@ -297,6 +299,10 @@ ${table(["To switch", "From Omarchy Pocket", "From the desktop", "Anywhere"], [
   ["To Omarchy Pocket now", "", "Menu › System › <b>Omarchy Pocket</b>", "<code>omarchy-pocket-session on</code>"],
   ["What starts at boot", "", "", "<code>omarchy-pocket-session boot</code> or <code>desktop</code>"],
 ])}
+<div class="grid2">
+${shot(S("system"), "Omarchy's System menu with Raspberry Pi Desktop under Lock", "Omarchy's System menu: Raspberry Pi Desktop gives the panel back.")}
+${shot(S("desktop"), "The Raspberry Pi desktop after switching back", "A moment later, the Raspberry Pi desktop, on the same Wi‑Fi.")}
+</div>
 <p>Wi‑Fi, Bluetooth and sound are Raspberry Pi OS's own, so a network joined on one side works on the other. Omarchy's files live in its own root, <code>/var/lib/omarchy-pocket/root</code>: its home is <code>/var/lib/omarchy-pocket/root/home/omarchy</code> as the desktop sees it.</p>
 
 <h2 id="update">Update and uninstall</h2>

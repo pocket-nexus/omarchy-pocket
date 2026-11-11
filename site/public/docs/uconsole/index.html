@@ -70,7 +70,7 @@
 <figure class="shot"><img src="/docs/media/uconsole/help.webp" alt="The plain controls row SELECT shows" loading="lazy" decoding="async"><figcaption>SELECT on its own: what each control does right now.</figcaption></figure>
 <figure class="shot"><img src="/docs/media/uconsole/sheet.webp" alt="The key sheet listing every binding" loading="lazy" decoding="async"><figcaption>START + K: every binding.</figcaption></figure>
 </div>
-
+<figure class="shot wide"><video src="/docs/media/uconsole/session.mp4" poster="/docs/media/uconsole/session-poster.jpg" controls playsinline muted preload="none" aria-label="A recording of the uConsole's panel"></video><figcaption>The uConsole's panel recorded off its display (KMS): START tapped and a terminal, fastfetch, a second terminal, focus walked with the D-pad, the move layer swapping them, START + A for the menu, Hacker News made fullscreen, scrolled with SELECT + the ball, a story opened with L and closed with R, and SELECT's controls row.</figcaption></figure>
 
 <h2 id="apps">Menu and applets</h2>
 <p>Omarchy's menu (<kbd>START</kbd> + <kbd>A</kbd>, or a click on the logo) takes typing: type a few letters to filter it. Hacker News, YouTube, Maps, Podcasts, Weather, GitHub, X, Discord and Home Assistant open in windows. Point at them with the trackball, click with <kbd>L</kbd>, scroll with <kbd>SELECT</kbd> + roll, and go back with <kbd>R</kbd>.</p>
@@ -81,6 +81,10 @@
 
 <h2 id="switch">Back to the Raspberry Pi desktop</h2>
 <div class="table"><table><thead><tr><th>To switch</th><th>From Omarchy Pocket</th><th>From the desktop</th><th>Anywhere</th></tr></thead><tbody><tr><td>To the desktop now</td><td>Menu › System › <b>Raspberry Pi Desktop</b></td><td></td><td><code>omarchy-pocket-session off</code></td></tr><tr><td>To Omarchy Pocket now</td><td></td><td>Menu › System › <b>Omarchy Pocket</b></td><td><code>omarchy-pocket-session on</code></td></tr><tr><td>What starts at boot</td><td></td><td></td><td><code>omarchy-pocket-session boot</code> or <code>desktop</code></td></tr></tbody></table></div>
+<div class="grid2">
+<figure class="shot"><img src="/docs/media/uconsole/system.webp" alt="Omarchy's System menu with Raspberry Pi Desktop under Lock" loading="lazy" decoding="async"><figcaption>Omarchy's System menu: Raspberry Pi Desktop gives the panel back.</figcaption></figure>
+<figure class="shot"><img src="/docs/media/uconsole/desktop.webp" alt="The Raspberry Pi desktop after switching back" loading="lazy" decoding="async"><figcaption>A moment later, the Raspberry Pi desktop, on the same Wi‑Fi.</figcaption></figure>
+</div>
 <p>Wi‑Fi, Bluetooth and sound are Raspberry Pi OS's own, so a network joined on one side works on the other. Omarchy's files live in its own root, <code>/var/lib/omarchy-pocket/root</code>: its home is <code>/var/lib/omarchy-pocket/root/home/omarchy</code> as the desktop sees it.</p>
 
 <h2 id="update">Update and uninstall</h2>
