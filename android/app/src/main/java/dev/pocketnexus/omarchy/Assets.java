@@ -15,10 +15,10 @@ import java.io.OutputStream;
 final class Assets {
     private Assets() {}
 
-    /** The shell package's path. */
-    static String shell(Context context) {
+    /** The handheld's shell package's path. */
+    static String shell(Context context, Handheld handheld) {
         File out = new File(context.getFilesDir(), "omarchy-pocket.pocket");
-        copy(context, "omarchy-pocket.pocket", out);
+        copy(context, handheld.assets() + "/omarchy-pocket.pocket", out);
         return out.getAbsolutePath();
     }
 

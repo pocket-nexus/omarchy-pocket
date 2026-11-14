@@ -10,7 +10,7 @@ import { after } from "@pocketjs/framework/clock";
 import { Text, View } from "@pocketjs/framework/components";
 import { runColumns, type Run } from "../../../vendor/pocket-term/shared/protocol.ts";
 import { TERM_COLS, TERM_ROWS } from "../../../daemon/protocol.ts";
-import "../glyphs.ts";
+import { glyphGeneration } from "../glyphs.ts";
 import { color } from "../theme.ts";
 import { resizeTerminal, sessionById } from "./store.ts";
 
@@ -23,7 +23,9 @@ const hex = (rgb: number) => "#" + rgb.toString(16).padStart(6, "0");
 
 /** A run from the run-time atlas: one Text per character, each on its own
  *  columns (two for a wide character, the run's span over its length), so
- *  the face's advance never drifts off the grid. */
+ *  the face's advance never drifts off the grid. Its Texts are made again
+ *  when a new atlas loads: a character drawn before its bake finished (a
+ *  box) then shows its glyph. */
 function WideRun(props: { run: Run }) {
   const chars = () => [...props.run[1]];
   const step = () => runColumns(props.run) / Math.max(1, chars().length);
@@ -35,16 +37,18 @@ function WideRun(props: { run: Run }) {
           style={{ insetL: props.run[0] * CELL_W, width: runColumns(props.run) * CELL_W, height: CELL_H, bgColor: hex(props.run[3]) }}
         />
       </Show>
-      <For each={chars()}>
-        {(ch, i) => (
-          <Text
-            class="absolute top-0 font-mono text-xs"
-            style={{ insetL: (props.run[0] + i() * step()) * CELL_W, lineHeight: CELL_H, fontSlot: props.run[4], textColor: props.run[2] >= 0 ? hex(props.run[2]) : color("foreground") }}
-          >
-            {ch}
-          </Text>
-        )}
-      </For>
+      <Show when={glyphGeneration() + 1} keyed>
+        <For each={chars()}>
+          {(ch, i) => (
+            <Text
+              class="absolute top-0 font-mono text-xs"
+              style={{ insetL: (props.run[0] + i() * step()) * CELL_W, lineHeight: CELL_H, fontSlot: props.run[4], textColor: props.run[2] >= 0 ? hex(props.run[2]) : color("foreground") }}
+            >
+              {ch}
+            </Text>
+          )}
+        </For>
+      </Show>
     </>
   );
 }

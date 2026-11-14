@@ -28,7 +28,7 @@ import {
 import { request } from "../bridge.ts";
 import type { AudioDevice, AudioPanel, BluetoothPanel, PowerPanel, ProxyPanel, TailscalePanel } from "../../../daemon/protocol.ts";
 import { C } from "../classes.ts";
-import { CJK_SLOT_14, levelOsd, VOLUME_MAX } from "../../../daemon/protocol.ts";
+import { CJK_SLOT_14, levelOsd, LOCK_ICON, VOLUME_MAX } from "../../../daemon/protocol.ts";
 import { cjk } from "../glyphs.ts";
 import { isAddressLike } from "../generated/bluetooth-model.js";
 import { wifiIconFor } from "../generated/network-model.js";
@@ -73,7 +73,7 @@ const REFRESH_EVERY = 4;
 const WIFI_EVERY = 1;
 const ERROR = "\u{f015a}";
 const CHECK = "\u{f012c}";
-const LOCK = "\u{f033e}";
+const LOCK = LOCK_ICON;
 const LAN = "\u{f0318}";
 const KEY = "\u{f0306}";
 const LOGOUT = "\u{f0343}";

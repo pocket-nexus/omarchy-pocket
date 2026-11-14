@@ -1,7 +1,6 @@
 package dev.pocketnexus.omarchy;
 
 import android.app.Activity;
-import android.app.ActivityOptions;
 import android.content.Context;
 import android.content.Intent;
 import android.hardware.display.DisplayManager;
@@ -33,26 +32,27 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * The upper display: the shell's stage in a SurfaceView, the Odin
- * controller's buttons and sticks, and the Presentation on the lower display
- * (the deck, {@link DeckPresentation}). The shell itself runs on a thread of
+ * The upper display: the shell's stage in a SurfaceView, the controller's
+ * buttons and sticks, and the Presentation on the lower display (the deck,
+ * {@link DeckPresentation}). The shell itself runs on a thread of
  * libomarchy_pocket.so that outlives the activity; the activity lends it the
- * two surfaces while it is in the foreground.
+ * two surfaces while it is in the foreground. Their sizes are the handheld's
+ * profile's ({@link Handheld}).
  */
 public final class MainActivity extends Activity implements SurfaceHolder.Callback, DisplayManager.DisplayListener {
     static final String TAG = "omarchy-pocket";
-    /** The profile's displays in pixels (android/pocket.host.json: 640x360
-     *  and 413x360 points at raster density 3). */
-    static final int TOP_W = 1920, TOP_H = 1080, BOTTOM_W = 1239, BOTTOM_H = 1080;
 
     private static final int PICK_ROOT = 1;
     /** Wifi's request for location access, which Android lists networks behind */
     static final int ASK_LOCATION = 2;
 
     private final Gamepad gamepad = new Gamepad();
+    private Handheld handheld;
     private DisplayManager displays;
     private DeckPresentation deck;
     private boolean started;
+    /** handed over to Relaunch: this instance is going */
+    private boolean leaving;
     private Device device;
     /** the brightness both windows ask for, 0..1, or -1 for the system's */
     private float brightness = -1;
@@ -64,18 +64,12 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
-        // the stage belongs on the upper display; launched from the lower one, move up
-        Display own = getDisplay();
-        if (own != null && own.getDisplayId() != Display.DEFAULT_DISPLAY) {
-            Intent intent = new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent, ActivityOptions.makeBasic().setLaunchDisplayId(Display.DEFAULT_DISPLAY).toBundle());
-            finish();
-            return;
-        }
+        if (misplaced()) return;
+        handheld = Handheld.detect(this);
         Window window = getWindow();
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         SurfaceView stage = new SurfaceView(this);
-        stage.getHolder().setFixedSize(TOP_W, TOP_H);
+        stage.getHolder().setFixedSize(handheld.topWidth, handheld.topHeight);
         stage.getHolder().addCallback(this);
         stage.setFocusable(true);
         stage.setFocusableInTouchMode(true);
@@ -86,14 +80,49 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         immersive(window);
         stage.requestFocus();
         displays = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-        String pocket = Assets.shell(this);
+        String pocket = Assets.shell(this, handheld);
         Wifi wifi = Wifi.get(this);
         wifi.attach(this);
-        Native.start(pocket, Linux.bridge(this), Linux.root(this).getAbsolutePath(), wifi);
+        Native.start(handheld.id, pocket, Linux.bridge(this), Linux.root(this).getAbsolutePath(), wifi);
         LinuxService.start(this);
         device = new Device(this, this::setBrightness);
         device.start();
         started = true;
+    }
+
+    /** The stage belongs on the upper display. Started on another one (a
+     *  launcher on the lower display), or moved there with its task, it
+     *  hands over to {@link Relaunch} and removes its task; true then. */
+    private boolean misplaced() {
+        if (leaving) return true;
+        Display own = getDisplay();
+        if (own == null || own.getDisplayId() == Display.DEFAULT_DISPLAY) return false;
+        leaving = true;
+        // a task of its own (its affinity): this one goes
+        startActivity(new Intent(this, Relaunch.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        finishAndRemoveTask();
+        return true;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        misplaced();
+    }
+
+    /** A launcher on the lower display, started while the stage runs, hands
+     *  this instance the intent and then moves its task there. */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        getWindow().getDecorView().post(this::misplaced);
+    }
+
+    /** The move to another display arrives as a configuration change. */
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration config) {
+        super.onConfigurationChanged(config);
+        misplaced();
     }
 
     @Override
@@ -230,7 +259,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         Display target = deckDisplay();
         if (deck != null && (target == null || deck.getDisplay().getDisplayId() != target.getDisplayId())) hideDeck();
         if (deck == null && target != null) {
-            deck = new DeckPresentation(this, target, gamepad);
+            deck = new DeckPresentation(this, target, gamepad, handheld);
             try {
                 deck.show();
                 if (brightness >= 0) deck.setBrightness(brightness);

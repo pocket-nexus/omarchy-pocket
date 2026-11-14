@@ -28,6 +28,12 @@ bun tools/android.ts push-rootfs    # the app installs it at its next start
 bun tools/android.ts release        # a release's files in dist/android/<version>/, signed with the release key
 ```
 
+## On the Retroid Pocket Duo Lite
+
+<p align="center"><img src="docs/media/retroid-pocket-duo-lite.webp" width="420" alt="The Duo Lite's two screens: a clock, a terminal and Activity tiled on the upper screen, the keyboard deck on the lower one"></p>
+
+The Retroid Pocket Duo Lite (Snapdragon 665, Android 15, a 5.5" 1920×1080 upper display over a 4.2" 1280×960 touch display) runs the Thor's app: one APK carries both handhelds' profiles, shell packages and applets (11 MB) and chooses by `Build.MODEL`. The stage is the Thor's 640×360 points; the deck is 426×320 points at density 3, the keys 8.5 mm apart; the Retroid Pocket Controller is the gamepad, and the shoulder legend draws the D-pad over the left stick, A B X Y in Nintendo order and SELECT and START at the lower display's upper corners, where they sit. A launcher on the lower display starts the app on the upper one. [docs/retroid-pocket-duo-lite.md](docs/retroid-pocket-duo-lite.md) has the details. 0.2.0's APK carries the Thor's profile only: install a later release, or from source with `ANDROID_SERIAL=<serial> bun tools/android.ts all`.
+
 ## On the ClockworkPi uConsole
 
 The ClockworkPi uConsole (Raspberry Pi CM4, Raspberry Pi OS 13) runs Omarchy Pocket beside its own desktop: the same host program built with Mesa (`--features mesa`) on its one 5" panel, the stage turned a quarter onto the 720×1280 portrait panel and taking all of it at 640×360 points (density 2); the keyboard as the keyboard, the trackball as the pointer with L and R as its buttons, the D-pad and A B X Y as the gamepad, and START as SUPER, tapped to latch a layer or held for a chord, with the controls' meanings drawn along the panel's bottom edge right above them. Omarchy's CLI and omarchy-pocketd run in the AYN Thor's Arch Linux ARM root under chroot, on Raspberry Pi OS's NetworkManager, PipeWire, BlueZ and logind. [docs/clockwork-uconsole.md](docs/clockwork-uconsole.md) has the details.
@@ -55,19 +61,20 @@ The windows' applets come from [pocket-nexus/applets](https://github.com/pocket-
 - [docs/device.md](docs/device.md): hardware, partitions, boot chain, kernel and GPU stack of the stock firmware.
 - [docs/usb-link.md](docs/usb-link.md): SSH and port forwarding from a Mac over the OTG USB port, with measurements.
 - [docs/ayn-thor.md](docs/ayn-thor.md): the AYN Thor as an Android app: displays, the shell's geometry, input, the Linux root under proot, Android in place of the system services.
+- [docs/retroid-pocket-duo-lite.md](docs/retroid-pocket-duo-lite.md): the Retroid Pocket Duo Lite on the same app: its displays and profile, one APK for both handhelds, its controller and legend, launchers on the lower display, run-time glyphs on the Snapdragon 665.
 - [docs/clockwork-uconsole.md](docs/clockwork-uconsole.md): the ClockworkPi uConsole: its controls, START as SUPER, the trackball, the controls row, the turned panel, Omarchy's root under chroot, the session beside Raspberry Pi OS's desktop.
 - [docs/hyprland-on-libmali.md](docs/hyprland-on-libmali.md): Omarchy's Hyprland on the stock kernel through libmali (the first approach, kept as a record).
 
 | Path | Contents |
 |---|---|
 | `shell/` | the PocketJS shell (Solid) |
-| `host/` | omarchy-pocket-host, the device program (Rust); `libomarchy_pocket.so` for the AYN Thor (`src/android.rs`, `src/gpu_android.rs`) |
-| `android/` | the AYN Thor's Android app (Java, Gradle), its host profile (`pocket.host.json`) and the Linux root's `start.sh` |
+| `host/` | omarchy-pocket-host, the device program (Rust); `libomarchy_pocket.so` for the Android handhelds (`src/android.rs`, `src/gpu_android.rs`) |
+| `android/` | the Android handhelds' app (Java, Gradle), each handheld's host profile (`handhelds/<id>/pocket.host.json`: the AYN Thor's, the Retroid Pocket Duo Lite's) and the Linux root's `start.sh` |
 | `uconsole/` | the ClockworkPi uConsole's host profile (`pocket.host.json`), its package's files (`rootfs/`: `omarchy-root`, `omarchy-pocket-session`, the session's units, PAM, polkit, logind, tmpfiles) and maintainer scripts (`debian/`), and the release it installs the root from (`release.json`) |
 | `daemon/` | omarchy-pocketd (bridge, `omarchy-shell` socket, terminals, the companion's services) and the `hyprctl`/`uwsm`/`omarchy-pocket-term` shims (Bun) |
 | `spotify/` | omarchy-pocket-spotify, the Spotify service's program (Rust, on spotatui's modules) |
 | `tools/build.ts`, `tools/deploy.ts`, `tools/screenshot.ts` | build the programs, put them on a device over SSH, read both panels back from the GPU |
-| `tools/android.ts` | the AYN Thor's app, its applets and its Linux root; `exec` runs a command in the root over adb |
+| `tools/android.ts` | the Android handhelds' app, each handheld's shell package and applets, the Linux root; `exec` runs a command in the root over adb |
 | `tools/uconsole.ts` | the uConsole's host program, shell and applets, the Debian package, installing it and the session over SSH, the release |
 | `tools/omarchy-assets.ts` | Omarchy's menu, theme, wallpaper and fonts for the shell, from the pinned rc packages |
 | `image/build-root.ts`, `image/install.ts` | the system image and its installer |

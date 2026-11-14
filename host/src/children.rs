@@ -329,8 +329,8 @@ impl Children {
         let bottom = profile.auxiliary.ok_or("the profile has no auxiliary display")?;
         let gpu = compositor.app(&[(DisplayRole::Primary, top), (DisplayRole::Auxiliary, bottom)])?;
         let mut runtime = Runtime::new(RuntimeConfig {
-            profile_hash: crate::profile::PROFILE_HASH,
-            host_abi: crate::profile::HOST_ABI,
+            profile_hash: crate::profile::hash(),
+            host_abi: crate::profile::host_abi(),
             heap_limit: APP_HEAP,
             frame_buffer_budget: (top[0] * top[1] + bottom[0] * bottom[1]) as usize * 8,
             profile: profile.clone(),
@@ -345,7 +345,8 @@ impl Children {
         }
         let feed = Rc::new(RefCell::new(Feed::default()));
         runtime.add_input_source(Box::new(FedInput(feed.clone()))).map_err(error)?;
-        let exchange = self.net.borrow_mut().add_app(id, path.display().to_string());
+        // the daemon opens the package by its name in the daemon's root
+        let exchange = self.net.borrow_mut().add_app(id, crate::guest::guest_path(path));
         let resized = Rc::new(Cell::new(None));
         let media = Rc::new(RefCell::new(None));
         let typing = Rc::new(Cell::new(None));

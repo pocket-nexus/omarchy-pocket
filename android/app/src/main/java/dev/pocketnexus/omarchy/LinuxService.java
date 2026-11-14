@@ -68,7 +68,7 @@ public final class LinuxService extends Service {
         nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Linux environment", NotificationManager.IMPORTANCE_MIN));
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
         Notification n = new Notification.Builder(this, CHANNEL)
-                .setSmallIcon(R.drawable.icon)
+                .setSmallIcon(R.drawable.notification)
                 .setContentTitle("Omarchy Pocket")
                 .setContentText(text)
                 .setContentIntent(open)

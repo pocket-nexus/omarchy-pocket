@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The clamshell: the upper screen's sunset (#7a4bd6, #ff6f91, #ffc46b) over
+     the deck's two lines, in the 66 dp safe circle (27.5..80.5 high). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- upper half: bezel, screen -->
+    <path android:fillColor="#FF23242C" android:strokeColor="#FF383A4A" android:strokeWidth="0.8"
+        android:pathData="M40,27.5h28a5.5,5.5 0 0 1 5.5,5.5v14a5.5,5.5 0 0 1 -5.5,5.5h-28a5.5,5.5 0 0 1 -5.5,-5.5v-14a5.5,5.5 0 0 1 5.5,-5.5z" />
+    <path android:pathData="M41,31.3h26a2,2 0 0 1 2,2v13.4a2,2 0 0 1 -2,2h-26a2,2 0 0 1 -2,-2v-13.4a2,2 0 0 1 2,-2z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="54" android:startY="31.3" android:endX="54" android:endY="48.7">
+                <item android:offset="0" android:color="#FF7A4BD6" />
+                <item android:offset="0.55" android:color="#FFFF6F91" />
+                <item android:offset="1" android:color="#FFFFC46B" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- lower half: bezel, screen, the deck's lines -->
+    <path android:fillColor="#FF23242C" android:strokeColor="#FF383A4A" android:strokeWidth="0.8"
+        android:pathData="M40,55.5h28a5.5,5.5 0 0 1 5.5,5.5v14a5.5,5.5 0 0 1 -5.5,5.5h-28a5.5,5.5 0 0 1 -5.5,-5.5v-14a5.5,5.5 0 0 1 5.5,-5.5z" />
+    <path android:fillColor="#FF0D0E14"
+        android:pathData="M41,59.3h26a2,2 0 0 1 2,2v13.4a2,2 0 0 1 -2,2h-26a2,2 0 0 1 -2,-2v-13.4a2,2 0 0 1 2,-2z" />
+    <path android:fillColor="#FF8E99C9"
+        android:pathData="M42.8,64.6h22.4a1.3,1.3 0 0 1 0,2.6h-22.4a1.3,1.3 0 0 1 0,-2.6z M45.8,69.2h16.4a1.3,1.3 0 0 1 0,2.6h-16.4a1.3,1.3 0 0 1 0,-2.6z" />
+</vector>

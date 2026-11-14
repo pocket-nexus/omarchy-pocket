@@ -39,7 +39,7 @@ use std::{
 };
 
 /// Where the daemon's absolute paths are on this system's filesystem. On the
-/// RG DS Plus the daemon and the host share one root; on the AYN Thor the
+/// RG DS Plus the daemon and the host share one root; on the Android handhelds the
 /// daemon runs in the app's Linux root under proot, so a path the shell hands
 /// over (a wallpaper tile, a glyph atlas, an applet package) lies under that
 /// root's directory, which the Android program sets once (`set_guest_root`).
@@ -55,6 +55,20 @@ pub fn host_path(path: &str) -> PathBuf {
     match (GUEST_ROOT.get(), path.strip_prefix('/')) {
         (Some(root), Some(relative)) => root.join(relative),
         _ => PathBuf::from(path),
+    }
+}
+
+/// A path this program opened, as the daemon names it: `host_path`'s
+/// inverse. The daemon reads an applet's rights from its package by this
+/// name (net.rs `appNet`); under proot the host's path does not exist.
+pub fn guest_path(path: &std::path::Path) -> String {
+    in_root(GUEST_ROOT.get().map(PathBuf::as_path), path)
+}
+
+fn in_root(root: Option<&std::path::Path>, path: &std::path::Path) -> String {
+    match root.and_then(|root| path.strip_prefix(root).ok()) {
+        Some(relative) => format!("/{}", relative.display()),
+        None => path.display().to_string(),
     }
 }
 
@@ -358,5 +372,22 @@ impl Guest for BridgedGuest {
     }
     fn shutdown(&mut self) {
         self.inner.shutdown();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::in_root;
+    use std::path::Path;
+
+    #[test]
+    fn a_package_under_the_root_goes_by_its_name_in_the_root() {
+        let root = Path::new("/data/user/0/dev.pocketnexus.omarchy/files/linux/rootfs");
+        let package = root.join("usr/share/omarchy-pocket/applets/discord.pocket");
+        assert_eq!(in_root(Some(root), &package), "/usr/share/omarchy-pocket/applets/discord.pocket");
+        // the RG DS Plus: one root for both
+        assert_eq!(in_root(None, &package), package.display().to_string());
+        // a package outside the root keeps its path
+        assert_eq!(in_root(Some(root), Path::new("/tmp/x.pocket")), "/tmp/x.pocket");
     }
 }

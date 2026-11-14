@@ -1,0 +1,37 @@
+{
+  "format": "pocket-host/2",
+  "id": "retroid-pocket-duo-lite",
+  "platform": "android",
+  "form": "takeover",
+  "cadences": [60],
+  "display": {
+    "logicalViewports": [[640, 360]],
+    "presentations": ["native"],
+    "rasterDensity": 3,
+    "animation": "composited",
+    "auxiliary": {
+      "logicalViewports": [[426, 320]],
+      "presentations": ["native"],
+      "rasterDensity": 3
+    }
+  },
+  "panel": {
+    "primary": [1920, 1080],
+    "auxiliary": [1278, 960]
+  },
+  "capabilities": [
+    "display.auxiliary",
+    "input.buttons",
+    "input.touch.auxiliary",
+    "media.playback",
+    "net.http",
+    "runtime.worker",
+    "system.wifi",
+    "text.glyphs.baked"
+  ],
+  "worker": {
+    "nodes": { "http": 1 },
+    "channels": { "recordBytes": 16384, "capacity": 64 },
+    "http": { "responseBytes": 4194304 }
+  }
+}

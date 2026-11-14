@@ -18,7 +18,7 @@ import type { Socket, UnixSocketListener } from "bun";
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { bridgePath, shellPath } from "./paths.ts";
-import { levelOsd, type AppNetLine, type DaemonMessage, type Request, type RunResult, type SystemState } from "./protocol.ts";
+import { levelOsd, LOCK_ICON, type AppNetLine, type DaemonMessage, type Request, type RunResult, type SystemState } from "./protocol.ts";
 import { AppNet } from "./companion.ts";
 import { CLOSED, Notifications } from "./notifications.ts";
 import { Terminals, type OpenOptions } from "./term.ts";
@@ -537,12 +537,25 @@ function listen(path: string, handlers: Parameters<typeof Bun.listen<Peer>>[0]["
 
 // ---- run-time glyphs ------------------------------------------------------
 
+/** The characters of the prompt's configuration (Omarchy's starship.toml):
+ *  the run-time glyphs among them are the ones a prompt draws. */
+function promptSymbols(): string {
+  try {
+    return readFileSync(join(HOME, ".config", "starship.toml"), "utf8");
+  } catch {
+    return "";
+  }
+}
+
 const glyphs = new Glyphs(join(RUNTIME, "omarchy-pocket", "glyphs"), join(HOME, ".cache", "omarchy-pocket", "glyphs"), (atlases) =>
   broadcast({ event: "atlas", atlases }),
 );
-// the 3,755 common characters, once at start, so pinyin candidates and most
-// Chinese text never wait for a bake
-glyphs.want(commonHanzi());
+// once at start: the 3,755 common characters, so pinyin candidates and most
+// Chinese text never wait for a bake; and what every session draws from the
+// run-time slots, the prompt's symbols (starship.toml's ❯ ✗ and git marks)
+// and the Network panel's lock, so a first terminal never shows them as
+// boxes while a bake runs (a minute on the Duo Lite's Snapdragon 665)
+glyphs.want(commonHanzi() + promptSymbols() + LOCK_ICON);
 
 // ---- Chinese input --------------------------------------------------------
 

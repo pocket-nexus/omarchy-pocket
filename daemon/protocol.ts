@@ -208,6 +208,10 @@ export function needsRuntimeGlyph(cp: number): boolean {
   return cp >= 0x100;
 }
 
+/** The Network panel's mark beside a secured network (Nerd Font
+ *  nf-md-lock), drawn with the network's name from a run-time slot. */
+export const LOCK_ICON = "\u{f033e}";
+
 /** Emoji command-line tools print, drawn as the Nerd Font icon for the same
  *  thing: no face on the device has their outlines (Noto Color Emoji is
  *  bitmaps). starship marks a read-only directory with 🔒. */

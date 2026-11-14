@@ -47,6 +47,16 @@ mod uconsole;
 #[allow(dead_code)] // The export defines every fact; the program reads some.
 mod profile {
     include!(concat!(env!("OUT_DIR"), "/pocket_profile.rs"));
+
+    /// The facts the apps in the shell's windows are admitted against
+    /// (children.rs), as the Android library chooses them at its start.
+    pub fn hash() -> [u8; 32] {
+        PROFILE_HASH
+    }
+
+    pub fn host_abi() -> u32 {
+        HOST_ABI
+    }
 }
 
 /// The gamepad (`ANBERNIC-rk3568-keys`), measured on the device and matching

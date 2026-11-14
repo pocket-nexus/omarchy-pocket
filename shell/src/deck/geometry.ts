@@ -1,6 +1,7 @@
 // The deck's bands: the function row along the top and the body under it (the
 // layout: keys or pad). Body components draw in their own coordinates,
-// DECK_W x BODY_H (512 x 350 on the RG DS Plus, 413 x 326 on the AYN Thor).
+// DECK_W x BODY_H (512 x 350 on the RG DS Plus, 413 x 326 on the AYN Thor,
+// 426 x 286 on the Retroid Pocket Duo Lite).
 //
 // The keys layout is a laptop's lower half: four rows of keys and under them
 // a trackpad with two round buttons on either side. The pad layout folds the

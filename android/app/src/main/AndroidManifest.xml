@@ -22,7 +22,8 @@
 
     <application
         android:label="Omarchy Pocket"
-        android:icon="@drawable/icon"
+        android:icon="@mipmap/icon"
+        android:roundIcon="@mipmap/icon"
         android:allowBackup="false"
         android:extractNativeLibs="true"
         android:isGame="true"
@@ -42,6 +43,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- MainActivity started on the lower display goes through this to the upper one -->
+        <activity
+            android:name=".Relaunch"
+            android:exported="false"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:taskAffinity="dev.pocketnexus.omarchy.relaunch"
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
 
         <service
             android:name=".LinuxService"

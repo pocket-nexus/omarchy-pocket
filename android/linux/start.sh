@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# The Linux environment's first process on the AYN Thor. The app
+# The Linux environment's first process on the Android handhelds. The app
 # (android/app's LinuxService) runs it under proot as the Omarchy user, from
 # a login shell, so it has Omarchy's environment (/etc/profile.d/omarchy.sh),
 # as the RG DS Plus's omarchy-pocketd.service does. It puts up the session

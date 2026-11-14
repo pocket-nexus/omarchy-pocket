@@ -5,10 +5,12 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 
 /**
- * The Odin controller as PocketJS buttons, by the buttons' labels as Android
- * reports them: A confirms (CIRCLE, the framework's focus press), B goes back
- * (CROSS), X is TRIANGLE and Y is SQUARE, as on the RG DS Plus. The D-pad
- * arrives as keys and as the hat; L2 and R2 as keys and as analog triggers.
+ * The handheld's controller (the Thor's Odin controller, the Duo Lite's
+ * Retroid Pocket Controller) as PocketJS buttons, by the buttons' labels as
+ * Android reports them: A confirms (CIRCLE, the framework's focus press), B
+ * goes back (CROSS), X is TRIANGLE and Y is SQUARE, as on the RG DS Plus.
+ * The D-pad arrives as keys and as the hat; L2 and R2 as keys and as analog
+ * triggers.
  */
 final class Gamepad {
     // pocket_spec::btn
