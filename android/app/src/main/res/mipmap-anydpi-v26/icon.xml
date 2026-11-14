@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher's icon: omapocket.org's mark (site/public/favicon.svg), the
+     two screens of a clamshell with the sunset over the deck, on the site's
+     night (#180c30). The launcher masks the 108 dp layers to its shape; the
+     mark stays inside the 66 dp circle every mask keeps. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/icon_background" />
+    <foreground android:drawable="@drawable/icon_foreground" />
+    <monochrome android:drawable="@drawable/icon_monochrome" />
+</adaptive-icon>

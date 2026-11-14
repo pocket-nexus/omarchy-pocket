@@ -87,7 +87,7 @@ const LAYERS: Record<Layer, { rows: Key[][]; inset: number[] }> = {
   },
 };
 
-/** ten keys across the deck (51.2 points on the RG DS Plus, 41.3 on the Thor) */
+/** ten keys across the deck (51.2 points on the RG DS Plus, 41.3 on the Thor, 42.6 on the Duo Lite) */
 const UNIT = DECK_W / 10;
 const GAP = 5;
 /** Row height on the lock, where the keys have the deck to themselves. */

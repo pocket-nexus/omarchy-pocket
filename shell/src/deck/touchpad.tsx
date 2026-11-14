@@ -17,7 +17,8 @@
 // (app.surfaces.auxiliary without `applet`) shows that surface in the pad layout
 // instead, and the fingers on it are its contacts. While the pins are edited
 // the app list covers the trackpad, and the trackpad moves no pointer.
-import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
+import { fitLines } from "./hint.ts";
 import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework/host";
 import { closeFocused } from "../actions.ts";
@@ -205,20 +206,6 @@ export function Touchpad() {
   );
 }
 
-/** JetBrains Mono at text-xs: 0.6 em of 12 points */
-const XS_ADVANCE = 7.2;
-
-/** Two lines when one is wider than `width`: the break goes at the
- *  separator nearest the middle (the Thor's pad is 289 points wide, the RG
- *  DS Plus's 388). */
-function fit(text: string, width: number): string {
-  if (text.length * XS_ADVANCE <= width) return text;
-  const middle = text.length / 2;
-  let best = -1;
-  for (let at = text.indexOf(" · "); at >= 0; at = text.indexOf(" · ", at + 1)) if (best < 0 || Math.abs(at - middle) < Math.abs(best - middle)) best = at;
-  return best < 0 ? text : `${text.slice(0, best)}\n${text.slice(best + 3)}`;
-}
-
 /** The line along the trackpad's bottom edge: what a chord sent, what the keys do here. */
 const line = () => {
   const voice = voiceState();
@@ -235,6 +222,8 @@ function Pad() {
   // the keys fold away: the trackpad grows from where it was on the core's tracks
   createEffect(on(rect, (next, prev) => node && prev && prev !== next && flip(node, prev, next, 1, 1, 180), { defer: false }));
   const field = () => keySink().field;
+  // one or two lines where they always were; a third goes above them
+  const hint = createMemo(() => fitLines(line(), rect().w - 24));
   return (
     <>
       <View
@@ -246,10 +235,10 @@ function Pad() {
         when={field()}
         fallback={
           <Text
-            class="absolute h-[28] overflow-hidden text-center font-mono text-xs leading-[14]"
-            style={{ insetL: rect().x + 12, insetT: rect().y + rect().h - 34, width: rect().w - 24, textColor: color(voiceState() !== "idle" || chordSent() ? "accent" : "muted") }}
+            class="absolute overflow-hidden text-center font-mono text-xs leading-[14]"
+            style={{ insetL: rect().x + 12, insetT: rect().y + rect().h - 34 - 14 * Math.max(0, hint().length - 2), width: rect().w - 24, height: 14 * Math.max(2, hint().length), textColor: color(voiceState() !== "idle" || chordSent() ? "accent" : "muted") }}
           >
-            {fit(line(), rect().w - 24)}
+            {hint().join("\n")}
           </Text>
         }
       >

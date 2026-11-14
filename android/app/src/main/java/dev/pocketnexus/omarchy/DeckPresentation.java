@@ -15,17 +15,21 @@ import android.widget.FrameLayout;
 
 /**
  * The lower display: the shell's deck in a SurfaceView of the profile's
- * 1239 x 1080 pixels at the display's left edge (the display is 1240 wide;
- * the column left over stays black), and its touch as contacts. The window
- * takes no focus, so the controller's keys keep going to the activity.
+ * pixels at the display's left edge, and its touch as contacts. A logical
+ * size times the density can fall short of the display by a column or two
+ * (the Thor's 1239 of 1240, the Duo Lite's 1278 of 1280), which stay black.
+ * The window takes no focus, so the controller's keys keep going to the
+ * activity.
  */
 final class DeckPresentation extends Presentation implements SurfaceHolder.Callback {
     private final Gamepad gamepad;
+    private final Handheld handheld;
     private SurfaceView surface;
 
-    DeckPresentation(Context outer, Display display, Gamepad gamepad) {
+    DeckPresentation(Context outer, Display display, Gamepad gamepad, Handheld handheld) {
         super(outer, display, R.style.Pocket_Deck);
         this.gamepad = gamepad;
+        this.handheld = handheld;
     }
 
     @Override
@@ -36,9 +40,9 @@ final class DeckPresentation extends Presentation implements SurfaceHolder.Callb
         FrameLayout root = new FrameLayout(getContext());
         root.setBackgroundColor(0xff000000);
         surface = new SurfaceView(getContext());
-        surface.getHolder().setFixedSize(MainActivity.BOTTOM_W, MainActivity.BOTTOM_H);
+        surface.getHolder().setFixedSize(handheld.bottomWidth, handheld.bottomHeight);
         surface.getHolder().addCallback(this);
-        root.addView(surface, new FrameLayout.LayoutParams(MainActivity.BOTTOM_W, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.START | Gravity.TOP));
+        root.addView(surface, new FrameLayout.LayoutParams(handheld.bottomWidth, handheld.bottomHeight, Gravity.START | Gravity.TOP));
         surface.setOnTouchListener((view, event) -> touch(event, view.getWidth(), view.getHeight()));
         setContentView(root);
         MainActivity.immersive(window);

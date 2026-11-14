@@ -1,7 +1,8 @@
 // What the buttons do while a shoulder is held, drawn on the deck as the
 // controls that sit around it: the D-pad and the stick left of the panel,
 // A B X Y and START/SELECT right of it (on the Thor the stick above the D-pad
-// and the faces in Xbox order, screen.ts), the shoulders along the top, each
+// and the faces in Xbox order; on the Duo Lite SELECT and START at the
+// panel's upper corners, screen.ts), the shoulders along the top, each
 // control at its side of the panel with the icon of what it does and one
 // word. The held layer's name is in the middle. It shows once a shoulder has
 // been held LEGEND_AFTER frames (a chord pressed at once never sees it) and
@@ -17,7 +18,7 @@ import { inkShift } from "../ink.ts";
 import { glide } from "../motion.ts";
 import { color } from "../theme.ts";
 import { layout } from "../workspaces.ts";
-import { DECK_H, DECK_SCALE, DECK_W, XBOX_FACES } from "../screen.ts";
+import { DECK_H, DECK_SCALE, DECK_W, DUO_LITE, XBOX_FACES } from "../screen.ts";
 
 /** frames a shoulder is held before the legend shows */
 export const LEGEND_AFTER = 14;
@@ -110,8 +111,8 @@ function Shoulder(props: { name: string; x: number; lit: boolean; glyph: Glyph |
 }
 
 /** START or SELECT: a pill with its name, the icon and the word beside it. */
-function Pill(props: { name: string; y: number; glyph: Glyph | null }) {
-  const x = DECK_W - 164;
+function Pill(props: { name: string; x: number; y: number; glyph: Glyph | null }) {
+  const x = props.x;
   // the literal's w-[152] h-[30]
   const w = 152;
   const h = 30;
@@ -138,12 +139,18 @@ function Pill(props: { name: string; y: number; glyph: Glyph | null }) {
 /** the controls' columns, 104 points in from each side of the RG DS Plus's
  *  512 and closer on a narrower deck */
 const SIDE = Math.round(104 * DECK_SCALE);
-const DPAD = { cx: SIDE, cy: XBOX_FACES ? 238 : 150, arm: Math.round(40 * DECK_SCALE) } as const;
+/** the D-pad's and the faces' rows: under the pills on the Duo Lite's 320 points */
+const DPAD = { cx: SIDE, cy: XBOX_FACES ? 238 : DUO_LITE ? 158 : 150, arm: Math.round(40 * DECK_SCALE) } as const;
 /** r matches the stick's w-[56] literal */
-const STICK = { cx: SIDE, cy: XBOX_FACES ? 106 : 292, r: 28 } as const;
-const FACES = { cx: DECK_W - SIDE, cy: XBOX_FACES ? 128 : 150, step: Math.round(54 * DECK_SCALE) } as const;
-/** START and SELECT along the bottom right (278 and 318 on the RG DS Plus) */
-const PILL_Y = [DECK_H - 106, DECK_H - 66] as const;
+const STICK = { cx: SIDE, cy: XBOX_FACES ? 106 : DUO_LITE ? 262 : 292, r: 28 } as const;
+const FACES = { cx: DECK_W - SIDE, cy: XBOX_FACES ? 128 : DUO_LITE ? 158 : 150, step: Math.round(54 * DECK_SCALE) } as const;
+/** START and SELECT: along the bottom right (278 and 318 on the RG DS Plus);
+ *  on the Duo Lite at the upper corners, SELECT left and START right, as the
+ *  buttons sit at the panel's corners */
+const PILL_W = 152;
+const PILLS = DUO_LITE
+  ? { start: [DECK_W - PILL_W - 12, 52], select: [12, 52] }
+  : { start: [DECK_W - PILL_W - 12, DECK_H - 106], select: [DECK_W - PILL_W - 12, DECK_H - 66] };
 const TITLE_W = Math.round(200 * DECK_SCALE);
 /** the face buttons by place: their letters and buttons */
 type FacePlace = "top" | "left" | "right" | "bottom";
@@ -238,8 +245,8 @@ export function DeckLegend() {
       <Face letter={FACE_AT.right[0]} cx={FACES.cx + FACES.step} cy={FACES.cy} glyph={face(FACE_AT.right[1])} />
       <Face letter={FACE_AT.bottom[0]} cx={FACES.cx} cy={FACES.cy + FACES.step} glyph={face(FACE_AT.bottom[1])} />
 
-      <Pill name="START" y={PILL_Y[0]} glyph={face(BTN.START)} />
-      <Pill name="SELECT" y={PILL_Y[1]} glyph={face(BTN.SELECT)} />
+      <Pill name="START" x={PILLS.start[0]} y={PILLS.start[1]} glyph={face(BTN.START)} />
+      <Pill name="SELECT" x={PILLS.select[0]} y={PILLS.select[1]} glyph={face(BTN.SELECT)} />
     </View>
   );
 }

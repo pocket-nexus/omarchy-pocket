@@ -1,7 +1,8 @@
-// Omarchy Pocket for the AYN Thor. tools/android.ts builds what the app
-// carries before Gradle runs: libomarchy_pocket.so (host/, the shell's
-// program) into src/main/jniLibs, the shell package and the applets into
-// src/main/assets (both ignored).
+// Omarchy Pocket for the Android handhelds (the AYN Thor, the Retroid Pocket
+// Duo Lite). tools/android.ts builds what the app carries before Gradle runs:
+// libomarchy_pocket.so (host/, the shell's program) into src/main/jniLibs,
+// each handheld's shell package and applets into src/main/assets (both
+// ignored).
 import java.util.Properties
 
 plugins {
@@ -55,10 +56,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    androidResources {
-        // the shell package and the applets are read from a copy in the app's files
-        noCompress += listOf("pocket")
-    }
+    // The shell packages and the applets stay compressed in the APK (a
+    // 43.7 MB package deflates to under 2 MB: its glyph atlases are mostly
+    // empty); the app reads each from a copy in its files (Assets.java).
 
     lint {
         // lint's own tools are a large download; the release build skips them

@@ -1,5 +1,6 @@
-// omarchy-pocketd on the AYN Thor, in the Android app's Linux environment
-// (proot, android/app's LinuxService). Android owns the device there: no
+// omarchy-pocketd on the Android handhelds (the AYN Thor, the Retroid Pocket
+// Duo Lite), in the Android app's Linux environment (proot, android/app's
+// LinuxService). Android owns the device there: no
 // systemd, logind, NetworkManager, PipeWire or BlueZ runs, and evdev is
 // closed to the app. The app keeps what the shell's bar and panels show in
 // one JSON file and carries out what the shell asks of the device:
@@ -20,6 +21,9 @@ import { join } from "node:path";
 import type { SystemState } from "./protocol.ts";
 
 export const ANDROID = process.env.OMARCHY_POCKET_PLATFORM === "android";
+/** The handheld's profile id (android/app's Handheld.java): "ayn-thor" or
+ *  "retroid-pocket-duo-lite". */
+export const HANDHELD = process.env.OMARCHY_POCKET_HANDHELD ?? "ayn-thor";
 
 const RUNTIME = process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 0}`;
 const DIR = join(RUNTIME, "omarchy-pocket");

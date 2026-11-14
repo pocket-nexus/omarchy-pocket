@@ -19,7 +19,7 @@
 //              screensaver, unless the screensaver-off toggle is on and the
 //              argument is not `force`
 //
-// On the AYN Thor (the Android app's root, daemon/android.ts) two more:
+// On the Android handhelds (the Android app's root, daemon/android.ts) two more:
 //
 //   wpctl      get-volume, set-volume and set-mute on Android's media volume
 //              (Omarchy's scripts call wpctl for the default sink)
@@ -27,16 +27,24 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { shellPath } from "./paths.ts";
-import { ANDROID, androidCommand, androidState } from "./android.ts";
+import { ANDROID, HANDHELD, androidCommand, androidState } from "./android.ts";
 import { UCONSOLE } from "./uconsole.ts";
 
 const name = basename(process.argv[1] ?? "");
 const args = process.argv.slice(2);
 
+/** Each Android handheld's displays as its profile sizes them
+ *  (android/handhelds/<id>/pocket.host.json). */
+const ANDROID_PANELS: Record<string, { make: string; model: string; lower: [number, number] }> = {
+  "ayn-thor": { make: "AYN", model: "Thor", lower: [1239, 1080] },
+  "retroid-pocket-duo-lite": { make: "Retroid", model: "Pocket Duo Lite", lower: [1278, 960] },
+};
+const handheld = ANDROID_PANELS[HANDHELD] ?? ANDROID_PANELS["ayn-thor"]!;
+
 const PANELS = (ANDROID
   ? [
-      { id: 0, name: "DSI-1", description: "AYN Thor upper display", focused: true, y: 0, width: 1920, height: 1080, make: "AYN", model: "Thor" },
-      { id: 1, name: "DSI-2", description: "AYN Thor lower display", focused: false, y: 360, width: 1239, height: 1080, make: "AYN", model: "Thor" },
+      { id: 0, name: "DSI-1", description: `${handheld.make} ${handheld.model} upper display`, focused: true, y: 0, width: 1920, height: 1080, make: handheld.make, model: handheld.model },
+      { id: 1, name: "DSI-2", description: `${handheld.make} ${handheld.model} lower display`, focused: false, y: 360, width: handheld.lower[0], height: handheld.lower[1], make: handheld.make, model: handheld.model },
     ]
   : UCONSOLE
   ? [{ id: 0, name: "DSI-1", description: "uConsole panel", focused: true, y: 0, width: 1280, height: 720, make: "ClockworkPi", model: "uConsole" }]

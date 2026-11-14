@@ -16,7 +16,7 @@ import java.util.List;
  * run under proot (Termux's, in the native library directory as
  * libproot.so). Its first process is android/linux/start.sh as the Omarchy
  * user, which becomes omarchy-pocketd; the shell's bridge reaches it through
- * the root's /run/user/1000/omarchy-pocket/bridge.sock.
+ * the root's /run/user/&lt;uid&gt;/omarchy-pocket/bridge.sock.
  */
 final class Linux {
     /** The archive's name, in the app's external files directory (adb push
@@ -112,14 +112,16 @@ final class Linux {
     /**
      * Before each start: Android's name servers as the root's resolv.conf,
      * the runtime directory, and, after an update of the app, the daemon,
-     * its start script, its shims and the Thor's applets from the app's
+     * its start script, its shims and the handheld's applets from the app's
      * assets, so the daemon matches the app whatever root it runs in.
      */
     static void prepare(Context context) throws IOException {
         File root = root(context);
         Assets.write(new File(root, "etc/resolv.conf"), resolvConf(context));
         File runtime = runtime(context);
-        if (!runtime.isDirectory() && !runtime.mkdirs()) throw new IOException("cannot make " + runtime);
+        // the activity's Device makes it too, for android.json: mkdirs fails
+        // for the one that comes second
+        if (!runtime.mkdirs() && !runtime.isDirectory()) throw new IOException("cannot make " + runtime);
         File link = new File(bridge(context));
         link.delete();
         try {
@@ -141,8 +143,9 @@ final class Linux {
         for (String name : SHIMS) place(context, "linux/shim.js", new File(bin, name), 0755);
         File applets = new File(root, "usr/share/omarchy-pocket/applets");
         applets.mkdirs();
-        String[] names = context.getAssets().list("applets");
-        if (names != null) for (String name : names) place(context, "applets/" + name, new File(applets, name), 0644);
+        String from = Handheld.detect(context).assets() + "/applets";
+        String[] names = context.getAssets().list(from);
+        if (names != null) for (String name : names) place(context, from + "/" + name, new File(applets, name), 0644);
         Assets.write(stamp, current);
     }
 
@@ -206,8 +209,10 @@ final class Linux {
         argv.add("TMPDIR=/tmp");
         // daemon/android.ts: Android, not systemd, logind and NetworkManager, holds the device's state
         argv.add("OMARCHY_POCKET_PLATFORM=android");
-        // the profile's raster density (android/pocket.host.json): the run-time glyph atlases are baked for it
-        argv.add("OMARCHY_POCKET_DENSITY=3");
+        // the profile's raster density (android/handhelds/<id>/pocket.host.json): the run-time glyph atlases are baked for it
+        argv.add("OMARCHY_POCKET_DENSITY=" + Handheld.DENSITY);
+        // which handheld: hyprctl's monitors (daemon/shim.ts)
+        argv.add("OMARCHY_POCKET_HANDHELD=" + Handheld.detect(context).id);
         argv.add("/usr/bin/bash");
         argv.add("-l");
         argv.add("/usr/lib/omarchy-pocket/start.sh");

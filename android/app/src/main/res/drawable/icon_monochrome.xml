@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The themed icon (Android 13+): the two halves with their screens cut
+     out and the deck's lines, in one colour the launcher tints. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+        android:pathData="M40,27.5h28a5.5,5.5 0 0 1 5.5,5.5v14a5.5,5.5 0 0 1 -5.5,5.5h-28a5.5,5.5 0 0 1 -5.5,-5.5v-14a5.5,5.5 0 0 1 5.5,-5.5z M41,31.3h26a2,2 0 0 1 2,2v13.4a2,2 0 0 1 -2,2h-26a2,2 0 0 1 -2,-2v-13.4a2,2 0 0 1 2,-2z" />
+    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+        android:pathData="M40,55.5h28a5.5,5.5 0 0 1 5.5,5.5v14a5.5,5.5 0 0 1 -5.5,5.5h-28a5.5,5.5 0 0 1 -5.5,-5.5v-14a5.5,5.5 0 0 1 5.5,-5.5z M41,59.3h26a2,2 0 0 1 2,2v13.4a2,2 0 0 1 -2,2h-26a2,2 0 0 1 -2,-2v-13.4a2,2 0 0 1 2,-2z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M42.8,64.6h22.4a1.3,1.3 0 0 1 0,2.6h-22.4a1.3,1.3 0 0 1 0,-2.6z M45.8,69.2h16.4a1.3,1.3 0 0 1 0,2.6h-16.4a1.3,1.3 0 0 1 0,-2.6z" />
+    <!-- the upper screen's sunset as a band of light along its bottom -->
+    <path android:fillColor="#99FFFFFF"
+        android:pathData="M39,42.5h30v4.2a2,2 0 0 1 -2,2h-26a2,2 0 0 1 -2,-2z" />
+</vector>

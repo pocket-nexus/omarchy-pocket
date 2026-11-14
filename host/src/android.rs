@@ -1,9 +1,11 @@
-//! The AYN Thor program: the same host as the RG DS Plus, built as
-//! libomarchy_pocket.so and loaded by the Android app in android/app. The
-//! shell package runs on one thread of its own (`start`), on both displays
-//! (gpu_android.rs: the upper display is the primary surface in the
+//! The Android handhelds' program (the AYN Thor, the Retroid Pocket Duo
+//! Lite): the same host as the RG DS Plus, built as libomarchy_pocket.so and
+//! loaded by the Android app in android/app. It carries each handheld's
+//! profile, and the app names the one it runs on (`start`; android/app's
+//! Handheld.java). The shell package runs on one thread of its own, on both
+//! displays (gpu_android.rs: the upper display is the primary surface in the
 //! activity's SurfaceView, the lower one the auxiliary surface in a
-//! Presentation's), with the Odin controller as buttons and sticks and the
+//! Presentation's), with the controller as buttons and sticks and the
 //! lower display's touch as contacts on the auxiliary surface. The Java side
 //! (android/app's Gamepad.java) maps Android's key codes and axes to
 //! PocketJS buttons; the upper display's touch is not used.
@@ -57,9 +59,54 @@ mod media;
 mod net;
 mod system;
 
-#[allow(dead_code)] // The export defines every fact; the program reads some.
+/// The handhelds' profiles (build.rs: one per `tools/android.ts` handheld)
+/// and the one the app chose at its start (`Native.start`).
 mod profile {
-    include!(concat!(env!("OUT_DIR"), "/pocket_profile.rs"));
+    use std::sync::OnceLock;
+
+    pub struct Handheld {
+        pub id: &'static str,
+        pub host_abi: u32,
+        pub hash: [u8; 32],
+        pub profile: fn() -> Option<pocket_runtime::Profile>,
+    }
+
+    include!(concat!(env!("OUT_DIR"), "/pocket_profiles.rs"));
+
+    static SELECTED: OnceLock<&'static Handheld> = OnceLock::new();
+
+    /// Chooses the handheld by its profile id, once per process; an id the
+    /// library does not carry is an error.
+    pub fn select(id: &str) -> Result<(), String> {
+        let handheld = HANDHELDS.iter().find(|h| h.id == id).ok_or_else(|| {
+            format!("no profile {id:?} in this library ({})", HANDHELDS.iter().map(|h| h.id).collect::<Vec<_>>().join(", "))
+        })?;
+        let chosen = SELECTED.get_or_init(|| handheld);
+        if chosen.id != id {
+            return Err(format!("the shell already runs as {}", chosen.id));
+        }
+        Ok(())
+    }
+
+    fn selected() -> &'static Handheld {
+        SELECTED.get().expect("Native.start chooses the handheld before the shell runs")
+    }
+
+    pub fn id() -> &'static str {
+        selected().id
+    }
+
+    pub fn hash() -> [u8; 32] {
+        selected().hash
+    }
+
+    pub fn host_abi() -> u32 {
+        selected().host_abi
+    }
+
+    pub fn profile() -> Option<pocket_runtime::Profile> {
+        (selected().profile)()
+    }
 }
 
 const PACKAGE_LIMIT: usize = 64 * 1024 * 1024;
@@ -327,8 +374,8 @@ fn run(options: Options) -> Result<(), Box<dyn Error>> {
     }
     let pixels = top[0] as usize * top[1] as usize + bottom[0] as usize * bottom[1] as usize;
     let mut runtime = Runtime::new(RuntimeConfig {
-        profile_hash: profile::PROFILE_HASH,
-        host_abi: profile::HOST_ABI,
+        profile_hash: profile::hash(),
+        host_abi: profile::host_abi(),
         heap_limit: 64 * 1024 * 1024,
         frame_buffer_budget: pixels * 8,
         profile: profile.clone(),
@@ -370,7 +417,7 @@ fn run(options: Options) -> Result<(), Box<dyn Error>> {
         }
     }
     runtime.boot().map_err(error)?;
-    eprintln!("omarchy-pocket: shell booted from {} ({} {}x{} + {}x{})", options.package.display(), profile::ID, top[0], top[1], bottom[0], bottom[1]);
+    eprintln!("omarchy-pocket: shell booted from {} ({} {}x{} + {}x{})", options.package.display(), profile::id(), top[0], top[1], bottom[0], bottom[1]);
     let mut clock = MonotonicClock::default();
     let cadence_hz = runtime.timing().ok_or_else(|| error("the shell did not boot"))?.cadence_hz;
     let mut schedule = TickSchedule::new(cadence_hz, clock.now(), 1).map_err(error)?;
@@ -428,8 +475,13 @@ fn string(env: &mut JNIEnv, value: &JString) -> String {
 /// Starts the shell's thread once per process: the shell outlives the
 /// activity, which only lends it windows.
 #[no_mangle]
-pub extern "system" fn Java_dev_pocketnexus_omarchy_Native_start(mut env: JNIEnv, _: JClass, package: JString, bridge: JString, root: JString, wifi: JObject) {
+pub extern "system" fn Java_dev_pocketnexus_omarchy_Native_start(mut env: JNIEnv, _: JClass, handheld: JString, package: JString, bridge: JString, root: JString, wifi: JObject) {
     stderr_to_logcat();
+    let handheld = string(&mut env, &handheld);
+    if let Err(e) = profile::select(&handheld) {
+        eprintln!("omarchy-pocket: {e}");
+        return;
+    }
     if let (Ok(vm), Ok(wifi)) = (env.get_java_vm(), env.new_global_ref(&wifi)) {
         let _ = WIFI.set((vm, wifi));
     }

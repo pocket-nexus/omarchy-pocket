@@ -14,6 +14,9 @@ interface Loader {
 }
 
 const [generation, setGeneration] = createSignal(0);
+/** Counts the run-time atlases loaded: a Text that names a run-time slot
+ *  itself (a terminal's wide run) is laid out again when it changes. */
+export const glyphGeneration = generation;
 const asked = new Set<string>();
 
 /** Whether `text` has a character the package's atlases lack. */

@@ -1,6 +1,6 @@
-import { parsePocketProfile } from "../vendor/pocketjs/framework/src/profile.ts";
-import { defineHostConfig } from "../vendor/pocketjs/framework/src/host-config.ts";
-import { HOST_CAPABILITIES } from "../host/pocket.host.config.ts";
+import { parsePocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
+import { defineHostConfig } from "../../../vendor/pocketjs/framework/src/host-config.ts";
+import { HOST_CAPABILITIES } from "../../../host/pocket.host.config.ts";
 import contract from "./pocket.host.json" with { type: "json" };
 
 /** The AYN Thor as an Android app: the same host program as the RG DS Plus

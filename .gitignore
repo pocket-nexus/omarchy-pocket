@@ -12,8 +12,8 @@ shell/src/wall-*.png
 target/
 .pocket-build/
 .pocket/
-shell/.pocket.app.thor.json
-shell/.pocket.app.uconsole.json
+# the shell's manifest with a device's surfaces (tools/android.ts, tools/uconsole.ts)
+shell/.pocket.app.*.json
 android/.gradle/
 android/build/
 android/app/build/
