@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Install Omarchy Pocket · Omarchy Pocket</title>
-<meta name="description" content="How to install Omarchy Pocket on the RG DS Plus, the AYN Thor and the ClockworkPi uConsole.">
+<meta name="description" content="How to install Omarchy Pocket on the RG DS Plus, the AYN Thor, the Retroid Pocket Duo Lite and the ClockworkPi uConsole.">
 <link rel="canonical" href="https://omapocket.org/docs/">
 <meta name="theme-color" content="#0e0a18">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Omarchy Pocket">
 <meta property="og:title" content="Install Omarchy Pocket">
-<meta property="og:description" content="How to install Omarchy Pocket on the RG DS Plus, the AYN Thor and the ClockworkPi uConsole.">
+<meta property="og:description" content="How to install Omarchy Pocket on the RG DS Plus, the AYN Thor, the Retroid Pocket Duo Lite and the ClockworkPi uConsole.">
 <meta property="og:url" content="https://omapocket.org/docs/">
 <meta property="og:image" content="https://omapocket.org/og-image.png">
 <link rel="icon" href="/favicon.ico" sizes="48x48">
@@ -27,7 +27,7 @@
   <nav class="links"><a href="/">Home</a><a href="/docs/" aria-current="true">Docs</a><a href="/demo/">Live demo</a><a class="ghost" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a></nav>
 </header>
 <div class="layout">
-<nav class="side" aria-label="Docs"><p class="side-h">Install</p><a href="/docs/" aria-current="page">Overview</a><a href="/docs/rg-ds-plus/">RG DS Plus</a><a href="/docs/ayn-thor/">AYN Thor</a><a href="/docs/uconsole/">ClockworkPi uConsole</a><p class="side-h">Release</p><a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.0">v0.2.0 on GitHub</a><a href="https://github.com/pocket-nexus/omarchy-pocket">Source</a><p class="side-h">On this page</p><a class="toc" href="#release">The release</a><a class="toc" href="#same-shell">One shell, three machines</a><a class="toc" href="#help">Help</a></nav>
+<nav class="side" aria-label="Docs"><p class="side-h">Install</p><a href="/docs/" aria-current="page">Overview</a><a href="/docs/rg-ds-plus/">RG DS Plus</a><a href="/docs/ayn-thor/">AYN Thor</a><a href="/docs/retroid-pocket-duo-lite/">Retroid Pocket Duo Lite</a><a href="/docs/uconsole/">ClockworkPi uConsole</a><p class="side-h">Release</p><a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.1">v0.2.1 on GitHub</a><a href="https://github.com/pocket-nexus/omarchy-pocket">Source</a><p class="side-h">On this page</p><a class="toc" href="#release">The release</a><a class="toc" href="#same-shell">One shell, four machines</a><a class="toc" href="#help">Help</a></nav>
 <main class="doc">
 
 <p class="eyebrow">Docs</p>
@@ -36,21 +36,22 @@
 <div class="cards">
 <a class="card" href="/docs/rg-ds-plus/"><img src="/docs/media/rg-ds-plus.webp" alt="The RG DS Plus open, a terminal and a clock on its upper screen and the keyboard on its lower one" loading="lazy"><div><p class="badge">From source</p><h3>Anbernic RG DS Plus</h3><p class="how">The SD card's system</p><p>Replaces the stock launcher; the stock system stays as the rescue boot. Built and installed from source.</p></div></a>
 <a class="card" href="/docs/ayn-thor/"><img src="/shots/thor/tile4-top.webp" alt="The AYN Thor's upper screen: a terminal, Notes, a clock and Activity tiled" loading="lazy"><div><p class="badge">From the release</p><h3>AYN Thor</h3><p class="how">An Android app</p><p>Install the app, give it the Linux root, play. Nothing rooted, nothing replaced.</p></div></a>
+<a class="card" href="/docs/retroid-pocket-duo-lite/"><img src="/docs/media/duo-lite/tile-top.webp" alt="The Duo Lite's upper screen: a clock, a terminal and Activity tiled" loading="lazy"><div><p class="badge">From the release</p><h3>Retroid Pocket Duo Lite</h3><p class="how">The same Android app</p><p>The Thor's app, laid out for the Duo Lite's 4.2″ lower screen and its controls.</p></div></a>
 <a class="card" href="/docs/uconsole/"><img src="/docs/media/uconsole/legend.webp" alt="The uConsole's panel with SUPER on: the controls row along its bottom edge" loading="lazy"><div><p class="badge">From the release</p><h3>ClockworkPi uConsole</h3><p class="how">A Debian package</p><p>One apt install beside Raspberry Pi OS. Its menu gives the panel back to the desktop.</p></div></a>
 </div>
 
 <h2 id="release">The release</h2>
-<p>Version 0.2.0 is on <a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.0">GitHub</a>. Check each file against <code>SHA256SUMS</code>.</p>
-<div class="table"><table><thead><tr><th>File</th><th>For</th><th>Size</th></tr></thead><tbody><tr><td><code>omarchy-pocket-uconsole_0.2.0_arm64.deb</code></td><td>ClockworkPi uConsole</td><td>3.5 MB</td></tr><tr><td><code>omarchy-pocket-0.2.0.apk</code></td><td>AYN Thor</td><td>65 MB</td></tr><tr><td><code>omarchy-pocket-root.tar.zst</code></td><td>AYN Thor, uConsole: Omarchy's Arch Linux ARM root</td><td>802 MB</td></tr><tr><td><code>SHA256SUMS</code></td><td>every file</td><td></td></tr></tbody></table></div>
+<p>Version 0.2.1 is on <a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.1">GitHub</a>. Check each file against <code>SHA256SUMS</code>.</p>
+<div class="table"><table><thead><tr><th>File</th><th>For</th><th>Size</th></tr></thead><tbody><tr><td><code>omarchy-pocket-uconsole_0.2.1_arm64.deb</code></td><td>ClockworkPi uConsole</td><td>3.5 MB</td></tr><tr><td><code>omarchy-pocket-0.2.1.apk</code></td><td>AYN Thor, Retroid Pocket Duo Lite</td><td>11 MB</td></tr><tr><td><code>omarchy-pocket-root.tar.zst</code></td><td>AYN Thor, Duo Lite, uConsole: Omarchy's Arch Linux ARM root (0.2.0's)</td><td>802 MB</td></tr><tr><td><code>SHA256SUMS</code></td><td>every file</td><td></td></tr></tbody></table></div>
 
-<h2 id="same-shell">One shell, three machines</h2>
-<p>The same shell runs on all three: Omarchy's bar, its menu, windows tiled the way Omarchy tiles them, Pocket Term, and the applets. What changes is how your hands reach it.</p>
-<div class="table"><table><thead><tr><th></th><th>RG DS Plus</th><th>AYN Thor</th><th>uConsole</th></tr></thead><tbody><tr><td>Screens</td><td>Two 4″, 1024 × 768</td><td>6″ 1080p over a 3.92″ touch screen</td><td>One 5″, 1280 × 720</td></tr><tr><td>Typing</td><td>The lower screen's keyboard</td><td>The lower screen's keyboard</td><td>Its own keyboard</td></tr><tr><td>Pointing</td><td>The lower screen's trackpad</td><td>The lower screen's trackpad</td><td>The trackball, with L and R as mouse buttons</td></tr><tr><td>SUPER</td><td>L1 and R1, held</td><td>L1 and R1, held</td><td>START, tapped or held</td></tr><tr><td>Back to stock</td><td>The boot chooser, or the card's backup</td><td>Uninstall the app</td><td>System › Raspberry Pi Desktop, or <code>apt remove</code></td></tr></tbody></table></div>
+<h2 id="same-shell">One shell, four machines</h2>
+<p>The same shell runs on all four: Omarchy's bar, its menu, windows tiled the way Omarchy tiles them, Pocket Term, and the applets. What changes is how your hands reach it.</p>
+<div class="table"><table><thead><tr><th></th><th>RG DS Plus</th><th>AYN Thor</th><th>Duo Lite</th><th>uConsole</th></tr></thead><tbody><tr><td>Screens</td><td>Two 4″, 1024 × 768</td><td>6″ 1080p over a 3.92″ touch screen</td><td>5.5″ 1080p over a 4.2″ touch screen</td><td>One 5″, 1280 × 720</td></tr><tr><td>Typing</td><td>The lower screen's keyboard</td><td>The lower screen's keyboard</td><td>The lower screen's keyboard</td><td>Its own keyboard</td></tr><tr><td>Pointing</td><td>The lower screen's trackpad</td><td>The lower screen's trackpad</td><td>The lower screen's trackpad</td><td>The trackball, with L and R as mouse buttons</td></tr><tr><td>SUPER</td><td>L1 and R1, held</td><td>L1 and R1, held</td><td>L1 and R1, held</td><td>START, tapped or held</td></tr><tr><td>Back to stock</td><td>The boot chooser, or the card's backup</td><td>Uninstall the app</td><td>Uninstall the app</td><td>System › Raspberry Pi Desktop, or <code>apt remove</code></td></tr></tbody></table></div>
 
 <h2 id="help">Help</h2>
 <p>Something not working? <a href="https://github.com/pocket-nexus/omarchy-pocket/issues">Open an issue</a> with your device, the release you installed, and what you saw. Each device's page lists the logs worth attaching.</p>
 
-<footer class="foot"><p>Omarchy Pocket 0.2.0. Every screen on these pages is the device's own, read back from its GPU or recorded off its display; the RG DS Plus's body around its screens is a 3D model. <a href="https://github.com/pocket-nexus/omarchy-pocket/issues">Report a problem</a></p></footer>
+<footer class="foot"><p>Omarchy Pocket 0.2.1. Every screen on these pages is the device's own, read back from its GPU or recorded off its display; the RG DS Plus's body around its screens is a 3D model. <a href="https://github.com/pocket-nexus/omarchy-pocket/issues">Report a problem</a></p></footer>
 </main>
 </div>
 </body>

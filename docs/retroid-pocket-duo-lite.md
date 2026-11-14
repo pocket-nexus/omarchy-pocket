@@ -83,7 +83,7 @@ Not verified: a physical press of any control (every press went through Android'
 
 ## Install
 
-From a release after 0.2.0 (0.2.0's APK carries the Thor's profile only, and squeezes it onto the Duo Lite's lower display): download `omarchy-pocket-<version>.apk` and `omarchy-pocket-root.tar.zst` onto the Duo Lite, install the APK, open Omarchy Pocket, press START and choose the root. The lock screen's password is `omarchy`. The app shows in Retroid's launcher and in Android's.
+From release 0.2.1 or later (0.2.0's APK carries the Thor's profile only, and squeezes it onto the Duo Lite's lower display): download `omarchy-pocket-<version>.apk` and `omarchy-pocket-root.tar.zst` onto the Duo Lite, install the APK, open Omarchy Pocket, press START and choose the root. The lock screen's password is `omarchy`. The app shows in Retroid's launcher and in Android's.
 
 From source, with the Duo Lite on adb:
 

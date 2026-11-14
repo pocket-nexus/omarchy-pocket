@@ -18,9 +18,12 @@
 //                                   through run-as (a debuggable build: apk --debug), as SSH
 //                                   reaches the RG DS Plus
 //   bun tools/android.ts all        lib, proot, daemon, shell, applets, apk, install
-//   bun tools/android.ts release    lib, proot, daemon, shell, applets, apk, rootfs, then the
+//   bun tools/android.ts release [--root <omarchy-pocket-root.tar.zst>]
+//                                   lib, proot, daemon, shell, applets, apk, rootfs, then the
 //                                   release's files in dist/android/<version>/: the APK
-//                                   signed with the release key, the root, SHA256SUMS
+//                                   signed with the release key, the root, SHA256SUMS;
+//                                   --root carries an earlier release's root unchanged
+//                                   (its SHA-256 stays the one uconsole/release.json names)
 //
 // `shell` and `applets` take --handheld <id> to build one handheld's. adb
 // reaches the device ANDROID_SERIAL names when more than one is attached.
@@ -382,7 +385,11 @@ async function release() {
   await shell();
   await applets([]);
   await apk();
-  await rootfs();
+  // an earlier release's root, byte for byte, or one built now
+  const rootAt = process.argv.indexOf("--root");
+  const root = rootAt >= 0 ? resolve(process.argv[rootAt + 1]!) : OUTPUTS.rootfs;
+  if (rootAt < 0) await rootfs();
+  else if (!existsSync(root)) throw new Error(`--root ${root}: no such file`);
   const debugKey = join(process.env.HOME ?? "", ".android", "debug.keystore");
   const cert = await signer(OUTPUTS.apk);
   if (existsSync(debugKey)) {
@@ -395,7 +402,7 @@ async function release() {
   mkdirSync(out, { recursive: true });
   const files = [`omarchy-pocket-${version}.apk`, "omarchy-pocket-root.tar.zst"];
   await $`cp ${OUTPUTS.apk} ${join(out, files[0]!)}`;
-  await $`cp ${OUTPUTS.rootfs} ${join(out, files[1]!)}`;
+  await $`cp ${root} ${join(out, files[1]!)}`;
   await $`shasum -a 256 ${files} > SHA256SUMS`.cwd(out);
   console.log(`release ${version}: ${out}`);
   console.log(`  signer certificate SHA-256: ${cert}`);

@@ -5,8 +5,8 @@ The ClockworkPi uConsole (Raspberry Pi CM4, Raspberry Pi OS 13 "trixie") runs Om
 ## Install
 
 ```sh
-curl -LO https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.0/omarchy-pocket-uconsole_0.2.0_arm64.deb
-sudo apt install ./omarchy-pocket-uconsole_0.2.0_arm64.deb
+curl -LO https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.1/omarchy-pocket-uconsole_0.2.1_arm64.deb
+sudo apt install ./omarchy-pocket-uconsole_0.2.1_arm64.deb
 omarchy-pocket-session on
 ```
 

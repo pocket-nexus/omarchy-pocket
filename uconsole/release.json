@@ -1,7 +1,7 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.1",
   "root": {
-    "url": "https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.0/omarchy-pocket-root.tar.zst",
+    "url": "https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.1/omarchy-pocket-root.tar.zst",
     "sha256": "5683475c735e52571309d9890e8c5f51190b6ebd748c809bf3f32525e7894878",
     "bytes": 801964563
   }

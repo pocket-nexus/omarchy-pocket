@@ -8,6 +8,9 @@
 // Media sources (the ignored .pocket-build/validation tree, as site/shots.ts):
 //   uconsole/<name>.png         the uConsole's stage read back from the GPU (1280 x 720)
 //   uconsole/session.mp4        the uConsole's panel recorded off KMS (ffmpeg kmsgrab), turned upright
+//   duo-lite/<name>.png         the Duo Lite's displays (adb exec-out screencap -d), -top and -bottom
+//   duo-lite/session.mp4        its upper display recorded (screenrecord; on its firmware screenrecord
+//                               records the upper display's content whatever display it is given)
 //   docs/thor-film.mp4          the AYN Thor's launch film (4K)
 // and docs/media/ (the README's pictures). The RG DS Plus's and the Thor's
 // panel captures and chord videos are the landing page's (public/shots).
@@ -21,7 +24,7 @@ const OUT = join(SITE, "public", "docs");
 const MEDIA = join(OUT, "media");
 const V = join(REPO, ".pocket-build", "validation");
 /** the release the pages describe (uconsole/release.json's and the Thor's versionName) */
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 const RELEASES = "https://github.com/pocket-nexus/omarchy-pocket/releases";
 const TAG = `${RELEASES}/tag/v${VERSION}`;
 const DOWNLOAD = `${RELEASES}/download/v${VERSION}`;
@@ -45,7 +48,31 @@ const UCONSOLE_SHOTS: Record<string, string> = {
   desktop: "desktop",
 };
 
+/** The Duo Lite's captures the page shows, by the name it uses: pairs as
+ *  <name>-top and <name>-bottom, single shots as they are. */
+const DUO_PAIRS: Record<string, string> = { tile: "scene", legend: "legend", menu: "menu2", lock: "lock" };
+const DUO_SHOTS: Record<string, string> = { network: "net5-top", launcher: "launcher" };
+
+async function duoMedia() {
+  const dir = join(MEDIA, "duo-lite");
+  mkdirSync(dir, { recursive: true });
+  const webp = async (from: string, to: string) => {
+    if (existsSync(from)) await $`magick ${from} -quality 82 -define webp:method=6 ${to}`.quiet();
+    else if (!existsSync(to)) throw new Error(`missing ${from}`);
+  };
+  for (const [name, source] of Object.entries(DUO_PAIRS)) {
+    for (const half of ["top", "bottom"]) await webp(join(V, "duo-lite", `${source}-${half}.png`), join(dir, `${name}-${half}.webp`));
+  }
+  for (const [name, source] of Object.entries(DUO_SHOTS)) await webp(join(V, "duo-lite", `${source}.png`), join(dir, `${name}.webp`));
+  const session = join(V, "duo-lite", "session.mp4");
+  if (existsSync(session)) {
+    await $`ffmpeg -loglevel error -y -i ${session} -c:v libx264 -preset slow -crf 26 -pix_fmt yuv420p -an -movflags +faststart ${join(dir, "session.mp4")}`;
+    await $`ffmpeg -loglevel error -y -ss 9 -i ${join(dir, "session.mp4")} -frames:v 1 -q:v 2 ${join(dir, "session-poster.jpg")}`;
+  }
+}
+
 async function media() {
+  await duoMedia();
   mkdirSync(join(MEDIA, "uconsole"), { recursive: true });
   for (const [name, source] of Object.entries(UCONSOLE_SHOTS)) {
     const from = join(V, "uconsole", `${source}.png`);
@@ -79,9 +106,10 @@ const table = (head: string[], rows: string[][]) =>
   `<div class="table"><table><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 const shot = (src: string, alt: string, caption: string, wide = false) =>
   `<figure class="shot${wide ? " wide" : ""}"><img src="${src}" alt="${esc(alt)}" loading="lazy" decoding="async"><figcaption>${caption}</figcaption></figure>`;
-/** A dual-screen device's two panels, the upper over the lower. */
-const pair = (top: string, bottom: string, alt: string, caption: string, thor = false) =>
-  `<figure class="pair${thor ? " thor" : ""}"><div class="screens"><img src="${top}" alt="${esc(alt)}, upper screen" loading="lazy"><img src="${bottom}" alt="${esc(alt)}, lower screen" loading="lazy"></div><figcaption>${caption}</figcaption></figure>`;
+/** A dual-screen device's two panels, the upper over the lower; `kind`
+ *  sizes the lower one against the upper as on the device. */
+const pair = (top: string, bottom: string, alt: string, caption: string, kind: "" | "thor" | "duo" = "") =>
+  `<figure class="pair${kind ? ` ${kind}` : ""}"><div class="screens"><img src="${top}" alt="${esc(alt)}, upper screen" loading="lazy"><img src="${bottom}" alt="${esc(alt)}, lower screen" loading="lazy"></div><figcaption>${caption}</figcaption></figure>`;
 const video = (src: string, poster: string, caption: string, label: string) =>
   `<figure class="shot wide"><video src="${src}" poster="${poster}" controls playsinline muted preload="none" aria-label="${esc(label)}"></video><figcaption>${caption}</figcaption></figure>`;
 const steps = (items: string[]) => `<ol class="steps">${items.map((i) => `<li>${i}</li>`).join("")}</ol>`;
@@ -134,6 +162,7 @@ const NAV = [
   { href: "/docs/", label: "Overview" },
   { href: "/docs/rg-ds-plus/", label: "RG DS Plus" },
   { href: "/docs/ayn-thor/", label: "AYN Thor" },
+  { href: "/docs/retroid-pocket-duo-lite/", label: "Retroid Pocket Duo Lite" },
   { href: "/docs/uconsole/", label: "ClockworkPi uConsole" },
 ];
 
@@ -193,6 +222,7 @@ function overview(): string {
 <div class="cards">
 ${card("/docs/rg-ds-plus/", "/docs/media/rg-ds-plus.webp", "The RG DS Plus open, a terminal and a clock on its upper screen and the keyboard on its lower one", "Anbernic RG DS Plus", "The SD card's system", "Replaces the stock launcher; the stock system stays as the rescue boot. Built and installed from source.", "From source")}
 ${card("/docs/ayn-thor/", "/shots/thor/tile4-top.webp", "The AYN Thor's upper screen: a terminal, Notes, a clock and Activity tiled", "AYN Thor", "An Android app", "Install the app, give it the Linux root, play. Nothing rooted, nothing replaced.", "From the release")}
+${card("/docs/retroid-pocket-duo-lite/", "/docs/media/duo-lite/tile-top.webp", "The Duo Lite's upper screen: a clock, a terminal and Activity tiled", "Retroid Pocket Duo Lite", "The same Android app", "The Thor's app, laid out for the Duo Lite's 4.2″ lower screen and its controls.", "From the release")}
 ${card("/docs/uconsole/", "/docs/media/uconsole/legend.webp", "The uConsole's panel with SUPER on: the controls row along its bottom edge", "ClockworkPi uConsole", "A Debian package", "One apt install beside Raspberry Pi OS. Its menu gives the panel back to the desktop.", "From the release")}
 </div>
 
@@ -200,25 +230,25 @@ ${card("/docs/uconsole/", "/docs/media/uconsole/legend.webp", "The uConsole's pa
 <p>Version ${VERSION} is on <a href="${TAG}">GitHub</a>. Check each file against <code>SHA256SUMS</code>.</p>
 ${table(["File", "For", "Size"], [
   [`<code>${DEB}</code>`, "ClockworkPi uConsole", "3.5 MB"],
-  [`<code>omarchy-pocket-${VERSION}.apk</code>`, "AYN Thor", "65 MB"],
-  ["<code>omarchy-pocket-root.tar.zst</code>", "AYN Thor, uConsole: Omarchy's Arch Linux ARM root", "802 MB"],
+  [`<code>omarchy-pocket-${VERSION}.apk</code>`, "AYN Thor, Retroid Pocket Duo Lite", "11 MB"],
+  ["<code>omarchy-pocket-root.tar.zst</code>", "AYN Thor, Duo Lite, uConsole: Omarchy's Arch Linux ARM root (0.2.0's)", "802 MB"],
   ["<code>SHA256SUMS</code>", "every file", ""],
 ])}
 
-<h2 id="same-shell">One shell, three machines</h2>
-<p>The same shell runs on all three: Omarchy's bar, its menu, windows tiled the way Omarchy tiles them, Pocket Term, and the applets. What changes is how your hands reach it.</p>
-${table(["", "RG DS Plus", "AYN Thor", "uConsole"], [
-  ["Screens", "Two 4″, 1024 × 768", "6″ 1080p over a 3.92″ touch screen", "One 5″, 1280 × 720"],
-  ["Typing", "The lower screen's keyboard", "The lower screen's keyboard", "Its own keyboard"],
-  ["Pointing", "The lower screen's trackpad", "The lower screen's trackpad", "The trackball, with L and R as mouse buttons"],
-  ["SUPER", "L1 and R1, held", "L1 and R1, held", "START, tapped or held"],
-  ["Back to stock", "The boot chooser, or the card's backup", "Uninstall the app", "System › Raspberry Pi Desktop, or <code>apt remove</code>"],
+<h2 id="same-shell">One shell, four machines</h2>
+<p>The same shell runs on all four: Omarchy's bar, its menu, windows tiled the way Omarchy tiles them, Pocket Term, and the applets. What changes is how your hands reach it.</p>
+${table(["", "RG DS Plus", "AYN Thor", "Duo Lite", "uConsole"], [
+  ["Screens", "Two 4″, 1024 × 768", "6″ 1080p over a 3.92″ touch screen", "5.5″ 1080p over a 4.2″ touch screen", "One 5″, 1280 × 720"],
+  ["Typing", "The lower screen's keyboard", "The lower screen's keyboard", "The lower screen's keyboard", "Its own keyboard"],
+  ["Pointing", "The lower screen's trackpad", "The lower screen's trackpad", "The lower screen's trackpad", "The trackball, with L and R as mouse buttons"],
+  ["SUPER", "L1 and R1, held", "L1 and R1, held", "L1 and R1, held", "START, tapped or held"],
+  ["Back to stock", "The boot chooser, or the card's backup", "Uninstall the app", "Uninstall the app", "System › Raspberry Pi Desktop, or <code>apt remove</code>"],
 ])}
 
 <h2 id="help">Help</h2>
 <p>Something not working? <a href="${REPO_URL}/issues">Open an issue</a> with your device, the release you installed, and what you saw. Each device's page lists the logs worth attaching.</p>
 `;
-  return page("/docs/", "Install Omarchy Pocket", "How to install Omarchy Pocket on the RG DS Plus, the AYN Thor and the ClockworkPi uConsole.", body, [["release", "The release"], ["same-shell", "One shell, three machines"], ["help", "Help"]]);
+  return page("/docs/", "Install Omarchy Pocket", "How to install Omarchy Pocket on the RG DS Plus, the AYN Thor, the Retroid Pocket Duo Lite and the ClockworkPi uConsole.", body, [["release", "The release"], ["same-shell", "One shell, four machines"], ["help", "Help"]]);
 }
 
 function uconsole(): string {
@@ -329,8 +359,8 @@ function thor(): string {
   const body = `
 <p class="eyebrow">Install · AYN Thor</p>
 <h1>AYN Thor</h1>
-<p class="lead">An Android app. Nothing rooted, nothing replaced: the upper screen is the monitor, the touch screen the keyboard and trackpad, the Odin controller the gamepad.</p>
-${pair(...T("tile4"), "Omarchy Pocket on the AYN Thor", "A terminal, Notes, a clock and Activity tiled on the upper screen, the keyboard on the lower one.", true)}
+<p class="lead">An Android app. Nothing rooted, nothing replaced: the upper screen is the monitor, the touch screen the keyboard and trackpad, the Odin controller the gamepad. The same APK runs on the <a href="/docs/retroid-pocket-duo-lite/">Retroid Pocket Duo Lite</a>.</p>
+${pair(...T("tile4"), "Omarchy Pocket on the AYN Thor", "A terminal, Notes, a clock and Activity tiled on the upper screen, the keyboard on the lower one.", "thor")}
 ${facts([
   ["Release", `<a href="${TAG}">v${VERSION}</a>: <code>omarchy-pocket-${VERSION}.apk</code> and <code>omarchy-pocket-root.tar.zst</code>`],
   ["Runs on", "The AYN Thor on AYN's Android 13 firmware"],
@@ -356,10 +386,10 @@ ${table(["Held", "D-pad", "A", "B", "X", "Y"], [
 ])}
 ${video("/shots/thor/chords.mp4", "/shots/thor/chords-top.webp", "The chord table played on the Thor, both screens recorded off the device.", "The AYN Thor's two screens while chords are pressed")}
 <div class="grid2">
-${pair(...T("legend"), "The window layer's legend", "Holding L1: the lower screen draws the window layer.", true)}
-${pair(...T("network"), "The Network panel", "Wi‑Fi from Omarchy's Network panel, through Android.", true)}
-${pair(...T("theme"), "The Lupine theme", "Omarchy's themes recolor everything.", true)}
-${pair(...T("split"), "Two terminals over the keyboard", "Two terminals over the keyboard.", true)}
+${pair(...T("legend"), "The window layer's legend", "Holding L1: the lower screen draws the window layer.", "thor")}
+${pair(...T("network"), "The Network panel", "Wi‑Fi from Omarchy's Network panel, through Android.", "thor")}
+${pair(...T("theme"), "The Lupine theme", "Omarchy's themes recolor everything.", "thor")}
+${pair(...T("split"), "Two terminals over the keyboard", "Two terminals over the keyboard.", "thor")}
 </div>
 
 <h2 id="film">The film</h2>
@@ -380,6 +410,66 @@ ${video("/docs/media/thor-film.mp4", "/docs/media/thor-film-poster.jpg", "36 sec
 `;
   return page("/docs/ayn-thor/", "Install on the AYN Thor", "Install Omarchy Pocket on the AYN Thor as an Android app: the app, then its Linux root.", body, [
     ["install", "Install"], ["controls", "Controls"], ["film", "The film"], ["update", "Update and uninstall"], ["limits", "Limits"],
+  ]);
+}
+
+function duoLite(): string {
+  const D = (scene: string) => [`/docs/media/duo-lite/${scene}-top.webp`, `/docs/media/duo-lite/${scene}-bottom.webp`] as const;
+  const S = (name: string) => `/docs/media/duo-lite/${name}.webp`;
+  const hasVideo = existsSync(join(MEDIA, "duo-lite", "session.mp4"));
+  const body = `
+<p class="eyebrow">Install · Retroid Pocket Duo Lite</p>
+<h1>Retroid Pocket Duo Lite</h1>
+<p class="lead">The AYN Thor's Android app, laid out for the Duo Lite: the 5.5″ upper screen is the monitor, the 4.2″ touch screen the keyboard and trackpad, the Retroid Pocket Controller the gamepad. Nothing rooted, nothing replaced.</p>
+${pair(...D("tile"), "Omarchy Pocket on the Retroid Pocket Duo Lite", "A clock, a terminal and Activity tiled on the upper screen, the keyboard on the lower one.", "duo")}
+${facts([
+  ["Release", `<a href="${TAG}">v${VERSION}</a>: <code>omarchy-pocket-${VERSION}.apk</code> and <code>omarchy-pocket-root.tar.zst</code>`],
+  ["Runs on", "The Retroid Pocket Duo Lite on Retroid's Android 15 firmware"],
+  ["Space", "3.5 GB free: the 802 MB root, unpacked into the app's own files"],
+  ["Time", "About 10 minutes"],
+])}
+
+<h2 id="install">Install</h2>
+${steps([
+  `On the Duo Lite, open the <a href="${TAG}">release</a> in the browser and download <code>omarchy-pocket-${VERSION}.apk</code> and <code>omarchy-pocket-root.tar.zst</code>.`,
+  "Open the APK and install it. Android asks once to let the browser or the file manager install apps.",
+  `Open <b>Omarchy Pocket</b>, from Retroid's launcher or Android's. With no Linux root yet, the upper screen says so. Press ${kbd("START")}, and pick <code>omarchy-pocket-root.tar.zst</code> in the file picker. The app copies it and unpacks the root, which takes about a minute.`,
+  `Unlock with the password <code>omarchy</code>.`,
+])}
+${note("note", "Use 0.2.1 or later: 0.2.0's APK carries the Thor's layout only. The same APK runs on the AYN Thor; it picks the layout for the device it is installed on.")}
+${shot(S("launcher"), "Retroid's launcher with Omarchy Pocket among the apps", "Omarchy Pocket in Retroid's launcher.", true)}
+
+<h2 id="controls">Controls</h2>
+<p>The shoulders are SUPER. Hold ${kbd("L1")} for the window layer and ${kbd("R1")} for the move layer, both for workspaces. After a quarter of a second, the lower screen draws the controls where they sit on the Duo Lite, and what each does: the D-pad over the left stick, A B X Y as printed (X top, A right), ${kbd("SELECT")} and ${kbd("START")} at the screen's upper corners. With no shoulder held, the gamepad types: the D-pad is the arrows, ${kbd("A")} Enter, ${kbd("B")} Backspace, ${kbd("X")} Tab, ${kbd("Y")} Space, ${kbd("START")} Escape. ${kbd("SELECT")} shows the keys or folds them away. ${kbd("HOME")} stays Android's.</p>
+${table(["Held", "D-pad", "A", "B", "X", "Y"], [
+  ["L1 (window)", "Focus", "Menu", "Close", "Fullscreen", "Split"],
+  ["R1 (move)", "Swap", "Open another", "Reopen closed", "Maximize", "Swap split"],
+  ["L1 + R1", "← → workspace, ↑ ↓ carry the window", "", "", "", ""],
+])}
+${hasVideo ? video("/docs/media/duo-lite/session.mp4", "/docs/media/duo-lite/session-poster.jpg", "Omarchy's menu, Apps, Activity and Clock on the Duo Lite's upper screen, recorded off the device.", "The Duo Lite's upper screen while apps open") : ""}
+<div class="grid2">
+${pair(...D("legend"), "The window layer's legend", "Holding L1: the lower screen draws the controls around it.", "duo")}
+${pair(...D("menu"), "Omarchy's menu", "Omarchy's menu; the keyboard filters it.", "duo")}
+${pair(...D("lock"), "The lock screen", "The screen going off locks; the password goes in on the lower screen.", "duo")}
+${shot(S("network"), "The Network panel listing Wi‑Fi networks", "Wi‑Fi from Omarchy's Network panel, through Android.")}
+</div>
+
+<h2 id="update">Update and uninstall</h2>
+<ul>
+<li><b>Update:</b> install a newer APK over this one. The root stays, and the app puts the new release's daemon and applets into it.</li>
+<li><b>Uninstall:</b> Settings › Apps › Omarchy Pocket › Uninstall. That removes the root too.</li>
+</ul>
+
+<h2 id="limits">Limits</h2>
+<ul>
+<li>Programs in the Linux root play no sound. Android's volume and mute work.</li>
+<li>On a fresh install the daemon makes the glyphs for Chinese text and the prompt's symbols in the first 40 seconds or so; until then they are blank.</li>
+<li>The legend's letters follow Retroid's Retro controller style, the one we tested; the Xbox style was not tried.</li>
+<li>GitHub and Weather are left out at this density for now.</li>
+</ul>
+`;
+  return page("/docs/retroid-pocket-duo-lite/", "Install on the Retroid Pocket Duo Lite", "Install Omarchy Pocket on the Retroid Pocket Duo Lite as an Android app: the app, then its Linux root.", body, [
+    ["install", "Install"], ["controls", "Controls"], ["update", "Update and uninstall"], ["limits", "Limits"],
   ]);
 }
 
@@ -494,6 +584,7 @@ figcaption{margin-top:8px;color:var(--muted);font-size:14px;line-height:1.45}
 .pair .screens{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px;border-radius:18px;background:linear-gradient(180deg,#26203a,#17121f);border:1px solid var(--line)}
 .pair .screens img{border-radius:6px;border:0}
 .pair.thor .screens img:last-child{width:64.5%}
+.pair.duo .screens img:last-child{width:70%}
 .diagram svg{display:block;width:100%;height:auto}
 .diagram .body{fill:#1d1828;stroke:rgba(255,245,238,.18)}
 .diagram .panel{fill:#0b0912;stroke:rgba(178,140,255,.5)}
@@ -509,7 +600,7 @@ figcaption{margin-top:8px;color:var(--muted);font-size:14px;line-height:1.45}
 .diagram .kk{fill:var(--ink-2);font-size:10px}
 .diagram .lab{fill:var(--muted);font-size:11px}
 .diagram text.hot{fill:var(--rose)}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:26px}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:26px}
 .card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--panel);color:var(--ink);text-decoration:none;transition:transform .15s,border-color .15s}
 .card:hover{transform:translateY(-2px);border-color:rgba(178,140,255,.5)}
 .card img{width:100%;aspect-ratio:16/10;object-fit:cover;background:#000}
@@ -526,7 +617,7 @@ figcaption{margin-top:8px;color:var(--muted);font-size:14px;line-height:1.45}
 if (!process.argv.includes("--pages")) await media();
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, "docs.css"), CSS.trim() + "\n");
-const pages: [string, string][] = [["index.html", overview()], ["rg-ds-plus/index.html", rgds()], ["ayn-thor/index.html", thor()], ["uconsole/index.html", uconsole()]];
+const pages: [string, string][] = [["index.html", overview()], ["rg-ds-plus/index.html", rgds()], ["ayn-thor/index.html", thor()], ["retroid-pocket-duo-lite/index.html", duoLite()], ["uconsole/index.html", uconsole()]];
 for (const [path, html] of pages) {
   mkdirSync(join(OUT, path, ".."), { recursive: true });
   writeFileSync(join(OUT, path), html);
