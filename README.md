@@ -32,7 +32,9 @@ bun tools/android.ts release        # a release's files in dist/android/<version
 
 <p align="center"><img src="docs/media/retroid-pocket-duo-lite.webp" width="420" alt="The Duo Lite's two screens: a clock, a terminal and Activity tiled on the upper screen, the keyboard deck on the lower one"></p>
 
-The Retroid Pocket Duo Lite (Snapdragon 665, Android 15, a 5.5" 1920×1080 upper display over a 4.2" 1280×960 touch display) runs the Thor's app: one APK carries both handhelds' profiles, shell packages and applets (11 MB) and chooses by `Build.MODEL`. The stage is the Thor's 640×360 points; the deck is 426×320 points at density 3, the keys 8.5 mm apart; the Retroid Pocket Controller is the gamepad, and the shoulder legend draws the D-pad over the left stick, A B X Y in Nintendo order and SELECT and START at the lower display's upper corners, where they sit. A launcher on the lower display starts the app on the upper one. [docs/retroid-pocket-duo-lite.md](docs/retroid-pocket-duo-lite.md) has the details. 0.2.0's APK carries the Thor's profile only: install a later release, or from source with `ANDROID_SERIAL=<serial> bun tools/android.ts all`.
+The Retroid Pocket Duo Lite (Snapdragon 665, Android 15, a 5.5" 1920×1080 upper display over a 4.2" 1280×960 touch display) runs the Thor's app: one APK carries both handhelds' profiles, shell packages and applets (11 MB) and chooses by `Build.MODEL`. The stage is the Thor's 640×360 points; the deck is 426×320 points at density 3, the keys 8.5 mm apart; the Retroid Pocket Controller is the gamepad, and the shoulder legend draws the D-pad over the left stick, A B X Y in Nintendo order and SELECT and START at the lower display's upper corners, where they sit. A launcher on the lower display starts the app on the upper one. [docs/retroid-pocket-duo-lite.md](docs/retroid-pocket-duo-lite.md) has the details.
+
+**Install on a Duo Lite** as on a Thor: `omarchy-pocket-<version>.apk` (0.2.1 or later: 0.2.0's carries the Thor's profile only) and `omarchy-pocket-root.tar.zst` from the [latest release](https://github.com/pocket-nexus/omarchy-pocket/releases/latest), the APK installed, START in the app to choose the root. From source: `ANDROID_SERIAL=<serial> bun tools/android.ts all`.
 
 ## On the ClockworkPi uConsole
 
@@ -41,8 +43,8 @@ The ClockworkPi uConsole (Raspberry Pi CM4, Raspberry Pi OS 13) runs Omarchy Poc
 On the uConsole, from the release:
 
 ```sh
-curl -LO https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.0/omarchy-pocket-uconsole_0.2.0_arm64.deb
-sudo apt install ./omarchy-pocket-uconsole_0.2.0_arm64.deb   # downloads Omarchy's root (802 MB)
+curl -LO https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.1/omarchy-pocket-uconsole_0.2.1_arm64.deb
+sudo apt install ./omarchy-pocket-uconsole_0.2.1_arm64.deb   # downloads Omarchy's root (802 MB)
 omarchy-pocket-session on        # off: the Raspberry Pi desktop; boot / desktop: what starts at boot
 ```
 

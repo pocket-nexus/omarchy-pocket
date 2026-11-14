@@ -27,14 +27,14 @@
   <nav class="links"><a href="/">Home</a><a href="/docs/" aria-current="true">Docs</a><a href="/demo/">Live demo</a><a class="ghost" href="https://github.com/pocket-nexus/omarchy-pocket">GitHub</a></nav>
 </header>
 <div class="layout">
-<nav class="side" aria-label="Docs"><p class="side-h">Install</p><a href="/docs/">Overview</a><a href="/docs/rg-ds-plus/">RG DS Plus</a><a href="/docs/ayn-thor/">AYN Thor</a><a href="/docs/uconsole/" aria-current="page">ClockworkPi uConsole</a><p class="side-h">Release</p><a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.0">v0.2.0 on GitHub</a><a href="https://github.com/pocket-nexus/omarchy-pocket">Source</a><p class="side-h">On this page</p><a class="toc" href="#before">Before you start</a><a class="toc" href="#install">Install</a><a class="toc" href="#first-start">First start</a><a class="toc" href="#controls">Controls</a><a class="toc" href="#apps">Menu and applets</a><a class="toc" href="#switch">Back to the desktop</a><a class="toc" href="#update">Update and uninstall</a><a class="toc" href="#trouble">If something is wrong</a></nav>
+<nav class="side" aria-label="Docs"><p class="side-h">Install</p><a href="/docs/">Overview</a><a href="/docs/rg-ds-plus/">RG DS Plus</a><a href="/docs/ayn-thor/">AYN Thor</a><a href="/docs/retroid-pocket-duo-lite/">Retroid Pocket Duo Lite</a><a href="/docs/uconsole/" aria-current="page">ClockworkPi uConsole</a><p class="side-h">Release</p><a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.1">v0.2.1 on GitHub</a><a href="https://github.com/pocket-nexus/omarchy-pocket">Source</a><p class="side-h">On this page</p><a class="toc" href="#before">Before you start</a><a class="toc" href="#install">Install</a><a class="toc" href="#first-start">First start</a><a class="toc" href="#controls">Controls</a><a class="toc" href="#apps">Menu and applets</a><a class="toc" href="#switch">Back to the desktop</a><a class="toc" href="#update">Update and uninstall</a><a class="toc" href="#trouble">If something is wrong</a></nav>
 <main class="doc">
 
 <p class="eyebrow">Install · ClockworkPi uConsole</p>
 <h1>ClockworkPi uConsole</h1>
 <p class="lead">A Debian package beside Raspberry Pi OS. One command installs it. Its own menu gives the panel back to the desktop.</p>
 <figure class="shot wide"><img src="/docs/media/uconsole/terminals.webp" alt="Two terminals tiled under Omarchy's bar on the uConsole" loading="lazy" decoding="async"><figcaption>Two Pocket Term windows tiled on the uConsole's panel, under Omarchy's bar.</figcaption></figure>
-<dl class="facts"><div><dt>Release</dt><dd><a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.0">v0.2.0</a>: <code>omarchy-pocket-uconsole_0.2.0_arm64.deb</code></dd></div><div><dt>Runs on</dt><dd>A uConsole with a Raspberry Pi CM4, on ClockworkPi's Raspberry Pi OS 13 (trixie), 64-bit</dd></div><div><dt>Space</dt><dd>3.5 GB free: an 802 MB download that unpacks to 2.7 GB</dd></div><div><dt>Time</dt><dd>About 10 minutes, most of it the download</dd></div></dl>
+<dl class="facts"><div><dt>Release</dt><dd><a href="https://github.com/pocket-nexus/omarchy-pocket/releases/tag/v0.2.1">v0.2.1</a>: <code>omarchy-pocket-uconsole_0.2.1_arm64.deb</code></dd></div><div><dt>Runs on</dt><dd>A uConsole with a Raspberry Pi CM4, on ClockworkPi's Raspberry Pi OS 13 (trixie), 64-bit</dd></div><div><dt>Space</dt><dd>3.5 GB free: an 802 MB download that unpacks to 2.7 GB</dd></div><div><dt>Time</dt><dd>About 10 minutes, most of it the download</dd></div></dl>
 
 <h2 id="before">Before you start</h2>
 <ul>
@@ -45,7 +45,7 @@
 <aside class="callout note">Tested on a CM4 Rev 1.0 with 4 GB and kernel 6.12. Other cores (CM5, A06, R01) are not tested yet.</aside>
 
 <h2 id="install">Install</h2>
-<ol class="steps"><li>Open a terminal on the desktop, or SSH into the uConsole, and download the package:<pre><code>curl -LO https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.0/omarchy-pocket-uconsole_0.2.0_arm64.deb</code></pre></li><li>Install it:<pre><code>sudo apt install ./omarchy-pocket-uconsole_0.2.0_arm64.deb</code></pre>It downloads <code>omarchy-pocket-root.tar.zst</code> (802 MB), checks its SHA-256 against the one the package carries, and unpacks it into <code>/var/lib/omarchy-pocket/root</code>. At the end it prints the commands below.</li><li>Switch the panel to Omarchy Pocket:<pre><code>omarchy-pocket-session on</code></pre>or pick <b>Omarchy Pocket</b> in the desktop's menu (System). The desktop closes, and Omarchy Pocket comes up in a few seconds.</li></ol>
+<ol class="steps"><li>Open a terminal on the desktop, or SSH into the uConsole, and download the package:<pre><code>curl -LO https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.1/omarchy-pocket-uconsole_0.2.1_arm64.deb</code></pre></li><li>Install it:<pre><code>sudo apt install ./omarchy-pocket-uconsole_0.2.1_arm64.deb</code></pre>It downloads <code>omarchy-pocket-root.tar.zst</code> (802 MB), checks its SHA-256 against the one the package carries, and unpacks it into <code>/var/lib/omarchy-pocket/root</code>. At the end it prints the commands below.</li><li>Switch the panel to Omarchy Pocket:<pre><code>omarchy-pocket-session on</code></pre>or pick <b>Omarchy Pocket</b> in the desktop's menu (System). The desktop closes, and Omarchy Pocket comes up in a few seconds.</li></ol>
 <aside class="callout note">No network on the uConsole? Download <code>omarchy-pocket-root.tar.zst</code> elsewhere, copy it to <code>/var/cache/omarchy-pocket/</code>, then install the package: it takes the file instead of downloading it. <code>sudo /usr/lib/omarchy-pocket/omarchy-root install</code> runs that step again on its own.</aside>
 
 <h2 id="first-start">First start</h2>
@@ -101,7 +101,7 @@
 <li>Not there yet: voice input (the uConsole has no microphone), typing Chinese, SUPER + drag.</li>
 </ul>
 
-<footer class="foot"><p>Omarchy Pocket 0.2.0. Every screen on these pages is the device's own, read back from its GPU or recorded off its display; the RG DS Plus's body around its screens is a 3D model. <a href="https://github.com/pocket-nexus/omarchy-pocket/issues">Report a problem</a></p></footer>
+<footer class="foot"><p>Omarchy Pocket 0.2.1. Every screen on these pages is the device's own, read back from its GPU or recorded off its display; the RG DS Plus's body around its screens is a 3D model. <a href="https://github.com/pocket-nexus/omarchy-pocket/issues">Report a problem</a></p></footer>
 </main>
 </div>
 </body>

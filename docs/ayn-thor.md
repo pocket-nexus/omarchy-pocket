@@ -154,7 +154,7 @@ bun tools/android.ts exec 'omarchy-shell pocket.window list'   # a command in th
 
 ## Releases
 
-`bun tools/android.ts release` runs every step from source (`lib`, `proot`, `daemon`, `shell`, `applets`, `apk`, `rootfs`) and writes `dist/android/<version>/`:
+`bun tools/android.ts release` runs every step from source (`lib`, `proot`, `daemon`, `shell`, `applets`, `apk`, `rootfs`) and writes `dist/android/<version>/`; `--root <archive>` carries an earlier release's root instead of building one, byte for byte, so its SHA-256 stays the one `uconsole/release.json` names (0.2.1 carries 0.2.0's):
 
 | File | What |
 |---|---|

@@ -54,6 +54,7 @@ figcaption{margin-top:8px;color:var(--muted);font-size:14px;line-height:1.45}
 .pair .screens{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px;border-radius:18px;background:linear-gradient(180deg,#26203a,#17121f);border:1px solid var(--line)}
 .pair .screens img{border-radius:6px;border:0}
 .pair.thor .screens img:last-child{width:64.5%}
+.pair.duo .screens img:last-child{width:70%}
 .diagram svg{display:block;width:100%;height:auto}
 .diagram .body{fill:#1d1828;stroke:rgba(255,245,238,.18)}
 .diagram .panel{fill:#0b0912;stroke:rgba(178,140,255,.5)}
@@ -69,7 +70,7 @@ figcaption{margin-top:8px;color:var(--muted);font-size:14px;line-height:1.45}
 .diagram .kk{fill:var(--ink-2);font-size:10px}
 .diagram .lab{fill:var(--muted);font-size:11px}
 .diagram text.hot{fill:var(--rose)}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:26px}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:26px}
 .card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--panel);color:var(--ink);text-decoration:none;transition:transform .15s,border-color .15s}
 .card:hover{transform:translateY(-2px);border-color:rgba(178,140,255,.5)}
 .card img{width:100%;aspect-ratio:16/10;object-fit:cover;background:#000}
