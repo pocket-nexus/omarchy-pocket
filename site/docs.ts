@@ -35,10 +35,10 @@ const REPO_URL = "https://github.com/pocket-nexus/omarchy-pocket";
 const UCONSOLE_SHOTS: Record<string, string> = {
   terminals: "w1",
   window: "w2",
-  legend: "final",
-  move: "mv1",
-  help: "help",
-  sheet: "sheet",
+  legend: "v2-legend",
+  startmenu: "v2-menu",
+  help: "v2-help",
+  sheet: "v2-sheet",
   menu: "f1",
   hn: "hn5",
   story: "hn7",
@@ -123,12 +123,12 @@ function uconsoleControls(): string {
   const W = 640;
   const x = (f: number) => 20 + f * (W - 40);
   const t = (cx: number, y: number, s: string, cls = "") => `<text x="${cx.toFixed(1)}" y="${y}" class="${cls}" text-anchor="middle">${esc(s)}</text>`;
-  const words: [number, number, string][] = [[0.13, 66, "Focus"], [0.295, 66, "Click"], [0.34, 84, "Back"], [0.648, 66, "Point"], [0.79, 66, "Split"], [0.878, 66, "Full"], [0.835, 84, "Close"], [0.922, 84, "Menu"]];
+  const words: [number, number, string][] = [[0.13, 66, "Focus"], [0.295, 66, "Click"], [0.34, 84, "Back"], [0.648, 66, "Move"], [0.79, 66, "Split"], [0.878, 66, "Full"], [0.835, 84, "Close"], [0.922, 84, "Term"]];
   const dpad = x(0.13);
   const parts = [
     `<rect x="8" y="8" width="${W - 16}" height="292" rx="22" class="body"/>`,
     `<rect x="20" y="20" width="${W - 40}" height="78" rx="6" class="panel"/>`,
-    t(W / 2, 40, "SUPER  Window: the panel's bottom edge while a layer is up", "cap"),
+    t(W / 2, 40, "START held (SUPER): the panel's bottom edge names each control", "cap"),
     ...words.map(([f, y, s]) => t(x(f), y, s, "word")),
     // the D-pad
     `<path d="M${dpad - 9} ${118}h18v18h18v18h-18v18h-18v-18h-18v-18h18z" class="ctl"/>`,
@@ -151,11 +151,13 @@ function uconsoleControls(): string {
     // the keyboard's top row, left end
     `<rect x="34" y="218" width="${W - 68}" height="68" rx="10" class="kb"/>`,
     ...([[64, "Esc"], [124, "SELECT"], [190, "START"]] as [number, string][]).flatMap(([cx, s]) => [`<rect x="${cx - 26}" y="228" width="52" height="22" rx="4" class="k${s === "START" ? " hot" : ""}"/>`, t(cx, 243, s, "kk")]),
-    t(190, 270, "SUPER", "lab hot"),
+    // START's two meanings on two lines, from its left edge, clear of SELECT's
+    `<text x="172" y="265" class="lab hot">tap: menu</text>`,
+    `<text x="172" y="280" class="lab hot">hold: SUPER</text>`,
     t(124, 270, "hold: scroll", "lab"),
     t(W / 2 + 80, 258, "Q W E R T Y … the keyboard types", "lab"),
   ];
-  return `<figure class="diagram"><svg viewBox="0 0 ${W} 308" role="img" aria-label="The uConsole's controls under its panel: the D-pad, L and R, the trackball, A B X Y, and Esc, SELECT and START on the keyboard's top row">${parts.join("")}</svg><figcaption>The controls row under the uConsole's panel. While a SUPER layer is up, the panel's bottom edge names what each control does, right above it.</figcaption></figure>`;
+  return `<figure class="diagram"><svg viewBox="0 0 ${W} 308" role="img" aria-label="The uConsole's controls under its panel: the D-pad, L and R, the trackball, A B X Y, and Esc, SELECT and START on the keyboard's top row">${parts.join("")}</svg><figcaption>The controls row under the uConsole's panel. While START is held, the panel's bottom edge names what each control does, right above it.</figcaption></figure>`;
 }
 
 const NAV = [
@@ -241,7 +243,7 @@ ${table(["", "RG DS Plus", "AYN Thor", "Duo Lite", "uConsole"], [
   ["Screens", "Two 4″, 1024 × 768", "6″ 1080p over a 3.92″ touch screen", "5.5″ 1080p over a 4.2″ touch screen", "One 5″, 1280 × 720"],
   ["Typing", "The lower screen's keyboard", "The lower screen's keyboard", "The lower screen's keyboard", "Its own keyboard"],
   ["Pointing", "The lower screen's trackpad", "The lower screen's trackpad", "The lower screen's trackpad", "The trackball, with L and R as mouse buttons"],
-  ["SUPER", "L1 and R1, held", "L1 and R1, held", "L1 and R1, held", "START, tapped or held"],
+  ["SUPER", "L1 and R1, held", "L1 and R1, held", "L1 and R1, held", "START, held (tapped: the menu)"],
   ["Back to stock", "The boot chooser, or the card's backup", "Uninstall the app", "Uninstall the app", "System › Raspberry Pi Desktop, or <code>apt remove</code>"],
 ])}
 
@@ -283,41 +285,42 @@ ${steps([
 ${note("note", "No network on the uConsole? Download <code>omarchy-pocket-root.tar.zst</code> elsewhere, copy it to <code>/var/cache/omarchy-pocket/</code>, then install the package: it takes the file instead of downloading it. <code>sudo /usr/lib/omarchy-pocket/omarchy-root install</code> runs that step again on its own.")}
 
 <h2 id="first-start">First start</h2>
-<p>Omarchy Pocket starts on the Tokyo Night theme, with Omarchy's bar along the top. The lock screen takes your own login password. To open a terminal, tap ${kbd("START")}, then press ${kbd("Return")}.</p>
+<p>Omarchy Pocket starts on the Tokyo Night theme, with Omarchy's bar along the top. The lock screen takes your own login password. To open a terminal, hold ${kbd("START")} and press ${kbd("A")}.</p>
 <div class="grid2">
 ${shot(S("typing"), "A command typed on the uConsole's keyboard into Pocket Term", "Typing on the keyboard goes to the terminal.")}
 ${shot(S("lock"), "The lock screen with the password field on the stage", "The lock takes your login password; the field sits above the panel's bottom edge.")}
 </div>
 
 <h2 id="controls">Controls</h2>
-<p>The uConsole has no shoulder buttons, and the thumb on the D-pad cannot also hold a modifier beside it. So ${kbd("START")}, under the left thumb, is SUPER:</p>
+<p>The keyboard types, the D-pad is its arrow keys, and the trackball is the mouse, with ${kbd("L")} and ${kbd("R")} as its buttons. ${kbd("START")} is the SUPER key, as the Windows key is on a laptop:</p>
 <ul>
-<li><b>Held</b>, it is SUPER while it is down: ${kbd("START")} + ${kbd("A")} opens the menu.</li>
-<li><b>Tapped</b>, SUPER stays on, so the left thumb can walk the D-pad from window to window. Tap again for the move layer (SUPER + Shift). Tap a third time, or press ${kbd("Esc")}, to leave.</li>
+<li><b>Tap</b> ${kbd("START")}: Omarchy's menu. Tap again to put it away.</li>
+<li><b>Hold</b> ${kbd("START")} and press another control: SUPER plus that control. Let go and nothing stays on. ${kbd("START")} sits by the middle of the keyboard, so either thumb holds it: the right thumb for the D-pad, the left one for ${kbd("A")} ${kbd("B")} ${kbd("X")} ${kbd("Y")} and the ball.</li>
 </ul>
+<p>Hold ${kbd("START")} for a moment and the panel's bottom edge shows what each control does, right above it. Let go without pressing anything and nothing happens.</p>
 ${uconsoleControls()}
-${table(["Control", "No SUPER", "SUPER (START)", "SUPER + Shift (START twice)"], [
-  ["D-pad", "Arrows", "Focus a window; past the last one, the next workspace", "Swap windows; past the last one, carry it to the next workspace"],
-  ["A", "Enter", "Omarchy's menu", "Open another"],
-  ["B", "Backspace", "Close", "Reopen closed"],
-  ["X", "Tab", "Fullscreen", "Maximize"],
-  ["Y", "Space", "Toggle split", "Swap split"],
-  ["SELECT", "Alone: the controls row; held: the ball scrolls", "Key sheet", "Hide or show the bar"],
-  ["L / ball press", "Click; hold to drag", "Click", "Click"],
-  ["R", "Back (in an applet or the menu); Omarchy's menu on the wallpaper", "Back", "Back"],
-  ["SELECT + roll", "Scroll", "Previous or next workspace", "Previous or next workspace"],
+${table(["Control", "Alone", "With START held (SUPER)"], [
+  ["D-pad", "Arrows", "Focus the window that way; past the last one, the workspace beside"],
+  ["Ball", "Move the pointer", "Carry the focused window that way; past the last one, to the workspace beside"],
+  ["A", "Enter", "New terminal"],
+  ["B", "Backspace; back in the menu", "Close the window"],
+  ["X", "Tab", "Fullscreen"],
+  ["Y", "Space", "Toggle split"],
+  ["SELECT", "Alone: the controls row; held: the ball scrolls", "Every binding"],
+  ["L / ball press", "Click; hold to drag", "Click"],
+  ["R", "Back (in an applet or the menu); Omarchy's menu on the wallpaper", "Back"],
 ])}
-<p>Under SUPER, the keyboard has Omarchy's own bindings: ${kbd("Return")} terminal, ${kbd("Space")} menu, ${kbd("W")} close, ${kbd("F")} fullscreen, ${kbd("J")} split, ${kbd("L")} layout, ${kbd("1")}–${kbd("5")} a workspace (with Shift: carry the window there), ${kbd("[")} ${kbd("]")} or ${kbd("Tab")} the workspace before or after, ${kbd("-")} ${kbd("=")} resize, ${kbd("K")} every binding, ${kbd("Esc")} the System menu. The keyboard's own Cmd key (${kbd("Fn")} + ${kbd("Alt")}) works as SUPER too.</p>
+<p>With ${kbd("START")} held, the keyboard has Omarchy's own bindings: ${kbd("Return")} terminal, ${kbd("Space")} menu, ${kbd("W")} close, ${kbd("F")} fullscreen, ${kbd("J")} split, ${kbd("L")} layout, ${kbd("1")}–${kbd("5")} a workspace (with Shift: carry the window there), ${kbd("[")} ${kbd("]")} or ${kbd("Tab")} the workspace before or after, ${kbd("-")} ${kbd("=")} resize, ${kbd("K")} every binding, ${kbd("Esc")} the System menu. The keyboard's own Cmd key (${kbd("Fn")} + ${kbd("Alt")}) works as SUPER too.</p>
 <div class="grid2">
-${shot(S("legend"), "SUPER latched, with the controls row along the panel's bottom edge", "SUPER on: each control's word sits right above it.")}
-${shot(S("move"), "The move layer swapping two tiled terminals", "Tapped twice, the move layer: the D-pad swaps windows.")}
-${shot(S("help"), "The plain controls row SELECT shows", "SELECT on its own: what each control does right now.")}
-${shot(S("sheet"), "The key sheet listing every binding", "START + K: every binding.")}
+${shot(S("legend"), "START held, with the controls row along the panel's bottom edge", "START held: each control's word sits right above it.")}
+${shot(S("startmenu"), "Omarchy's menu over two tiled windows", "START tapped: Omarchy's menu.")}
+${shot(S("help"), "The plain controls row SELECT shows", "SELECT on its own: what each control does without SUPER.")}
+${shot(S("sheet"), "The key sheet listing every binding", "START + SELECT: every binding.")}
 </div>
-${hasVideo ? video("/docs/media/uconsole/session.mp4", "/docs/media/uconsole/session-poster.jpg", "The uConsole's panel recorded off its display (KMS): START tapped and a terminal, fastfetch, a second terminal, focus walked with the D-pad, the move layer swapping them, START + A for the menu, Hacker News made fullscreen, scrolled with SELECT + the ball, a story opened with L and closed with R, and SELECT's controls row.", "A recording of the uConsole's panel") : ""}
+${hasVideo ? video("/docs/media/uconsole/session.mp4", "/docs/media/uconsole/session-poster.jpg", "The uConsole's panel recorded off its display (KMS): START tapped for the menu, Activity opened from Apps by typing, START + A for a terminal beside it, START + ← to focus Activity, START + a roll to carry it right, START + X fullscreen and back, START + Y to turn the split, START held for the controls row, and SELECT's row.", "A recording of the uConsole's panel") : ""}
 
 <h2 id="apps">Menu and applets</h2>
-<p>Omarchy's menu (${kbd("START")} + ${kbd("A")}, or a click on the logo) takes typing: type a few letters to filter it. Hacker News, YouTube, Maps, Podcasts, Weather, GitHub, X, Discord and Home Assistant open in windows. Point at them with the trackball, click with ${kbd("L")}, scroll with ${kbd("SELECT")} + roll, and go back with ${kbd("R")}.</p>
+<p>Omarchy's menu (tap ${kbd("START")}, or click the logo) takes typing: type a few letters to filter it. Hacker News, YouTube, Maps, Podcasts, Weather, GitHub, X, Discord and Home Assistant open in windows. Point at them with the trackball, click with ${kbd("L")}, scroll with ${kbd("SELECT")} + roll, and go back with ${kbd("R")}.</p>
 <div class="grid2">
 ${shot(S("menu"), "The Apps list filtered by typing hacker", "Typing filters the menu.")}
 ${shot(S("hn"), "Hacker News in a window", "Hacker News; a click opens a story, R goes back.")}

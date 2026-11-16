@@ -54,22 +54,30 @@ The RG DS Plus's three lines ([interaction.md](interaction.md)) become these on 
 
 **The trackball is the trackpad, and L and R are the mouse's buttons** under every layer.
 
-**START is SUPER.** A thumb cannot hold a modifier and press the D-pad beside it, and the uConsole has no shoulders, so START, under the left thumb, is SUPER both ways (`super.ts`):
+**START is SUPER, as the Windows key is on a laptop** (`super.ts`). ClockworkPi's drawing puts START on the keyboard's top row 41 mm from the left of a 125 mm board, by the middle: either thumb reaches it. So SUPER is held, never latched:
 
-- **held**, it is the window layer while it is down: a chord with the other thumb (START + A opens the menu) or a key (START + W closes);
-- **tapped**, the window layer stays: a second tap turns it to the move layer, a third lets it go, and so do Escape and any verb. The D-pad's steps keep it, so focus walks from window to window with the left thumb alone.
+- **Tapped** (down and up within 18 frames, 0.3 s, with nothing pressed or rolled in between), START opens Omarchy's menu, and a tap with the menu open puts it away. A game with focus hears the tap as its START.
+- **Held**, START is SUPER for as long as it is down, and a chord takes the other thumb: the right thumb holds START for the D-pad, the left thumb holds it for A B X Y and the ball. Letting go leaves nothing on. Held past 18 frames with nothing pressed, its release does nothing: that hold was a look at the controls row.
 
-The keyboard's own SUPER (Fn + Alt, sent as Cmd) holds the window layer as START does, and Shift turns either layer into the move layer, as on Omarchy.
+0.2.1 latched SUPER on a tap and counted taps (a second tap the move layer, a third leaving it), so one button meant three things depending on how often it had been pressed. Now each control means one thing with START held and one without.
 
-| Layer | D-pad | A | B | X | Y | SELECT |
-|---|---|---|---|---|---|---|
-| plain | the arrows | Enter | Backspace | Tab | Space | (alone) the controls row |
-| window (SUPER) | focus; past the last window, the workspace beside | menu | close | fullscreen | toggle split / column width | key sheet |
-| move (SUPER ⇧) | swap; past the last window, carry it to the workspace beside | open another | reopen closed | maximize | swap split / (un)stack | toggle bar |
+The keyboard's own SUPER (Fn + Alt, sent as Cmd) is SUPER while it is down, as START is.
 
-A step past the last window goes to the workspace beside and stops at the first and the fifth, as the bar lays them out; a held D-pad's repeats stop at the last window, and only a press goes past it.
+| Control | Without SUPER | With START held (SUPER) |
+|---|---|---|
+| D-pad | the arrows | focus the window that way; past the last window, the workspace beside |
+| the ball | the pointer | carry the focused window that way (`trackball.ts`: every 56 points rolled one way is one place, then 14 frames' rest); past the last window, the workspace beside |
+| A | Enter | a new terminal (Omarchy's SUPER + Return) |
+| B | Backspace; back in the menu | close the window |
+| X | Tab | fullscreen |
+| Y | Space | toggle split / column width |
+| SELECT | alone: the controls row; held: the ball scrolls | the key sheet |
+| L, the ball's press | click; held on an applet: a touch, so a press and roll drags | click |
+| R | back in an applet and the menu; Omarchy's menu on the wallpaper; on a workspace number, carry the window there | the same |
 
-Under SUPER the keyboard has Omarchy's own bindings (`superkeys.ts`, after `default/hypr/bindings/tiling.lua` and `utilities.lua`): Return a terminal, Space the menu, W or Q close, F fullscreen, J split, L the layout, K the key sheet, Escape the System menu, the arrows focus (with Shift, swap), 1–5 a workspace (with Shift, carry the window there), Tab and `]` the next workspace, Shift+Tab and `[` the previous one, `-` and `=` resize. A key the layer does not bind lets a latched layer go and is typed.
+The D-pad picks a window and the ball moves it: a step past the last window goes to the workspace beside and stops at the first and the fifth, as the bar lays them out; a held D-pad's repeats stop at the last window, and only a press goes past it.
+
+Under SUPER the keyboard has Omarchy's own bindings (`superkeys.ts`, after `default/hypr/bindings/tiling.lua` and `utilities.lua`): Return a terminal, Space the menu, W or Q close, F fullscreen, J split, L the layout, K the key sheet, Escape the System menu, 1–5 a workspace (with Shift, carry the window there), Tab and `]` the next workspace, Shift+Tab and `[` the previous one, `-` and `=` resize, Shift + Return another window of the focused app. A key SUPER does not bind does nothing while SUPER is held.
 
 **The trackball** (`trackball.ts`) moves the pointer, relative and accelerated (0.9 points per count at rest, up to 2.6). Its clicks act by what is under the pointer (`stage/pointer.tsx` `targetAt`):
 
@@ -81,15 +89,15 @@ Under SUPER the keyboard has Omarchy's own bindings (`superkeys.ts`, after `defa
 | a window | focus | focus |
 | the wallpaper | — | Omarchy's menu, where a desktop puts its own |
 
-SELECT held turns the ball into a wheel (the firmware does it): the list under the pointer scrolls, the card's selection moves, and under SUPER the wheel steps workspaces, as Omarchy's SUPER + wheel does. SELECT pressed and let go with no roll in between is SELECT's own press: the controls row alone, the key sheet or the bar under SUPER. The pointer shows from the ball's first roll until the next typed key, as a laptop's does.
+SELECT held turns the ball into a wheel (the firmware does it): the list under the pointer scrolls, the card's selection moves, and under SUPER the wheel steps workspaces, as Omarchy's SUPER + wheel does. SELECT pressed and let go with no roll in between is SELECT's own press: the controls row alone, the key sheet under SUPER. The pointer shows from the ball's first roll until the next typed key, as a laptop's does.
 
-**The controls row.** While a layer is latched, or held for 14 frames, and while SELECT's help is up, the stage draws the controls row along its bottom edge (`stage/controls.tsx`), each control's icon and word right above the control under the panel. ClockworkPi's drawing (`Clockwork_uConsole_Assembly_Guidelines.pdf`, "The Interfaces") puts their centres at these fractions of the panel's width: the D-pad 13%, L 30%, R 34%, the ball 65%, Y 79%, X 88%, B 83.5%, A 92%. A title line names the layer and what START does next. The bar names the layer from its first frame.
+**The controls row.** While START (or Cmd) has been held for 18 frames, and while SELECT's help is up, the stage draws the controls row along its bottom edge (`stage/controls.tsx`), each control's icon and word right above the control under the panel. ClockworkPi's drawing (`Clockwork_uConsole_Assembly_Guidelines.pdf`, "The Interfaces") puts their centres at these fractions of the panel's width: the D-pad 13%, L 30%, R 34%, the ball 65%, Y 79%, X 88%, B 83.5%, A 92%. A title line names SUPER, or for the plain row what START does tapped and held. The bar names SUPER from START's first frame.
 
 **Sleep.** The CM4 has no suspend to RAM. The power key darkens the panel (its backlight at 0) and locks the shell; the next key, button or roll lights it again on the lock screen, and that input does nothing else (the daemon's `screen` event). The password is the device user's: `omarchy-root` copies its hash to the root's Omarchy user at each start, and unix_chkpwd in the root checks it.
 
-**Games.** A package that is not a touch app hears the D-pad and A B X Y, and START when it is tapped while the game has focus.
+**Games.** A package that is not a touch app hears the D-pad and A B X Y, and START when it is tapped while the game has focus; START held is SUPER over it too.
 
-**Verified** with uinput devices named as the keyboard's functions (the host enumerates them as it does the real ones): typing a shell command with Shift and symbols into Pocket Term; START tapped then Return opens a terminal, twice tiles two; START tapped and the D-pad focuses, past the last window steps the workspace; START tapped twice and the D-pad swaps; START held + A opens the menu; Cmd + Space opens it, Return opens Apps, typing filters it to Hacker News and Return opens it; the wheel moves the menu's selection and scrolls Hacker News; L opens a story and R goes back; SELECT alone shows the controls row; SUPER + K the key sheet; the power key darkens the panel and locks, a key lights it without typing, and the device user's password unlocks.
+**Verified** (2026-11-16, uinput devices named as the keyboard's three functions, which the host enumerates as it does the real ones, and the GPU readback): START tapped opens the menu and tapped again puts it away; START held 0.7 s shows the controls row with SUPER's words, and its release opens nothing; START held + A twice tiles two terminals, and the keyboard types into the focused one without START; START + ← focuses the left one; START held and the ball rolled right carries it right; START + → past the last window steps to the next workspace, START + 1 back to the first; START + X fullscreen and back, START + Y turns the split, START + B closes; SELECT alone shows the plain row; START + SELECT the key sheet, Esc closes it; START tapped, A on Apps, typing `act` and Return opens Activity.
 
 ## Display
 

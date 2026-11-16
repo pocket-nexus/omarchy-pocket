@@ -22,7 +22,7 @@ import { click, movePointer, pointer } from "./stage/pointer.tsx";
 import { watchFor, watchTick, watching } from "./watch.ts";
 import { injectTrackball, trackballAwake } from "./trackball.ts";
 import { hardKey } from "./hardkeys.ts";
-import { latched, superLayer } from "./super.ts";
+import { superLayer } from "./super.ts";
 export { watching };
 
 const held: { mask: number; frames: number }[] = [];
@@ -86,7 +86,7 @@ serve("pocket.input", {
     return "ok";
   },
   hardtext: (text) => (hardKey({ kind: "commit", text: text ?? "" }), "ok"),
-  super: () => `${superLayer()}${latched() ? " latched" : ""}`,
+  super: () => superLayer(),
   /** the stage pointer's place and whether the trackball has woken it */
   where: () => `${pointer().x.toFixed(0)},${pointer().y.toFixed(0)}${trackballAwake() ? " shown" : ""}`,
   /** logs the deck's contacts for `frames` frames (the host's stderr) */

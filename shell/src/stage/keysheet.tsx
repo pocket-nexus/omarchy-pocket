@@ -20,6 +20,10 @@ const LINE = 15;
 /** two columns across the sheet (236 on the RG DS Plus) */
 const COL_W = Math.floor((SHEET_W - 16) / 2);
 const KEYS_W = UCONSOLE ? 118 : 96;
+/** keySheet's groups by column: the uConsole's three (START and SUPER's
+ *  controls; the keyboard with SUPER and the controls without it), the
+ *  shoulders' four */
+const COLUMNS: number[][] = UCONSOLE ? [[0], [1, 2]] : [[0, 3], [1, 2]];
 
 interface Line {
   kind: "title" | "row" | "gap";
@@ -73,10 +77,10 @@ export function KeySheet() {
         }}
       >
         <Text class="absolute left-[12] top-[8] font-mono text-sm leading-[16]" style={{ textColor: color("bright_foreground") }}>Keys</Text>
-        <Text class="absolute right-[12] top-[9] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>{UCONSOLE ? "SUPER + K or Esc closes" : "L1 + SELECT closes"}</Text>
+        <Text class="absolute right-[12] top-[9] font-mono text-xs leading-[14]" style={{ textColor: color("dark_foreground") }}>{UCONSOLE ? "START + SELECT or Esc closes" : "L1 + SELECT closes"}</Text>
         <View class="absolute left-[12] top-[30] h-[1]" style={{ width: SHEET_W - 24, bgColor: color("muted") }} />
-        <Column x={0 + 12} groups={[0, 3]} />
-        <Column x={12 + COL_W} groups={[1, 2]} />
+        <Column x={0 + 12} groups={COLUMNS[0]!} />
+        <Column x={12 + COL_W} groups={COLUMNS[1]!} />
       </View>
     </Show>
   );

@@ -1,67 +1,57 @@
-// SUPER on the ClockworkPi uConsole. The uConsole has no shoulders: its
-// controls sit in one row under the panel, held by both thumbs (the D-pad,
-// then L and R, then the trackball, then A B X Y), with the keyboard under
-// them. A thumb cannot hold a modifier and press the D-pad beside it, so
-// START, on the keyboard's top row under the left thumb, is SUPER both ways:
+// SUPER on the ClockworkPi uConsole. Its controls sit in one row under the
+// panel (the D-pad and L/R under the left thumb, the trackball and A B X Y
+// under the right), with the keyboard under them; START, on the keyboard's
+// top row, sits by the middle, where either thumb reaches it. START is the
+// keyboard's SUPER key, as the Windows key is on a laptop:
 //
-//   held     the window layer while it is down, for a chord with the other
-//            thumb (START + A opens the menu) or a key (START + W closes)
-//   tapped   the window layer stays until something is done with it: a
-//            second tap turns it to the move layer (SUPER + SHIFT), a third
-//            lets it go, and so do Escape and a verb (menu, close, ...);
-//            the D-pad's steps keep it, so focus can walk window to window
+//   tapped   Omarchy's menu, or away again (app.tsx)
+//   held     SUPER for as long as it is down: the other thumb presses the
+//            control (the right thumb holds START for the D-pad, the left
+//            for A B X Y and the ball), and letting go leaves nothing on
 //
-// The keyboard's own SUPER (Fn + Alt, which the keyboard sends as Cmd) holds
-// the window layer as START does, and Shift turns either to the move layer,
-// as on Omarchy. L and R stay the mouse's buttons under every layer.
+// Nothing latches and nothing counts taps: a control means one thing under
+// SUPER and one without it. The keyboard's own SUPER (Fn + Alt, which the
+// keyboard sends as Cmd) is SUPER while it is down as START is. L and R stay
+// the mouse's buttons.
 //
-// While a layer is latched, or held for LEGEND_FRAMES, the stage draws the
-// controls row along its bottom edge with what each does (stage/controls.tsx).
-// SELECT tapped on its own (the keyboard's firmware makes the trackball a
-// wheel while SELECT is held) shows that row for the plain layer, and any
-// key puts it away.
+// Held a moment, SUPER draws the controls row along the stage's bottom edge
+// with what each does (stage/controls.tsx); let go then with nothing pressed,
+// START does nothing (the row was a look, not a tap). SELECT tapped on its
+// own (the keyboard's firmware makes the trackball a wheel while SELECT is
+// held) shows the row for the controls without SUPER, and any key puts it
+// away.
 import { createSignal } from "solid-js";
 import type { Layer } from "./chords.ts";
 import { onEvent } from "./bridge.ts";
 
-/** Frames START or Cmd is held before the legend shows: a chord pressed at
- *  once never sees it, as the RG DS Plus's shoulders. */
-export const LEGEND_FRAMES = 14;
+/** Frames START or Cmd is held before the controls row shows; START let go
+ *  sooner with nothing pressed is a tap. */
+export const LEGEND_FRAMES = 18;
 
-type Latch = "window" | "move" | null;
-const [latched, setLatched] = createSignal<Latch>(null);
 const [startDown, setStartDown] = createSignal(false);
 const [heldFrames, setHeldFrames] = createSignal(0);
 /** the keyboard's modifiers as they are held (host/src/uconsole.rs sends their presses and releases) */
 const [mods, setMods] = createSignal({ shift: false, ctrl: false, alt: false, meta: false });
 const [help, setHelp] = createSignal(false);
-/** something was done while START was down: its release latches nothing */
+/** something was done while START was down: its release is no tap */
 let chorded = false;
 
-export { mods as keyboardMods, latched };
+export { mods as keyboardMods };
 
-/** The layer in force for the D-pad, A B X Y and the keyboard: a function
- *  of the signals, so whatever reads it tracks them. */
+/** "window" while START or Cmd is held (SUPER), "plain" otherwise: a
+ *  function of the signals, so whatever reads it tracks them. */
 export function superLayer(): Layer {
-  const m = mods();
-  const latch = latched();
-  if (latch) return latch === "move" || m.shift ? "move" : "window";
-  if (startDown() || m.meta) return m.shift ? "move" : "window";
-  return "plain";
+  return startDown() || mods().meta ? "window" : "plain";
 }
 
-/** How the layer came: tapped (latched), held, or none. */
-export const superHow = (): "latched" | "held" | "none" => (latched() ? "latched" : superLayer() === "plain" ? "none" : "held");
-
-/** The legend row shows: a latched layer at once, a held one after a
- *  moment, the plain layer while SELECT's help is up. */
+/** The controls row shows: SUPER after a moment, the plain controls while
+ *  SELECT's help is up. */
 export const legendShown = (): Layer | null => {
-  const layer = superLayer();
-  if (layer !== "plain") return latched() || heldFrames() >= LEGEND_FRAMES ? layer : null;
+  if (superLayer() !== "plain") return heldFrames() >= LEGEND_FRAMES ? "window" : null;
   return help() ? "plain" : null;
 };
 
-/** Once a frame: how long the layer has been held. */
+/** Once a frame: how long SUPER has been held. */
 export function superTick() {
   const held = startDown() || mods().meta;
   setHeldFrames(held ? heldFrames() + 1 : 0);
@@ -73,13 +63,13 @@ export function startPressed() {
   setHelp(false);
 }
 
-/** START up: a tap with nothing done under it turns the latch, unless
- *  `latch` is false (a game has focus, and hears the tap as START). */
-export function startReleased(latch = true): "tap" | "chord" {
+/** START up: "tap" when it went down and up again before the controls row
+ *  showed, with nothing pressed while it was down. */
+export function startReleased(): "tap" | "held" {
+  const tap = !chorded && heldFrames() < LEGEND_FRAMES;
   setStartDown(false);
-  if (chorded) return "chord";
-  if (latch) setLatched(latched() === null ? "window" : latched() === "window" ? "move" : null);
-  return "tap";
+  setHeldFrames(0);
+  return tap ? "tap" : "held";
 }
 
 /** A modifier key went down or up on the keyboard. */
@@ -89,18 +79,9 @@ export function setModifier(name: string, down: boolean) {
   setMods({ ...mods(), [key]: down });
 }
 
-/** Something was done under the layer: a step (focus, swap, a workspace
- *  step) keeps a latched layer, anything else lets it go. */
-export function used(kind: "step" | "verb") {
+/** Something was pressed or rolled while START was down: its release is no tap. */
+export function used() {
   chorded = true;
-  if (kind === "verb") setLatched(null);
-}
-
-/** Lets a latched layer go; true when there was one. */
-export function unlatch(): boolean {
-  const was = latched() !== null;
-  setLatched(null);
-  return was;
 }
 
 /** The panel is dark (the power key, daemon/uconsole.ts): the key or roll
@@ -111,7 +92,7 @@ onEvent((event) => {
   if (event.event === "screen") setDark(event.dark);
 });
 
-/** SELECT tapped alone: the controls row for the plain layer, or away. */
+/** SELECT tapped alone: the controls row for the plain controls, or away. */
 export const toggleHelp = () => setHelp((h) => !h);
 /** Puts the help row away; true when it was up. */
 export function closeHelp(): boolean {

@@ -26,7 +26,7 @@ export type Action =
   | "focus.left" | "focus.right" | "focus.up" | "focus.down"
   | "swap.left" | "swap.right" | "swap.up" | "swap.down"
   | "ws.prev" | "ws.next" | "carry.prev" | "carry.next"
-  | "menu" | "close" | "fullscreen" | "split" | "layout" | "keys" | "shrink" | "grow"
+  | "menu" | "terminal" | "close" | "fullscreen" | "split" | "layout" | "keys" | "shrink" | "grow"
   | "another" | "reopen" | "maximize" | "swapsplit" | "wallpaper" | "bar" | "pan.left" | "pan.right";
 
 export interface Chord {
@@ -75,38 +75,23 @@ export const CHORDS: readonly Chord[] = [
   { layer: "plain", button: BTN.ZR, action: "ws.next" },
 ];
 
-/** The uConsole's table (super.ts): START is SUPER, tapped or held, and
- *  its two layers are the window and move layers with the same verbs; there
- *  is no workspace layer, since the D-pad's step past the last window goes
- *  to the next workspace (actions.ts), and SUPER + [ ] or 1-5 on the
- *  keyboard do too. SELECT under them is the key sheet and the bar, and L
- *  and R stay the mouse's buttons. */
+/** The uConsole's table (super.ts): START is SUPER while it is held, and
+ *  SUPER is one layer, the window layer. The D-pad focuses (and past the
+ *  last window steps to the workspace beside, actions.ts), the trackball
+ *  carries the focused window (trackball.ts), A B X Y are the four commands
+ *  used most, and SELECT is the key sheet. What moves windows otherwise is
+ *  Omarchy's keyboard with SUPER + Shift (hardkeys.ts). L and R stay the
+ *  mouse's buttons. */
 export const UCONSOLE_CHORDS: readonly Chord[] = [
   { layer: "window", button: BTN.LEFT, action: "focus.left" },
   { layer: "window", button: BTN.RIGHT, action: "focus.right" },
   { layer: "window", button: BTN.UP, action: "focus.up" },
   { layer: "window", button: BTN.DOWN, action: "focus.down" },
-  { layer: "window", button: BTN.CIRCLE, action: "menu" },
+  { layer: "window", button: BTN.CIRCLE, action: "terminal" },
   { layer: "window", button: BTN.CROSS, action: "close" },
   { layer: "window", button: BTN.TRIANGLE, action: "fullscreen" },
   { layer: "window", button: BTN.SQUARE, action: "split" },
   { layer: "window", button: BTN.SELECT, action: "keys" },
-
-  { layer: "move", button: BTN.LEFT, action: "swap.left" },
-  { layer: "move", button: BTN.RIGHT, action: "swap.right" },
-  { layer: "move", button: BTN.UP, action: "swap.up" },
-  { layer: "move", button: BTN.DOWN, action: "swap.down" },
-  { layer: "move", button: BTN.CIRCLE, action: "another" },
-  { layer: "move", button: BTN.CROSS, action: "reopen" },
-  { layer: "move", button: BTN.TRIANGLE, action: "maximize" },
-  { layer: "move", button: BTN.SQUARE, action: "swapsplit" },
-  { layer: "move", button: BTN.SELECT, action: "bar" },
-];
-
-/** A step keeps a latched layer (super.ts); every other action lets it go. */
-export const STEPS: readonly Action[] = [
-  "focus.left", "focus.right", "focus.up", "focus.down", "swap.left", "swap.right", "swap.up", "swap.down",
-  "ws.prev", "ws.next", "carry.prev", "carry.next", "shrink", "grow", "pan.left", "pan.right",
 ];
 
 export const MODIFIERS = BTN.LTRIGGER | BTN.RTRIGGER;
@@ -123,7 +108,7 @@ export const chordsOf = (layer: Layer) => TABLE.filter((c) => c.layer === layer)
 export const chordFor = (layer: Layer, button: number) => TABLE.find((c) => c.layer === layer && c.button === button);
 
 export const LAYER_TITLE: Record<Layer, string> = UCONSOLE
-  ? { plain: "", window: "SUPER  window", move: "SUPER \u{21e7}  move", workspace: "" }
+  ? { plain: "", window: "SUPER", move: "", workspace: "" }
   : {
       plain: "",
       window: "L1  window",
@@ -152,6 +137,8 @@ export function labelFor(action: Action, layout: Layout): string {
       return "carry window";
     case "menu":
       return "menu";
+    case "terminal":
+      return "new terminal";
     case "close":
       return "close window";
     case "fullscreen":
@@ -233,6 +220,8 @@ export function glyphFor(action: Action, layout: Layout): Glyph {
     case "menu":
       // Omarchy's logo, as the function row's menu key
       return { icon: "\u{e900}", word: "Menu", small: true };
+    case "terminal":
+      return { icon: "\u{f018d}", word: "Term" };
     case "close":
       return { icon: "\u{f0156}", word: "Close" };
     case "fullscreen":
@@ -309,6 +298,7 @@ export const OMARCHY: Partial<Record<Action, string>> = {
   "ws.prev": "SUPER + 1-5",
   "carry.prev": "SUPER + SHIFT + 1-5",
   menu: "SUPER + SPACE",
+  terminal: "SUPER + RETURN",
   close: "SUPER + W",
   fullscreen: "SUPER + F",
   split: "SUPER + J",
@@ -327,16 +317,18 @@ export interface SheetRow {
   what: string;
 }
 
-/** The uConsole's sheet: START's two layers from this table, the keyboard
- *  under SUPER (hardkeys.ts), and the controls with no layer. */
+/** The uConsole's sheet: START tapped and held, SUPER's controls from this
+ *  table, the keyboard under SUPER (hardkeys.ts), and the controls without it. */
 function uconsoleSheet(layout: Layout): { title: string; rows: SheetRow[] }[] {
-  const layerRows = (layer: Layer, edge: string): SheetRow[] => [
-    { keys: "d-pad", what: edge },
-    ...chordsOf(layer).filter((c) => !(c.button & DPAD)).map((c) => ({ keys: BUTTON_NAME[c.button]!, what: labelFor(c.action, layout) })),
-  ];
   return [
-    { title: "SUPER: tap or hold START", rows: [...layerRows("window", "focus, then workspace"), { keys: "START again", what: "the move layer" }, { keys: "Esc", what: "leave" }] },
-    { title: "SUPER \u{21e7} move", rows: layerRows("move", "swap, then carry") },
+    {
+      title: "START: tap for the menu, hold for SUPER",
+      rows: [
+        { keys: "d-pad", what: "focus, then workspace" },
+        { keys: "roll", what: "carry the window" },
+        ...chordsOf("window").filter((c) => !(c.button & DPAD)).map((c) => ({ keys: BUTTON_NAME[c.button]!, what: labelFor(c.action, layout) })),
+      ],
+    },
     {
       title: "keyboard with SUPER",
       rows: [

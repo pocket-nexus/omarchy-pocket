@@ -1,7 +1,7 @@
 // The uConsole's keyboard names (src/superkeys.ts) and START as SUPER (src/super.ts).
 import { expect, test } from "bun:test";
 import { parseKey, superAction } from "../src/superkeys.ts";
-import { latched, setModifier, startPressed, startReleased, superLayer, unlatch, used } from "../src/super.ts";
+import { LEGEND_FRAMES, setModifier, startPressed, startReleased, superLayer, superTick, used } from "../src/super.ts";
 
 test("a key event's name splits into its modifiers and the key the sinks name", () => {
   expect(parseKey("Meta+w")).toEqual({ key: "w", mods: { ctrl: false, alt: false, shift: false, meta: true } });
@@ -11,7 +11,7 @@ test("a key event's name splits into its modifiers and the key the sinks name", 
   expect(parseKey("Meta+ ").key).toBe(" ");
 });
 
-test("SUPER's keys are Omarchy's bindings, and Shift turns them to the move layer", () => {
+test("SUPER's keys are Omarchy's bindings, and Shift moves instead of focusing", () => {
   expect(superAction("w", false)).toBe("close");
   expect(superAction("Enter", false)).toBe("terminal");
   expect(superAction(" ", false)).toBe("menu");
@@ -24,43 +24,39 @@ test("SUPER's keys are Omarchy's bindings, and Shift turns them to the move laye
   expect(superAction("z", false)).toBeNull();
 });
 
-test("START tapped latches the window layer, again the move layer, again nothing", () => {
-  unlatch();
+test("START is SUPER while it is held, and nothing stays on after it", () => {
+  expect(superLayer()).toBe("plain");
   startPressed();
   expect(superLayer()).toBe("window");
   startReleased();
-  expect(latched()).toBe("window");
-  startPressed();
-  startReleased();
-  expect(latched()).toBe("move");
-  expect(superLayer()).toBe("move");
-  startPressed();
-  startReleased();
-  expect(latched()).toBeNull();
   expect(superLayer()).toBe("plain");
+  // tapping it again and again never reaches another layer
+  for (let i = 0; i < 3; i++) {
+    startPressed();
+    startReleased();
+    expect(superLayer()).toBe("plain");
+  }
 });
 
-test("a step keeps a latched layer, a verb lets it go, and a chord latches nothing", () => {
-  unlatch();
+test("a quick START with nothing under it is a tap: the menu", () => {
   startPressed();
-  startReleased();
-  used("step");
-  expect(latched()).toBe("window");
-  used("verb");
-  expect(latched()).toBeNull();
-  // START held through A: a chord, no latch on release
+  superTick();
+  expect(startReleased()).toBe("tap");
+  // A pressed under it: a chord, no menu
   startPressed();
-  used("verb");
-  expect(startReleased()).toBe("chord");
-  expect(latched()).toBeNull();
+  used();
+  expect(startReleased()).toBe("held");
+  // held until the controls row shows: a look, no menu
+  startPressed();
+  for (let i = 0; i <= LEGEND_FRAMES; i++) superTick();
+  expect(startReleased()).toBe("held");
 });
 
-test("the keyboard's Cmd holds the window layer, and Shift the move layer", () => {
-  unlatch();
+test("the keyboard's Cmd is SUPER while it is down, with or without Shift", () => {
   setModifier("Meta", true);
   expect(superLayer()).toBe("window");
   setModifier("Shift", true);
-  expect(superLayer()).toBe("move");
+  expect(superLayer()).toBe("window");
   setModifier("Shift", false);
   setModifier("Meta", false);
   expect(superLayer()).toBe("plain");

@@ -4,22 +4,21 @@
 // Meta+w), and the modifiers' own presses and releases. The D-pad's arrows
 // are the gamepad's D-pad buttons (app.tsx) unless Control, Alt or Cmd is held.
 //
-// With no SUPER layer (super.ts) the keys go where the deck's keys go
-// (focus.ts keySink): the terminal, the card, Notes, a text field. Under the
-// layer they are Omarchy's own SUPER bindings, the ones its Hyprland binds
+// Without SUPER (super.ts: START or Cmd held) the keys go where the deck's
+// keys go (focus.ts keySink): the terminal, the card, Notes, a text field.
+// With it they are Omarchy's own SUPER bindings, the ones its Hyprland binds
 // (default/hypr/bindings/tiling.lua and utilities.lua):
 //
 //   Return terminal      Space menu        W, Q close       F fullscreen
-//   J split              L layout          K key sheet      Escape the System menu (held; a latched layer's Escape leaves it)
+//   J split              L layout          K key sheet      Escape the System menu
 //   arrows focus         1-5 workspace     Tab, ] next      Shift+Tab, [ previous
 //   - = resize
 //   with Shift: arrows swap, 1-5 and { } carry the window, Return opens another
 //
-// A key the layer does not bind lets a latched layer go and is typed as usual.
+// A key SUPER does not bind does nothing while SUPER is held.
 import { onTextEvent, type TextEvent } from "@pocketjs/framework/input";
 import { perform } from "./actions.ts";
 import type { Action } from "./chords.ts";
-import { STEPS } from "./chords.ts";
 import { parseKey, superAction } from "./superkeys.ts";
 import { keySink } from "./focus.ts";
 import { locked } from "./stage/lock.tsx";
@@ -27,7 +26,7 @@ import { summon } from "./stage/menu.tsx";
 import { closeQr, qrOpen } from "./stage/qrsheet.tsx";
 import { closeSheet, sheetOpen } from "./stage/keysheet.tsx";
 import { screensaverActive, stopScreensaver } from "./stage/screensaver.tsx";
-import { closeHelp, keyboardMods, latched, panelDark, setModifier, superLayer, unlatch, used } from "./super.ts";
+import { closeHelp, keyboardMods, panelDark, setModifier, superLayer, used } from "./super.ts";
 import { openTerminal } from "./term/store.ts";
 import { act, focus } from "./workspaces.ts";
 
@@ -42,23 +41,13 @@ export const onHardInput = (hook: () => void) => (inputHook = hook);
 function superKey(key: string, shift: boolean): boolean {
   const action = superAction(key, shift);
   if (!action) return false;
-  if (action === "terminal") {
-    used("verb");
-    openTerminal();
-  } else if (action === "system") {
-    used("verb");
-    summon("system");
-  } else if (action.startsWith("ws") && /^ws\d$/.test(action)) {
-    used("verb");
-    focus(Number(action.slice(2)));
-  } else if (/^carry\d$/.test(action)) {
-    used("verb");
+  if (action === "terminal") openTerminal();
+  else if (action === "system") summon("system");
+  else if (/^ws\d$/.test(action)) focus(Number(action.slice(2)));
+  else if (/^carry\d$/.test(action)) {
     const target = Number(action.slice(5));
     act((m) => m.carry(target - m.active));
-  } else {
-    used(STEPS.includes(action as Action) ? "step" : "verb");
-    perform(action as Action);
-  }
+  } else perform(action as Action);
   return true;
 }
 
@@ -86,11 +75,10 @@ export function hardKey(event: TextEvent) {
   if (closeHelp() && key === "Escape") return;
   if (sheetOpen() && key === "Escape") return closeSheet();
   if (superLayer() !== "plain" && !mods.ctrl && !mods.alt) {
-    // Escape leaves a latched layer; held (START, Cmd) it is SUPER + Escape, the System menu
-    if (key === "Escape" && latched()) return void unlatch();
-    if (superKey(key, shift)) return;
-    // a latched layer's Escape lets it go; any other key it does not bind is typed
-    if (unlatch() && key === "Escape") return;
+    // START's release after this is no tap; a key SUPER does not bind does nothing
+    used();
+    superKey(key, shift);
+    return;
   }
   typedHook();
   const sink = keySink();
