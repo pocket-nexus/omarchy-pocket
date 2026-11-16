@@ -43,8 +43,8 @@ The ClockworkPi uConsole (Raspberry Pi CM4, Raspberry Pi OS 13) runs Omarchy Poc
 On the uConsole, from the release:
 
 ```sh
-curl -LO https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.1/omarchy-pocket-uconsole_0.2.1_arm64.deb
-sudo apt install ./omarchy-pocket-uconsole_0.2.1_arm64.deb   # downloads Omarchy's root (802 MB)
+curl -LO https://github.com/pocket-nexus/omarchy-pocket/releases/download/v0.2.2/omarchy-pocket-uconsole_0.2.2_arm64.deb
+sudo apt install ./omarchy-pocket-uconsole_0.2.2_arm64.deb   # downloads Omarchy's root (802 MB)
 omarchy-pocket-session on        # off: the Raspberry Pi desktop; boot / desktop: what starts at boot
 ```
 

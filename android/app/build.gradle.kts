@@ -28,8 +28,8 @@ android {
         // connects, disconnects and forgets networks itself (Wifi.java); an app
         // targeting Android 10 or later leaves those to Android's Wi-Fi panel
         targetSdk = 28
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.2.2"
         ndk {
             abiFilters += "arm64-v8a"
         }

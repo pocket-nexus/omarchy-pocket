@@ -24,7 +24,7 @@ const OUT = join(SITE, "public", "docs");
 const MEDIA = join(OUT, "media");
 const V = join(REPO, ".pocket-build", "validation");
 /** the release the pages describe (uconsole/release.json's and the Thor's versionName) */
-const VERSION = "0.2.1";
+const VERSION = "0.2.2";
 const RELEASES = "https://github.com/pocket-nexus/omarchy-pocket/releases";
 const TAG = `${RELEASES}/tag/v${VERSION}`;
 const DOWNLOAD = `${RELEASES}/download/v${VERSION}`;

@@ -50,6 +50,6 @@ Omarchy Pocket is installed for $user.
   omarchy-pocket-session off       the Raspberry Pi desktop now (or System > Raspberry Pi Desktop in Omarchy's menu)
   omarchy-pocket-session boot      Omarchy Pocket at every boot
   omarchy-pocket-session desktop   the Raspberry Pi desktop at every boot
-In Omarchy Pocket: tap START for SUPER, START + K for every key. Its lock takes $user's password.
+In Omarchy Pocket: tap START for the menu, hold START for SUPER (START + SELECT lists every key). Its lock takes $user's password.
 
 EOF
