@@ -9,4 +9,4 @@
 	url = https://github.com/pocket-nexus/applets.git
 [submodule "vendor/pocket-hub"]
 	path = vendor/pocket-hub
-	url = https://github.com/pocket-nexus/pocket-hub.git
+	url = https://github.com/pocket-nexus/pocket-hub-obsolete.git
