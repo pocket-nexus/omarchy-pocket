@@ -5,7 +5,9 @@
 // thumb points while the other clicks, the way the keyboard's maker laid
 // them out.
 //
-//   the ball      moves the pointer; pressed, it clicks as L does
+//   the ball      moves the pointer, and the window it moves onto takes focus,
+//                 as Omarchy's Hyprland does (input.lua follow_mouse = 1);
+//                 pressed, it clicks as L does
 //   L             the click: down on an applet is a touch held until L is up
 //                 (a press is a tap, a press and roll a drag); elsewhere it
 //                 acts at once (a card's row, a workspace number, an
@@ -28,7 +30,7 @@ import { card, cardKey, closeCard, onCard } from "./stage/card.tsx";
 import { carryWindowTo, click, hold, movePointer, pointer, scrollBy, targetAt } from "./stage/pointer.tsx";
 import { toggleMenu } from "./stage/menu.tsx";
 import { superLayer, used } from "./super.ts";
-import { focusWindow, windowAt } from "./workspaces.ts";
+import { focused, focusWindow, windowAt } from "./workspaces.ts";
 import { watching } from "./watch.ts";
 
 interface Bridge {
@@ -110,6 +112,7 @@ export function trackballTick(): boolean {
     if (dx || dy) {
       movePointer(dx * gain, dy * gain);
       setAwake(true);
+      followFocus();
     }
   }
   if (wheel) wheelTurned(wheel);
@@ -157,6 +160,15 @@ function secondary() {
     return pressBack();
   }
   if (target === "wallpaper") toggleMenu();
+}
+
+/** Omarchy's follow_mouse: the window the pointer moves onto takes focus.
+ *  Not while the menu or a panel is up, nor while L holds an applet's touch. */
+function followFocus() {
+  if (card() || holding) return;
+  const { x, y } = pointer();
+  const id = windowAt(x, y);
+  if (id !== null && id !== focused()?.id) focusWindow(id);
 }
 
 /** Under SUPER: the roll carries the focused window, one place a step. */

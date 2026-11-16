@@ -33,7 +33,8 @@ export function superAction(key: string, shift: boolean): Action | "terminal" | 
     case "Enter":
       return shift ? "another" : "terminal";
     case " ":
-      return "menu";
+      // SUPER + SHIFT + SPACE hides or shows Omarchy's bar
+      return shift ? "bar" : "menu";
     case "w":
     case "q":
       return "close";
