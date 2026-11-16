@@ -57,7 +57,9 @@ The RG DS Plus's three lines ([interaction.md](interaction.md)) become these on 
 **START is SUPER, as the Windows key is on a laptop** (`super.ts`). ClockworkPi's drawing puts START on the keyboard's top row 41 mm from the left of a 125 mm board, by the middle: either thumb reaches it. So SUPER is held, never latched:
 
 - **Tapped** (down and up within 18 frames, 0.3 s, with nothing pressed or rolled in between), START opens Omarchy's menu, and a tap with the menu open puts it away. A game with focus hears the tap as its START.
-- **Held**, START is SUPER for as long as it is down, and a chord takes the other thumb: the right thumb holds START for the D-pad, the left thumb holds it for A B X Y and the ball. Letting go leaves nothing on. Held past 18 frames with nothing pressed, its release does nothing: that hold was a look at the controls row.
+- **Held**, START is SUPER for as long as it is down. The left thumb holds it, where it rests, and the right thumb does the rest: the ball, A B X Y, and the keyboard's right half (`[ ]`, L, J, K, Return). Letting go leaves nothing on. Held past 18 frames with nothing pressed, its release does nothing: that hold was a look at the controls row.
+
+**The ball is the mouse, as on Omarchy's desktop.** Omarchy's Hyprland focuses the window the mouse moves onto (`default/hypr/input.lua`, `follow_mouse = 1`) and moves a window on SUPER + drag (`bindings/tiling.lua`). Here the window the pointer rolls onto takes focus (`trackball.ts` `followFocus`; not while the menu or a panel is up, nor while L holds an applet's touch), and START + a roll carries the focused window. So switching windows takes no chord, and no chord asks one thumb for two controls: the D-pad under SUPER still focuses, for whoever reaches START with the right thumb, but nothing needs it.
 
 0.2.1 latched SUPER on a tap and counted taps (a second tap the move layer, a third leaving it), so one button meant three things depending on how often it had been pressed. Now each control means one thing with START held and one without.
 
@@ -66,18 +68,22 @@ The keyboard's own SUPER (Fn + Alt, sent as Cmd) is SUPER while it is down, as S
 | Control | Without SUPER | With START held (SUPER) |
 |---|---|---|
 | D-pad | the arrows | focus the window that way; past the last window, the workspace beside |
-| the ball | the pointer | carry the focused window that way (`trackball.ts`: every 56 points rolled one way is one place, then 14 frames' rest); past the last window, the workspace beside |
+| the ball | the pointer; the window it rolls onto takes focus | carry the focused window that way (`trackball.ts`: every 56 points rolled one way is one place, then 14 frames' rest); past the last window, the workspace beside |
 | A | Enter | a new terminal (Omarchy's SUPER + Return) |
 | B | Backspace; back in the menu | close the window |
 | X | Tab | fullscreen |
 | Y | Space | toggle split / column width |
 | SELECT | alone: the controls row; held: the ball scrolls | the key sheet |
+| `[` `]` (under the ball) | typed | the workspace before, after |
+| L | typed | dwindle or scroll, as the bar's layout name when clicked |
 | L, the ball's press | click; held on an applet: a touch, so a press and roll drags | click |
 | R | back in an applet and the menu; Omarchy's menu on the wallpaper; on a workspace number, carry the window there | the same |
 
 The D-pad picks a window and the ball moves it: a step past the last window goes to the workspace beside and stops at the first and the fifth, as the bar lays them out; a held D-pad's repeats stop at the last window, and only a press goes past it.
 
-Under SUPER the keyboard has Omarchy's own bindings (`superkeys.ts`, after `default/hypr/bindings/tiling.lua` and `utilities.lua`): Return a terminal, Space the menu, W or Q close, F fullscreen, J split, L the layout, K the key sheet, Escape the System menu, 1–5 a workspace (with Shift, carry the window there), Tab and `]` the next workspace, Shift+Tab and `[` the previous one, `-` and `=` resize, Shift + Return another window of the focused app. A key SUPER does not bind does nothing while SUPER is held.
+Under SUPER the keyboard has Omarchy's own bindings (`superkeys.ts`, after `default/hypr/bindings/tiling.lua` and `utilities.lua`): Return a terminal, Space the menu, W or Q close, F fullscreen, J split, L the layout, K the key sheet, Escape the System menu, 1–5 a workspace (with Shift, carry the window there), Tab and `]` the next workspace, Shift+Tab and `[` the previous one, `-` and `=` resize, Shift + Return another window of the focused app, Shift + Space hides or shows the bar (Omarchy's `omarchy-toggle-bar`, also Appearance › Top Bar in the menu). A key SUPER does not bind does nothing while SUPER is held.
+
+**Fullscreen** (SUPER + F, or START + X) covers the whole panel, the bar too, as on Omarchy's Hyprland; the bar comes back with the window's return to its tile (`stage/bar.tsx` `barShown`).
 
 **The trackball** (`trackball.ts`) moves the pointer, relative and accelerated (0.9 points per count at rest, up to 2.6). Its clicks act by what is under the pointer (`stage/pointer.tsx` `targetAt`):
 
@@ -85,7 +91,7 @@ Under SUPER the keyboard has Omarchy's own bindings (`superkeys.ts`, after `defa
 |---|---|---|
 | a touch app (an applet) | a touch held until the button lets go: a press is a tap, a press and roll a drag | Back (the applet hears Cross) |
 | the card | a row (a tap selects, a tap on the selected row opens it); outside the card, the card closes | back a level, out at the top |
-| the bar | the logo opens the menu; a number goes to its workspace; an indicator opens its panel | a number carries the focused window there |
+| the bar | the logo opens the menu; a number goes to its workspace; an indicator opens its panel; the layout's name (dwindle, scrolling) turns the layout | a number carries the focused window there |
 | a window | focus | focus |
 | the wallpaper | — | Omarchy's menu, where a desktop puts its own |
 
@@ -97,7 +103,7 @@ SELECT held turns the ball into a wheel (the firmware does it): the list under t
 
 **Games.** A package that is not a touch app hears the D-pad and A B X Y, and START when it is tapped while the game has focus; START held is SUPER over it too.
 
-**Verified** (2026-11-16, uinput devices named as the keyboard's three functions, which the host enumerates as it does the real ones, and the GPU readback): START tapped opens the menu and tapped again puts it away; START held 0.7 s shows the controls row with SUPER's words, and its release opens nothing; START held + A twice tiles two terminals, and the keyboard types into the focused one without START; START + ← focuses the left one; START held and the ball rolled right carries it right; START + → past the last window steps to the next workspace, START + 1 back to the first; START + X fullscreen and back, START + Y turns the split, START + B closes; SELECT alone shows the plain row; START + SELECT the key sheet, Esc closes it; START tapped, A on Apps, typing `act` and Return opens Activity.
+**Verified** (2026-11-16, uinput devices named as the keyboard's three functions, which the host enumerates as it does the real ones, and the GPU readback): START tapped opens the menu and tapped again puts it away; START held 0.7 s shows the controls row with SUPER's words, and its release opens nothing; START held + A twice tiles two terminals, and the keyboard types into the focused one without START; START + ← focuses the left one; START held and the ball rolled right carries it right; START + → past the last window steps to the next workspace, START + 1 back to the first; START + X fullscreen and back, START + Y turns the split, START + B closes; SELECT alone shows the plain row; START + SELECT the key sheet, Esc closes it; START tapped, A on Apps, typing `act` and Return opens Activity. Then: the ball rolled onto the left of two windows focuses it; START + X covers the bar and back brings it; a click on the bar's `dwindle` turns the layout to scrolling and another back; START + Shift + Space hides the bar and again shows it; START + `]` and `[` step the workspaces.
 
 ## Display
 

@@ -15,6 +15,7 @@ test("SUPER's keys are Omarchy's bindings, and Shift moves instead of focusing",
   expect(superAction("w", false)).toBe("close");
   expect(superAction("Enter", false)).toBe("terminal");
   expect(superAction(" ", false)).toBe("menu");
+  expect(superAction(" ", true)).toBe("bar");
   expect(superAction("Left", false)).toBe("focus.left");
   expect(superAction("Left", true)).toBe("swap.left");
   expect(superAction("3", false)).toBe("ws2");

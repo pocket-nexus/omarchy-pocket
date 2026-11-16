@@ -292,25 +292,27 @@ ${shot(S("lock"), "The lock screen with the password field on the stage", "The l
 </div>
 
 <h2 id="controls">Controls</h2>
-<p>The keyboard types, the D-pad is its arrow keys, and the trackball is the mouse, with ${kbd("L")} and ${kbd("R")} as its buttons. ${kbd("START")} is the SUPER key, as the Windows key is on a laptop:</p>
+<p>The keyboard types, the D-pad is its arrow keys, and the trackball is the mouse, with ${kbd("L")} and ${kbd("R")} as its buttons. As on Omarchy's desktop, the window the pointer rolls onto takes focus: point at a window to work in it. ${kbd("START")} is the SUPER key, as the Windows key is on a laptop:</p>
 <ul>
 <li><b>Tap</b> ${kbd("START")}: Omarchy's menu. Tap again to put it away.</li>
-<li><b>Hold</b> ${kbd("START")} and press another control: SUPER plus that control. Let go and nothing stays on. ${kbd("START")} sits by the middle of the keyboard, so either thumb holds it: the right thumb for the D-pad, the left one for ${kbd("A")} ${kbd("B")} ${kbd("X")} ${kbd("Y")} and the ball.</li>
+<li><b>Hold</b> ${kbd("START")} with your left thumb, and the right thumb does the rest: roll the ball to carry the window, press ${kbd("A")} ${kbd("B")} ${kbd("X")} ${kbd("Y")}, or a key on the keyboard's right half. Let go and nothing stays on.</li>
 </ul>
 <p>Hold ${kbd("START")} for a moment and the panel's bottom edge shows what each control does, right above it. Let go without pressing anything and nothing happens.</p>
 ${uconsoleControls()}
 ${table(["Control", "Alone", "With START held (SUPER)"], [
   ["D-pad", "Arrows", "Focus the window that way; past the last one, the workspace beside"],
-  ["Ball", "Move the pointer", "Carry the focused window that way; past the last one, to the workspace beside"],
+  ["Ball", "Move the pointer; the window under it takes focus", "Carry the focused window that way; past the last one, to the workspace beside"],
   ["A", "Enter", "New terminal"],
   ["B", "Backspace; back in the menu", "Close the window"],
   ["X", "Tab", "Fullscreen"],
   ["Y", "Space", "Toggle split"],
   ["SELECT", "Alone: the controls row; held: the ball scrolls", "Every binding"],
+  ["[ / ] (under the ball)", "Typed", "The workspace before / after"],
   ["L / ball press", "Click; hold to drag", "Click"],
   ["R", "Back (in an applet or the menu); Omarchy's menu on the wallpaper", "Back"],
 ])}
-<p>With ${kbd("START")} held, the keyboard has Omarchy's own bindings: ${kbd("Return")} terminal, ${kbd("Space")} menu, ${kbd("W")} close, ${kbd("F")} fullscreen, ${kbd("J")} split, ${kbd("L")} layout, ${kbd("1")}–${kbd("5")} a workspace (with Shift: carry the window there), ${kbd("[")} ${kbd("]")} or ${kbd("Tab")} the workspace before or after, ${kbd("-")} ${kbd("=")} resize, ${kbd("K")} every binding, ${kbd("Esc")} the System menu. The keyboard's own Cmd key (${kbd("Fn")} + ${kbd("Alt")}) works as SUPER too.</p>
+<p>With ${kbd("START")} held, the keyboard has Omarchy's own bindings: ${kbd("Return")} terminal, ${kbd("Space")} menu, ${kbd("W")} close, ${kbd("F")} fullscreen, ${kbd("J")} split, ${kbd("L")} layout, ${kbd("1")}–${kbd("5")} a workspace (with Shift: carry the window there), ${kbd("[")} ${kbd("]")} or ${kbd("Tab")} the workspace before or after, ${kbd("-")} ${kbd("=")} resize, ${kbd("K")} every binding, ${kbd("Esc")} the System menu, ${kbd("Shift")} + ${kbd("Space")} hide or show the bar. The keyboard's own Cmd key (${kbd("Fn")} + ${kbd("Alt")}) works as SUPER too.</p>
+<p>Click the layout's name in the bar (<code>dwindle</code> or <code>scrolling</code>) to switch the layout, or press ${kbd("START")} + ${kbd("L")}. Fullscreen (${kbd("START")} + ${kbd("X")}) covers the bar too; the bar also hides and shows from Omarchy's menu: Appearance › Top Bar.</p>
 <div class="grid2">
 ${shot(S("legend"), "START held, with the controls row along the panel's bottom edge", "START held: each control's word sits right above it.")}
 ${shot(S("startmenu"), "Omarchy's menu over two tiled windows", "START tapped: Omarchy's menu.")}

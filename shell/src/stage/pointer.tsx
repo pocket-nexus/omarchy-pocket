@@ -19,11 +19,12 @@ import { state } from "../system.ts";
 import { color } from "../theme.ts";
 import type { Contact, TouchFrame } from "../touch.ts";
 import { BORDER } from "../wm.ts";
-import { act, focus, focusWindow, focused, placements, windowAt, windowById, WORKSPACES } from "../workspaces.ts";
+import { act, focus, focusWindow, focused, layout, placements, windowAt, windowById, WORKSPACES } from "../workspaces.ts";
 import { toggleMenu } from "./menu.tsx";
 import { card, cardTouch, closeCard, onCard } from "./card.tsx";
 import { CARD_X, CARD_Y } from "./geometry.ts";
-import { barIndicators } from "./bar.tsx";
+import { barIndicators, barShown } from "./bar.tsx";
+import { perform } from "../actions.ts";
 import { showPanel } from "./panels.tsx";
 import { HEADER_H } from "./windows.tsx";
 import { STAGE_H, STAGE_W } from "../screen.ts";
@@ -90,12 +91,18 @@ function barClick(px: number) {
   if (n !== null) return focus(n);
   const indicators = barIndicators(state());
   const at = Math.floor((STAGE_W - 8 - px) / SLOT);
-  if (px < STAGE_W - 8 && at >= 0 && at < indicators.length) showPanel(indicators[at]!.name);
+  if (px < STAGE_W - 8 && at >= 0 && at < indicators.length) return showPanel(indicators[at]!.name);
+  // the layout's name, right-aligned before the indicators (bar.tsx): dwindle or scroll
+  const right = STAGE_W - 16 - SLOT * indicators.length;
+  if (px >= right - layout().length * MONO_XS - 6 && px < right + 4) perform("layout");
 }
+
+/** JetBrains Mono's advance at text-xs (12 points) */
+const MONO_XS = 7.2;
 
 const onBar = (py: number) => {
   const top = state()?.bar?.position === "bottom" ? STAGE_H - BAR_H : 0;
-  return !state()?.bar?.hidden && py >= top && py < top + BAR_H;
+  return barShown() && py >= top && py < top + BAR_H;
 };
 
 export type Target = "applet" | "bar" | "wallpaper" | { kind: "workspace"; ws: number } | { kind: "window"; id: number };

@@ -74,7 +74,7 @@ const CELLS: Cell[] = [
 /** What the D-pad's edge, the wheel and START do, under the cells. */
 function notes(layer: Layer): { left: string; middle: string; title: string; hint: string } {
   if (layer === "plain") return { left: "", middle: "SELECT + roll: scroll", title: "Controls", hint: "tap START: menu · hold START: SUPER" };
-  return { left: "past the last: workspace", middle: "roll: move the window", title: "SUPER", hint: "keyboard: Omarchy's SUPER keys · SELECT: all" };
+  return { left: "past the last: workspace", middle: "roll: move the window", title: "SUPER", hint: "[ ]: workspace · L: layout · SELECT: all keys" };
 }
 
 const CELL_W = 70;

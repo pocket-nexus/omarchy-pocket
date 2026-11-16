@@ -13,7 +13,8 @@
 //   J split              L layout          K key sheet      Escape the System menu
 //   arrows focus         1-5 workspace     Tab, ] next      Shift+Tab, [ previous
 //   - = resize
-//   with Shift: arrows swap, 1-5 and { } carry the window, Return opens another
+//   with Shift: arrows swap, 1-5 and { } carry the window, Return opens
+//   another, Space hides or shows the bar
 //
 // A key SUPER does not bind does nothing while SUPER is held.
 import { onTextEvent, type TextEvent } from "@pocketjs/framework/input";

@@ -324,9 +324,11 @@ function uconsoleSheet(layout: Layout): { title: string; rows: SheetRow[] }[] {
     {
       title: "START: tap for the menu, hold for SUPER",
       rows: [
-        { keys: "d-pad", what: "focus, then workspace" },
         { keys: "roll", what: "carry the window" },
         ...chordsOf("window").filter((c) => !(c.button & DPAD)).map((c) => ({ keys: BUTTON_NAME[c.button]!, what: labelFor(c.action, layout) })),
+        { keys: "[ ]", what: "workspace before, after" },
+        { keys: "L", what: layout === "dwindle" ? "scroll layout" : "tile layout" },
+        { keys: "d-pad", what: "focus, then workspace" },
       ],
     },
     {
@@ -335,14 +337,16 @@ function uconsoleSheet(layout: Layout): { title: string; rows: SheetRow[] }[] {
         { keys: "Return / Space", what: "terminal / menu" },
         { keys: "W F J L", what: "close full split layout" },
         { keys: "1-5  \u{21e7}1-5", what: "workspace, carry" },
-        { keys: "[ ]  Tab", what: "workspace before, after" },
+        { keys: "Tab  \u{21e7}Tab", what: "workspace after, before" },
         { keys: "- =", what: "resize" },
+        { keys: "\u{21e7}Space", what: "hide or show the bar" },
         { keys: "Esc / K", what: "system menu / keys" },
       ],
     },
     {
       title: "no SUPER",
       rows: [
+        { keys: "the ball", what: "point; its window focuses" },
         { keys: "d-pad", what: "arrows" },
         { keys: "A B X Y", what: "Enter Bksp Tab Space" },
         { keys: "L, the ball", what: "click (hold: drag)" },

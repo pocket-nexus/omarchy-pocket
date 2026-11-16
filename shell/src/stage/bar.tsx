@@ -20,7 +20,7 @@ import { state } from "../system.ts";
 import type { SystemState } from "../../../daemon/protocol.ts";
 import type { PanelName } from "./panels.tsx";
 import { color } from "../theme.ts";
-import { current, layout, occupied, WORKSPACES } from "../workspaces.ts";
+import { current, fullscreen, layout, occupied, WORKSPACES } from "../workspaces.ts";
 import { STAGE_H, STAGE_W } from "../screen.ts";
 
 const NUMBERS = Array.from({ length: WORKSPACES }, (_, i) => i);
@@ -46,6 +46,10 @@ export function barIndicators(s: SystemState | null): { name: PanelName; glyph: 
   ].filter((i) => i.glyph);
 }
 
+/** The bar is drawn: Omarchy's bar-off toggle hides it, and a fullscreen
+ *  window (SUPER + F, not maximize) covers it, as on Omarchy's Hyprland. */
+export const barShown = () => !state()?.bar?.hidden && fullscreen()?.mode !== "full";
+
 export function Bar(props: { now: () => Date; focused: () => string | null }) {
   const settings = () => state()?.bar;
   const clock = () => formatClock(settings()?.clock ?? "dddd HH:mm", props.now());
@@ -53,7 +57,7 @@ export function Bar(props: { now: () => Date; focused: () => string | null }) {
   const indicators = () => barIndicators(state());
   const statusRight = () => STAGE_W - 8 - SLOT * indicators().length - 8;
   return (
-    <Show when={!settings()?.hidden}>
+    <Show when={barShown()}>
       <View class={C.bar} style={{ width: STAGE_W, insetT: top(), bgColor: color("background", ALPHA[settings()?.background ?? "opaque"] ?? 1) }}>
         {/* centred on the bar's middle (9): Omarchy's logo sits high in its em, 2 points down; the digits half a point */}
         <Text class={C.barText} style={{ insetL: 6, insetT: 4, textColor: color("foreground") }}>{"\u{e900}"}</Text>
