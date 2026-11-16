@@ -16,6 +16,11 @@
 //   SELECT + ball the firmware's wheel: the list under the pointer scrolls,
 //                 a card's selection moves; under SUPER it steps workspaces,
 //                 as Omarchy's SUPER + wheel does
+//   START + ball  under SUPER the ball carries the focused window instead
+//                 of the pointer: each CARRY_STEP points rolled one way swaps
+//                 it with its neighbour there, and past the last window it
+//                 goes to the workspace beside (actions.ts), as SUPER + Shift +
+//                 an arrow does. The D-pad picks a window, the ball moves it.
 import { createSignal } from "solid-js";
 import { perform } from "./actions.ts";
 import { pressBack } from "./packages.ts";
@@ -39,6 +44,10 @@ const MAX_GAIN = 2.6;
 const WHEEL_STEP = 24;
 /** frames without a detent that end a scroll */
 const WHEEL_END = 10;
+/** points rolled one way, under SUPER, that carry the window one place */
+const CARRY_STEP = 56;
+/** frames after a carry before the next: one flick, one place */
+const CARRY_REST = 14;
 
 const L = 1;
 const R = 2;
@@ -55,6 +64,10 @@ let holding = false;
 let wheelIdle = 0;
 let scrolling = false;
 let wheeled = false;
+/** the roll under SUPER since the last carry, in points */
+let carryX = 0;
+let carryY = 0;
+let carryRest = 0;
 
 /** SELECT's hold: starts watching for the wheel (true), or says whether
  *  the ball turned it since (false): SELECT alone shows the controls. */
@@ -89,11 +102,15 @@ export function trackballTick(): boolean {
   buttons = now;
   if (watching() && (down || up || wheel)) console.log(`trackball: down ${down} up ${up} wheel ${wheel} card ${card()} at ${pointer().x.toFixed(0)},${pointer().y.toFixed(0)}`);
   const active = dx !== 0 || dy !== 0 || wheel !== 0 || now !== 0 || up !== 0;
-  if (dx || dy) {
-    const speed = Math.hypot(dx, dy);
-    const gain = Math.min(MAX_GAIN, GAIN + speed * ACCEL);
-    movePointer(dx * gain, dy * gain);
-    setAwake(true);
+  const speed = Math.hypot(dx, dy);
+  const gain = Math.min(MAX_GAIN, GAIN + speed * ACCEL);
+  if (superLayer() !== "plain") carryRoll(dx * gain, dy * gain);
+  else {
+    carryX = carryY = 0;
+    if (dx || dy) {
+      movePointer(dx * gain, dy * gain);
+      setAwake(true);
+    }
   }
   if (wheel) wheelTurned(wheel);
   else if (scrolling && ++wheelIdle > WHEEL_END) {
@@ -142,12 +159,29 @@ function secondary() {
   if (target === "wallpaper") toggleMenu();
 }
 
+/** Under SUPER: the roll carries the focused window, one place a step. */
+function carryRoll(x: number, y: number) {
+  if (carryRest > 0) {
+    carryRest--;
+    carryX = carryY = 0;
+    return;
+  }
+  carryX += x;
+  carryY += y;
+  const horizontal = Math.abs(carryX) >= Math.abs(carryY);
+  const along = horizontal ? carryX : carryY;
+  if (Math.abs(along) < CARRY_STEP) return;
+  carryX = carryY = 0;
+  carryRest = CARRY_REST;
+  perform(horizontal ? (along < 0 ? "swap.left" : "swap.right") : along < 0 ? "swap.up" : "swap.down");
+}
+
 function wheelTurned(detents: number) {
   wheelIdle = 0;
   wheeled = true;
   // Omarchy's SUPER + wheel: the workspace before or after
   if (superLayer() !== "plain") {
-    used("step");
+    used();
     return perform(detents > 0 ? "ws.prev" : "ws.next");
   }
   if (card()) {

@@ -1,6 +1,6 @@
 // The uConsole's legend: its controls row drawn along the stage's bottom
-// edge, each control's word over the place it sits under the panel, while a
-// SUPER layer is latched or held a moment (super.ts) or SELECT's help is up.
+// edge, each control's word over the place it sits under the panel, while
+// START has been held a moment (SUPER, super.ts) or SELECT's help is up.
 // The row under the uConsole's panel holds, left to right, the D-pad, L and R
 // (L above and left of R), the trackball, and Y X over B A; the keyboard's
 // maker's drawing (clockworkpi/uConsole, Clockwork_uConsole_Assembly_Guidelines.pdf,
@@ -15,7 +15,7 @@ import { BTN } from "@pocketjs/framework/input";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { chordFor, glyphFor, type Glyph, type Layer } from "../chords.ts";
 import { glide } from "../motion.ts";
-import { latched, legendShown } from "../super.ts";
+import { legendShown } from "../super.ts";
 import { color } from "../theme.ts";
 import { layout } from "../workspaces.ts";
 import { STAGE_H, STAGE_W } from "../screen.ts";
@@ -54,8 +54,7 @@ const CELLS: Cell[] = [
     name: "D-pad",
     x: at(0.13),
     y: ROW1,
-    glyph: (layer) =>
-      layer === "plain" ? { icon: "\u{f0041}", word: "Arrows" } : layer === "move" ? { icon: "\u{f04e1}", word: "Swap" } : { icon: "\u{f04fe}", word: "Focus" },
+    glyph: (layer) => (layer === "plain" ? { icon: "\u{f0041}", word: "Arrows" } : { icon: "\u{f04fe}", word: "Focus" }),
   },
   { name: "L", x: at(0.295), y: ROW1, glyph: () => ({ icon: "\u{f037d}", word: "Click" }) },
   { name: "R", x: at(0.34), y: ROW2, glyph: () => ({ icon: "\u{f0b33}", word: "Back" }) },
@@ -63,7 +62,8 @@ const CELLS: Cell[] = [
     name: "Ball",
     x: at(0.648),
     y: ROW1,
-    glyph: () => ({ icon: "\u{f01bf}", word: "Point" }),
+    // under SUPER the ball carries the focused window (trackball.ts)
+    glyph: (layer) => (layer === "plain" ? { icon: "\u{f01bf}", word: "Point" } : { icon: "\u{f04e1}", word: "Move" }),
   },
   { name: "Y", x: at(0.79), y: ROW1, glyph: face(BTN.SQUARE) },
   { name: "X", x: at(0.878), y: ROW1, glyph: face(BTN.TRIANGLE) },
@@ -73,17 +73,8 @@ const CELLS: Cell[] = [
 
 /** What the D-pad's edge, the wheel and START do, under the cells. */
 function notes(layer: Layer): { left: string; middle: string; title: string; hint: string } {
-  const wheel = layer === "plain" ? "SELECT + roll: scroll" : "SELECT + roll: workspace";
-  switch (layer) {
-    case "plain":
-      return { left: "", middle: wheel, title: "Controls", hint: "START: SUPER · SELECT: close" };
-    case "window":
-      return { left: "past the last: workspace", middle: wheel, title: "SUPER  Window", hint: latched() ? "START: move · Esc: leave" : "SHIFT: move" };
-    case "move":
-      return { left: "past the last: carry", middle: wheel, title: "SUPER \u{21e7}  Move", hint: latched() ? "START: leave" : "" };
-    default:
-      return { left: "", middle: "", title: "", hint: "" };
-  }
+  if (layer === "plain") return { left: "", middle: "SELECT + roll: scroll", title: "Controls", hint: "tap START: menu · hold START: SUPER" };
+  return { left: "past the last: workspace", middle: "roll: move the window", title: "SUPER", hint: "keyboard: Omarchy's SUPER keys · SELECT: all" };
 }
 
 const CELL_W = 70;

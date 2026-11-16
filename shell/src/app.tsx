@@ -87,7 +87,6 @@ import { DECK_H, DECK_W, HAS_DECK, STAGE_H, STAGE_W, UCONSOLE } from "./screen.t
 import { onHardInput, onHardKey } from "./hardkeys.ts";
 import { discardTrackball, sleepPointer, trackballAwake, trackballTick, wheeledWhile } from "./trackball.ts";
 import { closeHelp, panelDark, startPressed, startReleased, superLayer, superTick, toggleHelp, used } from "./super.ts";
-import { STEPS } from "./chords.ts";
 import { Controls } from "./stage/controls.tsx";
 import { FieldLine } from "./stage/field.tsx";
 
@@ -182,7 +181,6 @@ export default function Shell() {
       if (locked()) return;
       const chord = chordFor(layer, key);
       if (chord) {
-        if (UCONSOLE) used(STEPS.includes(chord.action) ? "step" : "verb");
         perform(chord.action);
       }
       return;
@@ -265,14 +263,18 @@ export default function Shell() {
     if (startPulse > 0) startPulse--;
     if (down & ~BTN.SELECT) closeHelp();
     if (screensaverActive() && (down || rolled)) return stopScreensaver();
-    // START: SUPER, or the lock's Escape; a game hears a tap of it
+    // START: held, SUPER; tapped, Omarchy's menu (a game hears the tap as
+    // its START); on the lock, its own START
     if (down & BTN.START) {
       if (locked()) press(BTN.START, buttons);
       else startPressed();
     }
-    if (up & BTN.START && !locked()) {
-      const game = focusedPackage() && !focusedPackage()!.appletSurface && !card() && superLayer() === "window";
-      if (startReleased(!game) === "tap" && game) startPulse = 4;
+    // anything pressed or rolled while START is down makes it a chord, not a tap
+    if (buttons & BTN.START && (down & ~BTN.START || rolled)) used();
+    if (up & BTN.START && !locked() && startReleased() === "tap") {
+      const game = focusedPackage() && !focusedPackage()!.appletSurface && !card();
+      if (game) startPulse = 4;
+      else perform("menu");
     }
     superTick();
     setHeldLayer(superLayer());

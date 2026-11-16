@@ -82,6 +82,8 @@ export function perform(action: Action) {
       return must((m) => m.carry(1), "No window to carry");
     case "menu":
       return toggleMenu();
+    case "terminal":
+      return void openTerminal();
     case "close":
       return closeFocused();
     case "fullscreen":
