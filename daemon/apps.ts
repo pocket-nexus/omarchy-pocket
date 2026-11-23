@@ -17,9 +17,18 @@ const fileTitle = (file: string) =>
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 
+/** Whether an applet asks to be told where the pointer rests over its
+ *  window: `input.pointer` among its capabilities (Pocket Shell's applet
+ *  contract admits it, runtime/spec/applet.ts), or `pointer` among its
+ *  `applet.services`, the way an applet said it before the contract did. */
+function readsPointer(m: ReturnType<typeof manifest>): boolean {
+  if (m.applet?.services?.includes("pointer")) return true;
+  return [...(m.engine?.capabilities?.requires ?? []), ...(m.engine?.capabilities?.enhances ?? [])].includes("input.pointer");
+}
+
 /** The package's pocket.json: it sits after the 32-byte header
  *  (contracts/spec/pocket-package.ts), its length at byte 8. */
-export function manifest(path: string): { id?: string; title?: string; applet?: unknown; app?: { surfaces?: { auxiliary?: unknown } } } {
+export function manifest(path: string): { id?: string; title?: string; applet?: { services?: string[] }; engine?: { capabilities?: { requires?: string[]; enhances?: string[] } }; app?: { surfaces?: { auxiliary?: unknown }; presentations?: { modality?: { buttons?: boolean } }[] } } {
   try {
     const fd = openSync(path, "r");
     const head = Buffer.alloc(32);
@@ -48,7 +57,7 @@ function applets(home: string): App[] {
       const m = manifest(join(dir, file));
       // "PocketJS: " prefixes the pocketjs apps' titles and says nothing in this list
       const name = m.title?.replace(/^PocketJS:\s*/, "") || fileTitle(file);
-      out.push({ id: file, name, command: "", applet: join(dir, file), aux: m.app?.surfaces?.auxiliary !== undefined, appletSurface: m.applet !== undefined });
+      out.push({ id: file, name, command: "", applet: join(dir, file), aux: m.app?.surfaces?.auxiliary !== undefined, appletSurface: m.applet !== undefined, pad: m.app?.presentations?.some((p) => p.modality?.buttons === true) === true, hover: readsPointer(m) });
     }
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));

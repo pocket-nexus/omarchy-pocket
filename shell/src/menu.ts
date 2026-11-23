@@ -23,6 +23,10 @@ export interface MenuItem {
   /** the package draws a touch surface, which the deck shows */
   aux?: boolean;
   appletSurface?: boolean;
+  /** the applet has a way through its pages by the pad (daemon App.pad) */
+  pad?: boolean;
+  /** the applet reads a pointer (daemon App.hover) */
+  hover?: boolean;
   /** a window the shell opens: "terminal" or one of its applets (applets/) */
   open?: string;
 }

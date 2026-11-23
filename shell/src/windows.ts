@@ -29,12 +29,12 @@ export function openWindow(name: string): boolean {
  *  (`pocket.window open youtube`); the menu's Apps rows open the same way. */
 function openPackageNamed(name: string) {
   const wanted = name.toLowerCase();
-  void request<{ id: string; name: string; applet?: string; aux?: boolean; appletSurface?: boolean }[]>({ method: "apps" }).then((apps) => {
+  void request<{ id: string; name: string; applet?: string; aux?: boolean; appletSurface?: boolean; pad?: boolean; hover?: boolean }[]>({ method: "apps" }).then((apps) => {
     const app = apps.find((a) => {
       const id = a.id.toLowerCase();
       return id === wanted || id === `${wanted}.pocket` || a.name.toLowerCase() === wanted;
     });
-    if (app?.applet) openPackage(app.applet, app.name, app.aux === true, app.appletSurface === true);
+    if (app?.applet) openPackage(app.applet, app.name, app.aux === true, app.appletSurface === true, { pad: app.pad === true, hover: app.hover === true });
   });
 }
 

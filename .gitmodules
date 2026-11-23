@@ -10,3 +10,6 @@
 [submodule "vendor/pocket-hub"]
 	path = vendor/pocket-hub
 	url = https://github.com/pocket-nexus/pocket-hub.git
+[submodule "vendor/pocket-lody"]
+	path = vendor/pocket-lody
+	url = https://github.com/pocket-nexus/pocket-lody.git
