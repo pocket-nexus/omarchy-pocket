@@ -28,12 +28,13 @@ import { NetFailure, normalizeNetRequest, performNet, type NetResponse } from ".
 import { bytesResponse, jsonResponse, readJson, SERVICE_FACTORIES, ServiceHost, type ServiceProvider } from "../vendor/pocket-hub/tools/companion/services.ts";
 import { createXService } from "../vendor/pocket-hub/tools/companion/services/x.ts";
 import { createSpotifyService, signedInBefore } from "./spotify.ts";
+import { createLodyProvider } from "../vendor/pocket-lody/service/provider.ts";
 import type { Media } from "./protocol.ts";
 import { encodeImageEntry } from "../vendor/pocketjs/framework/compiler/pak.ts";
 import { IMG_FLAG_LINEAR, PSM } from "../vendor/pocketjs/contracts/spec/spec.ts";
 import { manifest } from "./apps.ts";
 import { createAppStoreService, installedApp, isolatedRequest, isolatedServices, STORE_PACKAGE } from "./appstore.ts";
-import { AtlasBaker } from "./glyphs.ts";
+import { atlasCodepoints, AtlasBaker } from "./glyphs.ts";
 import HOST_CONTRACT from "../host/pocket.host.json" with { type: "json" };
 
 /** The response limit an app's worker may ask for: the host contract's
@@ -41,7 +42,6 @@ import HOST_CONTRACT from "../host/pocket.host.json" with { type: "json" };
 export const APP_RESPONSE_MAX = HOST_CONTRACT.worker.http.responseBytes;
 const GLYPH_PX = [8, 32] as const;
 const GLYPH_TEXT_MAX = 20_000;
-const ASCII = Array.from({ length: 0x7f - 0x20 }, (_, i) => 0x20 + i);
 
 export interface AppNetRequest {
   h: number;
@@ -51,13 +51,15 @@ export interface AppNetRequest {
 }
 
 /** The glyphs service (PocketJS's POST /glyphs/atlas {px, bold, slot, text})
- *  answered by the device's baker instead of CoreText or FreeType. */
+ *  answered by the device's baker instead of CoreText or FreeType. With
+ *  `ascii: false` the atlas holds only the characters of `text`: an applet
+ *  that keeps its own table of glyphs asks for the ones it lacks. */
 function deviceGlyphs(baker: AtlasBaker): ServiceProvider {
   return {
     name: "glyphs",
     async handle(request) {
       if (request.path !== "/atlas" || request.method !== "POST") return jsonResponse(404, { error: `no glyphs endpoint ${request.path}` });
-      const body = readJson<{ px?: unknown; bold?: unknown; slot?: unknown; density?: unknown; text?: unknown }>(request, { error: "atlas needs JSON {px, bold, slot, text}" });
+      const body = readJson<{ px?: unknown; bold?: unknown; slot?: unknown; density?: unknown; text?: unknown; ascii?: unknown }>(request, { error: "atlas needs JSON {px, bold, slot, text}" });
       const px = typeof body.px === "number" ? Math.round(body.px) : NaN;
       const slot = typeof body.slot === "number" ? body.slot : NaN;
       const text = typeof body.text === "string" ? body.text : "";
@@ -65,7 +67,7 @@ function deviceGlyphs(baker: AtlasBaker): ServiceProvider {
         return jsonResponse(400, { error: `atlas needs px ${GLYPH_PX[0]}..${GLYPH_PX[1]} and a slot below 24` });
       }
       if (text.length > GLYPH_TEXT_MAX) return jsonResponse(400, { error: `atlas text is limited to ${GLYPH_TEXT_MAX} characters` });
-      const chars = [...new Set([...ASCII, ...[...text].map((c) => c.codePointAt(0)!)])].sort((a, b) => a - b);
+      const chars = atlasCodepoints(text, body.ascii !== false);
       const atlas = await baker.bake(px, body.bold === true, slot, chars, body.density === 1 ? 1 : undefined);
       if (atlas.length > request.maxBytes) return jsonResponse(413, { error: `the atlas is ${atlas.length} bytes, limit ${request.maxBytes}` });
       return bytesResponse(atlas, "application/x-pocket-font");
@@ -150,6 +152,9 @@ export class AppNet {
     SERVICE_FACTORIES.appstore = () => createAppStoreService(home, () => this.callers.clear());
     // Spotify: omarchy-pocket-spotify's pairing sign-in, internal API and speaker
     SERVICE_FACTORIES.spotify = (context) => createSpotifyService(context, { onMedia: (media) => this.onMedia(media) });
+    // Pocket Lody's bridge to a Lody workspace (vendor/pocket-lody/service): the lody
+    // CLI on this device, a bridge on another computer, or sample data
+    SERVICE_FACTORIES.lody = (context) => createLodyProvider(context) as ServiceProvider;
     this.services = new ServiceHost({ storeDir, log: (line) => log(line) });
     // signed in to Spotify before: its speaker comes up with the daemon, for a phone to find
     if (signedInBefore(storeDir)) void this.services.command("spotify", ["status"]).catch(() => {});

@@ -54,13 +54,13 @@ import { DeckLegend, tickLegend } from "./deck/legend.tsx";
 import { Dock, dockTarget, dockTouch } from "./deck/dock.tsx";
 import { pressAt } from "./deck/press.ts";
 import { Strip, stripTarget, stripTouch } from "./deck/strip.tsx";
-import { pointerAwake, roundTarget, surfacePackage, Touchpad, touchpadTouch } from "./deck/touchpad.tsx";
+import { padTouched, pointerAwake, roundTarget, surfacePackage, Touchpad, touchpadTouch } from "./deck/touchpad.tsx";
 import { card, cardButton, closeCard } from "./stage/card.tsx";
 import { closeMenu } from "./stage/menu.tsx";
 import { layout, toggleKeys } from "./focus.ts";
 import { setHeldLayer } from "./held.ts";
 import { buttonKey, fieldSink, sendRepeat } from "./keys.ts";
-import { appletRefused, feedPackage, showPackage, mediaPlaying, touchAppButtons } from "./packages.ts";
+import { appletHover, appletPad, appletRefused, appletTyping, feedPackage, showPackage, mediaPlaying, touchAppButtons } from "./packages.ts";
 import { glide } from "./motion.ts";
 import { remoteButtons } from "./remote-input.ts";
 import { stickTick } from "./stick.ts";
@@ -71,7 +71,7 @@ import { closeQr, qrOpen, QrSheet } from "./stage/qrsheet.tsx";
 import { lock, locked, LockStage } from "./stage/lock.tsx";
 import { Osd } from "./stage/osd.tsx";
 import { openPanel } from "./stage/panels.tsx";
-import { Pointer, pointerContacts } from "./stage/pointer.tsx";
+import { Pointer, pointerButton, pointerContacts, pressPointer, releasePointer } from "./stage/pointer.tsx";
 import { Screensaver, screensaverActive, ScreensaverDeck, startScreensaver, stopScreensaver } from "./stage/screensaver.tsx";
 import { Toasts } from "./stage/toasts.tsx";
 import { Wallpaper } from "./stage/wallpaper.tsx";
@@ -176,6 +176,10 @@ export default function Shell() {
   const press = (key: number, held: number) => {
     if (screensaverActive()) return stopScreensaver();
     if (qrOpen()) return closeQr();
+    // With a finger on the trackpad, A is the pointer's button and nothing
+    // else (stage/pointer.tsx): down now, up when A is let go (frame). A game
+    // keeps its A: a thumb resting on the glass must not take it.
+    if (key === BTN.CIRCLE && !locked() && padTouched() && layerOf(held & MODIFIERS) === "plain" && !(focusedPackage() && !focusedPackage()!.appletSurface)) return pressPointer();
     const layer = UCONSOLE ? (locked() ? "plain" : superLayer()) : layerOf(held & MODIFIERS);
     if (layer !== "plain") {
       if (locked()) return;
@@ -197,23 +201,39 @@ export default function Shell() {
     if (name) sendKey(name);
   };
 
-  /** the package fed last, released when it loses focus */
+  /** Something of the shell's is up and takes the pad. */
+  const shellHolds = () => locked() || !!card() || !!fieldSink() || qrOpen() || screensaverActive();
+  /** the package fed last, released when it loses focus, and the buttons a touch app heard last frame */
   let fed: number | null = null;
-  const feed = (buttons: number, contacts: number[]) => {
+  let heard = 0;
+  /** `down`: the buttons that went down this frame; `held`: whether the shell had something up when the frame began */
+  const feed = (buttons: number, down: number, holding: boolean, contacts: number[]) => {
     const w = focusedPackage();
     if (fed !== null && fed !== w?.app) {
       feedPackage(fed, 0, []);
       fed = null;
     }
     if (!w) return;
+    if (fed !== w.app) heard = 0;
     fed = w.app;
-    // a touch app answers touch only (the pointer's); the buttons are the shell's
-    if (w.appletSurface) return feedPackage(w.app, touchAppButtons(), pointerContacts(w.app));
     const plain = UCONSOLE ? superLayer() === "plain" : layerOf(buttons & MODIFIERS) === "plain";
     // the uConsole's START is SUPER: a game hears a tap of it as START (uconsoleFrame)
-    const own = UCONSOLE ? (buttons & ~(BTN.START | BTN.SELECT)) | (startPulse > 0 ? BTN.START : 0) : buttons & ~(MODIFIERS | BTN.SELECT | BTN.ZL | BTN.ZR);
+    // A held as the pointer's button is the pointer's, not the package's
+    const taken = MODIFIERS | BTN.SELECT | BTN.ZL | BTN.ZR | (pointerButton() ? BTN.CIRCLE : 0);
+    const own = UCONSOLE ? (buttons & ~(BTN.START | BTN.SELECT)) | (startPulse > 0 ? BTN.START : 0) : buttons & ~taken;
     const mask = plain && !locked() && !card() && !fieldSink() ? own : 0;
-    feedPackage(w.app, mask, contacts);
+    if (!w.appletSurface) return feedPackage(w.app, mask, contacts);
+    // A touch app answers the pointer's touch, and Back; one with a way
+    // through its pages by the pad hears the pad's plain buttons too, except
+    // while its field is open, when the pad types the keys (press).
+    // A button reaches it from the frame it goes down, and for as long as it
+    // stays down after that: one that was already held when the pad became
+    // the applet's (the B that closed the menu over it, the A that woke the
+    // screen or submitted its field, the Y of a chord whose shoulder was let
+    // go first) was the shell's press and is not also the applet's.
+    const open = appletPad(w) && !appletTyping(w.app) && !holding && !shellHolds() ? mask : 0;
+    heard = open & (down | heard);
+    feedPackage(w.app, touchAppButtons() | heard, pointerContacts(w.app, appletHover(w) && !holding && !shellHolds()));
   };
 
   const bodyTouch = (frame: TouchFrame): number[] => {
@@ -250,6 +270,7 @@ export default function Shell() {
   const uconsoleFrame = (buttons: number) => {
     const down = buttons & ~held;
     const up = held & ~buttons;
+    const holding = shellHolds();
     // the key or roll that lights a dark panel only lights it
     if (panelDark()) {
       held = buttons;
@@ -291,7 +312,7 @@ export default function Shell() {
       else if (key & REPEATS & buttons && heldFor > REPEAT_AFTER && (heldFor - REPEAT_AFTER) % REPEAT_EVERY === 0) sendRepeat(() => press(key, buttons));
     }
     if (locked()) return;
-    feed(buttons, []);
+    feed(buttons, down, holding, []);
   };
   /** the screensaver's dismissing touch: nothing acts until every finger lifts */
   let swallow = false;
@@ -300,6 +321,8 @@ export default function Shell() {
     if (UCONSOLE) return uconsoleFrame(buttons);
     const touch = trackTouches();
     const down = buttons & ~held;
+    const holding = shellHolds();
+    if (pointerButton() && !(buttons & BTN.CIRCLE)) releasePointer();
     if (down || touch.raw) input();
     if (buttons & held & REPEATS) heldFor++;
     else heldFor = 0;
@@ -327,7 +350,7 @@ export default function Shell() {
     pressAt(!first ? null : first.start.y < STRIP_H ? stripTarget(first.x) : (dockTarget(first.x, first.y - BODY_TOP, first.moved) ?? roundTarget(first.x, first.y - BODY_TOP)));
     stripTouch(band(touch, 0, STRIP_H));
     const contacts = bodyTouch(band(touch, BODY_TOP, DECK_H));
-    feed(buttons, contacts);
+    feed(buttons, down, holding, contacts);
   });
 
   return (

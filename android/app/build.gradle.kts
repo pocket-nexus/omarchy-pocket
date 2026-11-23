@@ -47,6 +47,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // tools/android.ts apk --debuggable: the release build with run-as
+            // open, for a device that keeps the published release's root
+            isDebuggable = (project.findProperty("omarchyPocketDebuggable") == "true")
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }

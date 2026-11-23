@@ -6,9 +6,12 @@
 //   bun tools/android.ts lib        libomarchy_pocket.so (host/ for aarch64-linux-android), every handheld's profile in it
 //   bun tools/android.ts shell      the shell package for each handheld's profile (android/handhelds/<id>/pocket.host.json)
 //   bun tools/android.ts applets    the applets for each handheld's profile
+//   bun tools/android.ts lody       Pocket Lody (vendor/pocket-lody) for each handheld's profile, beside the applets
 //   bun tools/android.ts proot      proot, its talloc and its loader from Termux's packages (pinned)
 //   bun tools/android.ts daemon     omarchy-pocketd and its shims, which the app installs into its root
-//   bun tools/android.ts apk        the app, with what the steps above built [--debug]
+//   bun tools/android.ts apk        the app, with what the steps above built [--debug]; --debuggable is the
+//                                   release build marked debuggable: it installs over a release, keeps the
+//                                   root, and lets `exec` in
 //   bun tools/android.ts install    adb install the app and start it [--debug]
 //   bun tools/android.ts rootfs [--from <rgds-root.tar.zst>]
 //                                   the app's Linux root, from the RG DS Plus image
@@ -53,6 +56,7 @@ const TARGET = "aarch64-linux-android";
 const JNI = join(APP, "src", "main", "jniLibs", "arm64-v8a");
 const ASSETS = join(APP, "src", "main", "assets");
 const DEBUG = process.argv.includes("--debug");
+const DEBUGGABLE = process.argv.includes("--debuggable");
 
 /** The handhelds the app runs on, by profile id: each has its host profile
  *  in android/handhelds/<id>/ (pocket.host.json and the pocket.host.config.ts
@@ -291,6 +295,24 @@ async function appletsFor(id: HandheldId, names: string[], source: string) {
   if (failed.length) throw new Error(`${id}: applets that did not compile: ${failed.join(" ")}`);
 }
 
+/** Pocket Lody (vendor/pocket-lody, built on PocketUI: @pocketjs/framework/ui)
+ *  for each handheld's host contract, beside the applets of
+ *  pocket-nexus/applets. Its `lody` service is in omarchy-pocketd
+ *  (daemon/companion.ts). It is a repository of its own that builds with the
+ *  Pocket Shell and PocketJS it vendors (`bun run setup` there); the bundle
+ *  gets this repository's pointer layer (host/layers/pointer.ts), which hands
+ *  the shell's resting pointer to the applet as the frame's pointer. */
+async function lody() {
+  if (!existsSync(join(ROOT, "vendor/pocket-lody/node_modules/@pocketjs/framework"))) throw new Error("vendor/pocket-lody is not set up: git submodule update --init vendor/pocket-lody && (cd vendor/pocket-lody && bun run setup)");
+  const { buildApplet } = await import("../vendor/pocket-lody/tools/build.ts");
+  for (const id of chosen) {
+    const host = hostProfile(id);
+    mkdirSync(OUTPUTS.applets(id), { recursive: true });
+    const built = await buildApplet({ target: join(ROOT, `android/handhelds/${id}/pocket.host.json`), out: join(OUTPUTS.applets(id), "lody.pocket"), stage: host.display.logicalViewports[0], layers: [join(ROOT, "host/layers/pointer.ts")], work: join(CACHE, "lody", id) });
+    console.log(`applet: ${id}: lody (${(built.bytes / 1024).toFixed(0)} KiB)`);
+  }
+}
+
 /** The command line the app's LinuxService runs (Linux.java command()),
  *  around `command`: run-as gives it the app's uid and SELinux domain. */
 async function exec(command: string) {
@@ -353,7 +375,11 @@ async function apk() {
   rmSync(join(ASSETS, "applets"), { recursive: true, force: true });
   if (!existsSync(OUTPUTS.proot)) throw new Error(`no ${OUTPUTS.proot}; run: bun tools/android.ts proot`);
   if (!existsSync(join(OUTPUTS.linux, "omarchy-pocketd.js"))) throw new Error(`no daemon in ${OUTPUTS.linux}; run: bun tools/android.ts daemon`);
-  await $`./gradlew --quiet ${DEBUG ? "assembleDebug" : "assembleRelease"}`.cwd(join(ROOT, "android")).env({ ...process.env, ANDROID_HOME: sdk });
+  // --debuggable: the release build, signed with the release key and marked
+  // debuggable. It installs over a published release and keeps its root, and
+  // run-as reaches the root (exec). Not for publishing: release() refuses it.
+  const flags = DEBUGGABLE ? ["-PomarchyPocketDebuggable=true"] : [];
+  await $`./gradlew --quiet ${flags} ${DEBUG ? "assembleDebug" : "assembleRelease"}`.cwd(join(ROOT, "android")).env({ ...process.env, ANDROID_HOME: sdk });
   console.log(`apk: ${OUTPUTS.apk}`);
 }
 
@@ -374,7 +400,7 @@ async function signer(apk: string): Promise<string> {
  *  key, the root, and their SHA-256 sums, in dist/android/<version>/. The
  *  version is the app's versionName. */
 async function release() {
-  if (DEBUG) throw new Error("a release is the release build; drop --debug");
+  if (DEBUG || DEBUGGABLE) throw new Error("a release is the release build; drop --debug and --debuggable");
   if (!existsSync(SIGNING)) throw new Error(`no ${SIGNING}: the release key's properties (storeFile, storePassword, keyAlias, keyPassword)`);
   const gradle = readFileSync(join(APP, "build.gradle.kts"), "utf8");
   const version = gradle.match(/versionName = "([^"]+)"/)?.[1];
@@ -421,22 +447,24 @@ switch (command) {
   case "daemon": await daemon(); break;
   case "shell": await shell(); break;
   case "applets": await applets(process.argv.slice(3).filter((a) => !a.startsWith("--"))); break;
+  case "lody": await lody(); break;
   case "apk": await apk(); break;
   case "install": await install(); break;
   case "rootfs": await rootfs(); break;
   case "push-rootfs": await pushRootfs(); break;
   case "release": await release(); break;
-  case "exec": await exec(process.argv.slice(3).filter((a) => a !== "--debug").join(" ")); break;
+  case "exec": await exec(process.argv.slice(3).filter((a) => a !== "--debug" && a !== "--debuggable").join(" ")); break;
   case "all":
     await lib();
     await proot();
     await daemon();
     await shell();
     await applets([]);
+    await lody();
     await apk();
     await install();
     break;
   default:
-    console.error("usage: bun tools/android.ts lib|proot|daemon|shell|applets|apk|install|rootfs|push-rootfs|exec|all|release [--debug]");
+    console.error("usage: bun tools/android.ts lib|proot|daemon|shell|applets|lody|apk|install|rootfs|push-rootfs|exec|all|release [--debug|--debuggable]");
     process.exit(2);
 }

@@ -35,6 +35,10 @@ let y = Math.round(STAGE_H / 2);
 let node: NodeMirror | undefined;
 
 export const pointer = () => ({ x, y });
+/** the contact id of a pointer at rest (host/layers/pointer.ts HOVER_CONTACT) */
+const HOVER_CONTACT = 15;
+/** the pointer is drawn: it is the input in use */
+let visible = false;
 
 /** An applet window's touch surface on the stage: its origin, scale and size. */
 interface Surface {
@@ -167,6 +171,24 @@ export function pinchTo(ratio: number) {
   spread = Math.max(12, Math.min(360, SPREAD * ratio));
 }
 
+/** The pointer's button: A, pressed while a finger is on the trackpad
+ *  (app.tsx). Down, the pointer holds what is under it; the finger then drags
+ *  it, and A's release lets go. Pressed and released without travel, that is
+ *  a click. It is the one thing A does while a finger rests on the trackpad;
+ *  with no finger there A is the pad's own. */
+let button = false;
+export const pointerButton = () => button;
+/** A went down with a finger on the trackpad. On an applet the hold starts
+ *  (the trackpad sees `pointerButton` and holds, as it does for its Hold
+ *  key); anywhere else on the stage a press is a click. */
+export function pressPointer() {
+  button = true;
+  if (card() || onBar(y) || !appletPoint(x, y)) click();
+}
+export function releasePointer() {
+  button = false;
+}
+
 /** A click at the pointer. */
 export function click() {
   if (card()) {
@@ -198,8 +220,21 @@ export function hold(down: boolean, follow = true) {
 
 /** This frame's contacts [id, x, y] for applet `app` from the pointer. A held
  *  touch stays on the surface it began on, at its edge when it travels past. */
-export function pointerContacts(app: number): number[] {
-  if (!touch || touch.app !== app) return [];
+export function pointerContacts(app: number, hover = false): number[] {
+  if (!touch || touch.app !== app) {
+    // The pointer rests over the applet without pressing. An applet that reads
+    // a pointer is told where, as a contact with the hover id: the host program
+    // passes an applet's frame no pointer argument, so touch facts are the only
+    // channel a window's applet has, and the applet's bundle carries
+    // host/layers/pointer.ts, which turns that contact back into the frame's
+    // pointer (PocketJS pointer()). A press replaces it.
+    if (!hover || !visible || touch) return [];
+    const s = surfaceOfApp(app);
+    if (!s) return [];
+    const hx = (x - s.ox) / s.k;
+    const hy = (y - s.oy) / s.k;
+    return hx >= 0 && hy >= 0 && hx < s.w && hy < s.h ? [HOVER_CONTACT, hx, hy] : [];
+  }
   if (!touch.held && --touch.frames < 0) {
     touch = null;
     return [];
@@ -213,6 +248,9 @@ export function pointerContacts(app: number): number[] {
 }
 
 export function Pointer(props: { shown: () => boolean }) {
+  createEffect(() => {
+    visible = props.shown();
+  });
   createEffect(on(props.shown, (shown) => glide(node, "opacity", shown ? 1 : 0, 140), { defer: true }));
   return (
     <View class="absolute left-0 top-0 w-[20] h-[24]" style={{ translateX: x, translateY: y, opacity: 0 }} ref={(n: NodeMirror) => (node = n)}>

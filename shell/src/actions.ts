@@ -10,7 +10,7 @@ import { toggleMenu } from "./stage/menu.tsx";
 import { toggleSheet } from "./stage/keysheet.tsx";
 import { toast } from "./stage/toasts.tsx";
 import { state } from "./system.ts";
-import { closePackage, openPackage } from "./packages.ts";
+import { appletHover, appletPad, closePackage, openPackage } from "./packages.ts";
 import { closeTerminal, openTerminal } from "./term/store.ts";
 import { keyRepeating } from "./keys.ts";
 import { UCONSOLE } from "./screen.ts";
@@ -112,14 +112,14 @@ export function perform(action: Action) {
       const w = focused();
       if (!w) return openTerminal();
       if (w.kind === "terminal") return openTerminal();
-      if (w.kind === "app") return openPackage(w.path, w.title, w.aux, w.appletSurface);
+      if (w.kind === "app") return openPackage(w.path, w.title, w.aux, w.appletSurface, { pad: appletPad(w), hover: appletHover(w) });
       return say(`${appletById(w.applet)?.title ?? w.applet} has one window`);
     }
     case "reopen": {
       const last = takeClosed();
       if (!last) return say("Nothing closed yet");
       if (last.kind === "terminal") return openTerminal();
-      if (last.kind === "app") return openPackage(last.path, last.title, last.aux, last.appletSurface);
+      if (last.kind === "app") return openPackage(last.path, last.title, last.aux, last.appletSurface, { pad: appletPad(last), hover: appletHover(last) });
       return openApplet(last.applet);
     }
     case "wallpaper":

@@ -247,6 +247,61 @@ const BAKER_IDLE_MS = 10 * 60_000;
 /** Rasterized glyphs the baker keeps between atlases. */
 const RASTERS_KEPT = 6000;
 
+const PRINTABLE_ASCII = Array.from({ length: 0x7f - 0x20 }, (_, i) => 0x20 + i);
+
+/** The characters of an atlas an applet asks for, ascending: those of `text`,
+ *  and printable ASCII unless the request says `ascii: false`. An applet that
+ *  keeps its own table of glyphs (PocketUI's run-time faces) asks only for
+ *  the ones it lacks; one that loads each atlas whole needs ASCII in it. */
+export function atlasCodepoints(text: string, ascii: boolean): number[] {
+  const chars = new Set<number>(ascii ? PRINTABLE_ASCII : []);
+  for (const ch of text) {
+    const cp = ch.codePointAt(0)!;
+    if (cp >= 0x20) chars.add(cp);
+  }
+  return [...chars].sort((a, b) => a - b);
+}
+
+/** A FONT ATLAS v3 (PocketJS contracts/spec) with every glyph's strokes made
+ *  heavier: the bold of a face that has no bold cut on this device (wqy-microhei
+ *  is one weight). Each row of a cell's coverage is spread sideways by `spread`
+ *  device pixels, half to the left and the rest to the right, inside the cell;
+ *  advances stay, so bold text is as wide as regular. The default is a
+ *  twentieth of the size: two device pixels at 13 px and density 3. */
+export function emboldenAtlas(atlas: Uint8Array, spread?: number): Uint8Array {
+  if (atlas.length < 16) return atlas;
+  const view = new DataView(atlas.buffer, atlas.byteOffset, atlas.byteLength);
+  const count = view.getUint16(6, true);
+  const density = atlas[14] || 1;
+  const w = atlas[8]! * density;
+  const h = atlas[9]! * density;
+  const cells = 16 + count * 8;
+  if (w === 0 || atlas.length < cells + count * w * h) return atlas;
+  // the size the atlas was drawn at is not in its header; its line height is close to 1.3 of it
+  const by = Math.max(1, Math.round(spread ?? (atlas[11]! / 1.3) * density / 20));
+  const left = Math.floor(by / 2);
+  const right = by - left;
+  const out = atlas.slice();
+  // glyph 0 is the box drawn for a missing character: it stays as it is
+  for (let gid = 1; gid < count; gid++) {
+    const cell = cells + gid * w * h;
+    for (let y = 0; y < h; y++) {
+      const row = cell + y * w;
+      for (let x = 0; x < w; x++) {
+        let most = 0;
+        const from = Math.max(0, x - right);
+        const to = Math.min(w - 1, x + left);
+        for (let at = from; at <= to; at++) {
+          const value = atlas[row + at]!;
+          if (value > most) most = value;
+        }
+        out[row + x] = most;
+      }
+    }
+  }
+  return out;
+}
+
 interface AtlasJob {
   px: number;
   bold: boolean;
@@ -365,7 +420,8 @@ export async function atlasBakerMain() {
       // a few thousand glyphs at density 2 are about 10 MB
       if (rasters.size > RASTERS_KEPT) rasters.clear();
       const atlas = bakeSlot(font!, job.slot, job.px, job.bold, job.chars, job.density === 1 ? 1 : DENSITY, fallbacks, rasters);
-      writeFileSync(job.out, atlas.bytes);
+      // the faces here are one weight: bold is the same outlines made heavier
+      writeFileSync(job.out, job.bold ? emboldenAtlas(atlas.bytes, Math.max(1, Math.round((job.px * (job.density === 1 ? 1 : DENSITY)) / 20))) : atlas.bytes);
       console.log(JSON.stringify({ glyphs: atlas.glyphCount }));
     } catch (error) {
       console.log(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));

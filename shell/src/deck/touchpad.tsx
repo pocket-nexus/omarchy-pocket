@@ -4,8 +4,11 @@
 // takes no touch, so a finger here moves the pointer there (stage/pointer.tsx)
 // as a laptop's trackpad does, relative and accelerated. A tap clicks where the
 // pointer is. Two fingers scroll: the pointer stays where it is and the list
-// under it moves with the fingers. The round Hold button and a finger drag: the
-// pointer holds down and moves, which moves a slider or a picked-up row. In the
+// under it moves with the fingers. With a finger on the trackpad, A is the
+// pointer's button: pressed and let go it clicks, held while the finger moves
+// it drags (a selection, a slider, a picked-up row), as a laptop's trackpad
+// and its button do. The round Hold button and a finger do the same from the
+// screen alone. In the
 // keys layout the pointer shows from the first touch here until the next key.
 //
 // Two round buttons sit at the bottom of each margin and stay put when the
@@ -31,7 +34,7 @@ import { flip, TOP_LEFT } from "../motion.ts";
 import { appTextures } from "../packages.ts";
 import { closeSheet, sheetOpen } from "../stage/keysheet.tsx";
 import { chordSent, onTyped } from "../term/keyboard.tsx";
-import { click, hold, movePointer, pinchTo, scrollBy } from "../stage/pointer.tsx";
+import { click, hold, movePointer, pinchTo, pointerButton, scrollBy } from "../stage/pointer.tsx";
 import { color } from "../theme.ts";
 import { settled, type TouchFrame } from "../touch.ts";
 import { focused, type Win } from "../workspaces.ts";
@@ -90,6 +93,9 @@ export const surfacePackage = (): AppWin | null => {
 const SECOND_FRAMES = 5;
 const SECOND_APART = 40;
 /** the finger that moves the pointer, and whether its touch has dragged or scrolled */
+/** a finger is on the trackpad now: A is then the pointer's button (app.tsx) */
+let touching = false;
+export const padTouched = () => touching;
 let primary: number | null = null;
 let dragged = false;
 let scrolled = false;
@@ -127,8 +133,10 @@ export function touchpadTouch(frame: TouchFrame): number[] {
   const inPad = (x: number, y: number) => !keySink().field && !(l === "pad" && pinsEditing()) && inRect(rect, x, y);
   const onKey = (x: number, y: number) => inRect(ROUNDS.hold, x, y);
   const down = frame.down.filter(settled);
-  const keyDown = down.some((c) => onKey(c.start.x, c.start.y));
+  // the Hold key under a finger, or A held as the pointer's button (stage/pointer.tsx): either way the pointer holds
+  const keyDown = down.some((c) => onKey(c.start.x, c.start.y)) || pointerButton();
   const pad = down.filter((c) => inPad(c.start.x, c.start.y));
+  touching = pad.length > 0;
   if (pad.length && !awake()) setAwake(true);
   // a tap of the moving finger that did not travel, in a touch that never dragged, clicks
   for (const t of frame.taps) if (t.id === primary && !t.moved && !dragged && inPad(t.start.x, t.start.y)) click();
@@ -213,7 +221,7 @@ const line = () => {
   if (voice === "decoding") return "turning that into text";
   const sent = chordSent();
   if (sent) return `sent ${sent}`;
-  return keySink().hint?.() ?? (layout() === "pad" ? "tap to click · two fingers scroll or pinch" : "");
+  return keySink().hint?.() ?? (layout() === "pad" ? "tap or A to click · hold A and move to drag · two fingers scroll" : "");
 };
 
 function Pad() {

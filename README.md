@@ -56,6 +56,16 @@ From source: `bun tools/uconsole.ts all <user>@<uconsole>` builds the package an
 
 The windows' applets come from [pocket-nexus/applets](https://github.com/pocket-nexus/applets), the source Pocket Shell also builds for the 3DS and the Tab5. The pictures are each applet's first screen on its sample data, in the player at [applets.pocket.nexus](https://applets.pocket.nexus/); the Store applet installs them on the device.
 
+## Pocket Lody and PocketUI
+
+<p align="center"><img src="docs/media/pocket-lody-themes.webp" width="840" alt="Pocket Lody four times from one source: flat and dark in the Pocket theme, with a navy title bar, a menu bar and a pixel face in Classic 98, with a blue title bar in XP, with three lights and capsule buttons in Aqua"></p>
+
+[Pocket Lody](https://github.com/pocket-nexus/pocket-lody) is [Lody](https://github.com/LodyAI/Lody) as an applet: a team's coding-agent sessions, their transcripts as they are written, and a composer that takes Chinese from the deck's pinyin keyboard. It is vendored at `vendor/pocket-lody`: `bun tools/android.ts lody` builds it into the Android handhelds' app, and omarchy-pocketd answers its `lody` service (`daemon/companion.ts`) from the `lody` CLI on the device itself, from a bridge on another computer, or from sample data.
+
+It is written on PocketUI (`@pocketjs/framework/ui`, [PocketJS docs/POCKETUI.md](https://github.com/pocket-nexus/pocketjs/blob/main/docs/POCKETUI.md)), the UI layer of PocketJS. PocketUI lays out its own element tree (so text wraps, rows have their own heights and every control's rectangle is known) and gives each surface the idiom it can carry out in full: list beside detail in a 618-point window, one pane at a time in a 306-point one, a button legend and a command menu on a screen with no touch. An application written on it names parts and commands and no colour: the picture is one source in PocketUI's four themes, changed while it runs.
+
+**An applet that declares a presentation driven by buttons alone hears the pad's plain buttons in its window** (`shell/src/app.tsx`, `daemon/apps.ts`): Hacker News, X, YouTube, Discord, GitHub and Pocket Lody. It hears a button from the frame it goes down, so the B that closed the menu over it is not also its Back. The shoulders stay the window manager's.
+
 ## Documentation and layout
 
 - [docs/omarchy-pocket.md](docs/omarchy-pocket.md): boot chain, card layout, system image, device program, session, bridge and daemon, input, power, network, shell.
@@ -70,6 +80,7 @@ The windows' applets come from [pocket-nexus/applets](https://github.com/pocket-
 | Path | Contents |
 |---|---|
 | `shell/` | the PocketJS shell (Solid) |
+| `vendor/pocket-lody` | Pocket Lody (a submodule): the applet, its `lody` service and its tools, with Pocket Shell and its PocketJS vendored in it (`bun run setup` there). Its bundle carries `host/layers/pointer.ts`, which hands the shell's resting pointer to the applet as PocketJS's frame pointer |
 | `host/` | omarchy-pocket-host, the device program (Rust); `libomarchy_pocket.so` for the Android handhelds (`src/android.rs`, `src/gpu_android.rs`) |
 | `android/` | the Android handhelds' app (Java, Gradle), each handheld's host profile (`handhelds/<id>/pocket.host.json`: the AYN Thor's, the Retroid Pocket Duo Lite's) and the Linux root's `start.sh` |
 | `uconsole/` | the ClockworkPi uConsole's host profile (`pocket.host.json`), its package's files (`rootfs/`: `omarchy-root`, `omarchy-pocket-session`, the session's units, PAM, polkit, logind, tmpfiles) and maintainer scripts (`debian/`), and the release it installs the root from (`release.json`) |
@@ -86,6 +97,8 @@ The windows' applets come from [pocket-nexus/applets](https://github.com/pocket-
 | `experiments/hyprland-libmali/` | the Hyprland spike and the patched Hyprland package |
 
 The PocketJS framework, compiler, Linux drivers and the worker runtime come from `vendor/pocketjs`, a submodule at a commit of pocket-nexus/pocketjs main; the host crate, the shell and the tools import from it, and its tools need Bun 1.4.2. The companion's services (the `https://companion.pocket/<service>/` providers, the owner setup, `Supervised`) come from `vendor/pocket-hub`, a submodule of pocket-nexus/pocket-hub (private) with its own `vendor/pocketjs`: `git submodule update --init vendor/pocket-hub && git -C vendor/pocket-hub submodule update --init vendor/pocketjs`. The applets the shell opens in its windows come from `vendor/applets`, a submodule of [pocket-nexus/applets](https://github.com/pocket-nexus/applets): the same source Pocket Shell builds for the 3DS and the Tab5 ([docs/applets.md](docs/applets.md)). `git submodule update --init vendor/pocketjs vendor/applets` (not recursive: the applets build with this repository's PocketJS), then `bun install --cwd vendor/pocketjs --frozen-lockfile` and `POCKETJS_ROOT=vendor/pocketjs bun vendor/applets/tools/setup.ts`.
+
+Pocket Lody comes from `vendor/pocket-lody`, a submodule that builds with the Pocket Shell and PocketJS it vendors itself, newer than `vendor/pocketjs` here (the same binding generation, so the app's host program runs it): `git submodule update --init vendor/pocket-lody && (cd vendor/pocket-lody && bun run setup)`; `bun tools/android.ts lody` then builds it for each handheld with `host/layers/pointer.ts`.
 
 Pocket Term's grid and key code come from `vendor/pocket-term`, a submodule (`git submodule update --init vendor/pocket-term`, not recursive); `tools/build.ts daemon` installs the daemon's own dependencies (`daemon/package.json`: the libghostty VT core).
 

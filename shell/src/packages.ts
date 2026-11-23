@@ -8,7 +8,7 @@
 // current workspace is paused.
 import { BTN } from "@pocketjs/framework/input";
 import { createSignal } from "solid-js";
-import { onEvent } from "./bridge.ts";
+import { onEvent, request } from "./bridge.ts";
 import type { KeySink } from "./keys.ts";
 import { watching } from "./watch.ts";
 import { toast } from "./stage/toasts.tsx";
@@ -51,6 +51,36 @@ export function appletKeys(id: number): KeySink {
     close: () => host?.appText?.(id, "key", "Escape"),
     hint: () => "types into the window above · × closes its field",
   };
+}
+
+/** What an applet's manifest says its window may be given (daemon App):
+ *  `pad`, the pad's plain buttons, for an applet with a presentation driven
+ *  by buttons alone, which so has a way through its pages by the pad
+ *  (app.tsx feed); `hover`, where the stage pointer rests over it, for one
+ *  that lists `pointer` among its services (stage/pointer.tsx).
+ *  The window carries them when what opened it had the daemon's entry for
+ *  the package (the menu, a name, the store). A window opened by a path
+ *  alone (`pocket.window app`) asks the daemon once; until the answer it
+ *  hears Back and the pointer's presses alone. */
+export interface AppletTraits {
+  pad: boolean;
+  hover: boolean;
+}
+const [learned, setLearned] = createSignal<ReadonlyMap<string, AppletTraits>>(new Map());
+export const appletPad = (w: { path: string; pad: boolean }) => w.pad || learned().get(w.path)?.pad === true;
+export const appletHover = (w: { path: string; hover: boolean }) => w.hover || learned().get(w.path)?.hover === true;
+const fileOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+function learnTraits(path: string) {
+  void request<{ applet?: string; pad?: boolean; hover?: boolean }[]>({ method: "apps" }).then(
+    (apps) => {
+      // the daemon's path for the package, or the one package of that file name when the two
+      // spell the directory differently (another HOME, a symlink)
+      const same = apps.filter((app) => app.applet === path);
+      const named = same.length > 0 ? same : apps.filter((app) => app.applet && fileOf(app.applet) === fileOf(path));
+      if (named.length === 1) setLearned(new Map([...learned(), [path, { pad: named[0]!.pad === true, hover: named[0]!.hover === true }]]));
+    },
+    () => toast({ icon: ERROR, title: fileOf(path), body: "The pad is off in this window: the daemon did not answer", tone: "error" }),
+  );
 }
 
 /** The function row's Back: the focused touch app hears Cross for BACK_FRAMES frames. */
@@ -111,10 +141,11 @@ const isApp = (id: number) => (w: Win) => w.kind === "app" && w.app === id;
 /** Opens the package at `path` in a window beside the focused one. An
  *  applet's window shows its touch surface, and the deck becomes its pad
  *  (focus.ts). */
-export function openPackage(path: string, title: string, aux: boolean, applet = false) {
+export function openPackage(path: string, title: string, aux: boolean, applet = false, traits?: AppletTraits) {
   const id = host?.openApp?.(path) ?? -1;
   if (id < 0) return toast({ icon: ERROR, title, body: "This host cannot run packages", tone: "error" });
-  open({ kind: "app", app: id, path, title, aux, appletSurface: applet });
+  open({ kind: "app", app: id, path, title, aux, appletSurface: applet, pad: applet && traits?.pad === true, hover: applet && traits?.hover === true });
+  if (applet && traits === undefined) learnTraits(path);
 }
 
 /** Ends the package; its window closes now. */

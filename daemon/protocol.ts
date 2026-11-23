@@ -188,6 +188,17 @@ export interface App {
   /** a Pocket applet (manifest `applet`): its UI is its touch surface, which
    *  its window shows too; its top display is the system's */
   appletSurface?: boolean;
+  /** the applet declares a presentation driven by buttons alone (Pocket
+   *  Shell docs/APPLETS.md, the full screen), so it has a way through its pages by
+   *  the pad, and its window hears the pad's plain buttons. Not every control
+   *  need answer them: what an applet puts on the shoulders stays the window
+   *  manager's, and its legend may be hidden where there is touch */
+  pad?: boolean;
+  /** the applet reads a pointer (`input.pointer`, or `pointer` among its
+   *  services): its window is told where the stage pointer rests over it, as
+   *  a contact with the hover id that host/layers/pointer.ts in its bundle
+   *  turns into the frame's pointer, so what is under the pointer can show it */
+  hover?: boolean;
 }
 
 /** A run-time font atlas omarchy-pocketd baked (daemon/glyphs.ts). */

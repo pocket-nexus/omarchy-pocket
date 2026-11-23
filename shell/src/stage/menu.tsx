@@ -247,7 +247,7 @@ const appRows = (): Promise<MenuItem[]> => {
     ...applets().map((a) => ({ ...row(`apps.${a.id}`, a.icon, a.title, ""), open: a.id })),
   ];
   return request<App[]>({ method: "apps" }).then(
-    (apps) => [...windows, ...apps.map((a) => ({ ...row(`apps.${a.id}`, iconOf(a), a.name, a.command), applet: a.applet, aux: a.aux, appletSurface: a.appletSurface }))],
+    (apps) => [...windows, ...apps.map((a) => ({ ...row(`apps.${a.id}`, iconOf(a), a.name, a.command), applet: a.applet, aux: a.aux, appletSurface: a.appletSurface, pad: a.pad === true, hover: a.hover === true }))],
     () => windows,
   );
 };
@@ -286,7 +286,7 @@ function activate(item: MenuItem) {
   if (item.applet) {
     // a package opens in a window beside the focused one, as any window does
     closeMenu();
-    openPackage(item.applet, item.label, item.aux === true, item.appletSurface === true);
+    openPackage(item.applet, item.label, item.aux === true, item.appletSurface === true, { pad: item.pad === true, hover: item.hover === true });
     return;
   }
   if (item.action) {

@@ -38,7 +38,7 @@ export type Content =
   | { kind: "terminal"; sid: number }
   | { kind: "applet"; applet: string }
   /** a PocketJS package running beside the shell (host/src/children.rs) */
-  | { kind: "app"; app: number; path: string; title: string; aux: boolean; appletSurface: boolean };
+  | { kind: "app"; app: number; path: string; title: string; aux: boolean; appletSurface: boolean; pad: boolean; hover: boolean };
 export type Win = Content & { id: number; ws: number };
 
 export interface Rect {
