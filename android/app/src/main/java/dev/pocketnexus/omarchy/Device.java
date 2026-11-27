@@ -35,8 +35,8 @@ import org.json.JSONObject;
  * - each file omarchy-pocketd drops into android-commands is run and removed:
  *   the media volume, mute, brightness, a settings panel, a URL;
  * - the volume keys step the media volume by 5% and show Omarchy's OSD;
- * - the screen going off tells the shell `sleep`, and it locks, as Omarchy
- *   does before a suspend.
+ * - the Thor asks the shell to lock when its screen goes off. The Duo Lite
+ *   resumes its Pocket session when the handheld wakes.
  */
 final class Device {
     interface Brightness {
@@ -92,7 +92,9 @@ final class Device {
     void start() {
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_BATTERY_CHANGED);
-        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        if (Handheld.detect(context) != Handheld.RETROID_POCKET_DUO_LITE) {
+            filter.addAction(Intent.ACTION_SCREEN_OFF);
+        }
         filter.addAction("android.media.VOLUME_CHANGED_ACTION");
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
         filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
