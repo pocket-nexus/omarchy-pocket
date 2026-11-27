@@ -90,8 +90,6 @@ const LAYERS: Record<Layer, { rows: Key[][]; inset: number[] }> = {
 /** ten keys across the deck (51.2 points on the RG DS Plus, 41.3 on the Thor, 42.6 on the Duo Lite) */
 const UNIT = DECK_W / 10;
 const GAP = 5;
-/** Row height on the lock, where the keys have the deck to themselves. */
-const FULL_PITCH = 46;
 const EDGE = 6;
 const REPEAT_AFTER = 24;
 const REPEAT_EVERY = 4;
@@ -128,9 +126,8 @@ const placeRow = (row: Key[], inset: number, y: number, h: number): Placed[] => 
 /** The keys of `layer` laid out for `mode`. */
 function layoutFor(mode: KeyboardMode, layer: Layer) {
   const rows = LAYERS[layer].rows;
-  const pitch = mode === "full" ? FULL_PITCH : KEY_PITCH;
-  const top = mode === "full" ? DECK_H - EDGE - rows.length * FULL_PITCH : KEYS_TOP;
-  const keys = rows.flatMap((row, r) => placeRow(row, LAYERS[layer].inset[r]!, top + r * pitch, pitch));
+  const top = mode === "full" ? DECK_H - EDGE - rows.length * KEY_PITCH : KEYS_TOP;
+  const keys = rows.flatMap((row, r) => placeRow(row, LAYERS[layer].inset[r]!, top + r * KEY_PITCH, KEY_PITCH));
   return { keys, top, bottom: mode === "full" ? DECK_H : KEYS_BOTTOM };
 }
 const LAYOUTS = new Map<string, ReturnType<typeof layoutFor>>();

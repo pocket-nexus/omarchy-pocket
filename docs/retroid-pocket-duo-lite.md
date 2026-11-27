@@ -29,7 +29,7 @@ The runtime requires an auxiliary display of exactly its logical size times the 
 
 **The deck at 426 × 320 points** (`shell/src/deck/geometry.ts` takes its sizes from the surface):
 
-- the ten keys are **42.6 points (128 pixels, 8.5 mm)** apart, and four rows of keys leave the trackpad 302 × 96 points under them;
+- the ten keys are **42.6 points (128 pixels, 8.5 mm)** apart horizontally. The four 36-point rows occupy 45% of the lower display and leave a 302 × 128-point trackpad beneath them;
 - with the keys folded away the trackpad is **302 × 224 points**, the pins along the bottom between Hold and Close;
 - the trackpad's hint breaks at its separators into up to three lines that fit the pad (`shell/src/deck/hint.ts`): Clock's five-part hint takes three at 302 points;
 - the lock screen's keyboard and password line fit the 320 points as they are.
