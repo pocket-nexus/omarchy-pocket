@@ -29,7 +29,7 @@ The runtime requires an auxiliary display of exactly its logical size times the 
 
 **The deck at 426 × 320 points** (`shell/src/deck/geometry.ts` takes its sizes from the surface):
 
-- the ten keys are **42.6 points (128 pixels, 8.5 mm)** apart, and four rows of keys leave the trackpad 302 × 96 points under them;
+- the ten keys are **42.6 points (128 pixels, 8.5 mm)** apart horizontally. The four 36-point rows occupy 45% of the lower display and leave a 302 × 128-point trackpad beneath them;
 - with the keys folded away the trackpad is **302 × 224 points**, the pins along the bottom between Hold and Close;
 - the trackpad's hint breaks at its separators into up to three lines that fit the pad (`shell/src/deck/hint.ts`): Clock's five-part hint takes three at 302 points;
 - the lock screen's keyboard and password line fit the 320 points as they are.
@@ -54,6 +54,13 @@ Retroid's quick settings hold a **Controller style** tile, Retro or Xbox; the te
 
 The upper display's touch is not used, as on the Thor: the activity swallows it. HOME stays Android's, with Retroid's own panel behind it.
 
+## Starting and waking the handheld
+
+Opening Omarchy Pocket takes you straight to the desktop. After the screen
+turns off, waking the Duo Lite returns to your session. Choose **System › Lock**
+to require the Omarchy password, or set `idle.lock` in
+`~/.config/omarchy/shell.json` to an idle timeout in seconds.
+
 ## Launchers on the lower display
 
 The Duo Lite (and the Thor) show a launcher on the lower display too. A launch from there creates the activity on display 2, and a launch while the shell runs moves its task there. `MainActivity` is `singleTask`: starting itself on display 0 only hands the running instance an intent where it is, and its `finish` then removed the app (0.2.0). Now it starts `Relaunch` in a task of its own and removes its task; `Relaunch`, with no window, starts `MainActivity` on display 0 and finishes (`MainActivity.misplaced`, checked in `onCreate`, `onResume`, `onNewIntent` and on a configuration change).
@@ -72,7 +79,7 @@ On the release build (signed with the release key) and a debuggable build, with 
 
 - both displays render on the Adreno 610 at the profile's sizes; the 802 MB root from the 0.2.0 release installs in **about 33 seconds** and omarchy-pocketd connects;
 - L1 + A opens Omarchy's menu; Apps opens Activity (8 cores, their load and clock), Clock and Discord, tiled; Discord reaches its companion service (the setup instructions, not a refusal);
-- the deck's keys type `ls` and Return into a terminal; the screen going off locks the shell, and `omarchy` typed on the deck with A unlocks it;
+- the deck's keys type `ls` and Return into a terminal; on the original 0.2.1 release, the screen going off locked the shell and the deck could unlock it;
 - the Network panel turns Wi‑Fi on and off (`cmd wifi status`), asks for location on the upper display, and lists the scan with signal and lock marks;
 - the volume key shows the OSD at 40%;
 - L1 held (`input keyevent --longpress`) draws the legend in the Duo Lite's layout;

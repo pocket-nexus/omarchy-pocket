@@ -22,8 +22,10 @@ export interface Rect {
 }
 
 export const KEYS_TOP = 2;
-export const KEY_PITCH = 44;
-export const KEYS_BOTTOM = KEYS_TOP + 4 * KEY_PITCH;
+const KEY_ROWS = 4;
+/** Use about 45% of the lower display for the four rows, in whole layout points. */
+export const KEY_PITCH = Math.round(DECK_H * 0.45 / KEY_ROWS);
+export const KEYS_BOTTOM = KEYS_TOP + KEY_ROWS * KEY_PITCH;
 
 /** the margin around the body's parts, and between them */
 export const EDGE = 6;
